@@ -126,7 +126,7 @@ Section:NewToggle("Teleport to Saved Position (Loop)", "Continuously teleport ch
 
         spawn(function()
             while isTeleporting do
-                task.wait(0)  
+                task.wait(5)  
 
                 if getgenv().position and lp.Character and lp.Character.HumanoidRootPart then
                     lp.Character.HumanoidRootPart.CFrame = getgenv().position
@@ -161,7 +161,6 @@ Section:NewDropdown("Megalodon", "DropdownInf", {"Megalodon Default"}, function(
         end
     end
 end)
-
 Section:NewToggle("Auto Meteor Collect", "Continuously teleport and collect Meteor", function(state)
     getgenv().config.AutoMeteorCollect = state
 
@@ -182,12 +181,12 @@ Section:NewToggle("Auto Meteor Collect", "Continuously teleport and collect Mete
                         lp.Character.HumanoidRootPart.CFrame = meteor.CFrame
                         print("Teleported to Meteor Crater")
 
-                        wait(1)  -- Give time for teleport to finish
+                        wait(0)  -- Give time for teleport to finish
 
                         local VirtualInputManager = game:GetService("VirtualInputManager")
                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)  -- Press E to collect
                         
-                        wait(1)  -- Wait to ensure item collection
+                        wait(5)  -- Wait to ensure item collection
                         
                         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)  -- Release E
 
@@ -196,7 +195,7 @@ Section:NewToggle("Auto Meteor Collect", "Continuously teleport and collect Mete
                         -- Wait until item collection is confirmed
                         local itemCollected = false
                         repeat
-                            task.wait(0.5)
+                            task.wait(0)
                             local newMeteor = workspace.MeteorCrater and workspace.MeteorCrater:FindFirstChild("Root")
                             
                             if not newMeteor then
@@ -225,9 +224,6 @@ Section:NewToggle("Auto Meteor Collect", "Continuously teleport and collect Mete
         print("Auto Meteor Collect loop stopped")
     end
 end)
-
-
-
 Section:NewToggle("Teleport to Meg", "ToggleInfo", function(state)
 
 end)
