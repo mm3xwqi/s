@@ -167,37 +167,55 @@ Section:NewToggle("Auto Meteor Collect", "Continuously teleport and collect Mete
 
     if state then
         spawn(function()
-            while getgenv().config.AutoMeteorCollect do
-                task.wait(0)  
+            local lastCollectedMeteor = nil  -- Track the last collected meteor
 
-                
+            while getgenv().config.AutoMeteorCollect do
+                task.wait(0)
+
                 local meteor = workspace.MeteorCrater and workspace.MeteorCrater:FindFirstChild("Root")
 
                 if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and meteor then
-                    
-                    lp.Character.HumanoidRootPart.CFrame = meteor.CFrame
-                    print("Teleported to Meteor Crater")
+                    -- Check if we already collected this meteor
+                    if lastCollectedMeteor ~= meteor then
+                        lastCollectedMeteor = meteor
 
-                    wait(0.1)  
+                        lp.Character.HumanoidRootPart.CFrame = meteor.CFrame
+                        print("Teleported to Meteor Crater")
 
-                    
-                    local VirtualInputManager = game:GetService("VirtualInputManager")
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)  -- กด E
-                    wait(0.2)  
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)  -- ปล่อยปุ่ม E
+                        wait(1)  -- Give time for teleport to finish
 
-                    print("Item collected successfully")
+                        local VirtualInputManager = game:GetService("VirtualInputManager")
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)  -- Press E to collect
+                        
+                        wait(1)  -- Wait to ensure item collection
+                        
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)  -- Release E
 
-                    
-                    repeat
-                        task.wait(1)
-                        meteor = workspace.MeteorCrater and workspace.MeteorCrater:FindFirstChild("Root")
-                    until meteor  
+                        print("Item collected successfully")
 
-                    print("New Meteor detected, teleporting again...")
+                        -- Wait until item collection is confirmed
+                        local itemCollected = false
+                        repeat
+                            task.wait(0.5)
+                            local newMeteor = workspace.MeteorCrater and workspace.MeteorCrater:FindFirstChild("Root")
+                            
+                            if not newMeteor then
+                                itemCollected = true  -- If meteor disappears after collection
+                                print("Item confirmed collected, stopping teleport...")
+                                break
+                            end
+                        until itemCollected
 
+                        if itemCollected then
+                            -- Stop teleport after collecting
+                            getgenv().config.AutoMeteorCollect = false
+                            print("Auto Meteor Collect loop stopped after collecting item")
+                            return
+                        end
+
+                    end
                 else
-                    warn("Meteor หรือ Character ไม่พบ")
+                    warn("Meteor or Character not found")
                     break
                 end
             end
@@ -207,8 +225,6 @@ Section:NewToggle("Auto Meteor Collect", "Continuously teleport and collect Mete
         print("Auto Meteor Collect loop stopped")
     end
 end)
-
-
 
 
 
