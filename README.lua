@@ -1,12 +1,13 @@
+
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("Test", "Synapse")
+local Window = Library.CreateLib("donnyboy009", "Synapse")
+
 
 local Tab = Window:NewTab("Main")
 local Section = Tab:NewSection("fish")
 
 local lp = game.Players.LocalPlayer
 local re = game.ReplicatedStorage
-
 
 getgenv().config = getgenv().config or {}
 getgenv().config.auto_thorown_rod = false
@@ -81,9 +82,9 @@ Section:NewToggle("auto reel", "ToggleInfo", function(state)
 
         spawn(function()
             while getgenv().config.auto_reel do
-                task.wait(0)  -- เพิ่ม delay เพื่อให้สคริปต์ไม่รันเร็วเกินไป
+                task.wait(0.5)  
 
-                -- ตรวจสอบว่ามี GUI 'reel' หรือไม่
+                
                 local playerGui = lp:FindFirstChild("PlayerGui")
                 if playerGui then
                     local reel = playerGui:FindFirstChild("reel")
@@ -91,7 +92,7 @@ Section:NewToggle("auto reel", "ToggleInfo", function(state)
                     if reel then
                         print("Reel found!")
 
-                        -- Fire Event สำหรับการรีล
+                        
                         if re and re.events and re.events.reelfinished then
                             print("Attempting to fire reelfinished event")
                             local success, errorMsg = pcall(function()
@@ -120,7 +121,7 @@ Section:NewToggle("auto reel", "ToggleInfo", function(state)
         print("Auto Reel has been disabled")
     end
 end)
-local isTeleporting = false  -- ตัวแปรเช็คสถานะ Toggle
+local isTeleporting = false  
 
 Section:NewToggle("Teleport to Saved Position (Loop)", "Continuously teleport character to saved position", function(state)
     if state then
@@ -128,7 +129,7 @@ Section:NewToggle("Teleport to Saved Position (Loop)", "Continuously teleport ch
 
         spawn(function()
             while isTeleporting do
-                task.wait(0)  -- Delay เล็กน้อย เพื่อไม่ให้สคริปต์ทำงานเร็วเกินไป
+                task.wait(0)  
 
                 if getgenv().position and lp.Character and lp.Character.HumanoidRootPart then
                     lp.Character.HumanoidRootPart.CFrame = getgenv().position
@@ -163,6 +164,56 @@ Section:NewDropdown("Megalodon", "DropdownInf", {"Megalodon Default"}, function(
         end
     end
 end)
+
+Section:NewToggle("Auto Meteor Collect", "Continuously teleport and collect Meteor", function(state)
+    getgenv().config.AutoMeteorCollect = state
+
+    if state then
+        spawn(function()
+            while getgenv().config.AutoMeteorCollect do
+                task.wait(0)  
+
+                
+                local meteor = workspace.MeteorCrater and workspace.MeteorCrater:FindFirstChild("Root")
+
+                if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and meteor then
+                    
+                    lp.Character.HumanoidRootPart.CFrame = meteor.CFrame
+                    print("Teleported to Meteor Crater")
+
+                    wait(0.1)  
+
+                    
+                    local VirtualInputManager = game:GetService("VirtualInputManager")
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)  -- กด E
+                    wait(0.2)  
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)  -- ปล่อยปุ่ม E
+
+                    print("Item collected successfully")
+
+                    
+                    repeat
+                        task.wait(1)
+                        meteor = workspace.MeteorCrater and workspace.MeteorCrater:FindFirstChild("Root")
+                    until meteor  
+
+                    print("New Meteor detected, teleporting again...")
+
+                else
+                    warn("Meteor หรือ Character ไม่พบ")
+                    break
+                end
+            end
+        end)
+    else
+        getgenv().config.AutoMeteorCollect = false
+        print("Auto Meteor Collect loop stopped")
+    end
+end)
+
+
+
+
 
 Section:NewToggle("Teleport to Meg", "ToggleInfo", function(state)
 
