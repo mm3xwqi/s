@@ -81,7 +81,7 @@ Section:NewToggle("auto reel", "ToggleInfo", function(state)
 
         spawn(function()
             while getgenv().config.auto_reel do
-                task.wait(0.5)  -- เพิ่ม delay เพื่อให้สคริปต์ไม่รันเร็วเกินไป
+                task.wait(0)  -- เพิ่ม delay เพื่อให้สคริปต์ไม่รันเร็วเกินไป
 
                 -- ตรวจสอบว่ามี GUI 'reel' หรือไม่
                 local playerGui = lp:FindFirstChild("PlayerGui")
