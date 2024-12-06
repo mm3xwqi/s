@@ -126,7 +126,7 @@ Section:NewToggle("Teleport to Saved Position (Loop)", "Continuously teleport ch
 
         spawn(function()
             while isTeleporting do
-                task.wait(5)  
+                task.wait(0)  
 
                 if getgenv().position and lp.Character and lp.Character.HumanoidRootPart then
                     lp.Character.HumanoidRootPart.CFrame = getgenv().position
@@ -161,69 +161,70 @@ Section:NewDropdown("Megalodon", "DropdownInf", {"Megalodon Default"}, function(
         end
     end
 end)
+local lp = game.Players.LocalPlayer
+local re = game.ReplicatedStorage
+local GuiService = game:GetService("GuiService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Define the NewToggle function
 Section:NewToggle("Auto Meteor Collect", "Continuously teleport and collect Meteor", function(state)
-    getgenv().config.AutoMeteorCollect = state
-
     if state then
-        spawn(function()
-            local lastCollectedMeteor = nil  -- Track the last collected meteor
+        getgenv().config.auto_collect_meteor = true
 
-            while getgenv().config.AutoMeteorCollect do
+        spawn(function()
+            while getgenv().config.auto_collect_meteor do
                 task.wait(0)
 
-                local meteor = workspace.MeteorCrater and workspace.MeteorCrater:FindFirstChild("Root")
+                local lp = game.Players.LocalPlayer
+                local character = lp.Character
+                local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
 
-                if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and meteor then
-                    -- Check if we already collected this meteor
-                    if lastCollectedMeteor ~= meteor then
-                        lastCollectedMeteor = meteor
+                if humanoidRootPart then
+                    local root = workspace:FindFirstChild("MeteorCrater")
+                    if root and root:FindFirstChild("Root") then
+                        local rootPosition = root.Root.Position
 
-                        lp.Character.HumanoidRootPart.CFrame = meteor.CFrame
-                        print("Teleported to Meteor Crater")
+                        -- Teleport player to MeteorCrater
+                        humanoidRootPart.CFrame = CFrame.new(rootPosition)
 
-                        wait(0)  -- Give time for teleport to finish
+                        wait(0.5)  -- Wait briefly to ensure teleportation
 
-                        local VirtualInputManager = game:GetService("VirtualInputManager")
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)  -- Press E to collect
-                        
-                        wait(5)  -- Wait to ensure item collection
-                        
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)  -- Release E
+                        -- Simulate pressing E using VirtualInputManager
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, nil)
+                        wait(0.1)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, nil)
 
-                        print("Item collected successfully")
+                        print("Press E simulated successfully")
 
-                        -- Wait until item collection is confirmed
-                        local itemCollected = false
-                        repeat
-                            task.wait(0)
-                            local newMeteor = workspace.MeteorCrater and workspace.MeteorCrater:FindFirstChild("Root")
-                            
-                            if not newMeteor then
-                                itemCollected = true  -- If meteor disappears after collection
-                                print("Item confirmed collected, stopping teleport...")
-                                break
-                            end
-                        until itemCollected
+                        wait(1)  -- Wait a little to check if meteor collection is successful
 
-                        if itemCollected then
-                            -- Stop teleport after collecting
-                            getgenv().config.AutoMeteorCollect = false
-                            print("Auto Meteor Collect loop stopped after collecting item")
-                            return
+                        -- Check if meteor has been collected
+                        if not root:FindFirstChild("Root") then
+                            -- Meteor has been collected, remove root reference
+                            root:Destroy()  -- Clean up MeteorCrater
+                            print("Meteor collected and Root removed")
                         end
 
+                    else
+                        warn("MeteorCrater.Root not found")
                     end
                 else
-                    warn("Meteor or Character not found")
-                    break
+                    warn("HumanoidRootPart not found in Character")
                 end
+
+                wait(0.1)  -- Minor delay to prevent infinite loop overload
             end
         end)
+
     else
-        getgenv().config.AutoMeteorCollect = false
-        print("Auto Meteor Collect loop stopped")
+        getgenv().config.auto_collect_meteor = false
+        print("Auto collect Meteor loop stopped")
     end
 end)
+
+
+
 Section:NewToggle("Teleport to Meg", "ToggleInfo", function(state)
 
 end)
