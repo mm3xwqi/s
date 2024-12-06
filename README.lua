@@ -2,60 +2,60 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHept
 local Window = Library.CreateLib("test", "DarkTheme")
 local Tab = Window:NewTab("Main")
 local Section = Tab:NewSection("fish")
-    Section:NewToggle("Auto Reel Perfect Catch", "Continuously catch perfect items", function(state)
-        getgenv().config.auto_reel_perfect_catch = state
-    
-        if state then
-            spawn(function()
-                while getgenv().config.auto_reel_perfect_catch do
-                    task.wait(0.1)  -- เพิ่มการรอ 0.1 วินาทีเพื่อให้ loop ไม่ทำงานเร็วเกินไป
-    
-                    local playerGui = lp:FindFirstChild("PlayerGui")
-    
-                    if playerGui then
-                        local reel = playerGui:FindFirstChild("reel")
-    
-                        if reel then
-                            print("Reel GUI found!")
-    
-                            -- รอให้ event `re` โหลดก่อน
-                            local re = game.ReplicatedStorage:FindFirstChild("re")
-                            
-                            if re and re.events and re.events.reelfinished then
-                                local success, errMsg = pcall(function()
-                                    re.events.reelfinished:FireServer(100, true)
-                                end)
-    
-                                if success then
-                                    print("Successfully triggered reelfinished event")
-                                else
-                                    warn("Failed to trigger reelfinished event:", errMsg)
-                                end
-                            else
-                                warn("Event reelfinished not found in re.events")
-                            end
-                        else
-                            warn("Reel GUI not found in PlayerGui")
-                        end
-                    else
-                        warn("PlayerGui not found")
-                    end
-                    task.wait(0.5)  -- รอครึ่งวินาทีอีกทีเพื่อประสิทธิภาพที่เหมาะสม
-                end
-            end)
-        else
-            getgenv().config.auto_reel_perfect_catch = false
-            print("Auto Reel Perfect Catch loop stopped")
-        end
-    end)
-    
-
 
 local lp = game.Players.LocalPlayer
 local re = game.ReplicatedStorage
 
 getgenv().config = getgenv().config or {}
 getgenv().config.auto_thorown_rod = false
+
+Section:NewToggle("Barsize", function(state)
+    -- ตัวแปรเก็บสถานะ Toggle
+local isToggledOn = false
+
+-- ตัวแปรเก็บขนาดเดิมของ playerBar
+local originalSize = nil
+
+-- ฟังก์ชันรีเซ็ตขนาด playerBar
+local function setFixedSize()
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+    local playerBar = player.PlayerGui:FindFirstChild("reel") and player.PlayerGui.reel:FindFirstChild("bar") and player.PlayerGui.reel.bar:FindFirstChild("playerbar")
+
+    if playerBar then
+        originalSize = playerBar.Size -- เก็บขนาดเดิมไว้
+        playerBar.Size = UDim2.new(1, 30, 0, 33) -- รีเซ็ตขนาด
+    end
+end
+
+local function restoreOriginalSize()
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+    local playerBar = player.PlayerGui:FindFirstChild("reel") and player.PlayerGui.reel:FindFirstChild("bar") and player.PlayerGui.reel.bar:FindFirstChild("playerbar")
+
+    if playerBar and originalSize then
+        playerBar.Size = originalSize 
+    end
+end
+
+-- สร้าง Toggle Button
+local Toggle = Tabs.Main:AddToggle("MyToggle", { Title = "Toggle", Default = false })
+
+
+
+    if isToggledOn then
+        print("Toggle ON: Resizing playerBar")
+        spawn(function()
+            while isToggledOn do
+                setFixedSize()
+                wait(0.1)
+            end
+        end)
+    else
+        print("Toggle OFF: Restoring playerBar size")
+        restoreOriginalSize() 
+    end
+end)
 
 Section:NewToggle("Auto Throw Rod", "Automatically throw the rod", function(state)
     if state then
