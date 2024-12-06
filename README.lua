@@ -1,54 +1,54 @@
-
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("donnyboy009", "Synapse")
-
-
+local Window = Library.CreateLib("test", "DarkTheme")
 local Tab = Window:NewTab("Main")
 local Section = Tab:NewSection("fish")
-Section:NewToggle("Auto Reel Perfect Catch", "Continuously catch perfect items", function(state)
-    getgenv().config.auto_reel_perfect_catch = state
-
-    if state then
-        spawn(function()
-            while getgenv().config.auto_reel_perfect_catch do
-                task.wait(0)
-
-                local playerGui = lp:FindFirstChild("PlayerGui")
-                
-                if playerGui then
-                    local reel = playerGui:FindFirstChild("reel")
-
-                    if reel then
-                        print("Reel GUI found!")
-
-                        if re and re.events and re.events.reelfinished then
-                            local success, errMsg = pcall(function()
-                                re.events.reelfinished:FireServer(100, true)
-                            end)
-
-                            if success then
-                                print("Successfully triggered reelfinished event")
+    Section:NewToggle("Auto Reel Perfect Catch", "Continuously catch perfect items", function(state)
+        getgenv().config.auto_reel_perfect_catch = state
+    
+        if state then
+            spawn(function()
+                while getgenv().config.auto_reel_perfect_catch do
+                    task.wait(0.1)  -- เพิ่มการรอ 0.1 วินาทีเพื่อให้ loop ไม่ทำงานเร็วเกินไป
+    
+                    local playerGui = lp:FindFirstChild("PlayerGui")
+    
+                    if playerGui then
+                        local reel = playerGui:FindFirstChild("reel")
+    
+                        if reel then
+                            print("Reel GUI found!")
+    
+                            -- รอให้ event `re` โหลดก่อน
+                            local re = game.ReplicatedStorage:FindFirstChild("re")
+                            
+                            if re and re.events and re.events.reelfinished then
+                                local success, errMsg = pcall(function()
+                                    re.events.reelfinished:FireServer(100, true)
+                                end)
+    
+                                if success then
+                                    print("Successfully triggered reelfinished event")
+                                else
+                                    warn("Failed to trigger reelfinished event:", errMsg)
+                                end
                             else
-                                warn("Failed to trigger reelfinished event:", errMsg)
+                                warn("Event reelfinished not found in re.events")
                             end
                         else
-                            warn("Event reelfinished not found in re.events")
+                            warn("Reel GUI not found in PlayerGui")
                         end
                     else
-                        warn("Reel GUI not found in PlayerGui")
+                        warn("PlayerGui not found")
                     end
-                else
-                    warn("PlayerGui not found")
+                    task.wait(0.5)  -- รอครึ่งวินาทีอีกทีเพื่อประสิทธิภาพที่เหมาะสม
                 end
-
-                task.wait(0)
-            end
-        end)
-    else
-        getgenv().config.auto_reel_perfect_catch = false
-        print("Auto Reel Perfect Catch loop stopped")
-    end
-end)
+            end)
+        else
+            getgenv().config.auto_reel_perfect_catch = false
+            print("Auto Reel Perfect Catch loop stopped")
+        end
+    end)
+    
 
 
 local lp = game.Players.LocalPlayer
