@@ -7,9 +7,9 @@ local Char = LocalPlayer.Character
 equipitem = function(v)
     if LocalPlayer.Backpack:FindFirstChild(v) then
         local a = LocalPlayer.Backpack:FindFirstChild(v)
-            Humanoid:EquipTool(a)
-        end
+        Humanoid:EquipTool(a)
     end
+end
 
 
 local rod = game:GetService("Players").LocalPlayer.Character:FindFirstChild("Tool")
@@ -86,14 +86,23 @@ local tgls = serv:Channel("Toggles")
 tgls:Toggle(
     "Auto Equip",
     false,
-    function(r)
-        local Rod = Char:FindFirstChildOfClass("Tool")
+    function(v)
+        if v then
+            for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+                if v:IsA("Tool") and v.Name:lower():find("rod") then
+                    equipitem(v.Name)  
+                    break 
+                end
+            end
+        else
+        end
     end
 )
 
 
-for i,v in pairs(LocalPlayer.Backpack:GetChildren()) do
-    if v:IsA ("Tool") and v.Name:lower():find("rod") then
-    equipitem(v.Name)
+for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+    if v:IsA("Tool") and v.Name:lower():find("rod") then
+        equipitem(v.Name)
+        break  
     end
 end
