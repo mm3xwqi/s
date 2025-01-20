@@ -5,9 +5,15 @@ local GuiService = game:GetService("GuiService")
 local Char = LocalPlayer.Character
 
 equipitem = function(v)
-    if LocalPlayer.Backpack:FindFirstChild(v) then
-        local a = LocalPlayer.Backpack:FindFirstChild(v)
-        Humanoid:EquipTool(a)
+    local tool = LocalPlayer.Backpack:FindFirstChild(v)
+    if tool then
+        local character = LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:EquipTool(tool)
+            end
+        end
     end
 end
 
@@ -21,9 +27,9 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-v0.01")
+local win = DiscordLib:Window("Fisch-v0.02")
 
-local serv = win:Server("Preview", "")
+local serv = win:Server("Main", "")
 
 local btns = serv:Channel("Buttons")
 
@@ -90,19 +96,17 @@ tgls:Toggle(
         if v then
             for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
                 if v:IsA("Tool") and v.Name:lower():find("rod") then
-                    equipitem(v.Name)  
-                    break 
+                    equipitem(v.Name)
+                    break
                 end
             end
-        else
         end
     end
 )
 
-
 for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
     if v:IsA("Tool") and v.Name:lower():find("rod") then
         equipitem(v.Name)
-        break  
+        break
     end
 end
