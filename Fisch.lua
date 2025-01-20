@@ -78,6 +78,8 @@ btns:Button(
     while true do
         local R = LocalPlayer.Character:FindFirstChildOfClass("Tool")
         R.events.cast:FireServer(1,1)
+            wait(0.1)
+        end
     end
 end
 )
