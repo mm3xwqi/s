@@ -21,11 +21,11 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-v0.05")
+local win = DiscordLib:Window("Fisch-v0.06")
 
 local serv = win:Server("Main", "")
 
-local btns = serv:Channel("SetFising")
+local btns = serv:Channel("Buttons")
 
 btns:Button(
         "SellAll",
@@ -34,6 +34,13 @@ btns:Button(
             game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
             wait(2)
         end
+    end
+)
+
+btns:Button(
+    "SellAll 1Time",
+    function ()
+        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
     end
 )
 
@@ -82,7 +89,6 @@ end
 
 
 local running = false  
-
 local function startAutoEquip()
     running = true  
     while running do
@@ -113,7 +119,7 @@ local function stopAutoEquip()
     running = false  
 end
 
-local tgls = serv:Channel("Auto")
+local tgls = serv:Channel("Toggles")
 
 tgls:Toggle(
     "Auto Equip",
