@@ -21,11 +21,11 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-v0.03")
+local win = DiscordLib:Window("Fisch-v0.04")
 
 local serv = win:Server("Main", "")
 
-local btns = serv:Channel("Buttons")
+local btns = serv:Channel("SetFising")
 
 btns:Button(
         "SellAll",
@@ -81,20 +81,34 @@ end
 )
 
 
-local tgls = serv:Channel("Toggles")
+local tgls = serv:Channel("Auto")
 
 tgls:Toggle(
     "Auto Equip",
     false,
     function(v)
-        while true do
-        for i,v in pairs(LocalPlayer.Backpack:GetChildren()) do
-            if v:IsA ("Tool") and v.Name:lower():find("rod") then
-                equipitem(v.Name)
-                wait(1)
+        while v do
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+
+                local holdingRod = false
+                for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
+                    if tool:IsA("Tool") and tool.Name:lower():find("rod") then
+                        holdingRod = true
+                        break
+                    end
+                end
+                
+                if not holdingRod then
+                    for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+                        if v:IsA("Tool") and v.Name:lower():find("rod") then
+                            equipitem(v.Name)
+                            wait(2) 
+                            break
+                        end
+                    end
+                end
             end
-            end
-        break
+            wait(1) 
+        end
     end
-end
 )
