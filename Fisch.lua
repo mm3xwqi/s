@@ -77,29 +77,6 @@ btns:Button(
 )
 
 btns:Button(
-    "Stop-Shake",
-    function()
-        while true do
-            local shakeUI = PlayerGUI:FindFirstChild("shakeui")
-            if shakeUI and shakeUI.Enabled then
-                local safezone = shakeUI:FindFirstChild("safezone")
-                if safezone then
-                    local button = safezone:FindFirstChild("button")
-                    if button and button:IsA("ImageButton") and button.Visible then
-                        GuiService.SelectedObject = button
-                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-                        break
-                    end
-                end
-            end
-            wait(0.1)
-        end
-    end
-)
-
-
-btns:Button(
     "Cast",
     function()
         local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
