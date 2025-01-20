@@ -101,13 +101,16 @@ btns:Button(
 btns:Button(
     "Cast",
     function()
-    while true do
-        local R = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        R.events.cast:FireServer(1,1)
-        wait(0.1)
+        local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if tool then
+            while true do
+                tool.events.cast:FireServer(1,1)
+                wait(0.1)
+            end
+        end
     end
-end
 )
+
 
 
 local running = false  
