@@ -4,16 +4,10 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 local Char = LocalPlayer.Character
 
-equipitem = function(v)
-    local tool = LocalPlayer.Backpack:FindFirstChild(v)
-    if tool then
-        local character = LocalPlayer.Character
-        if character then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:EquipTool(tool)
-            end
-        end
+equipitem = function (v)
+    if LocalPlayer.Backpack:FindFirstChild(v) then
+        local Eq = LocalPlayer.Backpack:FindFirstChild(v)
+        LocalPlayer.Character.Humanoid:EquipTool(Eq)
     end
 end
 
@@ -27,7 +21,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-v0.02")
+local win = DiscordLib:Window("Fisch-v0.03")
 
 local serv = win:Server("Main", "")
 
@@ -93,20 +87,14 @@ tgls:Toggle(
     "Auto Equip",
     false,
     function(v)
-        if v then
-            for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
-                if v:IsA("Tool") and v.Name:lower():find("rod") then
-                    equipitem(v.Name)
-                    break
-                end
+        while true do
+        for i,v in pairs(LocalPlayer.Backpack:GetChildren()) do
+            if v:IsA ("Tool") and v.Name:lower():find("rod") then
+                equipitem(v.Name)
+                wait(1)
             end
-        end
-    end
-)
-
-for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
-    if v:IsA("Tool") and v.Name:lower():find("rod") then
-        equipitem(v.Name)
+            end
         break
     end
 end
+)
