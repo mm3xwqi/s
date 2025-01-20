@@ -21,7 +21,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-v0.07")
+local win = DiscordLib:Window("Fisch-v0.08")
 
 local serv = win:Server("Main", "")
 
@@ -70,6 +70,28 @@ btns:Button(
                         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
                     end
                 end
+            end
+            wait(0.1)
+        end
+    end
+)
+
+btns:Button(
+        "Stop-Shake",
+        function()
+            while true do
+            local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+            if shakeUI and shakeUI.Enabled then
+                local safezone = shakeUI:FindFirstChild("safezone")
+                if safezone then
+                    local button = safezone:FindFirstChild("button")
+                    if button and button:IsA("ImageButton") and button.Visible then
+                        GuiService.SelectedObject = button
+                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                    end
+                end
+                break
             end
             wait(0.1)
         end
