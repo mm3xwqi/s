@@ -75,32 +75,48 @@ end
 
 local tgls = serv:Channel("Toggles")
 
+local autoEquipActive = true
+
+local function equipitem(itemName)
+    if LocalPlayer.Backpack:FindFirstChild(itemName) then
+        local Eq = LocalPlayer.Backpack:FindFirstChild(itemName)
+        LocalPlayer.Character.Humanoid:EquipTool(Eq)
+    end
+end
+
+local function unequipItem()
+    if LocalPlayer.Character.Humanoid:FindFirstChildOfClass("Tool") then
+        LocalPlayer.Character.Humanoid:FindFirstChildOfClass("Tool"):Unequip()
+    end
+end
+
+local function checkForRodInBackpack()
+    for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if v:IsA("Tool") and v.Name:lower():find("rod") then
+            equipitem(v.Name)
+            return 
+        end
+    end
+    return false  
+end
+
+local function autoEquipLoop()
+    while autoEquipActive do
+        if not checkForRodInBackpack() then
+            unequipItem()
+        end
+        wait(1)  
+    end
+end
+
+autoEquipLoop()
+
 tgls:Toggle(
     "Auto EquipRod",
     false,
-    function (v)
-        local function equipitem(itemName)
-            if LocalPlayer.Backpack:FindFirstChild(itemName) then
-                local Eq = LocalPlayer.Backpack:FindFirstChild(itemName)
-                LocalPlayer.Character.Humanoid:EquipTool(Eq)
-            end
-        end
-        
-        local function unequipItem()
-            if LocalPlayer.Character.Humanoid:FindFirstChildOfClass("Tool") then
-                LocalPlayer.Character.Humanoid:FindFirstChildOfClass("Tool"):Unequip()
-            end
-        end
-        if v then
-            for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
-                if v:IsA("Tool") and v.Name:lower():find("rod") then
-                    equipitem(v.Name)
-                    break 
-                end
-            end
-        else
-            unequipItem()
-        end
+    function(v)
+        autoEquipActive = v  
     end
 )
+
 
