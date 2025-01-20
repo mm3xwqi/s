@@ -9,18 +9,7 @@ if rod and rod:FindFirstChild("events") and rod.events:FindFirstChild("cast") th
     rod.events.cast:FireServer(1, 1)
 end
 
-equipitem = function (v)
-    if LocalPlayer.Backpack:FindFirstChild(v) then
-        local Eq = LocalPlayer.Backpack:FindFirstChild(v)
-        LocalPlayer.Character.Humanoid:EquipTool(Eq)
-    end
-end
 
-for i,v in pairs(LocalPlayer.Backpack:GetChildren()) do
-    if v:IsA ("Tool") and v.Name:lower():find("rod") then
-        equipitem(v.Name)
-    end
-end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
@@ -82,3 +71,36 @@ btns:Button(
     end
 end
 )
+
+
+local tgls = serv:Channel("Toggles")
+
+tgls:Toggle(
+    "Auto EquipRod",
+    false,
+    function (v)
+        local function equipitem(itemName)
+            if LocalPlayer.Backpack:FindFirstChild(itemName) then
+                local Eq = LocalPlayer.Backpack:FindFirstChild(itemName)
+                LocalPlayer.Character.Humanoid:EquipTool(Eq)
+            end
+        end
+        
+        local function unequipItem()
+            if LocalPlayer.Character.Humanoid:FindFirstChildOfClass("Tool") then
+                LocalPlayer.Character.Humanoid:FindFirstChildOfClass("Tool"):Unequip()
+            end
+        end
+        if v then
+            for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+                if v:IsA("Tool") and v.Name:lower():find("rod") then
+                    equipitem(v.Name)
+                    break 
+                end
+            end
+        else
+            unequipItem()
+        end
+    end
+)
+
