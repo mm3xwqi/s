@@ -21,7 +21,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-v0.10")
+local win = DiscordLib:Window("Fisch-v0.11")
 
 local serv = win:Server("Main", "")
 
@@ -71,7 +71,7 @@ btns:Button(
                     end
                 end
             end
-            wait(0.1)
+            wait(0)
         end
     end
 )
