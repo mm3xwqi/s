@@ -71,7 +71,7 @@ btns:Button(
                     end
                 end
             end
-            wait(0)
+            wait(0.1)
         end
     end
 )
