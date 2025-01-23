@@ -33,7 +33,7 @@ local win = DiscordLib:Window("Fisch-v0.12")
 
 local serv = win:Server("Main", "")
 
-local btns = serv:Channel("Buttons")
+local btns = serv:Channel("Fising")
 
 btns:Button(
         "SellAll",
@@ -139,7 +139,7 @@ local function stopAutoEquip()
     running = false  
 end
 
-local tgls = serv:Channel("Toggles")
+local tgls = serv:Channel("Auto")
 
 tgls:Toggle(
     "Auto-Equip",
@@ -153,6 +153,7 @@ tgls:Toggle(
     end
 )
 
+local serv = win:Server("Teleport", "")
 
 local drops = serv:Channel("tp-Islands")
 
@@ -181,4 +182,3 @@ drops:Button(
         end
     end
 )
-
