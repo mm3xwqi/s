@@ -153,7 +153,7 @@ tgls:Toggle(
 local reelP = false
 local run = false 
 
-btns:Button(
+tgls:Toggle(
         "reel(No-Perfect)",
         function()
         reelP = not reelP
@@ -173,7 +173,7 @@ local shakeE = false
 local run = false 
 
 local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-btns:Button(
+tgls:Toggle(
         "Shake",
         function()
             shakeE = not shakeE
