@@ -54,6 +54,16 @@ btns:Button(
     end
 )
 
+btns:Button(
+        "reel(No-Perfect)",
+        function()
+        while true do
+            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(1,1)
+            wait(0)
+        end
+    end
+)
+
 local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 btns:Button(
         "Shake",
@@ -88,7 +98,6 @@ btns:Button(
         end
     end
 )
-
 
 
 local running = false  
