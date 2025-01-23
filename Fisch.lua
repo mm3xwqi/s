@@ -107,8 +107,6 @@ tgls:Toggle(
     end
 )
 
-local castE = false 
-
 local castE = false  
 local running = false  
 
@@ -119,10 +117,13 @@ tgls:Toggle(
         if castE then
             local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
             if tool then
-                running = true
-                while castE and running do  
-                    tool.events.cast:FireServer(1,1)
-                    wait(0.1)
+                local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
+                if castEvent then
+                    running = true
+                    while castE and running do  
+                        castEvent:FireServer(1, 1)
+                        wait(0.1)
+                    end
                 end
             end
         else
@@ -130,6 +131,7 @@ tgls:Toggle(
         end
     end
 )
+
 
 local reelE = false
 local run = false  
