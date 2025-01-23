@@ -166,6 +166,7 @@ btns:Button(
         else
             run = false
     end
+end
 )
 
 local shakeE = false
@@ -196,6 +197,7 @@ btns:Button(
      else
         run = false
     end
+end
 )
 
 
@@ -240,15 +242,18 @@ local drop = drops:Dropdown(
 drops:Button(
     "Teleport",
     function()
-        if currentOption then
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
-                    if teleport_island.Name == currentOption and teleport_island:IsA("BasePart") then
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = teleport_island.CFrame
-                        return
-                    end
+    if currentOption then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
+                if teleport_island.Name == currentOption and teleport_island:IsA("BasePart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = teleport_island.CFrame
+                    return
                 end
             end
         end
     end
+end
 )
+
+
+
