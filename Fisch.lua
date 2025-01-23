@@ -29,7 +29,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-v0.12")
+local win = DiscordLib:Window("Fisch-v0.13")
 
 local serv = win:Server("Main", "")
 
@@ -149,6 +149,23 @@ tgls:Toggle(
             startAutoEquip()  
         else
             stopAutoEquip() 
+        end
+    end
+)
+
+tgls:Toggle(
+    "Auto-Chest",
+    false,
+    function ()
+        local originalPosition = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+        local chest = workspace.ActiveChestsFolder.Pad.Chests:GetChildren()
+        if chest and chest:FindFirstChild("Position") then
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = chest.Position
+            wait(2)
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            wait(0)
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = originalPosition
         end
     end
 )
