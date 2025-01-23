@@ -4,6 +4,14 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 local Char = LocalPlayer.Character
 
+local islandOptions = {}
+
+for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
+    if teleport_island:IsA("BasePart") then
+        table.insert(islandOptions, teleport_island.Name)
+    end
+end
+
 equipitem = function (v)
     if LocalPlayer.Backpack:FindFirstChild(v) then
         local Eq = LocalPlayer.Backpack:FindFirstChild(v)
@@ -21,7 +29,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-v0.11.2")
+local win = DiscordLib:Window("Fisch-v0.12")
 
 local serv = win:Server("Main", "")
 
@@ -134,13 +142,42 @@ end
 local tgls = serv:Channel("Toggles")
 
 tgls:Toggle(
-    "Auto Equip",
+    "Auto-Equip",
     false,
     function(v)
         if v then
             startAutoEquip()  
         else
             stopAutoEquip() 
+        end
+    end
+)
+
+
+local drops = serv:Channel("tp-Islands")
+
+local currentOption = nil
+
+local drop = drops:Dropdown(
+    "Island",
+    islandOptions,
+    function(option)
+        currentOption = option
+    end
+)
+
+drops:Button(
+    "Teleport",
+    function()
+        if currentOption then
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
+                    if teleport_island.Name == currentOption and teleport_island:IsA("BasePart") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = teleport_island.CFrame
+                        return
+                    end
+                end
+            end
         end
     end
 )
