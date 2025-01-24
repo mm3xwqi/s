@@ -29,16 +29,93 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-v0.13.1")
+local win = DiscordLib:Window("Test-v1.1")
 
 local serv = win:Server("Main", "")
 
 local btns = serv:Channel("Fising")
 
 btns:Button(
-    "SellAll 1Time",
+    "SellAll-1Time",
     function ()
         game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+    end
+)
+
+btns:Button(
+    "SellAll-InHand",
+    function ()
+        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("Sell"):InvokeServer()
+    end
+)
+
+btns:Button(
+    "Sell-InHand",
+    function ()
+        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("Sell"):InvokeServer()
+    end
+)
+
+btns:Button(
+    "SellAll-Loop",
+    function ()
+        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+    end
+)
+
+btns:Button(
+    "reel-Perfect",
+    function()
+            while true do
+                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100)
+                wait(0)
+            end
+        end
+)
+
+btns:Button(
+    "reel-NoPerfect",
+    function()
+            while true do
+                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, false)
+                wait(0)
+            end
+        end
+)
+
+btns:Button(
+    "Cast",
+    function()
+while true do
+    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if tool then
+        local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
+        castEvent:FireServer(1)
+            wait(1)
+        end
+    end
+end
+)
+
+local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+btns:Button(
+        "Shake",
+        function()
+            while true do
+            local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+            if shakeUI and shakeUI.Enabled then
+                local safezone = shakeUI:FindFirstChild("safezone")
+                if safezone then
+                    local button = safezone:FindFirstChild("button")
+                    if button and button:IsA("ImageButton") and button.Visible then
+                        GuiService.SelectedObject = button
+                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                    end
+                end
+            end
+            wait(0.1)
+        end
     end
 )
 
@@ -87,121 +164,6 @@ tgls:Toggle(
         end
     end
 )
-
-local sellE = false
-local run = false
-
-tgls:Toggle(
-    "SellAll",
-    function()
-        sellE = not sellE
-        if sellE then
-            run = true
-            while sellAll and run do
-                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-                wait(2)
-            end
-        else
-            run = false
-        end
-    end
-)
-
-local castE = false  
-local running = false  
-
-tgls:Toggle(
-    "Cast",
-    function()
-        castE = not castE  
-        if castE then
-            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-            if tool then
-                local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
-                if castEvent then
-                    running = true
-                    while castE and running do  
-                        castEvent:FireServer(1, 1)
-                        wait(0.1)
-                    end
-                end
-            end
-        else
-            running = false 
-        end
-    end
-)
-
-
-local reelE = false
-local run = false  
-
-tgls:Toggle(
-    "reel",
-    function()
-        reelE = not reelE  
-        if reelE then
-            run = true
-            while reelE and run do  
-                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100,1)
-                wait(0)
-            end
-        else
-            run = false  
-        end
-    end
-)
-
-local reelP = false
-local run = false 
-
-tgls:Toggle(
-        "reel(No-Perfect)",
-        function()
-        reelP = not reelP
-        if reelP then
-            run = true
-        while reelP and run do
-            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, false)
-            wait(0)
-        end
-        else
-            run = false
-    end
-end
-)
-
-local shakeE = false
-local run = false 
-
-local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-tgls:Toggle(
-        "Shake",
-        function()
-            shakeE = not shakeE
-            if shakeE then
-                run = true
-            while shakeE and run do
-            local shakeUI = PlayerGUI:FindFirstChild("shakeui")
-            if shakeUI and shakeUI.Enabled then
-                local safezone = shakeUI:FindFirstChild("safezone")
-                if safezone then
-                    local button = safezone:FindFirstChild("button")
-                    if button and button:IsA("ImageButton") and button.Visible then
-                        GuiService.SelectedObject = button
-                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-                    end
-                end
-            end
-            wait(0.1)
-        end
-     else
-        run = false
-    end
-end
-)
-
 
 local AutoChestActive = false
 
@@ -256,6 +218,3 @@ drops:Button(
     end
 end
 )
-
-
-
