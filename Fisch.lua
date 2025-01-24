@@ -5,6 +5,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
 local Char = LocalPlayer.Character
 
+local lp = game.Players.LocalPlayer
+local re = game.ReplicatedStorage
+
 local islandOptions = {}
 
 for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
