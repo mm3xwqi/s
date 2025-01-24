@@ -59,7 +59,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("test7")
+local win = DiscordLib:Window("test8")
 
 local serv = win:Server("Main", "")
 
@@ -86,21 +86,13 @@ tgls:Toggle(
 			
 	getgenv().config.auto_cast = true
         spawn(function()
-            while getgenv().config.auto_cast do
-                task.wait()
-            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-            if tool then
-                local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
-                if castEvent then
-                    castEvent:FireServer(1, 1)
-                end
-            end
+	while getgenv().config.auto_cast do wait()
+    local Rod = Char:FindFirstChildOfClass("Tool")
+                task.wait(.1)
+                    Rod.events.cast:FireServer(10,1)
         end
-	getgenv().config.auto_cast = false
     end)
-end
-end
-)
+end)
 
 
 local GuiService = game:GetService("GuiService")
