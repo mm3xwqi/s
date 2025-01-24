@@ -16,7 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 getgenv().config = getgenv().config or {}
 getgenv().config.auto_shake = getgenv().config.auto_shake or false
 
-local tgls = ReplicatedStorage:WaitForChild("Auto") 
+local tgls = serv:Channel("Auto")
 
 tgls:Toggle(
     "auto_shake",
