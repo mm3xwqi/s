@@ -21,12 +21,14 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("test1")
+local win = DiscordLib:Window("test2")
 
 local serv = win:Server("Main", "")
 
-local lp = game.Players.LocalPlayer
-local re = game.ReplicatedStorage
+local Player = game:GetService("Players")
+local LocalPlayer = Player.LocalPlayer
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 
 
@@ -88,8 +90,8 @@ tgls:Toggle(
                 task.wait()
 
                 
-                local rod_name = re.playerstats[lp.Name].Stats.rod.Value
-                local equipped_rod = lp.Character:FindFirstChild(rod_name)
+                local rod_name = ReplicatedStorage.playerstats[lp.Name].Stats.rod.Value
+                local equipped_rod = LocalPlayer.Character:FindFirstChild(rod_name)
 
                 if equipped_rod and equipped_rod:FindFirstChild("events") and equipped_rod.events:FindFirstChild("cast") then
                     equipped_rod.events.cast:FireServer(100) 
@@ -124,7 +126,7 @@ tgls:Toggle(
                 task.wait()
 
                 
-                local playerGui = lp:WaitForChild("PlayerGui")
+                local playerGui = LocalPlayer:WaitForChild("PlayerGui")
                 local shake_button = playerGui:FindFirstChild("shakeui") 
                     and playerGui.shakeui:FindFirstChild("safezone") 
                     and playerGui.shakeui.safezone:FindFirstChild("button")
@@ -156,13 +158,12 @@ tgls:Toggle(
                 task.wait(0)  
 
                 
-                local playerGui = lp:FindFirstChild("PlayerGui")
+                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
                 if playerGui then
                     local reel = playerGui:FindFirstChild("reel")
-                        if re and re.events and re.events.reelfinished then
-                            print("Attempting to fire reelfinished event")
+                        if ReplicatedStorage and ReplicatedStorage.events and ReplicatedStorage.events.reelfinished then
                             local success, errorMsg = pcall(function()
-                                re.events.reelfinished:FireServer(1, 1)
+                                ReplicatedStorage.events.reelfinished:FireServer(1, 1)
                         end)
                 end
             end
@@ -216,11 +217,6 @@ tgls:Toggle(
     end
 )
 
-
-local Player = game:GetService("Players")
-local LocalPlayer = Player.LocalPlayer
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local isTeleporting = false
 
