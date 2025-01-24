@@ -280,6 +280,25 @@ drops:Button(
 end
 )
 
+local tgls = serv:Channel("Sell")
+
+tgls:Toggle(
+    "Sell-all", "ToggleInfo", function(state)
+    if state then
+        getgenv().config.auto_sell = true
+
+        spawn(function()
+            while getgenv().config.auto_sell do
+                task.wait(0)  
+			game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+            end
+        getgenv().config.auto_sell = false
+        end)
+    end
+end
+)
+
+
 local btns = serv:Channel("Misc")
 
 btns:Button(
