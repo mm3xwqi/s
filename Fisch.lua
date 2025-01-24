@@ -179,8 +179,11 @@ btns:Button(
 btns:Button(
     "SellAll-Loop",
     function ()
+        while true do
         game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+        wait(2)
     end
+end
 )
 
 
