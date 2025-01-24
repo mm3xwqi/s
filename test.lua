@@ -1,3 +1,24 @@
+local islandOptions = {}
+
+for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
+    if teleport_island:IsA("BasePart") then
+        table.insert(islandOptions, teleport_island.Name)
+    end
+end
+
+equipitem = function (v)
+    if LocalPlayer.Backpack:FindFirstChild(v) then
+        local Eq = LocalPlayer.Backpack:FindFirstChild(v)
+        LocalPlayer.Character.Humanoid:EquipTool(Eq)
+    end
+end
+
+
+local rod = game:GetService("Players").LocalPlayer.Character:FindFirstChild("Tool")
+if rod and rod:FindFirstChild("events") and rod.events:FindFirstChild("cast") then
+    rod.events.cast:FireServer(1, 1)
+end
+
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
 local win = DiscordLib:Window("test1")
@@ -95,7 +116,7 @@ tgls:Toggle(
                         if re and re.events and re.events.reelfinished then
                             print("Attempting to fire reelfinished event")
                             local success, errorMsg = pcall(function()
-                                re.events.reelfinished:FireServer(100, 1)
+                                re.events.reelfinished:FireServer(1, 1)
                         end)
                 end
             end
