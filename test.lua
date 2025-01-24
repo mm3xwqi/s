@@ -6,7 +6,6 @@ local LocalPlayer = Player.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-
 local islandOptions = {}
 
 for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
@@ -51,7 +50,7 @@ end
 
 local function stopAutoEquip()
     running = false  
-en
+end
 
 
 local rod = game:GetService("Players").LocalPlayer.Character:FindFirstChild("Tool")
@@ -91,7 +90,6 @@ tgls:Toggle(
             while getgenv().config.auto_Cast do
                 task.wait()
 
-                
                 local rod_name = re.playerstats[lp.Name].Stats.rod.Value
                 local equipped_rod = lp.Character:FindFirstChild(rod_name)
 
@@ -110,9 +108,6 @@ local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
 
 local GuiService = game:GetService("GuiService")
-
-local GuiService = game:GetService("GuiService")
-local UserInputService = game:GetService("UserInputService")
 
 local GuiService = game:GetService("GuiService")
 local VirtualInputManager = game:GetService("VirtualInputManager") 
@@ -235,7 +230,6 @@ tgls:Toggle(
                 if getgenv().position and lp.Character and lp.Character.HumanoidRootPart then
                     lp.Character.HumanoidRootPart.CFrame = getgenv().position
                 else
-                    warn("No saved position or character not found")
                     break 
                 end
             end
@@ -243,7 +237,6 @@ tgls:Toggle(
 
     else
         isTeleporting = false
-        print("Teleport loop has been stopped")
     end
 end)
 
@@ -252,7 +245,6 @@ tgls:Button(
 	"Save Position", "Save your character's position permanently", function()
     if lp.Character and lp.Character.HumanoidRootPart then
         getgenv().position = lp.Character.HumanoidRootPart.CFrame
-        print("Position has been saved successfully")
     end
 end)
 
@@ -429,156 +421,35 @@ pinglabel.TextWrapped = true
 uselessframeone.Name = "uselessframeone"
 uselessframeone.Parent = madebybloodofbatus
 uselessframeone.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-uselessframeone.Position = UDim2.new(0.00444444455, 0, 0.243312627, 0)
-uselessframeone.Size = UDim2.new(0, 224, 0, 5)
+uselessframeone.BackgroundTransparency = 1.000
+uselessframeone.Position = UDim2.new(0.444, 0, 0.252, 0)
+uselessframeone.Size = UDim2.new(0, 16, 0, 17)
 
-UICornerww.CornerRadius = UDim.new(0, 50)
-UICornerww.Name = "UICornerww"
+UICornerww.CornerRadius = UDim.new(0, 7)
 UICornerww.Parent = uselessframeone
 
 uselesslabelfour.Name = "uselesslabelfour"
-uselesslabelfour.Parent = madebybloodofbatus
+uselesslabelfour.Parent = uselessframeone
 uselesslabelfour.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 uselesslabelfour.BackgroundTransparency = 1.000
-uselesslabelfour.Position = UDim2.new(0.0580285639, 0, 0.8125, 0)
-uselesslabelfour.Size = UDim2.new(0, 95, 0, 12)
+uselesslabelfour.Position = UDim2.new(0.597, 0, 0.736, 0)
+uselesslabelfour.Size = UDim2.new(0, 47, 0, 16)
 uselesslabelfour.Font = Enum.Font.SourceSans
-uselesslabelfour.Text = "Anti-Afk Auto Enabled"
+uselesslabelfour.Text = "Made By: Exvn#6765"
 uselesslabelfour.TextColor3 = Color3.fromRGB(255, 255, 255)
 uselesslabelfour.TextSize = 14.000
 
+local userService = game:GetService("UserInputService")
+local rs = game:GetService("RunService")
+local stats = game:GetService("Stats")
 
+getgenv().AntiAfkExecuted = false
 
-local Drag = game.CoreGui.thisoneissocoldww.madebybloodofbatus
-gsCoreGui = game:GetService("CoreGui")
-gsTween = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local dragging
-local dragInput
-local dragStart
-local startPos
-local function update(input)
-	local delta = input.Position - dragStart
-	local dragTime = 0.04
-	local SmoothDrag = {}
-	SmoothDrag.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-	local dragSmoothFunction = gsTween:Create(Drag, TweenInfo.new(dragTime, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), SmoothDrag)
-	dragSmoothFunction:Play()
+rs.RenderStepped:Connect(function()
+if not getgenv().AntiAfkExecuted then
+		game:GetService("VirtualUser"):CaptureController()
+		game:GetService("VirtualUser"):ClickButton1(Vector2.new())
 end
-Drag.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = Drag.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
-end)
-Drag.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		dragInput = input
-	end
-end)
-UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging and Drag.Size then
-		update(input)
-	end
 end)
 
-
-
-local bbbatusxxxddddd = game:service'VirtualUser'
-
-game:service'Players'.LocalPlayer.Idled:connect(function()
-	bbbatusxxxddddd:CaptureController()
-	bbbatusxxxddddd:ClickButton2(Vector2.new())
 end)
-
-
-
-
-local FPSsLabel = fpslabel
-local RunService = game:GetService("RunService")
-local RenderStepped = RunService.RenderStepped
-local sec = nil
-local FPS = {}
-
-local function fre()
-	local fr = tick()
-	for index = #FPS,1,-1 do
-		FPS[index + 1] = (FPS[index] >= fr - 1) and FPS[index] or nil
-	end
-	FPS[1] = fr
-	local fps = (tick() - sec >= 1 and #FPS) or (#FPS / (tick() - sec))
-	fps = math.floor(fps)
-	fpslabel.Text = fps
-end
-
-
-sec = tick()
-RenderStepped:Connect(fre)
-
-
-
-
-spawn(function()
-	repeat
-		wait(1)
-		local ping = tonumber(game:GetService("Stats"):FindFirstChild("PerformanceStats").Ping:GetValue())
-		ping = math.floor(ping)
-		pinglabel.Text = ping
-
-
-
-	until pinglabel == nil
-end)
-
-local saniye = 0
-
-
-
-local dakika = 0
-
-
-
-local saat = 0
-
-
-
-
-getgenv().zamanbaslaticisi = true
-
-while true do
-
-
-		if getgenv().zamanbaslaticisi then
-
-			saniye = saniye + 1
-
-			wait(1)
-
-		end --if zaman baslaticisi end
-
-
-		if saniye >= 60 then
-			saniye = 0
-			dakika = dakika + 1
-
-		end --if saniye 60 end
-
-
-		if dakika >= 60 then
-			dakika = 0
-			saat = saat + 1
-
-		end --if dakika 60 end
-
-		timerlabel.Text = saat..":"..dakika..":"..saniye
-	end
-    end
-)
-
-
