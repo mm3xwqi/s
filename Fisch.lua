@@ -58,16 +58,19 @@ btns:Button(
 btns:Button(
     "Cast",
     function()
-while true do
-    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-    if tool then
-        local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
-        castEvent:FireServer(1)
-            wait(0.5)
+        while true do
+            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if tool then
+                local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
+                if castEvent then
+                    castEvent:FireServer(1)
+                end
+            end
+            wait(0.1) 
         end
     end
-end
 )
+
 
 local isToggledOn = false
 local originalSize = nil
