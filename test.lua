@@ -105,6 +105,8 @@ tgls:Toggle(
 end
 end
 )
+
+
 local isTeleporting = false  
 
 tgls:Toggle(
@@ -128,10 +130,13 @@ tgls:Toggle(
 end
 )
 
-btns:Button(
+
+tgls:Button(
     "Save Position", "Save your character's position permanently", function()
     if lp.Character and lp.Character.HumanoidRootPart then
         getgenv().position = lp.Character.HumanoidRootPart.CFrame
     end
 end
 )
+
+
