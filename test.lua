@@ -92,11 +92,11 @@ tgls:Toggle(
                 task.wait()
 
                 
-                local rod_name = ReplicatedStorage.playerstats[lp.Name].Stats.rod.Value
-                local equipped_rod = LocalPlayer.Character:FindFirstChild(rod_name)
+                local rod_name = re.playerstats[lp.Name].Stats.rod.Value
+                local equipped_rod = lp.Character:FindFirstChild(rod_name)
 
                 if equipped_rod and equipped_rod:FindFirstChild("events") and equipped_rod.events:FindFirstChild("cast") then
-                    equipped_rod.events.cast:FireServer(100) 
+                    equipped_rod.events.cast:FireServer(1, 1) 
                 end
             end
         end)
@@ -165,7 +165,7 @@ tgls:Toggle(
                     local reel = playerGui:FindFirstChild("reel")
                         if ReplicatedStorage and ReplicatedStorage.events and ReplicatedStorage.events.reelfinished then
                             local success, errorMsg = pcall(function()
-                                ReplicatedStorage.events.reelfinished:FireServer(1, 1)
+                                ReplicatedStorage.events.reelfinished:FireServer(100, 1)
                         end)
                 end
             end
