@@ -250,4 +250,34 @@ tgls:Button(
 end
 )
 
+local serv = win:Server("Teleport", "")
+
+local drops = serv:Channel("tp-Islands")
+
+local currentOption = nil
+
+local drop = drops:Dropdown(
+    "Island",
+    islandOptions,
+    function(option)
+        currentOption = option
+    end
+)
+
+drops:Button(
+    "Teleport",
+    function()
+    if currentOption then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
+                if teleport_island.Name == currentOption and teleport_island:IsA("BasePart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = teleport_island.CFrame
+                    return
+                end
+            end
+        end
+    end
+end
+)
+
 
