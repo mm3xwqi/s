@@ -29,7 +29,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Test-v1.1")
+local win = DiscordLib:Window("Test-v2")
 
 local serv = win:Server("Main", "")
 
@@ -97,28 +97,28 @@ while true do
 end
 )
 
-local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local playerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 btns:Button(
-        "Shake",
-        function()
-            while true do
-            local shakeUI = PlayerGUI:FindFirstChild("shakeui")
-            if shakeUI and shakeUI.Enabled then
-                local safezone = shakeUI:FindFirstChild("safezone")
-                if safezone then
-                    local button = safezone:FindFirstChild("button")
-                    if button and button:IsA("ImageButton") and button.Visible then
-                        GuiService.SelectedObject = button
-                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-                    end
-                end
-            end
-            wait(0.1)
+    "auto-shake",
+    false,
+    function ()
+        while true do
+        local playerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+        local shake_button = playerGUI:FindFirstChild("shakeui") 
+        and playerGUI.shakeui:FindFirstChild("safezone") 
+        and playerGUI.shakeui.safezone:FindFirstChild("button")
+
+        if shake_button then  
+            shake_button.Selectable = true
+            game:GetService("GuiService").SelectedObject = shake_button 
+            game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.Return, false, nil) 
+            task.wait(0.05)
+            game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.Return, false, nil) 
+            wait(0.5)
         end
     end
+end
 )
-
 
 local running = false  
 local function startAutoEquip()
