@@ -227,7 +227,7 @@ btns:Button(
     function ()
         while true do
         game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-        wait(2)
+        wait(10)
     end
 end
 )
