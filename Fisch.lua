@@ -29,7 +29,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("1.3.1")
+local win = DiscordLib:Window("1.3.2")
 
 local serv = win:Server("Main", "")
 
@@ -39,13 +39,6 @@ btns:Button(
     "SellAll-1Time",
     function ()
         game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-    end
-)
-
-btns:Button(
-    "SellAll-InHand",
-    function ()
-        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("Sell"):InvokeServer()
     end
 )
 
@@ -91,7 +84,7 @@ while true do
     if tool then
         local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
         castEvent:FireServer(1)
-            wait(1)
+            wait(0.5)
         end
     end
 end
