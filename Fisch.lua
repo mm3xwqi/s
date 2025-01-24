@@ -2,6 +2,7 @@ local Player = game:GetService("Players")
 local Char = LocalPlayer.Character
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GuiService = game:GetService("GuiService")
 local LocalPlayer = Player.LocalPlayer
 local lp = game.Players.LocalPlayer
 local re = game.ReplicatedStorage
