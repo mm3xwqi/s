@@ -25,7 +25,6 @@ local win = DiscordLib:Window("test1")
 
 local serv = win:Server("Main", "")
 
-local tgls = serv:Channel("Auto")
 local lp = game.Players.LocalPlayer
 local re = game.ReplicatedStorage
 
