@@ -117,7 +117,7 @@ local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local VirtualInputManager = game:GetService("VirtualInputManager") 
 
-tgls:Button(
+tgls:Toggle(
 "Auto Shake", "Navigate", function(state)
     if state then
         getgenv().config.auto_shake = true
