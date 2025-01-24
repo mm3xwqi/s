@@ -39,7 +39,7 @@ btns:Button(
     "reel-Perfect",
     function()
             while true do
-                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100)
+                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100,1)
                 wait(0)
             end
         end
