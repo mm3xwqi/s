@@ -13,6 +13,14 @@ equipitem = function (v)
     end
 end
 
+local lp = game.Players.LocalPlayer
+local re = game.ReplicatedStorage
+
+local Player = game:GetService("Players")
+local LocalPlayer = Player.LocalPlayer
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 
 local rod = game:GetService("Players").LocalPlayer.Character:FindFirstChild("Tool")
 if rod and rod:FindFirstChild("events") and rod.events:FindFirstChild("cast") then
@@ -24,12 +32,6 @@ local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bl
 local win = DiscordLib:Window("test2")
 
 local serv = win:Server("Main", "")
-
-local Player = game:GetService("Players")
-local LocalPlayer = Player.LocalPlayer
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 
 
 local running = false  
