@@ -59,7 +59,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch 1.4.7")
+local win = DiscordLib:Window("Fisch 1.4.8")
 
 local serv = win:Server("Main", "")
 
@@ -150,9 +150,9 @@ tgls:Toggle(
                 local playerGui = lp:FindFirstChild("PlayerGui")
                 if playerGui then
                     local reel = playerGui:FindFirstChild("reel")
-                        if ReplicatedStorage and ReplicatedStorage.events and ReplicatedStorage.events.reelfinished then
+                        if re and re.events and ReplicatedStorage.events.reelfinished then
                             local success, errorMsg = pcall(function()
-                                ReplicatedStorage.events.reelfinished:FireServer(100, 1)
+                                re.events.reelfinished:FireServer(100, 1)
                         end)
                 end
             end
