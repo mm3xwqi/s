@@ -4,16 +4,19 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 local Char = LocalPlayer.Character
 
--- Assuming 'serv' was meant to be ReplicatedStorage, change it
+local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
+
+local win = DiscordLib:Window("Fisch-1.4")
+
+local serv = win:Server("Main", "")
+
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Assuming getgenv().config.auto_shake is set somewhere else, or set it here.
 getgenv().config = getgenv().config or {}
 getgenv().config.auto_shake = getgenv().config.auto_shake or false
 
--- Assuming 'tgls' is a reference to something controlling toggle state
--- Update this to a valid method if necessary
-local tgls = ReplicatedStorage:WaitForChild("Auto") -- Adjust to the actual service you need
+local tgls = ReplicatedStorage:WaitForChild("Auto") 
 
 tgls:Toggle(
     "auto_shake",
