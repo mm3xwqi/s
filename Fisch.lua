@@ -33,28 +33,7 @@ local win = DiscordLib:Window("Fisch-1.3.2")
 
 local serv = win:Server("Main", "")
 
-local btns = serv:Channel("Fising")
-
-btns:Button(
-    "SellAll-1Time",
-    function ()
-        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-    end
-)
-
-btns:Button(
-    "Sell-InHand",
-    function ()
-        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("Sell"):InvokeServer()
-    end
-)
-
-btns:Button(
-    "SellAll-Loop",
-    function ()
-        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-    end
-)
+local btns = serv:Channel("Fiscing")
 
 btns:Button(
     "reel-Perfect",
@@ -180,6 +159,30 @@ tgls:Toggle(
         end
     end
 )
+
+local btns = serv:Channel("Sell")
+
+btns:Button(
+    "SellAll-1Time",
+    function ()
+        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+    end
+)
+
+btns:Button(
+    "Sell-InHand",
+    function ()
+        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("Sell"):InvokeServer()
+    end
+)
+
+btns:Button(
+    "SellAll-Loop",
+    function ()
+        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+    end
+)
+
 
 
 local serv = win:Server("Teleport", "")
