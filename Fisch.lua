@@ -1,4 +1,4 @@
-local LocalPlayer = game.Players.LocalPlayer
+local lp = game.Players.LocalPlayer
 local re = game.ReplicatedStorage
 
 
@@ -147,7 +147,7 @@ tgls:Toggle(
                 task.wait(0)  
 
                 
-                local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                local playerGui = lp:FindFirstChild("PlayerGui")
                 if playerGui then
                     local reel = playerGui:FindFirstChild("reel")
                         if ReplicatedStorage and ReplicatedStorage.events and ReplicatedStorage.events.reelfinished then
