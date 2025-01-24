@@ -102,21 +102,23 @@ btns:Button(
     "auto-shake",
     false,
     function ()
-        while true do
-        local playerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-        local shake_button = playerGUI:FindFirstChild("shakeui") 
-        and playerGUI.shakeui:FindFirstChild("safezone") 
-        and playerGUI.shakeui.safezone:FindFirstChild("button")
+        task.spawn(function()  
+            while true do
+                local playerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+                local shake_button = playerGUI:FindFirstChild("shakeui") 
+                    and playerGUI.shakeui:FindFirstChild("safezone") 
+                    and playerGUI.shakeui.safezone:FindFirstChild("button")
 
-        if shake_button then  
-            game:GetService("GuiService").SelectedObject = shake_button 
-            game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.Return, false, nil) 
-            task.wait(0.05)
-            game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.Return, false, nil) 
-            wait(0.5)
-        end
+                if shake_button then  
+                    GuiService.SelectedObject = shake_button
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, nil)
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, nil) 
+                    task.wait(0.5)  
+                end
+            end
+        end)
     end
-end
 )
 
 local running = false  
