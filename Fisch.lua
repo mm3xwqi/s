@@ -189,8 +189,6 @@ tgls:Toggle(
 getgenv().config = getgenv().config or {}
 getgenv().config.auto_shake = getgenv().config.auto_shake or false
 
-local tgls = ReplicatedStorage:WaitForChild("Auto")
-
 tgls:Toggle(
     "auto_shake",
     false,
