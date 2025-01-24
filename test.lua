@@ -59,7 +59,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("test5")
+local win = DiscordLib:Window("test6")
 
 local serv = win:Server("Main", "")
 
@@ -92,7 +92,7 @@ tgls:Toggle(
             if tool then
                 local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
                 if castEvent then
-                    castEvent:FireServer(1)
+                    castEvent:FireServer(1, 1)
                 end
             end
         end
