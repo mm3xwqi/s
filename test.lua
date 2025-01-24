@@ -83,12 +83,12 @@ getgenv().config = getgenv().config or {}
 getgenv().config.auto_thorown_rod = false
 
 tgls:Toggle(
-    "Auto Throw Rod", "Automatically throw the rod", function(state)
+    "Auto Cast",  function(state)
     if state then
         
-        getgenv().config.auto_thorown_rod = true
+        getgenv().config.auto_Cast = true
         spawn(function()
-            while getgenv().config.auto_thorown_rod do
+            while getgenv().config.auto_Cast do
                 task.wait()
 
                 
@@ -102,7 +102,7 @@ tgls:Toggle(
         end)
     else
         
-        getgenv().config.auto_thorown_rod = false
+        getgenv().config.auto_Cast = false
     end
 end
 )
