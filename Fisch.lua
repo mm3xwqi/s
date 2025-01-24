@@ -33,7 +33,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-1.5.1")
+local win = DiscordLib:Window("Fisch-1.5.2")
 
 local serv = win:Server("Main", "")
 
@@ -154,51 +154,35 @@ tgls:Toggle(
     end
 )
 
-
-
-local GuiService = game:GetService("GuiService")
-local UserInputService = game:GetService("UserInputService")
-
-local GuiService = game:GetService("GuiService")
-
-local GuiService = game:GetService("GuiService")
-local UserInputService = game:GetService("UserInputService")
-
-local GuiService = game:GetService("GuiService")
-local VirtualInputManager = game:GetService("VirtualInputManager") 
-
 tgls:Toggle(
-	"Auto Shake", "Navigate", function(state)
-    if state then
-        getgenv().config.auto_shake = true
+    "Auto Shake", "Navigate", function(state)
+        if state then
+            getgenv().config.auto_shake = true
 
-        
-        spawn(function()
-            while getgenv().config.auto_shake do
-                task.wait()
+            spawn(function()
+                while getgenv().config.auto_shake do
+                    task.wait()
 
-                
-                local playerGui = lp:WaitForChild("PlayerGui")
-                local shake_button = playerGui:FindFirstChild("shakeui") 
-                    and playerGui.shakeui:FindFirstChild("safezone") 
-                    and playerGui.shakeui.safezone:FindFirstChild("button")
+                    local playerGui = lp:WaitForChild("PlayerGui")
+                    local shake_button = playerGui:FindFirstChild("shakeui") 
+                        and playerGui.shakeui:FindFirstChild("safezone") 
+                        and playerGui.shakeui.safezone:FindFirstChild("button")
 
-                if shake_button then
-                    
-                    shake_button.Selectable = true
-                    GuiService.SelectedObject = shake_button 
+                    if shake_button then
 
-                    
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, nil) -- กดปุ่ม Enter
-                    task.wait(0.05)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, nil) -- ปล่อยปุ่ม Enter
+                        GuiService.SelectedObject = shake_button 
+
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, nil) 
+                        task.wait(0.05) 
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, nil) 
+                    end
                 end
-            end
-        end)
-    else
-        getgenv().config.auto_shake = false
+            end)
+        else
+            getgenv().config.auto_shake = false
+        end
     end
-end)
+)
 
 local btns = serv:Channel("Sell")
 
