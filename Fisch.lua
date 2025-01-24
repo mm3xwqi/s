@@ -59,7 +59,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("test8")
+local win = DiscordLib:Window("Fisch 1.4.7")
 
 local serv = win:Server("Main", "")
 
@@ -100,10 +100,13 @@ local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 
 local GuiService = game:GetService("GuiService")
+local UserInputService = game:GetService("UserInputService")
+
+local GuiService = game:GetService("GuiService")
 local VirtualInputManager = game:GetService("VirtualInputManager") 
 
 tgls:Toggle(
-    "Auto Shake", "Navigate", function(state)
+	"Auto Shake", "Navigate", function(state)
     if state then
         getgenv().config.auto_shake = true
 
@@ -113,7 +116,7 @@ tgls:Toggle(
                 task.wait()
 
                 
-                local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+                local playerGui = lp:WaitForChild("PlayerGui")
                 local shake_button = playerGui:FindFirstChild("shakeui") 
                     and playerGui.shakeui:FindFirstChild("safezone") 
                     and playerGui.shakeui.safezone:FindFirstChild("button")
@@ -133,8 +136,7 @@ tgls:Toggle(
     else
         getgenv().config.auto_shake = false
     end
-end
-)
+end)
 tgls:Toggle(
     "auto reel", "ToggleInfo", function(state)
     if state then
