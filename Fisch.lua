@@ -1,5 +1,6 @@
 local Player = game:GetService("Players")
 local LocalPlayer = Player.LocalPlayer
+local lp = game.Player.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
@@ -58,12 +59,8 @@ if rod and rod:FindFirstChild("events") and rod.events:FindFirstChild("cast") th
 end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
-local win = DiscordLib:Window("Fisch 1.4.9")
+local win = DiscordLib:Window("Fisch 1.5")
 local serv = win:Server("Main", "")
-
-local lp = game.Players.LocalPlayer
-local re = game.ReplicatedStorage
-
 local tgls = serv:Channel("Auto")
 tgls:Toggle(
     "Auto Equip",
@@ -211,4 +208,3 @@ btns:Button(
         end)
     end
 )
-
