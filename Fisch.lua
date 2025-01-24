@@ -1,6 +1,7 @@
 local Player = game:GetService("Players")
 local LocalPlayer = Player.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
 local Char = LocalPlayer.Character
 
@@ -183,25 +184,29 @@ tgls:Toggle(
     end
 )
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 
 getgenv().config = getgenv().config or {}
 getgenv().config.auto_shake = getgenv().config.auto_shake or false
+
+local tgls = ReplicatedStorage:WaitForChild("Auto")
 
 tgls:Toggle(
     "auto_shake",
     false,
     spawn(function()
         while getgenv().config.auto_shake do
-            task.wait()
+            task.wait(0.5)
 
             local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-            local shake_button = playerGui:FindFirstChild("shakeui") 
-            and playerGui.shakeui:FindFirstChild("safezone") 
-            and playerGui.shakeui.safezone:FindFirstChild("button")
+            local shake_button = playerGui:FindFirstChild("shakeui")
+            and shake_button:FindFirstChild("safezone")
+            and shake_button.safezone:FindFirstChild("button")
 
             if shake_button then
                 VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+            else
+                print("Shake button not found")
             end
         end
     end)
