@@ -26,7 +26,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("test 3")
+local win = DiscordLib:Window("test 4")
 local serv = win:Server("Main", "")
 local btns = serv:Channel("Fishing")
 
@@ -84,24 +84,15 @@ tgls:Toggle("SellAll", function()
     end
 end)
 
-tgls:Toggle("Cast", function()
-    castRunning = not castRunning
-    if castRunning then
-        local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if tool then
-            local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
-            if castEvent then
-                while castRunning do
-                    castEvent:FireServer(1, 1)
-                    wait(0.1)
-                end
-            else
-                warn("Cast event not found")
-            end
-        else
-            warn("No tool found")
+tgls:Toggle("Cast", function(v)
+    _G.AutoCast = v
+     pcall(function()
+while _G.AutoCast do wait()
+    local Rod = Char:FindFirstChildOfClass("Tool")
+                task.wait(.1)
+                    Rod.events.cast:FireServer(100,1)
         end
-    end
+    end)
 end)
 
 local reelRunning = false
