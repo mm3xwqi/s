@@ -29,6 +29,53 @@ local tgls = serv:Channel("Auto")
 local lp = game.Players.LocalPlayer
 local re = game.ReplicatedStorage
 
+
+
+local running = false  
+local function startAutoEquip()
+    running = true  
+    while running do
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            local holdingRod = false
+            for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
+                if tool:IsA("Tool") and tool.Name:lower():find("rod") then
+                    holdingRod = true
+                    break
+                end
+            end
+            
+            if not holdingRod then
+                for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+                    if v:IsA("Tool") and v.Name:lower():find("rod") then
+                        equipitem(v.Name)
+                        wait(2) 
+                        break
+                    end
+                end
+            end
+        end
+        wait(1) 
+    end
+end
+
+local function stopAutoEquip()
+    running = false  
+end
+
+local tgls = serv:Channel("Auto")
+
+tgls:Toggle(
+    "Auto-Equip",
+    false,
+    function(v)
+        if v then
+            startAutoEquip()  
+        else
+            stopAutoEquip() 
+        end
+    end
+)
+
 getgenv().config = getgenv().config or {}
 getgenv().config.auto_thorown_rod = false
 
