@@ -63,7 +63,7 @@ btns:Button(
     end
 )
 
-tgls:Toggle(
+btns:Button(
     "reel-Perfect",
     function()
             while true do
@@ -73,7 +73,7 @@ tgls:Toggle(
         end
 )
 
-tgls:Toggle(
+btns:Button(
     "reel-NoPerfect",
     function()
             while true do
