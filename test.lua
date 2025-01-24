@@ -84,7 +84,6 @@ tgls:Toggle("SellAll", function()
     end
 end)
 
-local castRunning = false
 tgls:Toggle("Cast", function()
     castRunning = not castRunning
     if castRunning then
@@ -96,7 +95,11 @@ tgls:Toggle("Cast", function()
                     castEvent:FireServer(1, 1)
                     wait(0.1)
                 end
+            else
+                warn("Cast event not found")
             end
+        else
+            warn("No tool found")
         end
     end
 end)
