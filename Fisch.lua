@@ -1,10 +1,8 @@
-local lp = game.Players.LocalPlayer
-local re = game.ReplicatedStorage
-
-
 local Player = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local lp = game.Players.LocalPlayer
+local re = game.ReplicatedStorage
 
 local islandOptions = {}
 
