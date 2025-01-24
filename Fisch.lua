@@ -1,5 +1,3 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/evxncodes/mainroblox/main/anti-afk", true))()
-
 local Player = game:GetService("Players")
 local LocalPlayer = Player.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -264,4 +262,13 @@ drops:Button(
         end
     end
 end
+)
+
+local btns = serv:Channel("Misc")
+
+btns:Button(
+    "reel-Perfect",
+    function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/evxncodes/mainroblox/main/anti-afk", true))()
+    end
 )
