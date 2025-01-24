@@ -37,9 +37,9 @@ local win = DiscordLib:Window("Fisch-1.5")
 
 local serv = win:Server("Main", "")
 
-local tgls = serv:Channel("Auto")
+local btns = serv:Channel("Main")
 
-tgls:Button(
+btns:Button(
     "reel-Perfect",
     function()
             while true do
