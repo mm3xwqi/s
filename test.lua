@@ -29,7 +29,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Test-v2")
+local win = DiscordLib:Window("Test-v3")
 
 local serv = win:Server("Main", "")
 
@@ -109,7 +109,6 @@ btns:Button(
         and playerGUI.shakeui.safezone:FindFirstChild("button")
 
         if shake_button then  
-            shake_button.Selectable = true
             game:GetService("GuiService").SelectedObject = shake_button 
             game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.Return, false, nil) 
             task.wait(0.05)
