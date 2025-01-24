@@ -29,7 +29,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-1.4")
+local win = DiscordLib:Window("Fisch-1.4.1")
 
 local serv = win:Server("Main", "")
 
@@ -128,6 +128,7 @@ btns:Button(
                     if button and button:IsA("ImageButton") and button.Visible then
                         GuiService.SelectedObject = button
                          VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+			wait(0.5)
                         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
                     end
                 end
