@@ -29,7 +29,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-1.4.3")
+local win = DiscordLib:Window("Fisch-1.4.4")
 
 local serv = win:Server("Main", "")
 
@@ -132,10 +132,9 @@ btns:Button(
                         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
                     end
                 end
-            end
-            wait(0.1)
         end
     end
+end
 )
 
 
