@@ -217,7 +217,12 @@ tgls:Toggle(
 )
 
 
-local isTeleporting = false  
+local Player = game:GetService("Players")
+local LocalPlayer = Player.LocalPlayer
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local isTeleporting = false
 
 tgls:Toggle(
     "Teleport to Saved Position (Loop)", "Continuously teleport character to saved position", function(state)
@@ -226,28 +231,25 @@ tgls:Toggle(
 
         spawn(function()
             while isTeleporting do
-                task.wait(0)  
+                task.wait(0.1)
 
-                if getgenv().position and lp.Character and lp.Character.HumanoidRootPart then
-                    lp.Character.HumanoidRootPart.CFrame = getgenv().position
-                    break 
+                if getgenv().position and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = getgenv().position
                 end
             end
         end)
     else
         isTeleporting = false
     end
-end
-)
-
+end)
 
 tgls:Button(
     "Save Position", "Save your character's position permanently", function()
-    if lp.Character and lp.Character.HumanoidRootPart then
-        getgenv().position = lp.Character.HumanoidRootPart.CFrame
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        getgenv().position = LocalPlayer.Character.HumanoidRootPart.CFrame
     end
-end
-)
+end)
+
 
 local serv = win:Server("Teleport", "")
 
