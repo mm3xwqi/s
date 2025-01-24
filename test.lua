@@ -1,3 +1,12 @@
+local lp = game.Players.LocalPlayer
+local re = game.ReplicatedStorage
+
+local Player = game:GetService("Players")
+local LocalPlayer = Player.LocalPlayer
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+
 local islandOptions = {}
 
 for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
@@ -12,27 +21,6 @@ equipitem = function (v)
         LocalPlayer.Character.Humanoid:EquipTool(Eq)
     end
 end
-
-local lp = game.Players.LocalPlayer
-local re = game.ReplicatedStorage
-
-local Player = game:GetService("Players")
-local LocalPlayer = Player.LocalPlayer
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-
-local rod = game:GetService("Players").LocalPlayer.Character:FindFirstChild("Tool")
-if rod and rod:FindFirstChild("events") and rod.events:FindFirstChild("cast") then
-    rod.events.cast:FireServer(1, 1)
-end
-
-local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-
-local win = DiscordLib:Window("test2")
-
-local serv = win:Server("Main", "")
-
 
 local running = false  
 local function startAutoEquip()
@@ -63,7 +51,19 @@ end
 
 local function stopAutoEquip()
     running = false  
+en
+
+
+local rod = game:GetService("Players").LocalPlayer.Character:FindFirstChild("Tool")
+if rod and rod:FindFirstChild("events") and rod.events:FindFirstChild("cast") then
+    rod.events.cast:FireServer(1, 1)
 end
+
+local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
+
+local win = DiscordLib:Window("test3")
+
+local serv = win:Server("Main", "")
 
 local tgls = serv:Channel("Auto")
 
@@ -247,10 +247,12 @@ tgls:Toggle(
     end
 end)
 
+
 tgls:Button(
-    "Save Position", "Save your character's position permanently", function()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        getgenv().position = LocalPlayer.Character.HumanoidRootPart.CFrame
+	"Save Position", "Save your character's position permanently", function()
+    if lp.Character and lp.Character.HumanoidRootPart then
+        getgenv().position = lp.Character.HumanoidRootPart.CFrame
+        print("Position has been saved successfully")
     end
 end)
 
