@@ -222,22 +222,28 @@ tgls:Toggle(
 
 local isTeleporting = false
 
+
 tgls:Toggle(
-    "Teleport to Saved Position (Loop)", "Continuously teleport character to saved position", function(state)
+	"Teleport to Saved Position (Loop)", "Continuously teleport character to saved position", function(state)
     if state then
         isTeleporting = true
 
         spawn(function()
             while isTeleporting do
-                task.wait(0.1)
+                task.wait(0)  
 
-                if getgenv().position and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = getgenv().position
+                if getgenv().position and lp.Character and lp.Character.HumanoidRootPart then
+                    lp.Character.HumanoidRootPart.CFrame = getgenv().position
+                else
+                    warn("No saved position or character not found")
+                    break 
                 end
             end
         end)
+
     else
         isTeleporting = false
+        print("Teleport loop has been stopped")
     end
 end)
 
