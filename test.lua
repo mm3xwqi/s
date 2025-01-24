@@ -213,41 +213,6 @@ tgls:Toggle(
     end
 )
 
-
-local isTeleporting = false
-
-
-tgls:Toggle(
-	"Teleport to Saved Position (Loop)", "Continuously teleport character to saved position", function(state)
-    if state then
-        isTeleporting = true
-
-        spawn(function()
-            while isTeleporting do
-                task.wait(0)  
-
-                if getgenv().position and LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = getgenv().position
-                else
-                    break 
-                end
-            end
-        end)
-
-    else
-        isTeleporting = false
-    end
-end)
-
-
-tgls:Button(
-	"Save Position", "Save your character's position permanently", function()
-    if LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart then
-        getgenv().position = LocalPlayer.Character.HumanoidRootPart.CFrame
-    end
-end)
-
-
 local serv = win:Server("Teleport", "")
 
 local drops = serv:Channel("tp-Islands")
