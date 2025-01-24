@@ -184,6 +184,28 @@ tgls:Toggle(
 )
 
 tgls:Toggle(
+    "auto_shake",
+    false,
+    spawn(function()
+        while getgenv().config.auto_shake do
+            task.wait()
+
+            -- Fixing the issue of using 'lp', use 'LocalPlayer' instead
+            local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+            local shake_button = playerGui:FindFirstChild("shakeui") 
+            and playerGui.shakeui:FindFirstChild("safezone") 
+            and playerGui.shakeui.safezone:FindFirstChild("button")
+
+            -- You can trigger the shake action here, if button is found
+            if shake_button then
+                -- Perform the shake action, e.g. click the button or simulate input
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+            end
+        end
+    end)
+)
+
+tgls:Toggle(
     "Auto-Chest",
     false,
     function ()
