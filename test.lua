@@ -59,7 +59,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("test4")
+local win = DiscordLib:Window("test5")
 
 local serv = win:Server("Main", "")
 
@@ -83,26 +83,25 @@ getgenv().config.auto_thorown_rod = false
 tgls:Toggle(
     "Auto Cast",  function(state)
     if state then
-        
-        getgenv().config.auto_Cast = true
+			
+	getgenv().config.auto_Cast = true
         spawn(function()
             while getgenv().config.auto_Cast do
                 task.wait()
-
-                local rod_name = re.playerstats[LocalPlayer.Name].Stats.rod.Value
-                local equipped_rod = LocalPlayer.Character:FindFirstChild(rod_name)
-
-                if equipped_rod and equipped_rod:FindFirstChild("events") and equipped_rod.events:FindFirstChild("cast") then
-                    equipped_rod.events.cast:FireServer(1, 1) 
+            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if tool then
+                local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
+                if castEvent then
+                    castEvent:FireServer(1)
                 end
             end
-        end)
-    else
-        
-        getgenv().config.auto_Cast = false
-    end
+        end
+    end)
+end
 end
 )
+
+
 local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
 
