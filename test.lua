@@ -77,22 +77,21 @@ tgls:Toggle(
     end
 )
 
-getgenv().config = getgenv().config or {}
-getgenv().config.auto_cast = false
-
-tgls:Toggle(
-    "Auto Cast",  function(state)
-    if state then
-			
-	getgenv().config.auto_cast = true
-        spawn(function()
-	while getgenv().config.auto_cast do wait()
-    local Rod = Char:FindFirstChildOfClass("Tool")
-                task.wait(.1)
-                    Rod.events.cast:FireServer(10,1)
+tgls:Button(
+    "Cast",
+    function()
+        while true do
+            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if tool then
+                local castEvent = tool:FindFirstChild("events") and tool.events:FindFirstChild("cast")
+                if castEvent then
+                    castEvent:FireServer(1)
+                end
+            end
+            wait(0.1) 
         end
-    end)
-end)
+    end
+)
 
 
 local GuiService = game:GetService("GuiService")
