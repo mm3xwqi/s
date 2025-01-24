@@ -29,7 +29,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-1.3.2")
+local win = DiscordLib:Window("Fisch-1.3.3")
 
 local serv = win:Server("Main", "")
 
@@ -39,8 +39,8 @@ btns:Button(
     "reel-Perfect",
     function()
             while true do
-                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100,1)
-                wait(0)
+                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, 1)
+                wait(0.1)
             end
         end
 )
