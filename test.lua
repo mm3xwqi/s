@@ -1,8 +1,8 @@
-local lp = game.Players.LocalPlayer
+local LocalPlayer = game.Players.LocalPlayer
 local re = game.ReplicatedStorage
 
+
 local Player = game:GetService("Players")
-local LocalPlayer = Player.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -14,16 +14,16 @@ for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
     end
 end
 
-equipitem = function (v)
+equipitem = function(v)
     if LocalPlayer.Backpack:FindFirstChild(v) then
         local Eq = LocalPlayer.Backpack:FindFirstChild(v)
         LocalPlayer.Character.Humanoid:EquipTool(Eq)
     end
 end
 
-local running = false  
+local running = false
 local function startAutoEquip()
-    running = true  
+    running = true
     while running do
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             local holdingRod = false
@@ -38,27 +38,26 @@ local function startAutoEquip()
                 for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do
                     if v:IsA("Tool") and v.Name:lower():find("rod") then
                         equipitem(v.Name)
-                        wait(2) 
+                        wait(2)
                         break
                     end
                 end
             end
         end
-        wait(1) 
+        wait(1)
     end
 end
 
 local function stopAutoEquip()
-    running = false  
+    running = false
 end
 
-
-local rod = game:GetService("Players").LocalPlayer.Character:FindFirstChild("Tool")
+local rod = LocalPlayer.Character:FindFirstChild("Tool")
 if rod and rod:FindFirstChild("events") and rod.events:FindFirstChild("cast") then
     rod.events.cast:FireServer(1, 1)
 end
 
-local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
+local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
 local win = DiscordLib:Window("test3")
 
@@ -90,8 +89,8 @@ tgls:Toggle(
             while getgenv().config.auto_Cast do
                 task.wait()
 
-                local rod_name = re.playerstats[lp.Name].Stats.rod.Value
-                local equipped_rod = lp.Character:FindFirstChild(rod_name)
+                local rod_name = re.playerstats[LocalPlayer.Name].Stats.rod.Value
+                local equipped_rod = LocalPlayer.Character:FindFirstChild(rod_name)
 
                 if equipped_rod and equipped_rod:FindFirstChild("events") and equipped_rod.events:FindFirstChild("cast") then
                     equipped_rod.events.cast:FireServer(1, 1) 
@@ -227,8 +226,8 @@ tgls:Toggle(
             while isTeleporting do
                 task.wait(0)  
 
-                if getgenv().position and lp.Character and lp.Character.HumanoidRootPart then
-                    lp.Character.HumanoidRootPart.CFrame = getgenv().position
+                if getgenv().position and LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = getgenv().position
                 else
                     break 
                 end
@@ -243,8 +242,8 @@ end)
 
 tgls:Button(
 	"Save Position", "Save your character's position permanently", function()
-    if lp.Character and lp.Character.HumanoidRootPart then
-        getgenv().position = lp.Character.HumanoidRootPart.CFrame
+    if LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart then
+        getgenv().position = LocalPlayer.Character.HumanoidRootPart.CFrame
     end
 end)
 
