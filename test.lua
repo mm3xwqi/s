@@ -59,7 +59,7 @@ end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("test3")
+local win = DiscordLib:Window("test4")
 
 local serv = win:Server("Main", "")
 
