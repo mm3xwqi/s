@@ -37,24 +37,14 @@ local win = DiscordLib:Window("Fisch-1.5")
 
 local serv = win:Server("Main", "")
 
-local btns = serv:Channel("Fising")
+local tgls = serv:Channel("Auto")
 
-btns:Button(
+tgls:Button(
     "reel-Perfect",
     function()
             while true do
                 game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, 1)
                 wait(0.1)
-            end
-        end
-)
-
-btns:Button(
-    "reel-NoPerfect",
-    function()
-            while true do
-                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, false)
-                wait(0)
             end
         end
 )
@@ -119,29 +109,6 @@ btns:Toggle(
     end
 )
 
-local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-btns:Button(
-        "Shake",
-        function()
-            while true do
-            local shakeUI = PlayerGUI:FindFirstChild("shakeui")
-            if shakeUI and shakeUI.Enabled then
-                local safezone = shakeUI:FindFirstChild("safezone")
-                if safezone then
-                    local button = safezone:FindFirstChild("button")
-                    if button and button:IsA("ImageButton") and button.Visible then
-                        GuiService.SelectedObject = button
-                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-                    end
-                end
-	wait(0)
-        end
-    end
-end
-)
-
-
 local running = false  
 local function startAutoEquip()
     running = true  
@@ -189,29 +156,49 @@ tgls:Toggle(
 
 
 
-getgenv().config = getgenv().config or {}
-getgenv().config.auto_shake = getgenv().config.auto_shake or false
+local GuiService = game:GetService("GuiService")
+local UserInputService = game:GetService("UserInputService")
+
+local GuiService = game:GetService("GuiService")
+
+local GuiService = game:GetService("GuiService")
+local UserInputService = game:GetService("UserInputService")
+
+local GuiService = game:GetService("GuiService")
+local VirtualInputManager = game:GetService("VirtualInputManager") 
 
 tgls:Toggle(
-    "auto_shake",
-    false,
-    spawn(function()
-        while getgenv().config.auto_shake do
-            task.wait(0.5)
+	"Auto Shake", "Navigate", function(state)
+    if state then
+        getgenv().config.auto_shake = true
 
-            local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-            local shake_button = playerGui:FindFirstChild("shakeui")
-            and shake_button:FindFirstChild("safezone")
-            and shake_button.safezone:FindFirstChild("button")
+        
+        spawn(function()
+            while getgenv().config.auto_shake do
+                task.wait()
 
-            if shake_button then
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-            else
-                print("Shake button not found")
+                
+                local playerGui = lp:WaitForChild("PlayerGui")
+                local shake_button = playerGui:FindFirstChild("shakeui") 
+                    and playerGui.shakeui:FindFirstChild("safezone") 
+                    and playerGui.shakeui.safezone:FindFirstChild("button")
+
+                if shake_button then
+                    
+                    shake_button.Selectable = true
+                    GuiService.SelectedObject = shake_button 
+
+                    
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, nil) -- กดปุ่ม Enter
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, nil) -- ปล่อยปุ่ม Enter
+                end
             end
-        end
-    end)
-)
+        end)
+    else
+        getgenv().config.auto_shake = false
+    end
+end)
 
 local btns = serv:Channel("Sell")
 
