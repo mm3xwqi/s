@@ -199,7 +199,6 @@ tgls:Toggle(
                 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = originalPosition
             end
         end
-    end
 )
 
 local btns = serv:Channel("Sell")
