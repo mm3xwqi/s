@@ -58,7 +58,7 @@ if rod and rod:FindFirstChild("events") and rod.events:FindFirstChild("cast") th
 end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
-local win = DiscordLib:Window("Fisch 1.4.8")
+local win = DiscordLib:Window("Fisch 1.4.9")
 local serv = win:Server("Main", "")
 
 local lp = game.Players.LocalPlayer
@@ -183,11 +183,16 @@ tgls:Toggle(
             getgenv().config.auto_sell = true
             spawn(function()
                 while getgenv().config.auto_sell do
-                    task.wait(0)
-                    ReplicatedStorage:WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+                    task.wait(5) 
+                    local sellAllEvent = ReplicatedStorage:WaitForChild("events"):WaitForChild("SellAll")
+                    if sellAllEvent then
+                        sellAllEvent:InvokeServer()
+                    end
                 end
                 getgenv().config.auto_sell = false
             end)
+        else
+            getgenv().config.auto_sell = false 
         end
     end
 )
