@@ -29,6 +29,7 @@ local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bl
 local win = DiscordLib:Window("test 4")
 local serv = win:Server("Main", "")
 local btns = serv:Channel("Fishing-PERMANENT")
+local tgls = serv:Channel("Auto")
 
 btns:Button(
     "Sellall-1Time",
@@ -96,10 +97,6 @@ tgls:Toggle(
         end
     end
 )
-
-
-
-local tgls = serv:Channel("Auto")
 
 tgls:Toggle(
     "Auto-Equip",
