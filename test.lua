@@ -59,14 +59,14 @@ end
 
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("test6")
+local win = DiscordLib:Window("test7")
 
 local serv = win:Server("Main", "")
 
 local tgls = serv:Channel("Auto")
 
 tgls:Toggle(
-    "Auto-Equip",
+    "Auto Equip",
     false,
     function(v)
         if v then
@@ -78,15 +78,15 @@ tgls:Toggle(
 )
 
 getgenv().config = getgenv().config or {}
-getgenv().config.auto_thorown_rod = false
+getgenv().config.auto_cast = false
 
 tgls:Toggle(
     "Auto Cast",  function(state)
     if state then
 			
-	getgenv().config.auto_Cast = true
+	getgenv().config.auto_cast = true
         spawn(function()
-            while getgenv().config.auto_Cast do
+            while getgenv().config.auto_cast do
                 task.wait()
             local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
             if tool then
@@ -96,6 +96,7 @@ tgls:Toggle(
                 end
             end
         end
+	getgenv().config.auto_cast = false
     end)
 end
 end
