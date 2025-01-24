@@ -188,6 +188,50 @@ tgls:Toggle(
     end
 )
 
+local isToggledOn = false
+local originalSize = nil
+
+local function setFixedSize()
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+    local playerBar = player.PlayerGui:FindFirstChild("reel") and player.PlayerGui.reel:FindFirstChild("bar") and player.PlayerGui.reel.bar:FindFirstChild("playerbar")
+
+    if playerBar then
+        originalSize = playerBar.Size
+        playerBar.Size = UDim2.new(1, 30, 0, 33)
+    end
+end
+
+local function restoreOriginalSize()
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+    local playerBar = player.PlayerGui:FindFirstChild("reel") and player.PlayerGui.reel:FindFirstChild("bar") and player.PlayerGui.reel.bar:FindFirstChild("playerbar")
+
+    if playerBar and originalSize then
+        playerBar.Size = originalSize
+    end
+end
+
+tgls:Toggle(
+    "legit",
+    false,
+    function(state)
+        isToggledOn = state
+
+        if isToggledOn then
+            spawn(function()
+                while isToggledOn do
+                    setFixedSize()
+                    wait(0.1)
+                end
+            end)
+        else
+            restoreOriginalSize() 
+        end
+    end
+)
+
+
 
 local serv = win:Server("Teleport", "")
 
