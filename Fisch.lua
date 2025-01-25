@@ -181,7 +181,7 @@ btns:Button(
 )
 
         btns:Button(
-            "Fps-Boost(Del_map)",
+            "Fps-Boost(DeleteMap)",
             function()
                 for i,v in next, workspace:GetDescendants() do
             pcall(function()
