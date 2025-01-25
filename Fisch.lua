@@ -71,7 +71,7 @@ local function restoreOriginalSize()
     end
 end
 
-btns:Toggle(
+tgls:Toggle(
     "legit",
     false,
     function(state)
