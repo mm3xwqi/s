@@ -125,11 +125,21 @@ end)
 
 -- SellAll-Loop Button
 tgls:Button(
-    "SellAll-Loop",
+    "SellAll-Loop 10 sec",
     function()
         while true do
             game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
             wait(10)
+        end
+    end
+)
+
+tgls:Button(
+    "SellAll-Loop 1min",
+    function()
+        while true do
+            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+            wait(60)
         end
     end
 )
