@@ -1,8 +1,3 @@
-local Char = LocalPlayer.Character
-local Humanoid = Char.Humanoid
-local lp = game.Players.LocalPlayer
-local re = game.ReplicatedStorage
-
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
 local win = DiscordLib:Window("Fisch-1.5.4f")
@@ -18,6 +13,11 @@ for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
         table.insert(islandOptions, teleport_island.Name)
     end
 end
+
+local Char = LocalPlayer.Character
+local Humanoid = Char.Humanoid
+local lp = game.Players.LocalPlayer
+local re = game.ReplicatedStorage
 
 getgenv().config = getgenv().config or {}
 getgenv().config.auto_thorown_rod = false
