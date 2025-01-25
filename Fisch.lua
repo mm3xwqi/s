@@ -131,7 +131,7 @@ tgls:Toggle(
 
         spawn(function()
             while getgenv().config.auto_reel do
-                task.wait(2)  
+                task.wait(3)  
 
                 local playerGui = player:FindFirstChild("PlayerGui")
                 if playerGui then
@@ -140,7 +140,7 @@ tgls:Toggle(
                     if reel then
                         if re and re.events and re.events.reelfinished then
                             local success, errorMsg = pcall(function()
-                                re.events.reelfinished:FireServer(100, 1)
+                                re.events.reelfinished:FireServer(100, false)
                             end)
 
                             if not success then
