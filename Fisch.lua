@@ -113,7 +113,7 @@ tgls:Toggle(
                     GuiService.SelectedObject = shake_button 
 
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, nil) -- Press Enter
-                    task.wait(0.05)
+                    task.wait(0.5)
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, nil) -- Release Enter
                 end
             end
