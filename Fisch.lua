@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.5.5")
+local win = DiscordLib:Window("Fisch-1.6")
 
 local serv = win:Server("Main", "")
 
@@ -177,5 +177,30 @@ btns:Button(
     "anti-afk",
     function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/brosula123/Anti-afk/main/Bl%C3%B8xzScript"))()
+    end
+)
+
+        btns:Button(
+            "Fps-Boost(Del_map)",
+            function()
+                for i,v in next, workspace:GetDescendants() do
+            pcall(function()
+                v.Transparency = 1
+            end)
+        end
+        for i,v in next, getnilinstances() do
+            pcall(function()
+                v.Transparency = 1
+                for i1,v1 in next, v:GetDescendants() do
+                    v1.Transparency = 1
+                end
+            end)
+        end
+        a = workspace
+        a.DescendantAdded:Connect(function(v)
+            pcall(function()
+                v.Transparency = 1
+            end)
+        end)
     end
 )
