@@ -45,6 +45,57 @@ tgls:Toggle(
     end
 end)
 
+
+
+local isToggledOn = false
+
+-- ตัวแปรเก็บขนาดเดิมของ playerBar
+local originalSize = nil
+
+-- ฟังก์ชันรีเซ็ตขนาด playerBar
+local function setFixedSize()
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+    local playerBar = player.PlayerGui:FindFirstChild("reel") and player.PlayerGui.reel:FindFirstChild("bar") and player.PlayerGui.reel.bar:FindFirstChild("playerbar")
+
+    if playerBar then
+        originalSize = playerBar.Size -- เก็บขนาดเดิมไว้
+        playerBar.Size = UDim2.new(1, 30, 0, 33) -- รีเซ็ตขนาด
+    end
+end
+
+-- ฟังก์ชันคืนค่า playerBar กลับสู่ขนาดเดิม
+local function restoreOriginalSize()
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+    local playerBar = player.PlayerGui:FindFirstChild("reel") and player.PlayerGui.reel:FindFirstChild("bar") and player.PlayerGui.reel.bar:FindFirstChild("playerbar")
+
+    if playerBar and originalSize then
+        playerBar.Size = originalSize -- คืนค่าขนาดที่เคยมี
+    end
+end
+
+-- สร้าง Toggle Button
+tgls:Toggle(
+    "bar", 
+    function()
+Toggle:OnChanged(function(state)
+    isToggledOn = state
+
+    if isToggledOn then
+        print("Toggle ON: Resizing playerBar")
+        spawn(function()
+            while isToggledOn do
+                setFixedSize()
+                wait(0.1)
+            end
+        end)
+    else
+        print("Toggle OFF: Restoring playerBar size")
+        restoreOriginalSize() -- คืนค่าขนาดเดิมเมื่อ Toggle ปิด
+    end
+end)
+
 local GuiService = game:GetService("GuiService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
