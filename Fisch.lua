@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.5.4f2")
+local win = DiscordLib:Window("Fisch-1.5.5")
 
 local serv = win:Server("Main", "")
 
@@ -172,18 +172,10 @@ drops:Button(
     end
 )
 
--- Anti-AFK Button
-local btns = serv2:Channel("Misc")
+local btns = serv:Channel("Misc")
 btns:Button(
     "anti-afk",
     function()
-        local antiAfkGui = Instance.new("ScreenGui")
-        antiAfkGui.Parent = game.CoreGui
-        game:GetService("RunService").RenderStepped:Connect(function()
-            if not getgenv().AntiAfkExecuted then
-                game:GetService("VirtualUser"):CaptureController()
-                game:GetService("VirtualUser"):ClickButton1(Vector2.new())
-            end
-        end)
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/brosula123/Anti-afk/main/Bl%C3%B8xzScript"))()
     end
 )
