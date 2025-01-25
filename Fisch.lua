@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
 
-local win = DiscordLib:Window("Fisch-1.5.3")
+local win = DiscordLib:Window("Fisch-1.5.4")
 
 local serv = win:Server("Main", "")
 
@@ -14,7 +14,8 @@ for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
     end
 end
 
-
+local Char = LocalPlayer.Character
+local Humanoid = Char.Humanoid
 
 local lp = game.Players.LocalPlayer
 local re = game.ReplicatedStorage
@@ -137,6 +138,13 @@ tgls:Toggle(
     end
 end
 )
+
+tgls:Toggle(
+    "Freeze Character", "", function(v)
+    Char.HumanoidRootPart.Anchored = v
+end
+)
+
 tgls:Button(
     "SellAll-Loop",
     function ()
