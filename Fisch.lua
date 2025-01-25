@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.7.3")
+local win = DiscordLib:Window("Fisch-1.7.4")
 
 local serv = win:Server("Main", "")
 
@@ -131,7 +131,7 @@ tgls:Toggle(
 
         spawn(function()
             while getgenv().config.auto_reel do
-                task.wait(3)  
+                task.wait(5)  
 
                 local playerGui = player:FindFirstChild("PlayerGui")
                 if playerGui then
