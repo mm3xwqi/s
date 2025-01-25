@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.7.4")
+local win = DiscordLib:Window("Fisch-1.7.5")
 
 local serv = win:Server("Main", "")
 
