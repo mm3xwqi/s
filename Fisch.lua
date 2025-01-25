@@ -1,4 +1,4 @@
-local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
+local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
 local win = DiscordLib:Window("Fisch-1.5.4f")
 
@@ -8,90 +8,79 @@ local tgls = serv:Channel("Auto")
 
 local islandOptions = {}
 
+-- Get all teleport islands in the game
 for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
     if teleport_island:IsA("BasePart") then
         table.insert(islandOptions, teleport_island.Name)
     end
 end
 
-local Char = LocalPlayer.Character
-local Humanoid = Char.Humanoid
-local lp = game.Players.LocalPlayer
+local player = game.Players.LocalPlayer
+local character = player.Character
+local humanoid = character and character:FindFirstChild("Humanoid")
 local re = game.ReplicatedStorage
 
 getgenv().config = getgenv().config or {}
-getgenv().config.auto_thorown_rod = false
+getgenv().config.auto_throw_rod = false
 
+-- Auto Cast Toggle
 tgls:Toggle(
     "Auto Cast", "Automatically throw the rod", function(state)
     if state then
-        
-        getgenv().config.auto_thorown_rod = true
+        getgenv().config.auto_throw_rod = true
         spawn(function()
-            while getgenv().config.auto_thorown_rod do
+            while getgenv().config.auto_throw_rod do
                 task.wait()
 
-                
-                local rod_name = re.playerstats[lp.Name].Stats.rod.Value
-                local equipped_rod = lp.Character:FindFirstChild(rod_name)
+                local rod_name = re.playerstats[player.Name].Stats.rod.Value
+                local equipped_rod = player.Character:FindFirstChild(rod_name)
 
                 if equipped_rod and equipped_rod:FindFirstChild("events") and equipped_rod.events:FindFirstChild("cast") then
-                    equipped_rod.events.cast:FireServer(100) 
+                    equipped_rod.events.cast:FireServer(100)
                 end
             end
         end)
     else
-        
-        getgenv().config.auto_thorown_rod = false
+        getgenv().config.auto_throw_rod = false
     end
-end
-)
-local GuiService = game:GetService("GuiService")
-local UserInputService = game:GetService("UserInputService")
+end)
 
 local GuiService = game:GetService("GuiService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
-local GuiService = game:GetService("GuiService")
-local UserInputService = game:GetService("UserInputService")
-
-local GuiService = game:GetService("GuiService")
-local VirtualInputManager = game:GetService("VirtualInputManager") 
-
+-- Auto Shake Toggle
 tgls:Toggle(
     "Auto Shake", "Navigate", function(state)
     if state then
         getgenv().config.auto_shake = true
 
-        
         spawn(function()
             while getgenv().config.auto_shake do
                 task.wait()
 
-                
-                local playerGui = lp:WaitForChild("PlayerGui")
+                local playerGui = player:WaitForChild("PlayerGui")
                 local shake_button = playerGui:FindFirstChild("shakeui") 
                     and playerGui.shakeui:FindFirstChild("safezone") 
                     and playerGui.shakeui.safezone:FindFirstChild("button")
 
                 if shake_button then
-                    
                     shake_button.Selectable = true
                     GuiService.SelectedObject = shake_button 
 
-                    
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, nil) -- กดปุ่ม Enter
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, nil) -- Press Enter
                     task.wait(0.05)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, nil) -- ปล่อยปุ่ม Enter
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, nil) -- Release Enter
                 end
             end
         end)
     else
         getgenv().config.auto_shake = false
     end
-end
-)
+end)
+
+-- Auto Reel Toggle
 tgls:Toggle(
-    "auto reel", "ToggleInfo", function(state)
+    "Auto Reel", "ToggleInfo", function(state)
     if state then
         getgenv().config.auto_reel = true
 
@@ -99,71 +88,60 @@ tgls:Toggle(
             while getgenv().config.auto_reel do
                 task.wait(0)  
 
-                
-                local playerGui = lp:FindFirstChild("PlayerGui")
+                local playerGui = player:FindFirstChild("PlayerGui")
                 if playerGui then
                     local reel = playerGui:FindFirstChild("reel")
 
                     if reel then
-                        print("Reel found!")
-
-                        
                         if re and re.events and re.events.reelfinished then
-                            print("Attempting to fire reelfinished event")
                             local success, errorMsg = pcall(function()
                                 re.events.reelfinished:FireServer(100, 1)
                             end)
 
-                            if success then
-                                print("Reel event fired successfully")
-                            else
-                                warn("Failed to fire reel event:", errorMsg)
+                            if not success then
+                                -- Handle failure to fire event if needed
                             end
-                        else
-                            warn("Event reelfinished not found")
                         end
-                    else
-                        warn("Reel GUI not found in PlayerGui")
                     end
-                else
-                    warn("PlayerGui not found")
                 end
             end
         end)
 
     else
         getgenv().config.auto_reel = false
-        print("Auto Reel has been disabled")
     end
-end
-)
+end)
 
+-- Freeze Character Toggle
 tgls:Toggle(
-    "Freeze Character", "", function(v)
-    Char.HumanoidRootPart.Anchored = v
-end
-)
+    "Freeze Character", "Freeze your character in place", function(state)
+    if character then
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            humanoidRootPart.Anchored = state
+        end
+    end
+end)
 
+-- SellAll-Loop Button
 tgls:Button(
     "SellAll-Loop",
-    function ()
+    function()
         while true do
-        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-        wait(10)
+            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+            wait(10)
+        end
     end
-end
 )
 
-local serv = win:Server("Teleport", "")
-
-local drops = serv:Channel("tp-Islands")
+-- Teleport Section
+local serv2 = win:Server("Teleport", "")
+local drops = serv2:Channel("tp-Islands")
 
 local currentOption = nil
 
 local drop = drops:Dropdown(
-    "Island",
-    islandOptions,
-    function(option)
+    "Island", islandOptions, function(option)
         currentOption = option
     end
 )
@@ -171,20 +149,21 @@ local drop = drops:Dropdown(
 drops:Button(
     "Teleport",
     function()
-    if currentOption then
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
-                if teleport_island.Name == currentOption and teleport_island:IsA("BasePart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = teleport_island.CFrame
-                    return
+        if currentOption then
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                for _, teleport_island in pairs(workspace.world.spawns.TpSpots:GetChildren()) do
+                    if teleport_island.Name == currentOption and teleport_island:IsA("BasePart") then
+                        player.Character.HumanoidRootPart.CFrame = teleport_island.CFrame
+                        return
+                    end
                 end
             end
         end
     end
-end
 )
 
-local btns = serv:Channel("Misc")
+-- Anti-AFK Button
+local btns = serv2:Channel("Misc")
 btns:Button(
     "anti-afk",
     function()
