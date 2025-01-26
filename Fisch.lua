@@ -180,6 +180,13 @@ tgls:Button(
 )
 
 tgls:Button(
+    "SellAll 1time",
+    function()
+        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+    end
+)
+
+tgls:Button(
     "SellAll-Loop 1min",
     function()
         while true do
