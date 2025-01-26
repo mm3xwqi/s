@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.7.5")
+local win = DiscordLib:Window("Fisch-1.7.6")
 
 local serv = win:Server("Main", "")
 
@@ -30,7 +30,7 @@ tgls:Toggle(
         getgenv().config.auto_throw_rod = true
         spawn(function()
             while getgenv().config.auto_throw_rod do
-                task.wait()
+                task.wait(1)
 
                 local rod_name = re.playerstats[player.Name].Stats.rod.Value
                 local equipped_rod = player.Character:FindFirstChild(rod_name)
