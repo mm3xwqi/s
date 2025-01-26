@@ -72,7 +72,7 @@ local function restoreOriginalSize()
 end
 
 tgls:Toggle(
-    "legit",
+    "Safe-Mode",
     false,
     function(state)
         isToggledOn = state
