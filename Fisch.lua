@@ -30,7 +30,7 @@ tgls:Toggle(
         getgenv().config.auto_throw_rod = true
         spawn(function()
             while getgenv().config.auto_throw_rod do
-                task.wait(1)
+                task.wait()
 
                 local rod_name = re.playerstats[player.Name].Stats.rod.Value
                 local equipped_rod = player.Character:FindFirstChild(rod_name)
@@ -142,7 +142,7 @@ tgls:Toggle(
 
                             if reelfinishedEvent then
                                 local success, errorMsg = pcall(function()
-                                    reelfinishedEvent:FireServer(100, false)
+                                    reelfinishedEvent:FireServer(100, true)
                                 end)
                                 end
                             end
