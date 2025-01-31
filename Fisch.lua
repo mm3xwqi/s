@@ -131,7 +131,7 @@ tgls:Toggle(
 
         spawn(function()
             while getgenv().config.auto_reel do
-                task.wait(5)  
+                task.wait()  
 
                 local playerGui = player:FindFirstChild("PlayerGui")
                 if playerGui then
