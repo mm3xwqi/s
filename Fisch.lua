@@ -148,12 +148,10 @@ tgls:Toggle(
                             end
                         end
                     end
-                end
-            end)
-        else
+                end)
+            end
             getgenv().config.auto_reel = false
         end
-    end
 )
 
 
