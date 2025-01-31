@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.7.5")
+local win = DiscordLib:Window("Fisch-1.8")
 
 local serv = win:Server("Main", "")
 
@@ -157,17 +157,6 @@ tgls:Toggle(
     end
 end)
 
--- Freeze Character Toggle
-tgls:Toggle(
-    "Freeze Character", "Freeze your character in place", function(state)
-    if character then
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart then
-            humanoidRootPart.Anchored = state
-        end
-    end
-end)
-
 -- SellAll-Loop Button
 tgls:Button(
     "SellAll-Loop 10 sec",
@@ -221,6 +210,16 @@ drops:Button(
                 end
             end
         end
+    end
+)
+
+local character = game.Players.LocalPlayer.Character
+local newCFrame = CFrame.new(-4288.67333984375, -996.260498046875, 2168.24560546875) 
+
+drops:Button(
+    "KrakenPool",
+    function()
+character:WaitForChild("HumanoidRootPart").CFrame = newCFrame
     end
 )
 
