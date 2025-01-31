@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.8")
+local win = DiscordLib:Window("Fisch-1.8.1")
 
 local serv = win:Server("Main", "")
 
@@ -126,36 +126,36 @@ end)
 -- Auto Reel Toggle
 tgls:Toggle(
     "Auto Reel", "ToggleInfo", function(state)
-    if state then
-        getgenv().config.auto_reel = true
+        if state then
+            getgenv().config.auto_reel = true
 
-        spawn(function()
-            while getgenv().config.auto_reel do
-                task.wait()  
+            spawn(function()
+                while getgenv().config.auto_reel do
+                    task.wait()
 
-                local playerGui = player:FindFirstChild("PlayerGui")
-                if playerGui then
-                    local reel = playerGui:FindFirstChild("reel")
+                    local playerGui = player:FindFirstChild("PlayerGui")
+                    if playerGui then
+                        local reel = playerGui:FindFirstChild("reel")
 
-                    if reel then
-                        if re and re.events and re.events.reelfinished then
-                            local success, errorMsg = pcall(function()
-                                re.events.reelfinished:FireServer(100, false)
-                            end)
+                        if reel then
+                            local reelfinishedEvent = game:GetService("ReplicatedStorage").events["reelfinished"]
 
-                            if not success then
-                                -- Handle failure to fire event if needed
+                            if reelfinishedEvent then
+                                local success, errorMsg = pcall(function()
+                                    reelfinishedEvent:FireServer(100, false)
+                                end)
+                                end
                             end
                         end
                     end
                 end
-            end
-        end)
-
-    else
-        getgenv().config.auto_reel = false
+            end)
+        else
+            getgenv().config.auto_reel = false
+        end
     end
-end)
+)
+
 
 -- SellAll-Loop Button
 tgls:Button(
