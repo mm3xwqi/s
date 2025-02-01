@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.8.2")
+local win = DiscordLib:Window("Fisch-1.8.3")
 
 local serv = win:Server("Main", "")
 
@@ -101,7 +101,7 @@ tgls:Toggle(
 
         spawn(function()
             while getgenv().config.auto_shake do
-                task.wait(0.1)
+                task.wait()
 
                 local playerGui = player:WaitForChild("PlayerGui")
                 local shake_button = playerGui:FindFirstChild("shakeui") 
@@ -113,7 +113,7 @@ tgls:Toggle(
                     GuiService.SelectedObject = shake_button 
 
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, nil) -- Press Enter
-                    task.wait(0.5)
+                    task.wait()
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, nil) -- Release Enter
                 end
             end
