@@ -101,7 +101,7 @@ tgls:Toggle(
 
         spawn(function()
             while getgenv().config.auto_shake do
-                task.wait()
+                task.wait(0.1)
 
                 local playerGui = player:WaitForChild("PlayerGui")
                 local shake_button = playerGui:FindFirstChild("shakeui") 
