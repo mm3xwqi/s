@@ -36,7 +36,7 @@ tgls:Toggle(
                 local equipped_rod = player.Character:FindFirstChild(rod_name)
 
                 if equipped_rod and equipped_rod:FindFirstChild("events") and equipped_rod.events:FindFirstChild("cast") then
-                    equipped_rod.events.cast:FireServer(1)
+                    equipped_rod.events.cast:FireServer()
                 end
             end
         end)
