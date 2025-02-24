@@ -138,16 +138,10 @@ tgls:Toggle(
                                 end)
 
                                 if not success then
-                                    warn("Error during reelfinished event: " .. errorMsg)
+                                    -- You can still handle errors here if needed
                                 end
-                            else
-                                warn("Reel or reelfinished event not found.")
                             end
-                        else
-                            warn("Reel GUI not found.")
                         end
-                    else
-                        warn("PlayerGui not found.")
                     end
                 end
             end)
@@ -159,34 +153,28 @@ tgls:Toggle(
 
 
 
+getgenv().config = getgenv().config or {}
+getgenv().config.SellAll = false
 
--- SellAll-Loop Button
-tgls:Button(
-    "SellAll-Loop 10 sec",
-    function()
-        while true do
-            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-            wait(10)
+-- SellAll
+tgls:Toggle(
+    "SellAll",
+    function(state)
+        if state then
+            getgenv().config.SellAll = true
+
+            spawn(function()
+                while getgenv().config.SellAll do
+                    game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+                    task.wait(10) 
+                end
+            end)
+        else
+            getgenv().config.SellAll = false
         end
     end
 )
-
-tgls:Button(
-    "SellAll 1time",
-    function()
-        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-    end
-)
-
-tgls:Button(
-    "SellAll-Loop 1min",
-    function()
-        while true do
-            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-            wait(60)
-        end
-    end
-)
+                        
 
 -- Teleport Section
 local serv2 = win:Server("Teleport", "")
