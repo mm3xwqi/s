@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.9.2")
+local win = DiscordLib:Window("Fisch-1.9.3")
 
 local serv = win:Server("Main", "")
 
@@ -152,21 +152,21 @@ tgls:Toggle(
 )
 
 
-
 getgenv().config = getgenv().config or {}
 getgenv().config.SellAll = false
 
--- SellAll
 tgls:Toggle(
     "SellAll",
     function(state)
         if state then
             getgenv().config.SellAll = true
-
             spawn(function()
                 while getgenv().config.SellAll do
-                    game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-                    task.wait(10) 
+                    local sellAllEvent = re:WaitForChild("events"):WaitForChild("SellAll")
+                    if sellAllEvent then
+                        sellAllEvent:InvokeServer()  
+                    end
+                    task.wait(10)  
                 end
             end)
         else
@@ -174,6 +174,8 @@ tgls:Toggle(
         end
     end
 )
+
+
                         
 
 -- Teleport Section
