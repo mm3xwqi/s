@@ -1,4 +1,4 @@
--- สคริปต์นี้ถูกเขียนและแขกในไลฟ์ช่อง Deity Hub : https://www.youtube.com/watch?v=qkgZfFZPw_8
+
 
 _G.AutoFish = not _G.AutoFish ; print("_G.AutoFish:",_G.AutoFish)
 _G.ReelMethod = "Instant" -- "Instant" or "Smooth"
@@ -75,6 +75,3 @@ while (_G.AutoFish and task.wait()) do
     end
 end
 
-
--- # // Copy HumanoidRootPart Position
-setclipboard(tostring(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame))
