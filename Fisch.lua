@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.9.1")
+local win = DiscordLib:Window("Fisch-1.9.2")
 
 local serv = win:Server("Main", "")
 
@@ -47,7 +47,7 @@ tgls:Toggle(
 end)
 
 getgenv().config = getgenv().config or {}
-getgenv().config.SafeMode = false  
+getgenv().config.SafeMode = false
 
 tgls:Toggle(
     "Safe-Mode",
@@ -57,16 +57,22 @@ tgls:Toggle(
             getgenv().config.SafeMode = true
             spawn(function()
                 while getgenv().config.SafeMode do  
-                    task.wait()
-                    LocalPlayer.PlayerGui.reel.bar.playerbar.Position = UDim2.new(
-                        LocalPlayer.PlayerGui.reel.bar.fish.Position.X.Scale, 
-                        LocalPlayer.PlayerGui.reel.bar.fish.Position.X.Offset,
-                        LocalPlayer.PlayerGui.reel.bar.fish.Position.Y.Scale, 
-                        LocalPlayer.PlayerGui.reel.bar.fish.Position.Y.Offset
-                    )
+                    task.wait() 
+                    -- Ensure PlayerGui and relevant paths exist before manipulating
+                    local playerBar = PlayerGui:FindFirstChild("reel") and PlayerGui.reel:FindFirstChild("bar") and PlayerGui.reel.bar:FindFirstChild("playerbar")
+                    local fish = PlayerGui:FindFirstChild("reel") and PlayerGui.reel:FindFirstChild("bar") and PlayerGui.reel.bar:FindFirstChild("fish")
+                    if playerBar and fish then
+                        playerBar.Position = UDim2.new(
+                            fish.Position.X.Scale, 
+                            fish.Position.X.Offset,
+                            fish.Position.Y.Scale, 
+                            fish.Position.Y.Offset
+                        )
+                    end
                 end
             end)
         else
+            -- Turn off SafeMode if the toggle is switched off
             getgenv().config.SafeMode = false
         end
     end
@@ -122,16 +128,26 @@ tgls:Toggle(
                         if reel then
                             if re and re.events and re.events.reelfinished then
                                 local success, errorMsg = pcall(function()
-                                    re["reelfinished"]:FireServer(100, false)
-                                    pcall(function()
+                                    -- Fire the reelfinished event
+                                    re.events.reelfinished:FireServer(100, false)
+
+                                    -- Reset event
+                                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Auto Reel") then
                                         LocalPlayer.Character["Auto Reel"].events.reset:FireServer()
-                                    end)
+                                    end
                                 end)
+
                                 if not success then
                                     warn("Error during reelfinished event: " .. errorMsg)
                                 end
+                            else
+                                warn("Reel or reelfinished event not found.")
                             end
+                        else
+                            warn("Reel GUI not found.")
                         end
+                    else
+                        warn("PlayerGui not found.")
                     end
                 end
             end)
@@ -140,6 +156,7 @@ tgls:Toggle(
         end
     end
 )
+
 
 
 
