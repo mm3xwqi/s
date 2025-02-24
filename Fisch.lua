@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.8.3")
+local win = DiscordLib:Window("Fisch-1.9")
 
 local serv = win:Server("Main", "")
 
@@ -36,7 +36,7 @@ tgls:Toggle(
                 local equipped_rod = player.Character:FindFirstChild(rod_name)
 
                 if equipped_rod and equipped_rod:FindFirstChild("events") and equipped_rod.events:FindFirstChild("cast") then
-                    equipped_rod.events.cast:FireServer(1)
+                    equipped_rod.events.cast:FireServer(math.random(1,100), 1)
                 end
             end
         end)
@@ -45,47 +45,28 @@ tgls:Toggle(
     end
 end)
 
-
-
-local isToggledOn = false
-local originalSize = nil
-
-local function setFixedSize()
-    local Players = game:GetService("Players")
-    local player = Players.LocalPlayer
-    local playerBar = player.PlayerGui:FindFirstChild("reel") and player.PlayerGui.reel:FindFirstChild("bar") and player.PlayerGui.reel.bar:FindFirstChild("playerbar")
-
-    if playerBar then
-        originalSize = playerBar.Size
-        playerBar.Size = UDim2.new(1, 30, 0, 33)
-    end
-end
-
-local function restoreOriginalSize()
-    local Players = game:GetService("Players")
-    local player = Players.LocalPlayer
-    local playerBar = player.PlayerGui:FindFirstChild("reel") and player.PlayerGui.reel:FindFirstChild("bar") and player.PlayerGui.reel.bar:FindFirstChild("playerbar")
-
-    if playerBar and originalSize then
-        playerBar.Size = originalSize
-    end
-end
+getgenv().config = getgenv().config or {}
+getgenv().config.SafeMode = false  
 
 tgls:Toggle(
     "Safe-Mode",
     false,
     function(state)
-        isToggledOn = state
-
-        if isToggledOn then
+        if state then
+            getgenv().config.SafeMode = true
             spawn(function()
-                while isToggledOn do
-                    setFixedSize()
-                    wait(0.1)
+                while getgenv().config.SafeMode do  
+                    task.wait()
+                    LocalPlayer.PlayerGui.reel.bar.playerbar.Position = UDim2.new(
+                        LocalPlayer.PlayerGui.reel.bar.fish.Position.X.Scale, 
+                        LocalPlayer.PlayerGui.reel.bar.fish.Position.X.Offset,
+                        LocalPlayer.PlayerGui.reel.bar.fish.Position.Y.Scale, 
+                        LocalPlayer.PlayerGui.reel.bar.fish.Position.Y.Offset
+                    )
                 end
             end)
         else
-            restoreOriginalSize() 
+            getgenv().config.SafeMode = false
         end
     end
 )
@@ -126,36 +107,39 @@ end)
 -- Auto Reel Toggle
 tgls:Toggle(
     "Auto Reel", "ToggleInfo", function(state)
-    if state then
-        getgenv().config.auto_reel = true
+        if state then
+            getgenv().config.auto_reel = true
 
-        spawn(function()
-            while getgenv().config.auto_reel do
-                task.wait()  
+            spawn(function()
+                while getgenv().config.auto_reel do
+                    task.wait()
 
-                local playerGui = player:FindFirstChild("PlayerGui")
-                if playerGui then
-                    local reel = playerGui:FindFirstChild("reel")
+                    local playerGui = player:FindFirstChild("PlayerGui")
+                    if playerGui then
+                        local reel = playerGui:FindFirstChild("reel")
 
-                    if reel then
-                        if re and re.events and re.events.reelfinished then
-                            local success, errorMsg = pcall(function()
-                                re.events.reelfinished:FireServer(100, false)
-                            end)
-
-                            if not success then
-                                -- Handle failure to fire event if needed
+                        if reel then
+                            if re and re.events and re.events.reelfinished then
+                                local success, errorMsg = pcall(function()
+                                    re["reelfinished"]:FireServer(100, false)
+                                    pcall(function()
+                                        LocalPlayer.Character["Auto Reel"].re.reset:FireServer()
+                                    end)
+                                end)
+                                if not success then
+                                    warn("Error during reelfinished event: " .. errorMsg)
+                                end
                             end
                         end
                     end
                 end
-            end
-        end)
-
-    else
-        getgenv().config.auto_reel = false
+            end)
+        else
+            getgenv().config.auto_reel = false
+        end
     end
-end)
+)
+
 
 
 -- SellAll-Loop Button
