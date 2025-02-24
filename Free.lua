@@ -1,12 +1,13 @@
-_G.AutoFish = not _G.AutoFish ; print("_G.AutoFish:",_G.AutoFish)
+_G.AutoFish = not _G.AutoFish
+print("_G.AutoFish:", _G.AutoFish)
 _G.ReelMethod = "Instant" -- "Instant" or "Smooth"
 
-local Collection = {} ; Collection.__index = Collection
+local Collection = {} 
+Collection.__index = Collection
 
-local Players = game:GetService("Players") 
+local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
@@ -16,21 +17,22 @@ local packages = ReplicatedStorage:FindFirstChild("packages")
 local Net = packages:FindFirstChild("Net")
 local RE_Backpack_Equip = Net:FindFirstChild("RE/Backpack/Equip")
 
-local rod_name = re.playerstats[player.Name].Stats.rod.Value
-local equipped_rod = player.Character:FindFirstChild(rod_name)
+-- Assuming the rod name is tied to the player's stats
+local rod_name = LocalPlayer.PlayerStats[player.Name].Stats.rod.Value
+local equipped_rod = LocalPlayer.Character:FindFirstChild(rod_name)
 
 function Collection:fireclickbutton(button)
-	if not button then return end 
-	xpcall(function()
-		local VisibleUI = playerGui:FindFirstChild("") or Instance.new("Frame")
-		VisibleUI.Name = "_"
-		VisibleUI.BackgroundTransparency = 1
-		VisibleUI.Parent = playerGui
-		playerGui.SelectionImageObject = VisibleUI
-		GuiService.SelectedObject = button
-		VirtualInputManager:SendKeyEvent(true, 'Return', false, game)
-		VirtualInputManager:SendKeyEvent(false, 'Return', false, game)
-	end, warn)
+    if not button then return end
+    xpcall(function()
+        local VisibleUI = playerGui:FindFirstChild("_") or Instance.new("Frame")
+        VisibleUI.Name = "_"
+        VisibleUI.BackgroundTransparency = 1
+        VisibleUI.Parent = playerGui
+        playerGui.SelectionImageObject = VisibleUI
+        GuiService.SelectedObject = button
+        VirtualInputManager:SendKeyEvent(true, 'Return', false, game)
+        VirtualInputManager:SendKeyEvent(false, 'Return', false, game)
+    end, warn)
 end
 
 while (_G.AutoFish and task.wait()) do
@@ -75,6 +77,5 @@ while (_G.AutoFish and task.wait()) do
     end
 end
 
-
 -- # // Copy HumanoidRootPart Position
-setclipboard(tostring(game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame))
+setclipboard(tostring(LocalPlayer.Character.HumanoidRootPart.CFrame))
