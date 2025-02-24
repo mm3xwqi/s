@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("Fisch-1.9")
+local win = DiscordLib:Window("Fisch-1.9.1")
 
 local serv = win:Server("Main", "")
 
@@ -19,6 +19,7 @@ local player = game.Players.LocalPlayer
 local character = player.Character
 local humanoid = character and character:FindFirstChild("Humanoid")
 local re = game.ReplicatedStorage
+local PlayerGui = player:WaitForChild("PlayerGui")
 
 getgenv().config = getgenv().config or {}
 getgenv().config.auto_throw_rod = false
@@ -123,7 +124,7 @@ tgls:Toggle(
                                 local success, errorMsg = pcall(function()
                                     re["reelfinished"]:FireServer(100, false)
                                     pcall(function()
-                                        LocalPlayer.Character["Auto Reel"].re.reset:FireServer()
+                                        LocalPlayer.Character["Auto Reel"].events.reset:FireServer()
                                     end)
                                 end)
                                 if not success then
