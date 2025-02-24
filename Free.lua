@@ -1,6 +1,5 @@
 _G.AutoFish = not _G.AutoFish ; print("_G.AutoFish:",_G.AutoFish)
 _G.ReelMethod = "Instant" -- "Instant" or "Smooth"
-_G.FishingRod = "Ethereal Prism Rod"
 
 local Collection = {} ; Collection.__index = Collection
 
@@ -16,6 +15,9 @@ local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
 local packages = ReplicatedStorage:FindFirstChild("packages")
 local Net = packages:FindFirstChild("Net")
 local RE_Backpack_Equip = Net:FindFirstChild("RE/Backpack/Equip")
+
+local rod_name = re.playerstats[player.Name].Stats.rod.Value
+local equipped_rod = player.Character:FindFirstChild(rod_name)
 
 function Collection:fireclickbutton(button)
 	if not button then return end 
@@ -37,7 +39,7 @@ while (_G.AutoFish and task.wait()) do
             if (_G.ReelMethod == "Instant") then
                 events["reelfinished "]:FireServer(100, false)
                 pcall(function()
-                    LocalPlayer.Character[_G.FishingRod].events.reset:FireServer()
+                    LocalPlayer.Character[rod_name].events.reset:FireServer()
                 end)
             else
                 LocalPlayer.PlayerGui.reel.bar.playerbar.Position = UDim2.new(LocalPlayer.PlayerGui.reel.bar.fish.Position.X.Scale, LocalPlayer.PlayerGui.reel.bar.fish.Position.X.Offset, LocalPlayer.PlayerGui.reel.bar.fish.Position.Y.Scale, LocalPlayer.PlayerGui.reel.bar.fish.Position.Y.Offset)
@@ -58,7 +60,7 @@ while (_G.AutoFish and task.wait()) do
                     if LocalPlayer.Backpack:FindFirstChild(_G.FishingRod) then
                         RE_Backpack_Equip:FireServer(LocalPlayer.Backpack:FindFirstChild(_G.FishingRod))
                         if LocalPlayer.Character:FindFirstChild(_G.FishingRod) then
-                            LocalPlayer.Character[_G.FishingRod].events.reset:FireServer()
+                            LocalPlayer.Character[rod_name].events.reset:FireServer()
                         end 
                         wait(.5)
                     else
