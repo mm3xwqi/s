@@ -1,8 +1,8 @@
-
+-- credit Deity Hub
 
 _G.AutoFish = not _G.AutoFish ; print("_G.AutoFish:",_G.AutoFish)
 _G.ReelMethod = "Instant" -- "Instant" or "Smooth"
-_G.FishingRod = "Ethereal Prism Rod"
+_G.FishingRod = "Zeus Rod"
 
 local Collection = {} ; Collection.__index = Collection
 
@@ -52,8 +52,8 @@ while (_G.AutoFish and task.wait()) do
                 end
             else
                 if LocalPlayer.Character:FindFirstChild(_G.FishingRod) then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-4283.25049, -996.260437, 2156.16602, 0.990811765, 8.07792375e-08, 0.135247916, -7.54419887e-08, 1, -4.4587928e-08, -0.135247916, 3.39748709e-08, 0.990811765)
-                    if (LocalPlayer.Character.HumanoidRootPart.Position - CFrame.new(-4283.25049, -996.260437, 2156.16602).Position).Magnitude < 5 then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-2462.23413, -11225.0107, 7016.66504, 0.729439199, 4.81190143e-10, -0.684045672, 2.16147503e-10, 1, 9.33938593e-10, 0.684045672, -8.29106173e-10, 0.729439199)
+                    if (LocalPlayer.Character.HumanoidRootPart.Position - CFrame.new(-2462.23413, -11225.0107, 7016.66504).Position).Magnitude < 5 then
                         LocalPlayer.Character[_G.FishingRod].events.cast:FireServer(math.random(1,25), 1)
                     end
                 else
