@@ -52,8 +52,8 @@ while (_G.AutoFish and task.wait()) do
                 end
             else
                 if LocalPlayer.Character:FindFirstChild(_G.FishingRod) then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-2462.23413, -11225.0107, 7016.66504, 0.729439199, 4.81190143e-10, -0.684045672, 2.16147503e-10, 1, 9.33938593e-10, 0.684045672, -8.29106173e-10, 0.729439199)
-                    if (LocalPlayer.Character.HumanoidRootPart.Position - CFrame.new(-2462.23413, -11225.0107, 7016.66504).Position).Magnitude < 5 then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-2517.10181, -11223.1348, 6930.07373, -0.518772662, 1.07716094e-08, -0.854912221, -2.59621729e-08, 1, 2.83538757e-08, 0.854912221, 3.69045949e-08, -0.518772662)
+                    if (LocalPlayer.Character.HumanoidRootPart.Position - CFrame.new(-2517.10181, -11223.1348, 6930.07373).Position).Magnitude < 5 then
                         LocalPlayer.Character[_G.FishingRod].events.cast:FireServer(math.random(1,25), 1)
                     end
                 else
