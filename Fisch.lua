@@ -151,26 +151,12 @@ tgls:Toggle(
     end
 )
 
-
-getgenv().config = getgenv().config or {}
-getgenv().config.SellAll = false
-
-tgls:Toggle(
-    "SellAll",
-    function(state)
-        if state then
-            getgenv().config.SellAll = true
-            spawn(function()
-                while getgenv().config.SellAll do
-                    local sellAllEvent = re:WaitForChild("events"):WaitForChild("SellAll")
-                    if sellAllEvent then
-                        sellAllEvent:InvokeServer()  
-                    end
-                    task.wait(10)  
-                end
-            end)
-        else
-            getgenv().config.SellAll = false
+tgls:Button(
+    "SellFish,
+    function()
+        while true do
+            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+            wait(3)
         end
     end
 )
