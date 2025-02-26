@@ -37,7 +37,7 @@ while (_G.AutoFish and task.wait()) do
     local success, err = pcall(function()
         if LocalPlayer.PlayerGui:FindFirstChild("reel") then
             if (_G.ReelMethod == "Instant") then
-                events["reelfinished "]:FireServer(100, false)
+                events["reelfinished "]:FireServer(100, true)
                 pcall(function()
                     LocalPlayer.Character[_G.FishingRod].events.reset:FireServer()
                 end)
