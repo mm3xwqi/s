@@ -2,7 +2,7 @@
 
 _G.AutoFish = not _G.AutoFish ; print("_G.AutoFish:",_G.AutoFish)
 _G.ReelMethod = "Instant" -- "Instant" or "Smooth"
-_G.FishingRod = "Zeus Rod"
+_G.FishingRod = "Ethereal Prism Rod"
 
 local Collection = {} ; Collection.__index = Collection
 
