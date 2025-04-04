@@ -1,7 +1,7 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
 local win = DiscordLib:Window("discord library")
-local controls = win:Server("Controls", "ServerIcon")
+local controls = win:Server("main", "ServerIcon")
 
 local TweenService = game:GetService("TweenService")
 local Speed = 350 
@@ -11,7 +11,7 @@ for i, v in pairs(game:GetService("Players"):GetChildren()) do
     table.insert(Plr, v.Name)
 end
 
-local mainChannel = controls:Channel("Main Controls")
+local mainChannel = controls:Channel("Tween")
 
 local drop = mainChannel:Dropdown(
     "Select Player!",
