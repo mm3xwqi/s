@@ -1,3 +1,7 @@
+local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
+
+local win = DiscordLib:Window("tween bodylock v1.2")
+local controls = win:Server("Controls", "ServerIcon")
 local TweenService = game:GetService("TweenService")
 local Speed = 350
 
