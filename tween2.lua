@@ -1,8 +1,3 @@
-local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
-
-local win = DiscordLib:Window("tween bodylock v1.1")
-local controls = win:Server("Controls", "ServerIcon")
-
 local TweenService = game:GetService("TweenService")
 local Speed = 350
 
@@ -83,7 +78,7 @@ mainChannel:Toggle(
                     -- ใช้ EasingStyle ที่ลื่นไหล
                     local tweenInfo = TweenInfo.new(
                         travelTime,
-                        Enum.EasingStyle.Quint,  -- Easing Style ที่สมูธขึ้น
+                        Enum.EasingStyle.Linear,  -- Easing Style ที่เหมาะสมสำหรับการเคลื่อนไหวที่ลื่นไหล
                         Enum.EasingDirection.InOut
                     )
 
@@ -103,38 +98,6 @@ mainChannel:Toggle(
                     break
                 end
                 task.wait(0.05)
-            end
-        end)
-    end
-)
-
--- 🛡️ ระบบ Noclip Toggle
-local noclipEnabled = false
-
-mainChannel:Toggle(
-    "Noclip",
-    false,
-    function(state)
-        noclipEnabled = state
-
-        local player = game.Players.LocalPlayer
-        local char = player.Character or player.CharacterAdded:Wait()
-
-        task.spawn(function()
-            while noclipEnabled do
-                for _, part in pairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
-                        part.CanCollide = false
-                    end
-                end
-                task.wait(0.1)
-            end
-
-            -- ถ้าปิด noclip ให้เปิด collide กลับ (ถ้าต้องการ)
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
             end
         end)
     end
