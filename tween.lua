@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("discord library")
+local win = DiscordLib:Window("tween")
 local controls = win:Server("Controls", "ServerIcon")
 
 local TweenService = game:GetService("TweenService")
