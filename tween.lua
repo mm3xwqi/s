@@ -4,7 +4,7 @@ local win = DiscordLib:Window("tween v999")
 local controls = win:Server("Controls", "ServerIcon")
 
 local TweenService = game:GetService("TweenService")
-local Speed = 350 
+local Speed = 300 
 
 local Plr = {}
 for i, v in pairs(game:GetService("Players"):GetChildren()) do
