@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("tween bodylock v1.2")
+local win = DiscordLib:Window("tween bodylock v1.3")
 local controls = win:Server("Controls", "ServerIcon")
 
 local TweenService = game:GetService("TweenService")
@@ -31,10 +31,10 @@ mainChannel:Toggle(
         local currentTween = nil -- ใช้เก็บ Tween ที่กำลังทำงาน
 
         -- ฟังก์ชันล็อกการเคลื่อนไหว
-        local function applyBodyVelocity(hrp)
+        local function applyBodyVelocity(hrp, targetHRP)
             local bv = Instance.new("BodyVelocity")
-            bv.Velocity = Vector3.new(0, 0, 0)
-            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)  -- Force ที่ไม่จำกัด
+            bv.Velocity = (targetHRP.Position - hrp.Position).unit * Speed  -- กำหนดความเร็วคงที่
             bv.Name = "TweenLock"
             bv.Parent = hrp
         end
@@ -51,29 +51,15 @@ mainChannel:Toggle(
                 local targetPlayer = game.Players:FindFirstChild(PlayerTP)
                 if humanoidRootPart and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
                     local targetHRP = targetPlayer.Character.HumanoidRootPart
-                    local targetPosition = targetHRP.Position
-                    local currentPosition = humanoidRootPart.Position
-
-                    local distance = (targetPosition - currentPosition).Magnitude
-                    local travelTime = distance / Speed  -- Use fixed Speed of 300
-
                     -- ยกเลิก Tween เดิมถ้ามี
                     if currentTween then
                         currentTween:Cancel()
                     end
 
-                    local tweenInfo = TweenInfo.new(
-                        travelTime,
-                        Enum.EasingStyle.Sine,
-                        Enum.EasingDirection.InOut
-                    )
+                    applyBodyVelocity(humanoidRootPart, targetHRP)  -- ใช้ BodyVelocity แทนการใช้ Tween
 
-                    applyBodyVelocity(humanoidRootPart)
-
-                    currentTween = TweenService:Create(humanoidRootPart, tweenInfo, {CFrame = targetHRP.CFrame})
-                    currentTween:Play()
-
-                    task.wait(travelTime)
+                    -- ลบ BodyVelocity หลังจากถึงตำแหน่ง
+                    task.wait(0.1)  -- อาจจะปรับเวลานี้ตามความเหมาะสม
 
                     removeBodyVelocity(humanoidRootPart)
                 else
