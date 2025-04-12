@@ -1,27 +1,18 @@
--- โหลด DiscordLib UI
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
--- สร้างหน้าต่าง UI
-local win = DiscordLib:Window("Tween v1.1")
-local controls = win:Server("main", "ServerIcon")
+local win = DiscordLib:Window("discord library")
+local controls = win:Server("Controls", "ServerIcon")
 
--- ตัวแปร Tween และความเร็ว
 local TweenService = game:GetService("TweenService")
-local Speed = 350 -- ความเร็วในการ tween
+local Speed = 350 
 
--- รวบรวมรายชื่อผู้เล่น
-local Plr = {}
-for i, v in pairs(game:GetService("Players"):GetPlayers()) do
-    if v ~= game.Players.LocalPlayer then
-        table.insert(Plr, v.Name)
-    end
+Plr = {}
+for i, v in pairs(game:GetService("Players"):GetChildren()) do
+    table.insert(Plr, v.Name)
 end
 
--- ช่องหลัก
-local mainChannel = controls:Channel("Tween")
+local mainChannel = controls:Channel("Main Controls")
 
--- Dropdown เลือกผู้เล่นเป้าหมาย
-local PlayerTP = nil
 local drop = mainChannel:Dropdown(
     "Select Player!",
     Plr,
@@ -30,53 +21,30 @@ local drop = mainChannel:Dropdown(
     end
 )
 
--- ฟังก์ชัน Tween เคลื่อนที่ไปหาตำแหน่ง
-local function SmoothMoveTo(targetPosition)
-    local player = game.Players.LocalPlayer
-    local rootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-
-    if rootPart then
-        local distance = (targetPosition - rootPart.Position).Magnitude
-        local time = distance / Speed
-
-        local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
-        local tween = TweenService:Create(rootPart, tweenInfo, {
-            CFrame = CFrame.new(targetPosition)
-        })
-        tween:Play()
-        return tween
-    end
-end
-
--- Toggle สำหรับ Auto Tween ติดตามผู้เล่น
 mainChannel:Toggle(
-    "Auto Tween To Player",
+    "Auto Tp",
     false,
     function(t)
-        _G.TweenToPlayer = t
-        local currentTween = nil
+        _G.TPPlayer = t
+        local player = game.Players.LocalPlayer
+        local targetPlayer = game.Players:FindFirstChild(PlayerTP)
 
-        while _G.TweenToPlayer do
-            local player = game.Players.LocalPlayer
-            local rootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            local targetPlayer = PlayerTP and game.Players:FindFirstChild(PlayerTP)
+        while _G.TPPlayer do
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local humanoidRootPart = player.Character.HumanoidRootPart
+                local targetPosition = targetPlayer.Character.HumanoidRootPart.Position
+                local currentPosition = humanoidRootPart.Position
 
-            if rootPart and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local targetPos = targetPlayer.Character.HumanoidRootPart.Position + Vector3.new(0, 0, 2) -- Offset ด้านหลังเป้าหมาย
+                local distance = (targetPosition - currentPosition).Magnitude
+                local travelTime = distance / Speed
+                local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 
-                if currentTween then
-                    currentTween:Cancel()
-                end
-
-                currentTween = SmoothMoveTo(targetPos)
+                local tween = TweenService:Create(humanoidRootPart, tweenInfo, {CFrame = targetPlayer.Character.HumanoidRootPart.CFrame})
+                tween:Play()
+                tween.Completed:Wait() -- Ensure the tween completes
+            else
+                break
             end
-
-            task.wait(0.3) -- รอให้ Tween ไปก่อนจะอัปเดตตำแหน่งใหม่
-        end
-
-        -- ปิด Tween หาก toggle ถูกปิด
-        if currentTween then
-            currentTween:Cancel()
         end
     end
 )
