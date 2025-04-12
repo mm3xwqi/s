@@ -2,7 +2,7 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
 -- สร้างหน้าต่าง UI
-local win = DiscordLib:Window("discord library")
+local win = DiscordLib:Window("Tween v1")
 local controls = win:Server("main", "ServerIcon")
 
 -- ตัวแปร Tween และความเร็ว
