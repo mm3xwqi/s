@@ -46,6 +46,15 @@ mainChannel:Toggle(
             end
         end
 
+        -- ฟังก์ชันตรวจสอบการชน
+        local function isPathClear(startPosition, endPosition)
+            local direction = (endPosition - startPosition).unit
+            local distance = (endPosition - startPosition).magnitude
+            local ray = Ray.new(startPosition, direction * distance)
+            local hit = workspace:FindPartOnRay(ray, player.Character)
+            return not hit  -- ถ้าไม่ชนอะไร
+        end
+
         task.spawn(function()
             while _G.TPPlayer do
                 local targetPlayer = game.Players:FindFirstChild(PlayerTP)
@@ -56,7 +65,13 @@ mainChannel:Toggle(
                         currentTween:Cancel()
                     end
 
-                    applyBodyVelocity(humanoidRootPart, targetHRP)  -- ใช้ BodyVelocity แทนการใช้ Tween
+                    -- ตรวจสอบการชนก่อนที่จะใช้ BodyVelocity
+                    if isPathClear(humanoidRootPart.Position, targetHRP.Position) then
+                        applyBodyVelocity(humanoidRootPart, targetHRP)  -- ใช้ BodyVelocity แทนการใช้ Tween
+                    else
+                        -- สามารถเพิ่มฟังก์ชันสำหรับการหยุดหรือลดความเร็วเมื่อตรวจพบการชน
+                        print("Obstacle detected in the path.")
+                    end
 
                     -- ลบ BodyVelocity หลังจากถึงตำแหน่ง
                     task.wait(0.1)  -- อาจจะปรับเวลานี้ตามความเหมาะสม
