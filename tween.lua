@@ -1,6 +1,6 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("tween bodylock v1.4")
+local win = DiscordLib:Window("tween bodylock v1.5")
 local controls = win:Server("Controls", "ServerIcon")
 
 local TweenService = game:GetService("TweenService")
@@ -51,8 +51,8 @@ mainChannel:Toggle(
             local direction = (endPosition - startPosition).unit
             local distance = (endPosition - startPosition).magnitude
             local ray = Ray.new(startPosition, direction * distance)
-            local hit = workspace:FindPartOnRay(ray, player.Character)
-            return not hit  -- ถ้าไม่ชนอะไร
+            local hit, hitPosition = workspace:FindPartOnRay(ray, player.Character)
+            return hit == nil  -- ถ้าไม่ชนอะไร
         end
 
         task.spawn(function()
