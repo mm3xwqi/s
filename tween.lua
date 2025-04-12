@@ -1,10 +1,10 @@
 local DiscordLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord"))()
 
-local win = DiscordLib:Window("tween bodylock v1.1")
+local win = DiscordLib:Window("tween bodylock v1.2")
 local controls = win:Server("Controls", "ServerIcon")
 
 local TweenService = game:GetService("TweenService")
-local Speed = 350 
+local Speed = 300  -- Set Speed to 300
 
 Plr = {}
 for i, v in pairs(game:GetService("Players"):GetChildren()) do
@@ -55,7 +55,7 @@ mainChannel:Toggle(
                     local currentPosition = humanoidRootPart.Position
 
                     local distance = (targetPosition - currentPosition).Magnitude
-                    local travelTime = distance / Speed
+                    local travelTime = distance / Speed  -- Use fixed Speed of 300
 
                     -- ยกเลิก Tween เดิมถ้ามี
                     if currentTween then
