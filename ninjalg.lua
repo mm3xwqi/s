@@ -118,7 +118,7 @@ w:Toggle("auto sell", function(vd)
             while autosell do
                 local player = game.Players.LocalPlayer
                 if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    player.Character.HumanoidRootPart.CFrame = CFrame.new(75, 14, -52)
+                    player.Character.HumanoidRootPart.CFrame = CFrame.new(80, 91246, 124)
                 end
                 task.wait(1)
             end
