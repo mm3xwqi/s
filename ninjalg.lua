@@ -131,16 +131,16 @@ w:Toggle("Auto BuyAll", function(f)
     if autobuy then
         spawn(function()
             while autobuy do
-                local args = {
-                    "buyAllSwords",
-                    "Ground"
-                }
-                game:GetService("Players").LocalPlayer:WaitForChild("ninjaEvent"):FireServer(unpack(args))
-                local args = {
-	"buyAllBelts",
-	"Ground"
-}
-game:GetService("Players").LocalPlayer:WaitForChild("ninjaEvent"):FireServer(unpack(args))
+		local args = {
+		    "buyAllSwords",
+		    "Blazing Vortex Island"
+		}
+		game:GetService("Players").LocalPlayer:WaitForChild("ninjaEvent"):FireServer(unpack(args))
+		local args = {
+		    "buyAllBelts",
+		    "Blazing Vortex Island"
+		}
+		game:GetService("Players").LocalPlayer:WaitForChild("ninjaEvent"):FireServer(unpack(args))
 
                 wait(0.5)
             end
@@ -151,25 +151,25 @@ end)
 w:Toggle("Auto buyjump", function(q)
     autobuyjump = q
     if autobuyjump then
-        local args = {
-	"buyAllSkills",
-	"Ground"
-}
-game:GetService("Players").LocalPlayer:WaitForChild("ninjaEvent"):FireServer(unpack(args))
-wait(.5)
+local args = {
+	    "buyAllSkills",
+	    "Blazing Vortex Island"
+	}
+	game:GetService("Players").LocalPlayer:WaitForChild("ninjaEvent"):FireServer(unpack(args))
+	wait(.5)
     end
     end)
 
     w:Toggle("Auto BuyShurikens",function(q)
     autobuyshuri = q
     if autobuyshuri then
-local args = {
-	"buyAllShurikens",
-	"Ground"
-}
-game:GetService("Players").LocalPlayer:WaitForChild("ninjaEvent"):FireServer(unpack(args))
-wait(.5)
-    end
+	local args = {
+	    "buyAllShurikens",
+	    "Blazing Vortex Island"
+	}
+	game:GetService("Players").LocalPlayer:WaitForChild("ninjaEvent"):FireServer(unpack(args))
+	wait(.5)
+	end
     end)
 
 
