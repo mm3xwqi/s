@@ -24,7 +24,7 @@ local drop = mainChannel:Dropdown(
     end
 )
 
--- Toggle สำหรับ Auto TP + Lock
+-- Toggle สำหรับ Auto TP + Lock + Noclip
 mainChannel:Toggle(
     "Auto Tp",
     false,
@@ -40,7 +40,7 @@ mainChannel:Toggle(
                         local hrp = char.HumanoidRootPart
                         local humanoid = char:FindFirstChild("Humanoid")
 
-                        -- ถ้ายังไม่มี Lock, ให้ใส่ BodyVelocity
+                        -- ใส่ Lock (BodyVelocity)
                         if not hrp:FindFirstChild("Lock") then
                             if humanoid and humanoid.Sit then
                                 humanoid.Sit = false
@@ -51,15 +51,31 @@ mainChannel:Toggle(
                             Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                             Noclip.Velocity = Vector3.new(0, 0, 0)
                         end
+
+                        -- ทำให้ทุกส่วนของตัวละครทะลุวัตถุ
+                        for _, part in pairs(char:GetDescendants()) do
+                            if part:IsA("BasePart") and part.CanCollide == true then
+                                part.CanCollide = false
+                            end
+                        end
                     end
                 end)
             end
 
-            -- ลบ Lock เมื่อปิด Auto TP
+            -- ลบ Lock และคืนค่า CanCollide
             pcall(function()
-                local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                local char = player.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 if hrp and hrp:FindFirstChild("Lock") then
                     hrp.Lock:Destroy()
+                end
+
+                if char then
+                    for _, part in pairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = true
+                        end
+                    end
                 end
             end)
         end)
