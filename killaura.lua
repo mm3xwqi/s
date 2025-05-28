@@ -16,11 +16,26 @@ end
 
 player.CharacterAdded:Connect(function()
     updateCharacter()
-    task.wait(1)
-    if selectedWeaponName then
-        equipWeapon()
-    end
+    
+    task.delay(1, function()
+        -- ตรวจว่ามีศัตรูอยู่ไหม
+        local firstEnemy = enemiesFolder:FindFirstChildWhichIsA("Model")
+        if firstEnemy and firstEnemy:FindFirstChild("HumanoidRootPart") then
+            local enemyHRP = firstEnemy:FindFirstChild("HumanoidRootPart")
+            enableNoclip()
+            tweenToPosition(humanoidRootPart, enemyHRP.Position + Vector3.new(0, 10, 0))
+        end
+
+        if selectedWeaponName then
+            equipWeapon()
+        end
+
+        if running then
+            startFarming()
+        end
+    end)
 end)
+
 
 
 updateCharacter()
