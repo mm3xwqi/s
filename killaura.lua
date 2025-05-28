@@ -236,8 +236,18 @@ end
 local function stopFarming()
     disableNoclip()
     running = false
-    unequipWeapon() 
+    unequipWeapon()
+
+    if character and character:FindFirstChild("Humanoid") then
+        character.Humanoid.PlatformStand = false
+    end
+
+    local lock = humanoidRootPart:FindFirstChild("Lock")
+    if lock then
+        lock:Destroy()
+    end
 end
+
 
 -- UI 
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
@@ -245,7 +255,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v0.0.3",
+    Title = "Beta v0.0.4",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -267,7 +277,6 @@ Tabs.Main:AddToggle("MyToggle", {
         character.Humanoid.PlatformStand = true
     else
         stopFarming()
-        character.Humanoid.PlatformStand = false
         Fluent:Notify({
             Title = "Notification",
             Content = "Tyrant of the Skie is stopped",
@@ -275,6 +284,7 @@ Tabs.Main:AddToggle("MyToggle", {
         })
     end
 end)
+
 
 -- Select weapon
 Tabs.Main:AddDropdown("Dropdown", {
