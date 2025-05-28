@@ -43,7 +43,7 @@ local fruit = {
     "Dragon-Dragon"
 }
 
-local SPEED = 300
+local SPEED = 350
 local running = false
 local selectedWeaponName = nil
 local noclipActive = false
@@ -196,7 +196,6 @@ end
 
 local function startFarming()
     enableNoclip()
-    tweenToPosition(humanoidRootPart, Vector3.new(-16673, 106, 1591))
     attackEnemies()
 end
 
@@ -213,7 +212,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "BF",
+    Title = "BF v0.0.1",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
