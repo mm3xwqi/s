@@ -8,6 +8,19 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local backpack = player:WaitForChild("Backpack")
 
+
+local function updateCharacter()
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+end
+
+player.CharacterAdded:Connect(function()
+    updateCharacter()
+end)
+
+updateCharacter()
+
+
 -- Table เก็บชื่ออาวุธ
 local melee = {
     "Combat", "Dark Step", "Electric", "Water Kung Fu", "Dragon Breath",
@@ -212,7 +225,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "BF v0.0.1",
+    Title = "Beta v0.0.2",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
