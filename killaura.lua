@@ -85,45 +85,36 @@ local noclipActive = false
 
 -- equip
 local function equipWeapon()
-    if selectedWeaponName == "melee" then
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and table.find(melee, tool.Name) then
+    print("Trying to equip weapon:", selectedWeaponName)
+
+    if not selectedWeaponName then return end
+    local tools = backpack:GetChildren()
+    
+    for _, tool in ipairs(tools) do
+        if tool:IsA("Tool") then
+            if selectedWeaponName == "melee" and table.find(melee, tool.Name) then
                 tool.Parent = character
                 print("Equipped melee:", tool.Name)
                 return
-            end
-        end
-    elseif selectedWeaponName == "sword" then
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and table.find(sword, tool.Name) then
+            elseif selectedWeaponName == "sword" and table.find(sword, tool.Name) then
                 tool.Parent = character
                 print("Equipped sword:", tool.Name)
                 return
-            end
-        end
-    elseif selectedWeaponName == "gun" then
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and table.find(gun, tool.Name) then
+            elseif selectedWeaponName == "gun" and table.find(gun, tool.Name) then
                 tool.Parent = character
                 print("Equipped gun:", tool.Name)
                 return
-            end
-        end
-    elseif selectedWeaponName == "fruit" then
-        for _, tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and table.find(fruit, tool.Name) then
+            elseif selectedWeaponName == "fruit" and table.find(fruit, tool.Name) then
                 tool.Parent = character
                 print("Equipped fruit:", tool.Name)
                 return
             end
         end
-        local tool = backpack:FindFirstChild(selectedWeaponName)
-        if tool then
-            tool.Parent = character
-            print("Equipped:", tool.Name)
-        end
     end
+
+    print("Weapon not found in backpack")
 end
+
 
 
 -- unequip
@@ -232,6 +223,10 @@ end
 
 local function startFarming()
     enableNoclip()
+
+    task.wait(0.5) -- รอ Backpack โหลด
+    equipWeapon()
+
     attackEnemies()
 end
 
@@ -259,7 +254,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v0.0.5",
+    Title = "Beta v0.0.6",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
