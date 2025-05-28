@@ -176,17 +176,17 @@ local function attackAllEnemies()
 
             tweenToPosition(humanoidRootPart, enemyHRP.Position + Vector3.new(0, 10, 0))
 
-            equipWeapon()  
-
             while enemyHumanoid.Health > 0 and running do
+                equipWeapon() 
                 tweenToPosition(humanoidRootPart, enemyHRP.Position + Vector3.new(0, 10, 0))
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.4)
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemyHRP, {})
-                task.wait(0.2)
+                task.wait(0.1)
             end
         end
     end
 end
+
 
 local function attackEnemies()
     running = true
@@ -222,8 +222,11 @@ end
 local function disableNoclip()
     noclipActive = false
     local lock = humanoidRootPart:FindFirstChild("Lock")
-    if lock then lock:Destroy() end
+    if lock then
+        lock:Destroy()
+    end
 end
+
 
 
 
@@ -240,6 +243,7 @@ local function stopFarming()
 
     if character and character:FindFirstChild("Humanoid") then
         character.Humanoid.PlatformStand = false
+        character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
 
     local lock = humanoidRootPart:FindFirstChild("Lock")
@@ -255,7 +259,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v0.0.4",
+    Title = "Beta v0.0.5",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -274,7 +278,9 @@ Tabs.Main:AddToggle("MyToggle", {
 }):OnChanged(function(value)
     if value then
         startFarming()
-        character.Humanoid.PlatformStand = true
+        if character and character:FindFirstChild("Humanoid") then
+            character.Humanoid.PlatformStand = true
+        end
     else
         stopFarming()
         Fluent:Notify({
@@ -284,6 +290,7 @@ Tabs.Main:AddToggle("MyToggle", {
         })
     end
 end)
+
 
 
 -- Select weapon
