@@ -16,7 +16,12 @@ end
 
 player.CharacterAdded:Connect(function()
     updateCharacter()
+    task.wait(1)
+    if selectedWeaponName then
+        equipWeapon()
+    end
 end)
+
 
 updateCharacter()
 
@@ -225,7 +230,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v0.0.2",
+    Title = "Beta v0.0.3",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
