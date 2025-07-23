@@ -420,7 +420,7 @@ local function attackBossesOnly()
                 task.spawn(activateBusoLoop)
                 equipWeapon()
 
-                while humanoid and humanoid.Health > 0 and running and killBossEnabled do
+                while humanoid and humanoid.Health > 0 do
                     equipWeapon()
 
                     local targetPos = hrp.Position + Vector3.new(0, offsetY, swayZ)
@@ -496,8 +496,8 @@ local function stopFarming()
 end
 -- stopKillBoss
 local function stopKillBoss()
+
     running = false
-    killBossEnabled = false
     unequipWeapon()
 end
 
