@@ -7,12 +7,20 @@ local bringRange = 200
 local offsetY = 50
 local swayZAmount = 35
 
+local function activateBusoIfNotActive()
+    local character = workspace:WaitForChild("Characters"):FindFirstChild(game.Players.LocalPlayer.Name)
+    if character and not character:FindFirstChild("HasBuso") then
+        local args = { "Buso" }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+end
+
 local selectedBosses = {
     Boss1 = "",
     Boss2 = "",
     Boss3 = ""
 }
-
+-- table boss
 local boss = {
     "The Gorilla King", "Chef", "The Saw", "Mob Leader", "Vice Admiral",
     "Yeti", "Saber Expert", "Warden", "Chief Warden", "Swan",
@@ -208,7 +216,7 @@ local function disableNoclip()
     end
 end
 
--- เปิด noclip ให้มอนสเตอร์ (ปิดการชนกัน)
+-- noclipmob
 local function enableNoclipForEnemy(enemy)
     for _, part in ipairs(enemy:GetDescendants()) do
         if part:IsA("BasePart") then
@@ -217,7 +225,7 @@ local function enableNoclipForEnemy(enemy)
     end
 end
 
--- ฟังก์ชันดึงมอนสเตอร์ให้มาอยู่กับเป้าหมาย
+-- bringmobs
 local function bringEnemiesToTargetInstant(targetEnemy)
     local targetHRP = targetEnemy.HumanoidRootPart
 
@@ -226,8 +234,7 @@ local function bringEnemiesToTargetInstant(targetEnemy)
             local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
             if dist <= bringRange and enemy.Humanoid.Health > 0 then
                 enableNoclipForEnemy(enemy)
-                -- ย้ายมอนมาอยู่ตำแหน่งเดียวกับเป้าหมายทันที ไม่มี tween
-                enemy.HumanoidRootPart.CFrame = targetHRP.CFrame
+		enemy.HumanoidRootPart.CFrame = targetHRP.CFrame
             end
         end
     end
@@ -238,7 +245,6 @@ local function attackAllEnemies()
     while running do
         local targetEnemy = nil
 
-        -- หาเป้าหมายในระยะ killAuraRange
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                 local humanoid = enemy.Humanoid
@@ -259,19 +265,17 @@ local function attackAllEnemies()
             print("Attacking monster:", targetEnemy.Name)
             attackedMonsters[targetEnemy.Name] = true
 
-            -- tween ไปตำแหน่งแรกบนหัวมอน (offset คงที่ + swayZ)
             local initialSwayZ = getSwayZ()
             tweenToPosition(humanoidRootPart, targetHRP.Position + Vector3.new(offsetX, offsetY, initialSwayZ))
 
             while targetHumanoid.Health > 0 and running do
                 equipWeapon()
+                activateBusoIfNotActive()
 
-                -- update swayZ ทุก 0.1 วินาที
                 local swayZ = getSwayZ()
                 local targetPos = targetHRP.Position + Vector3.new(offsetX, offsetY, swayZ)
                 tweenToPosition(humanoidRootPart, targetPos)
 
-                -- ดึงมอนรอบ ๆ มาไว้ที่เป้าหมายแบบรวดเร็ว
                 local nearbyEnemies = {}
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                     if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
@@ -289,18 +293,16 @@ local function attackAllEnemies()
                     end)
                 end
 
-                -- ยิง event โจมตีเป้าหมายหลัก
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
 
-                -- ยิง event โจมตีมอนที่ถูกดึงมาด้วย
                 for _, enemy in ipairs(nearbyEnemies) do
                     if enemy and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
                         ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
                     end
                 end
 
-                task.wait(0.1) -- รอ 0.1 วิ ก่อนอัปเดต swayZ ใหม่
+                task.wait(0.1)
             end
         end
     end
@@ -339,6 +341,7 @@ local function attackBossesOnly()
                 print("found", name)
 
                 equipWeapon()
+                activateBusoIfNotActive()
 
                 while humanoid and humanoid.Health > 0 and running and killBossEnabled do
                     equipWeapon()
@@ -368,7 +371,7 @@ local function attackBossesOnly()
 
     disableNoclip() -- ปิด noclip + ปลดล็อคตัวละครหลังโจมตีเสร็จ
 end
-
+-- attackEnemies
 local function attackEnemies()
     running = true
     while running do
@@ -376,7 +379,7 @@ local function attackEnemies()
         task.wait(0.2)
     end
 end
-
+-- startFarming
 local function startFarming()
     enableNoclip()
 
@@ -387,7 +390,7 @@ local function startFarming()
     equipWeapon()
     attackEnemies()
 end
-
+-- startKillBoss
 local function startKillBoss()
     running = true
     killBossEnabled = true
@@ -398,7 +401,7 @@ local function startKillBoss()
         end
     end)
 end
-
+-- stopFarming
 local function stopFarming()
     disableNoclip()
     running = false
@@ -416,7 +419,7 @@ local function stopFarming()
         lock:Destroy()
     end
 end
-
+-- stopKillBoss
 local function stopKillBoss()
     running = false
     killBossEnabled = false
@@ -429,7 +432,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2",
+    Title = "Beta v1.3",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -441,7 +444,7 @@ local Window = Fluent:CreateWindow({
 local Tabs = {
     Main = Window:AddTab({ Title = "Main", Icon = "sword" }),
 }
-
+-- kill aura
 Tabs.Main:AddToggle("MyToggle", {
     Title = "Kill aura",
     Default = false
@@ -457,7 +460,7 @@ Tabs.Main:AddToggle("MyToggle", {
         })
     end
 end)
-
+-- boss 1
 Tabs.Main:AddDropdown("Dropdown_Boss1", {
     Title = "Select Boss world 1",
     Values = boss,
@@ -466,7 +469,7 @@ Tabs.Main:AddDropdown("Dropdown_Boss1", {
     selectedBosses.Boss1 = value
     print("Selected Boss1:", value)
 end)
-
+-- boss 2
 Tabs.Main:AddDropdown("Dropdown_Boss2", {
     Title = "Select Boss world 2",
     Values = boss2,
@@ -475,7 +478,7 @@ Tabs.Main:AddDropdown("Dropdown_Boss2", {
     selectedBosses.Boss2 = value
     print("Selected Boss2:", value)
 end)
-
+-- boss 3
 Tabs.Main:AddDropdown("Dropdown_Boss3", {
     Title = "Select Boss world 3",
     Values = boss3,
@@ -484,7 +487,7 @@ Tabs.Main:AddDropdown("Dropdown_Boss3", {
     selectedBosses.Boss3 = value
     print("Selected Boss3:", value)
 end)
-
+-- kill boss
 Tabs.Main:AddToggle("Toggle_KillBoss", {
     Title = "Kill Boss",
     Default = false
@@ -501,7 +504,7 @@ Tabs.Main:AddToggle("Toggle_KillBoss", {
         })
     end
 end)
-
+-- kill aura rage
 Tabs.Main:AddSlider("AuraRangeSlider", {
     Title = "Kill Aura Range",
     Description = "Range to kill enemies",
@@ -513,7 +516,7 @@ Tabs.Main:AddSlider("AuraRangeSlider", {
     killAuraRange = value
     print("Kill aura range set to:", killAuraRange)
 end)
-
+-- bringmobsrage
 Tabs.Main:AddSlider("PullRangeSlider", {
     Title = "BringRange",
     Default = 200,
@@ -545,11 +548,9 @@ local function getIslandPositions()
         if obj:IsA("BasePart") then
             table.insert(parts, obj.Name)
         elseif obj:IsA("Model") then
-            -- ใช้ PrimaryPart ของ Model ถ้ามี
             if obj.PrimaryPart then
                 table.insert(parts, obj.Name)
             else
-                -- ถ้าไม่มี PrimaryPart, หาจุดกลางจาก BasePart แรกใน Model
                 local part = obj:FindFirstChildWhichIsA("BasePart", true)
                 if part then
                     table.insert(parts, obj.Name)
@@ -622,7 +623,6 @@ end)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommF_ = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
 
--- เก็บสถานะเปิด/ปิดของแต่ละสแตท
 local toggles = {
     Melee = false,
     Defense = false,
