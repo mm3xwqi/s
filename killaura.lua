@@ -4,7 +4,36 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 local killAuraRange = 300
 local bringRange = 200
+local offsetY = 50
+local swayZAmount = 35
 
+local selectedBosses = {
+    Boss1 = "",
+    Boss2 = "",
+    Boss3 = ""
+}
+
+local boss = {
+    "The Gorilla King", "Chef", "The Saw", "Mob Leader", "Vice Admiral",
+    "Yeti", "Saber Expert", "Warden", "Chief Warden", "Swan",
+    "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God",
+    "Cyborg", "Ice Admiral", "Greybeard"
+}
+local boss2 = {
+    "Diamond", "Jeremy", "Orbitus", "Don Swan", "Smoke Admiral",
+    "Awakened Ice Admiral", "Tide Keeper", "rip_indra", "Darkbeard",
+    "Order", "Cursed Captain"
+}
+local boss3 = {
+    "Stone", "Hydra Leader", "Kilo Admiral", "Captain Elephant",
+    "Beautiful Pirate", "Longma", "Cursed Skeleton Boss", "Cake Queen",
+    "Heaven's Guardian", "Hell's Messenger", "rip_indra True Form",
+    "Soul Reaper", "Cake Prince", "Dough King", "Tyrant of the Skies"
+}
+
+local function getSwayZ()
+    return math.random(-swayZAmount * 100, swayZAmount * 100) / 100
+end
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -178,17 +207,20 @@ local function attackAllEnemies()
     while running do
         local targetEnemy = nil
 
-        -- หา monster ในระยะ killAuraRange เท่านั้น (เป้าหมายหลัก)
+        -- หาเป้าหมายในระยะ killAuraRange
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                local humanoid = enemy.Humanoid
-                local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                if humanoid.Health > 0 and dist <= killAuraRange then
-                    targetEnemy = enemy
-                    break
-                end
-            end
+if humanoid.Health > 0 and dist <= killAuraRange then
+    if bossModeEnabled then
+        local name = enemy.Name
+        local isSelectedBoss =
+            name == selectedBosses.Boss1 or
+            name == selectedBosses.Boss2 or
+            name == selectedBosses.Boss3
+
+        if not isSelectedBoss then
+            continue
         end
+    end
 
         if not targetEnemy then
             task.wait(0.5)
@@ -199,28 +231,52 @@ local function attackAllEnemies()
             print("Attacking monster:", targetEnemy.Name)
             attackedMonsters[targetEnemy.Name] = true
 
-            tweenToPosition(humanoidRootPart, targetHRP.Position + Vector3.new(0, 15, 3))
+            -- tween ไปตำแหน่งแรกบนหัวมอน (offset คงที่ + swayZ)
+            local initialSwayZ = getSwayZ()
+            tweenToPosition(humanoidRootPart, targetHRP.Position + Vector3.new(offsetX, offsetY, initialSwayZ))
 
             while targetHumanoid.Health > 0 and running do
                 equipWeapon()
 
-                tweenToPosition(humanoidRootPart, targetHRP.Position + Vector3.new(0, 15, 5))
+                -- update swayZ ทุก 0.1 วินาที
+                local swayZ = getSwayZ()
+                local targetPos = targetHRP.Position + Vector3.new(offsetX, offsetY, swayZ)
+                tweenToPosition(humanoidRootPart, targetPos)
 
-                -- ดึงมอนสเตอร์รอบ ๆ มาอยู่กับเป้าหมายแบบ noclip ซ้อนกัน แบบเร็วทันที ไม่มีดีเลย์
-                bringEnemiesToTargetInstant(targetEnemy)
+                -- ดึงมอนรอบ ๆ มาไว้ที่เป้าหมายแบบรวดเร็ว
+                local nearbyEnemies = {}
+                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                    if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                        local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
+                        if dist <= bringRange and enemy.Humanoid.Health > 0 then
+                            table.insert(nearbyEnemies, enemy)
+                        end
+                    end
+                end
 
-                -- ยิง event ไป server เพื่อโจมตี target
+                for _, enemy in ipairs(nearbyEnemies) do
+                    local enemyHRP = enemy.HumanoidRootPart
+                    spawn(function()
+                        tweenToPosition(enemyHRP, targetHRP.Position)
+                    end)
+                end
+
+                -- ยิง event โจมตีเป้าหมายหลัก
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
 
-                -- สามารถเพิ่มการโจมตีมอนสเตอร์รอบๆ ได้ถ้าต้องการ
+                -- ยิง event โจมตีมอนที่ถูกดึงมาด้วย
+                for _, enemy in ipairs(nearbyEnemies) do
+                    if enemy and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
+                    end
+                end
 
-                task.wait(0.1)
+                task.wait(0.1) -- รอ 0.1 วิ ก่อนอัปเดต swayZ ใหม่
             end
         end
     end
 end
-
 local function attackEnemies()
     running = true
     while running do
@@ -320,6 +376,59 @@ Tabs.Main:AddToggle("MyToggle", {
             Content = "Tyrant of the Skie is stopped",
             Duration = 3
         })
+    end
+end)
+
+Tabs.Main:AddToggle("Toggle_BossMode", {
+    Title = "Enable Boss Mode",
+    Default = false
+}):OnChanged(function(state)
+    bossModeEnabled = state
+    print("Boss Mode Enabled:", state)
+end)
+
+Tabs.Main:AddDropdown("Dropdown_Boss1", {
+    Title = "Select Boss Tier 1",
+    Values = boss,
+    Multi = false
+}):OnChanged(function(value)
+    selectedBosses.Boss1 = value
+    print("Selected Boss1:", value)
+end)
+
+Tabs.Main:AddDropdown("Dropdown_Boss2", {
+    Title = "Select Boss Tier 2",
+    Values = boss2,
+    Multi = false
+}):OnChanged(function(value)
+    selectedBosses.Boss2 = value
+    print("Selected Boss2:", value)
+end)
+
+Tabs.Main:AddDropdown("Dropdown_Boss3", {
+    Title = "Select Boss Tier 3",
+    Values = boss3,
+    Multi = false
+}):OnChanged(function(value)
+    selectedBosses.Boss3 = value
+    print("Selected Boss3:", value)
+end)
+
+Tabs.Main:AddToggle("Toggle_BossMode", {
+    Title = "Enable Boss Mode",
+    Default = false
+}):OnChanged(function(state)
+    bossModeEnabled = state
+    print("Boss Mode Enabled:", state)
+
+    if state then
+        if selectedBosses.Boss1 == "" and selectedBosses.Boss2 == "" and selectedBosses.Boss3 == "" then
+            Fluent:Notify({
+                Title = "Warning",
+                Content = "You have not selected any boss to target.",
+                Duration = 3
+            })
+        end
     end
 end)
 
@@ -428,6 +537,18 @@ Tabs.Main:AddDropdown("IslandDropdown", {
     end
 end)
 
+Tabs.Main:AddSlider("OffsetYSlider", {
+    Title = "Offset Y",
+    Default = offsetY,
+    Min = 0,
+    Max = 50,
+    Rounding = 1,
+}):OnChanged(function(value)
+    offsetY = value
+    print("Offset Y set to:", offsetY)
+end)
+
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommF_ = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
 
@@ -467,7 +588,7 @@ for statName, _ in pairs(toggles) do
             spawn(function()
                 while toggles[statName] do
                     addStatPoint(statName)
-                    task.wait(0.2)
+                    task.wait(.1)
                 end
             end)
         end
