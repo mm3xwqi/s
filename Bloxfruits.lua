@@ -3,7 +3,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 local killAuraRange = 300
-local bringRange = 200
+local bringRange = 100
 local offsetY = 50
 local swayZAmount = 35
 
@@ -246,7 +246,13 @@ local function bringEnemiesToTargetInstant(targetEnemy)
     end
 end
 
+local NetModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local rea = NetModule:WaitForChild("RE/RegisterAttack")
+local reh = NetModule:WaitForChild("RE/RegisterHit")
+
 -- fast attack
+local playerHumanoid = character:WaitForChild("Humanoid")
+
 local function attackAllEnemies()
     while running do
         local targetEnemy = nil
@@ -271,41 +277,64 @@ local function attackAllEnemies()
             print("Attacking monster:", targetEnemy.Name)
             attackedMonsters[targetEnemy.Name] = true
 
-            local initialSwayZ = getSwayZ()
-            tweenToPosition(humanoidRootPart, targetHRP.Position + Vector3.new(offsetX, offsetY, initialSwayZ))
+            local playerTargetPos = Vector3.new(
+                targetHRP.Position.X,
+                offsetY,
+                targetHRP.Position.Z
+            )
+            tweenToPosition(humanoidRootPart, playerTargetPos)
+
+            local lastHealth = targetHumanoid.Health
+            local lastTime = tick()
 
             while targetHumanoid.Health > 0 and running do
+                if playerHumanoid.Health <= 0 then
+                    local safePosition = Vector3.new(humanoidRootPart.Position.X, offsetY, humanoidRootPart.Position.Z)
+                    tweenToPosition(humanoidRootPart, safePosition)
+                    break
+                end
+
                 equipWeapon()
                 activateBusoIfNotActive()
 
-                local swayZ = getSwayZ()
-                local targetPos = targetHRP.Position + Vector3.new(offsetX, offsetY, swayZ)
-                tweenToPosition(humanoidRootPart, targetPos)
-
-                local nearbyEnemies = {}
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                    if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                        local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
-                        if dist <= bringRange and enemy.Humanoid.Health > 0 then
-                            table.insert(nearbyEnemies, enemy)
+                    if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                        local enemyHRP = enemy.HumanoidRootPart
+                        local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
+
+                        if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
+                            enableNoclipForEnemy(enemy)
+                            local newPos = Vector3.new(
+                                humanoidRootPart.Position.X,
+                                enemyHRP.Position.Y,
+                                humanoidRootPart.Position.Z
+                            )
+                            enemyHRP.CFrame = CFrame.new(newPos)
                         end
                     end
                 end
 
-                for _, enemy in ipairs(nearbyEnemies) do
-                    local enemyHRP = enemy.HumanoidRootPart
-                    spawn(function()
-                        tweenToPosition(enemyHRP, targetHRP.Position)
-                    end)
+                rea:FireServer(0.1)
+                reh:FireServer(targetHRP, {})
+
+                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                    if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                        reh:FireServer(enemy.HumanoidRootPart, {})
+                    end
                 end
 
-                ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
-                ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
-
-                for _, enemy in ipairs(nearbyEnemies) do
-                    if enemy and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
+                if targetHumanoid.Health == lastHealth then
+                    if tick() - lastTime >= 3 then
+                        local head = targetEnemy:FindFirstChild("Head")
+                        if head then
+                            head:Destroy()
+                            warn("delete head:", targetEnemy.Name)
+                        end
+                        lastTime = tick()
                     end
+                else
+                    lastHealth = targetHumanoid.Health
+                    lastTime = tick()
                 end
 
                 task.wait(0.1)
@@ -438,7 +467,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.3",
+    Title = "Beta v1.4",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -450,7 +479,7 @@ local Window = Fluent:CreateWindow({
 local Tabs = {
     Main = Window:AddTab({ Title = "Main", Icon = "sword" }),
 }
--- kill aura
+
 Tabs.Main:AddToggle("MyToggle", {
     Title = "Kill aura",
     Default = false
@@ -466,7 +495,7 @@ Tabs.Main:AddToggle("MyToggle", {
         })
     end
 end)
--- boss 1
+
 Tabs.Main:AddDropdown("Dropdown_Boss1", {
     Title = "Select Boss world 1",
     Values = boss,
@@ -475,7 +504,7 @@ Tabs.Main:AddDropdown("Dropdown_Boss1", {
     selectedBosses.Boss1 = value
     print("Selected Boss1:", value)
 end)
--- boss 2
+
 Tabs.Main:AddDropdown("Dropdown_Boss2", {
     Title = "Select Boss world 2",
     Values = boss2,
@@ -484,7 +513,7 @@ Tabs.Main:AddDropdown("Dropdown_Boss2", {
     selectedBosses.Boss2 = value
     print("Selected Boss2:", value)
 end)
--- boss 3
+
 Tabs.Main:AddDropdown("Dropdown_Boss3", {
     Title = "Select Boss world 3",
     Values = boss3,
@@ -493,7 +522,7 @@ Tabs.Main:AddDropdown("Dropdown_Boss3", {
     selectedBosses.Boss3 = value
     print("Selected Boss3:", value)
 end)
--- kill boss
+
 Tabs.Main:AddToggle("Toggle_KillBoss", {
     Title = "Kill Boss",
     Default = false
@@ -510,11 +539,11 @@ Tabs.Main:AddToggle("Toggle_KillBoss", {
         })
     end
 end)
--- kill aura rage
+
 Tabs.Main:AddSlider("AuraRangeSlider", {
     Title = "Kill Aura Range",
     Description = "Range to kill enemies",
-    Default = 100,
+    Default = killAuraRange,
     Min = 10,
     Max = 500,
     Rounding = 0,
@@ -522,10 +551,9 @@ Tabs.Main:AddSlider("AuraRangeSlider", {
     killAuraRange = value
     print("Kill aura range set to:", killAuraRange)
 end)
--- bringmobsrage
 Tabs.Main:AddSlider("PullRangeSlider", {
     Title = "BringRange",
-    Default = 200,
+    Default = bringRange,
     Min = 10,
     Max = 350,
     Rounding = 0,
@@ -534,7 +562,6 @@ Tabs.Main:AddSlider("PullRangeSlider", {
     print("Pull range set to:", pullRange)
 end)
 
--- Select weapon
 Tabs.Main:AddDropdown("Dropdown", {
     Title = "Select weapon",
     Values = {"melee", "sword", "gun", "fruit"},
@@ -637,7 +664,6 @@ local toggles = {
     ["Demon Fruit"] = false
 }
 
--- ฟังก์ชันสำหรับเพิ่มแต้ม
 local function addStatPoint(statName)
     local args = {
         "AddPoint",
