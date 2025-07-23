@@ -5,7 +5,6 @@ local enemiesFolder = workspace:WaitForChild("Enemies")
 local killAuraRange = 300
 local bringRange = 100
 local offsetY = 50
-local swayZAmount = 35
 
 local args = {
 	"SetTeam",
@@ -44,10 +43,6 @@ local boss3 = {
     "Heaven's Guardian", "Hell's Messenger", "rip_indra True Form",
     "Soul Reaper", "Cake Prince", "Dough King", "Tyrant of the Skies"
 }
-
-local function getSwayZ()
-    return math.random(-swayZAmount * 100, swayZAmount * 100) / 100
-end
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -269,7 +264,7 @@ local function attackAllEnemies()
         end
 
         if not targetEnemy then
-            task.wait(0.5)
+            task.wait(.1)
         else
             local targetHRP = targetEnemy.HumanoidRootPart
             local targetHumanoid = targetEnemy.Humanoid
@@ -381,7 +376,6 @@ local function attackBossesOnly()
                 while humanoid and humanoid.Health > 0 and running and killBossEnabled do
                     equipWeapon()
 
-                    local swayZ = getSwayZ()
                     local targetPos = hrp.Position + Vector3.new(0, offsetY, swayZ)
 
                     -- tween ไปตำแหน่งใหม่ ไม่ต้องรอ
@@ -391,8 +385,8 @@ local function attackBossesOnly()
 
                     -- ยิง Remote ตีบอส
                     pcall(function()
-                        ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
-                        ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(hrp, {})
+                        rea:FireServer(0.1)
+                        reh:FireServer(hrp, {})
                     end)
 
                     task.wait(0.1)
@@ -467,7 +461,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.4",
+    Title = "Beta v1.3",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -640,18 +634,6 @@ Tabs.Main:AddDropdown("IslandDropdown", {
         })
     end
 end)
-
-Tabs.Main:AddSlider("OffsetYSlider", {
-    Title = "Offset Y",
-    Default = offsetY,
-    Min = 0,
-    Max = 50,
-    Rounding = 1,
-}):OnChanged(function(value)
-    offsetY = value
-    print("Offset Y set to:", offsetY)
-end)
-
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommF_ = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
