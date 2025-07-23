@@ -379,14 +379,6 @@ Tabs.Main:AddToggle("MyToggle", {
     end
 end)
 
-Tabs.Main:AddToggle("Toggle_BossMode", {
-    Title = "Enable Boss Mode",
-    Default = false
-}):OnChanged(function(state)
-    bossModeEnabled = state
-    print("Boss Mode Enabled:", state)
-end)
-
 Tabs.Main:AddDropdown("Dropdown_Boss1", {
     Title = "Select Boss Tier 1",
     Values = boss,
