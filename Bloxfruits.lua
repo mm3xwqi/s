@@ -2,8 +2,8 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
-local killAuraRange = 300
-local bringRange = 100
+local killAuraRange = 1000
+local bringRange = 350
 local offsetY = 50
 
 local args = {
@@ -12,13 +12,29 @@ local args = {
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
 
-local function activateBusoIfNotActive()
-    local character = workspace:WaitForChild("Characters"):FindFirstChild(game.Players.LocalPlayer.Name)
-    if character and not character:FindFirstChild("HasBuso") then
-        local args = { "Buso" }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+local function activateBusoLoop()
+    while true do
+        local character = workspace:WaitForChild("Characters"):FindFirstChild(game.Players.LocalPlayer.Name)
+        if character and not character:FindFirstChild("HasBuso") then
+            local args = { "Buso" }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+        end
+        task.wait(2) -- รอ 2 วินาทีก่อนเช็คอีกครั้ง เพื่อลดภาระการทำงาน
     end
 end
+
+local function actken()
+    while true do
+        local character = workspace:WaitForChild("Characters"):FindFirstChild(game.Players.LocalPlayer.Name)
+        if character and not character:FindFirstChild("Highlight") then
+            local args = { "Ken" }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommE"):FireServer(unpack(args))
+        end
+        task.wait(2)
+    end
+end
+
+
 
 local selectedBosses = {
     Boss1 = "",
@@ -82,7 +98,7 @@ updateCharacter()
 
 -- Table เก็บชื่ออาวุธ
 local melee = {
-    "Combat", "Dark Step", "Electric", "Water Kung Fu", "Dragon Breath",
+    "Combat", "Black Leg", "Electric", "Water Kung Fu", "Dragon Breath",
     "Superhuman", "Death Step", "Sharkman Karate", "Electric Claw",
     "Dragon Talon", "Godhuman", "Sanguine Art"
 }
@@ -269,11 +285,8 @@ local function attackAllEnemies()
             local targetHRP = targetEnemy.HumanoidRootPart
             local targetHumanoid = targetEnemy.Humanoid
 
-            print("Attacking monster:", targetEnemy.Name)
-            attackedMonsters[targetEnemy.Name] = true
-
            local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-           
+
             tweenToPosition(humanoidRootPart, playerTargetPos)
 
             local lastHealth = targetHumanoid.Health
@@ -285,9 +298,9 @@ local function attackAllEnemies()
                     tweenToPosition(humanoidRootPart, safePosition)
                     break
                 end
-
+                task.spawn(actken)
+                task.spawn(activateBusoLoop)
                 equipWeapon()
-                activateBusoIfNotActive()
 
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                     if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
@@ -329,12 +342,11 @@ local function attackAllEnemies()
                     lastTime = tick()
                 end
 
-                task.wait(0.1)
+                task.wait(0.15)
             end
         end
     end
 end
-
 -- boss attack
 local function attackBossesOnly()
     print("finding boss")
@@ -351,7 +363,7 @@ local function attackBossesOnly()
         return
     end
 
-    enableNoclip()  -- เปิด noclip + แข็งตัว
+    enableNoclip() 
 
     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
         if not running or not killBossEnabled then break end
@@ -367,20 +379,19 @@ local function attackBossesOnly()
             if isBoss and humanoid.Health > 0 then
                 print("found", name)
 
+                task.spawn(actken)
+                task.spawn(activateBusoLoop)
                 equipWeapon()
-                activateBusoIfNotActive()
 
                 while humanoid and humanoid.Health > 0 and running and killBossEnabled do
                     equipWeapon()
 
                     local targetPos = hrp.Position + Vector3.new(0, offsetY, swayZ)
 
-                    -- tween ไปตำแหน่งใหม่ ไม่ต้องรอ
                     pcall(function()
                         tweenToPosition(humanoidRootPart, targetPos)
                     end)
 
-                    -- ยิง Remote ตีบอส
                     pcall(function()
                         rea:FireServer(0.1)
                         reh:FireServer(hrp, {})
@@ -390,12 +401,12 @@ local function attackBossesOnly()
                 end
 
                 print("Finished", name)
-                break  -- โจมตีแค่บอสตัวเดียว พอจบแล้วออกจากลูปเลย
+                break 
             end
         end
     end
 
-    disableNoclip() -- ปิด noclip + ปลดล็อคตัวละครหลังโจมตีเสร็จ
+    disableNoclip() 
 end
 -- attackEnemies
 local function attackEnemies()
@@ -536,7 +547,7 @@ Tabs.Main:AddSlider("AuraRangeSlider", {
     Description = "Range to kill enemies",
     Default = killAuraRange,
     Min = 10,
-    Max = 500,
+    Max = 10000,
     Rounding = 0,
 }):OnChanged(function(value)
     killAuraRange = value
@@ -546,7 +557,7 @@ Tabs.Main:AddSlider("PullRangeSlider", {
     Title = "BringRange",
     Default = bringRange,
     Min = 10,
-    Max = 350,
+    Max = 1000,
     Rounding = 0,
 }):OnChanged(function(value)
     pullRange = value
