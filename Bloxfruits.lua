@@ -285,9 +285,12 @@ local function attackAllEnemies()
             local targetHRP = targetEnemy.HumanoidRootPart
             local targetHumanoid = targetEnemy.Humanoid
 
-           local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+            local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+            local distanceToTarget = (humanoidRootPart.Position - playerTargetPos).Magnitude
 
-            tweenToPosition(humanoidRootPart, playerTargetPos)
+            if distanceToTarget > 5 then
+                tweenToPosition(humanoidRootPart, playerTargetPos)
+            end
 
             local lastHealth = targetHumanoid.Health
             local lastTime = tick()
@@ -329,7 +332,7 @@ local function attackAllEnemies()
                 end
 
                 if targetHumanoid.Health == lastHealth then
-                    if tick() - lastTime >= 3 then
+                    if tick() - lastTime >= 10 then
                         local head = targetEnemy:FindFirstChild("Head")
                         if head then
                             head:Destroy()
