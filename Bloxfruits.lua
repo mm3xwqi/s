@@ -333,7 +333,7 @@ local function attackAllEnemies()
 
             while targetHumanoid.Health > 0 and running do
                 -- เช็คว่าเราจะตาย ให้หนีก่อน
-                if playerHumanoid.Health <= 20 then
+                if playerHumanoid.Health <= 5000 then
                     local safePosition = Vector3.new(humanoidRootPart.Position.X, 300, humanoidRootPart.Position.Z)
                     tweenToPosition(humanoidRootPart, safePosition)
                     break
@@ -616,8 +616,21 @@ local mapFolder = workspace:WaitForChild("Map")
 
 local function getIslandPositions()
     local parts = {}
+    local unwantedNames = {
+        ["WaterBase-Plane"] = true,
+        ["Fishmen"] = true,
+        ["TempleHitboxes"] = true,
+        ["MiniSky"] = true,
+        ["MiniSky1"] = true,
+        ["MiniSky2"] = true,
+        ["MiniSky3"] = true,
+    }
 
     for _, obj in ipairs(mapFolder:GetChildren()) do
+        if unwantedNames[obj.Name] then
+            continue
+        end
+
         if obj:IsA("BasePart") then
             table.insert(parts, obj.Name)
         elseif obj:IsA("Model") then
@@ -752,4 +765,161 @@ Tabs:AddToggle("Toggle_V4", {
     if value then
         task.spawn(runV4Loop)
     end
+end)
+
+
+local Taba = Window:AddTab({ Title = "Shop", Icon = "shopping-cart" })
+
+Taba:AddButton({
+    Title = "Black leg",
+    Description = "Buy the Black Leg",
+    Callback = function()
+        local args = {
+            "BuyBlackLeg"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+Taba:AddButton({
+    Title = "Electro",
+    Description = "Buy the Electro",
+    Callback = function()
+        local args = {
+            "BuyElectro"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+Taba:AddButton({
+    Title = "FishmanKarate",
+    Description = "Buy the FishmanKarate",
+    Callback = function()
+        local args = {
+            "BuyFishmanKarate"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+Taba:AddButton({
+    Title = "DragonClaw",
+    Description = "Buy the DragonClaw",
+    Callback = function()
+        local args = {
+            "BlackbeardReward",
+            "DragonClaw",
+            "2"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+Taba:AddButton({
+    Title = "Superhuman",
+    Description = "Buy the Superhuman",
+    Callback = function()
+        local args = {
+            "BuySuperhuman"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+Taba:AddButton({
+    Title = "DeathStep",
+    Description = "Buy the DeathStep",
+    Callback = function()
+        local args = {
+            "BuyDeathStep"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+Taba:AddButton({
+    Title = "SharkmanKarate",
+    Description = "Buy the SharkmanKarate",
+    Callback = function()
+        local args = {
+            "BuySharkmanKarate"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+
+Taba:AddButton({
+    Title = "DragonTalon",
+    Description = "Buy the DragonTalon",
+    Callback = function()
+        local args = {
+            "BuyDragonTalon"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+Taba:AddButton({
+    Title = "ElectricClaw",
+    Description = "Buy the ElectricClaw",
+    Callback = function()
+        local args = {
+	    "BuyElectricClaw"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+        end
+})
+
+
+Taba:AddButton({
+    Title = "Godhuman",
+    Description = "Buy the Godhuman",
+    Callback = function()
+        local args = {
+            "BuyGodhuman"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+Taba:AddButton({
+    Title = "SanguineArt",
+    Description = "Buy the SanguineArt",
+    Callback = function()
+        local args = {
+            "BuySanguineArt",
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+    end
+})
+
+
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local player = Players.LocalPlayer
+
+local fluentUI = CoreGui:FindFirstChild("ScreenGui")
+end
+
+local toggleUI = Instance.new("ScreenGui")
+toggleUI.Name = "Uigame"
+toggleUI.ResetOnSpawn = false
+toggleUI.IgnoreGuiInset = true
+toggleUI.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 120, 0, 45)
+button.Position = UDim2.new(1, -130, 1, -70)
+button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+button.TextColor3 = Color3.new(1, 1, 1)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 18
+button.Text = "Toggle UI"
+button.Parent = toggleUI
+
+button.MouseButton1Click:Connect(function()
+    fluentUI.Enabled = not fluentUI.Enabled
+    button.Text = fluentUI.Enabled and "Disabled Ui" or "Enabled UI"
 end)
