@@ -7,6 +7,12 @@ local bringRange = 200
 local offsetY = 50
 local swayZAmount = 35
 
+local args = {
+	"SetTeam",
+	"Marines"
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+
 local function activateBusoIfNotActive()
     local character = workspace:WaitForChild("Characters"):FindFirstChild(game.Players.LocalPlayer.Name)
     if character and not character:FindFirstChild("HasBuso") then
@@ -646,7 +652,6 @@ local function addStatPoint(statName)
     end
 end
 
--- สร้างลูปอัตโนมัติสำหรับแต่ละสแตท
 for statName, _ in pairs(toggles) do
     Tabs.Main:AddToggle("Toggle_" .. statName, {
         Title = "Auto Add " .. statName,
