@@ -2,6 +2,9 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
+
+local useV3 = false
+local useV4 = false
 local killAuraRange = 1000
 local bringRange = 110
 local offsetY = 50
@@ -15,6 +18,35 @@ local args = {
 	"Marines"
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+
+local function activateV3()
+    local args = { "ActivateAbility" }
+    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommE"):FireServer(unpack(args))
+end
+
+local function activateV4()
+    local args = { true }
+    local success, err = pcall(function()
+        game:GetService("Players").LocalPlayer:WaitForChild("Backpack"):WaitForChild("Awakening"):WaitForChild("RemoteFunction"):InvokeServer(unpack(args))
+    end)
+    if not success then
+        warn("V4 activation failed:", err)
+    end
+end
+
+local function runV3Loop()
+    while useV3 do
+        activateV3()
+        task.wait(2)  -- เว้นช่วง 2 วินาที (ปรับได้)
+    end
+end
+
+local function runV4Loop()
+    while useV4 do
+        activateV4()
+        task.wait(2)  -- เว้นช่วง 2 วินาที (ปรับได้)
+    end
+end
 
 local function activateBusoLoop()
     while true do
@@ -475,7 +507,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.3",
+    Title = "Beta v1.5",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -649,6 +681,15 @@ Tabs.Main:AddDropdown("IslandDropdown", {
     end
 end)
 
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:BuildConfigSection(Tabs.Main)
+InterfaceManager:BuildInterfaceSection(Tabs.Main)
+SaveManager:LoadAutoloadConfig()
+
+local Tabs = Window:AddTab({ Title = "Player", Icon = "person-standing" })
+
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommF_ = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
 
@@ -675,7 +716,7 @@ local function addStatPoint(statName)
 end
 
 for statName, _ in pairs(toggles) do
-    Tabs.Main:AddToggle("Toggle_" .. statName, {
+    Tabs:AddToggle("Toggle_" .. statName, {
         Title = "Auto Add " .. statName,
         Default = false
     }):OnChanged(function(state)
@@ -693,8 +734,22 @@ for statName, _ in pairs(toggles) do
     end
 
 
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:BuildConfigSection(Tabs.Main)
-InterfaceManager:BuildInterfaceSection(Tabs.Main)
-SaveManager:LoadAutoloadConfig()
+Tabs:AddToggle("Toggle_V3", {
+    Title = "Activate V3",
+    Default = false,
+}):OnChanged(function(value)
+    useV3 = value
+    if value then
+        task.spawn(runV3Loop)
+    end
+end)
+
+Tabs:AddToggle("Toggle_V4", {
+    Title = "Activate V4",
+    Default = false,
+}):OnChanged(function(value)
+    useV4 = value
+    if value then
+        task.spawn(runV4Loop)
+    end
+end)
