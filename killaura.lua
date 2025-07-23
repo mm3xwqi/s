@@ -148,8 +148,32 @@ local function tweenToPosition(part, targetPosition)
     task.wait(duration)
 end
 
--- fast attack
+-- เปิด noclip ให้มอนสเตอร์ (ปิดการชนกัน)
+local function enableNoclipForEnemy(enemy)
+    for _, part in ipairs(enemy:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+        end
+    end
+end
 
+-- ฟังก์ชันดึงมอนสเตอร์ให้มาอยู่กับเป้าหมาย
+local function bringEnemiesToTargetInstant(targetEnemy)
+    local targetHRP = targetEnemy.HumanoidRootPart
+
+    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+        if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+            local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
+            if dist <= bringRange and enemy.Humanoid.Health > 0 then
+                enableNoclipForEnemy(enemy)
+                -- ย้ายมอนมาอยู่ตำแหน่งเดียวกับเป้าหมายทันที ไม่มี tween
+                enemy.HumanoidRootPart.CFrame = targetHRP.CFrame
+            end
+        end
+    end
+end
+
+-- fast attack
 local function attackAllEnemies()
     while running do
         local targetEnemy = nil
@@ -182,35 +206,14 @@ local function attackAllEnemies()
 
                 tweenToPosition(humanoidRootPart, targetHRP.Position + Vector3.new(0, 15, 5))
 
-                -- หา monster รอบๆ target ภายใน pullRange เพื่อดึงมาช่วยโจมตี
-                local nearbyEnemies = {}
-                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                    if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                        local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
-                        if dist <= bringRange and enemy.Humanoid.Health > 0 then
-                            table.insert(nearbyEnemies, enemy)
-                        end
-                    end
-                end
-
-                -- Tween monster รอบๆ ให้มาอยู่ตำแหน่งเดียวกับ target
-                for _, enemy in ipairs(nearbyEnemies) do
-                    local enemyHRP = enemy.HumanoidRootPart
-                    spawn(function()
-                        tweenToPosition(enemyHRP, targetHRP.Position)
-                    end)
-                end
+                -- ดึงมอนสเตอร์รอบ ๆ มาอยู่กับเป้าหมายแบบ noclip ซ้อนกัน แบบเร็วทันที ไม่มีดีเลย์
+                bringEnemiesToTargetInstant(targetEnemy)
 
                 -- ยิง event ไป server เพื่อโจมตี target
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
 
-                -- โจมตี monster รอบๆ ด้วย (ถ้าต้องการ)
-                for _, enemy in ipairs(nearbyEnemies) do
-                    if enemy and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
-                    end
-                end
+                -- สามารถเพิ่มการโจมตีมอนสเตอร์รอบๆ ได้ถ้าต้องการ
 
                 task.wait(0.1)
             end
@@ -291,7 +294,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.1",
+    Title = "Beta v1.2",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -333,7 +336,7 @@ Tabs.Main:AddSlider("AuraRangeSlider", {
 end)
 
 Tabs.Main:AddSlider("PullRangeSlider", {
-    Title = "Bringmob Range",
+    Title = "BringRange",
     Default = 200,
     Min = 10,
     Max = 350,
