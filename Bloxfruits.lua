@@ -272,11 +272,8 @@ local function attackAllEnemies()
             print("Attacking monster:", targetEnemy.Name)
             attackedMonsters[targetEnemy.Name] = true
 
-            local playerTargetPos = Vector3.new(
-                targetHRP.Position.X,
-                offsetY,
-                targetHRP.Position.Z
-            )
+           local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+           
             tweenToPosition(humanoidRootPart, playerTargetPos)
 
             local lastHealth = targetHumanoid.Health
