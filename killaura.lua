@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 local killAuraRange = 300
+local bringRange = 200
 
 
 local player = Players.LocalPlayer
@@ -148,21 +149,22 @@ local function tweenToPosition(part, targetPosition)
 end
 
 -- fast attack
+
 local function attackAllEnemies()
     while running do
         local targetEnemy = nil
 
-        -- หา monster ในระยะ killAuraRange ที่ยังไม่ถูกโจมตี
-    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-        if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-            local humanoid = enemy.Humanoid
-            local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-            if humanoid.Health > 0 then
-                targetEnemy = enemy
-                break
+        -- หา monster ในระยะ killAuraRange เท่านั้น (เป้าหมายหลัก)
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                local humanoid = enemy.Humanoid
+                local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                if humanoid.Health > 0 and dist <= killAuraRange then
+                    targetEnemy = enemy
+                    break
+                end
             end
         end
-    end
 
         if not targetEnemy then
             task.wait(0.5)
@@ -180,17 +182,18 @@ local function attackAllEnemies()
 
                 tweenToPosition(humanoidRootPart, targetHRP.Position + Vector3.new(0, 15, 5))
 
+                -- หา monster รอบๆ target ภายใน pullRange เพื่อดึงมาช่วยโจมตี
                 local nearbyEnemies = {}
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                     if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                         local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
-                        if dist <= 200 and enemy.Humanoid.Health > 0 then
+                        if dist <= bringRange and enemy.Humanoid.Health > 0 then
                             table.insert(nearbyEnemies, enemy)
                         end
                     end
                 end
 
-                -- Tween monster รอบๆ ให้มาหา monster ตัวแรก (spawn ใหม่ทุกรอบ)
+                -- Tween monster รอบๆ ให้มาอยู่ตำแหน่งเดียวกับ target
                 for _, enemy in ipairs(nearbyEnemies) do
                     local enemyHRP = enemy.HumanoidRootPart
                     spawn(function()
@@ -198,7 +201,7 @@ local function attackAllEnemies()
                     end)
                 end
 
-                -- ยิง event ไป server เพื่อโจมตี monster ตัวแรก
+                -- ยิง event ไป server เพื่อโจมตี target
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
 
@@ -209,7 +212,7 @@ local function attackAllEnemies()
                     end
                 end
 
-                task.wait(.1) -- รอหน่อยเพื่อไม่ให้หน่วง
+                task.wait(0.1)
             end
         end
     end
@@ -288,7 +291,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1",
+    Title = "Beta v1.1",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -319,7 +322,7 @@ end)
 
 Tabs.Main:AddSlider("AuraRangeSlider", {
     Title = "Kill Aura Range",
-    Description = "Range to detect enemies",
+    Description = "Range to kill enemies",
     Default = 100,
     Min = 10,
     Max = 500,
@@ -327,6 +330,17 @@ Tabs.Main:AddSlider("AuraRangeSlider", {
 }):OnChanged(function(value)
     killAuraRange = value
     print("Kill aura range set to:", killAuraRange)
+end)
+
+Tabs.Main:AddSlider("PullRangeSlider", {
+    Title = "Bringmob Range",
+    Default = 200,
+    Min = 10,
+    Max = 350,
+    Rounding = 0,
+}):OnChanged(function(value)
+    pullRange = value
+    print("Pull range set to:", pullRange)
 end)
 
 -- Select weapon
