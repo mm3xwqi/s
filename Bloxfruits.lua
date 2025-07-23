@@ -301,6 +301,12 @@ end
 -- fast attack
 local playerHumanoid = character:WaitForChild("Humanoid")
 
+local function waitForHealthToRecover()
+    while playerHumanoid.Health < (playerHumanoid.MaxHealth * 0.35) and running do
+        task.wait(0.5)
+    end
+end
+
 local function attackAllEnemies()
     while running do
         local targetEnemy = nil
@@ -332,30 +338,33 @@ local function attackAllEnemies()
             local lastTime = tick()
 
             while targetHumanoid.Health > 0 and running do
-                -- เช็คว่าเราจะตาย ให้หนีก่อน
-                if playerHumanoid.Health <= 5000 then
+                local healthPercent = playerHumanoid.Health / playerHumanoid.MaxHealth
+                if healthPercent <= 0.30 then
                     local safePosition = Vector3.new(humanoidRootPart.Position.X, 300, humanoidRootPart.Position.Z)
                     tweenToPosition(humanoidRootPart, safePosition)
+                    waitForHealthToRecover()
                     break
                 end
+
                 equipWeapon()
 
                 -- ดึงมอนทุกตัวในระยะ
-                            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                                if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                                    local enemyHRP = enemy.HumanoidRootPart
-                                    local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
+                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                    if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                        local enemyHRP = enemy.HumanoidRootPart
+                        local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
 
-                                    if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
-                                        bringEnemyBelowPlayer(enemy)
-                                    end
-                                end
-                            end
+                        if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
+                            bringEnemyBelowPlayer(enemy)
+                        end
+                    end
+                end
+
                 -- โจมตีเป้าหมายหลัก
                 rea:FireServer(0.1)
                 reh:FireServer(targetHRP, {})
 
-                -- โจมตีตัวอื่นด้วย
+                -- โจมตีศัตรูอื่นที่อยู่ใกล้
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                     if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                         if enemy.Humanoid.Health > 0 then
@@ -364,7 +373,7 @@ local function attackAllEnemies()
                     end
                 end
 
-                -- ถ้ามอนเลือดไม่ลดนานเกิน 10 วินาที ให้ลบหัว
+                -- ถ้ามอนเลือดไม่ลดเกิน 10 วิ ลบหัว
                 if targetHumanoid.Health == lastHealth then
                     if tick() - lastTime >= 10 then
                         local head = targetEnemy:FindFirstChild("Head")
@@ -595,7 +604,7 @@ Tabs.Main:AddSlider("PullRangeSlider", {
     Title = "BringRange",
     Default = bringRange,
     Min = 10,
-    Max = 150,
+    Max = 250,
     Rounding = 0,
 }):OnChanged(function(value)
     pullRange = value
@@ -612,88 +621,6 @@ Tabs.Main:AddDropdown("Dropdown", {
     print("Selected weapon:", value)
 end)
 
-local mapFolder = workspace:WaitForChild("Map")
-
-local function getIslandPositions()
-    local parts = {}
-    local unwantedNames = {
-        ["WaterBase-Plane"] = true,
-        ["Fishmen"] = true,
-        ["TempleHitboxes"] = true,
-        ["MiniSky"] = true,
-        ["MiniSky1"] = true,
-        ["MiniSky2"] = true,
-        ["MiniSky3"] = true,
-    }
-
-    for _, obj in ipairs(mapFolder:GetChildren()) do
-        if unwantedNames[obj.Name] then
-            continue
-        end
-
-        if obj:IsA("BasePart") then
-            table.insert(parts, obj.Name)
-        elseif obj:IsA("Model") then
-            if obj.PrimaryPart then
-                table.insert(parts, obj.Name)
-            else
-                local part = obj:FindFirstChildWhichIsA("BasePart", true)
-                if part then
-                    table.insert(parts, obj.Name)
-                end
-            end
-        end
-    end
-
-    return parts
-end
-
-local locationNames = getIslandPositions()
-
-Tabs.Main:AddDropdown("IslandDropdown", {
-    Title = "Teleport to Island",
-    Values = locationNames,
-    Multi = false,
-}):OnChanged(function(value)
-    local targetPos = nil
-
-    local success, result = pcall(function()
-        local obj = mapFolder:FindFirstChild(value)
-        if obj then
-            if obj:IsA("BasePart") then
-                return obj.Position
-            elseif obj:IsA("Model") then
-                if obj.PrimaryPart then
-                    return obj.PrimaryPart.Position
-                else
-                    local part = obj:FindFirstChildWhichIsA("BasePart", true)
-                    if part then
-                        return part.Position
-                    end
-                end
-            end
-        end
-        return nil
-    end)
-
-    targetPos = success and result or nil
-
-    if targetPos and humanoidRootPart then
-        tweenToPosition(humanoidRootPart, targetPos + Vector3.new(0, 50, 0))
-        Fluent:Notify({
-            Title = "Teleporting",
-            Content = "Going to: " .. value,
-            Duration = 3
-        })
-    else
-        Fluent:Notify({
-            Title = "Error",
-            Content = "Destination not found or invalid.",
-            Duration = 3
-        })
-    end
-end)
-
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 SaveManager:BuildConfigSection(Tabs.Main)
@@ -701,7 +628,6 @@ InterfaceManager:BuildInterfaceSection(Tabs.Main)
 SaveManager:LoadAutoloadConfig()
 
 local Tabs = Window:AddTab({ Title = "Player", Icon = "person-standing" })
-
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CommF_ = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
@@ -767,6 +693,89 @@ Tabs:AddToggle("Toggle_V4", {
     end
 end)
 
+local Tabq = Window:AddTab({ Title = "islands", Icon = "door-closed" })
+
+local mapFolder = workspace:WaitForChild("Map")
+
+local function getIslandPositions()
+    local parts = {}
+    local unwantedNames = {
+        ["WaterBase-Plane"] = true,
+        ["Fishmen"] = true,
+        ["TempleHitboxes"] = true,
+        ["MiniSky"] = true,
+        ["MiniSky1"] = true,
+        ["MiniSky2"] = true,
+        ["MiniSky3"] = true,
+    }
+
+    for _, obj in ipairs(mapFolder:GetChildren()) do
+        if unwantedNames[obj.Name] then
+            continue
+        end
+
+        if obj:IsA("BasePart") then
+            table.insert(parts, obj.Name)
+        elseif obj:IsA("Model") then
+            if obj.PrimaryPart then
+                table.insert(parts, obj.Name)
+            else
+                local part = obj:FindFirstChildWhichIsA("BasePart", true)
+                if part then
+                    table.insert(parts, obj.Name)
+                end
+            end
+        end
+    end
+
+    return parts
+end
+
+local locationNames = getIslandPositions()
+
+Tabq:AddDropdown("IslandDropdown", {
+    Title = "Teleport to Island",
+    Values = locationNames,
+    Multi = false,
+}):OnChanged(function(value)
+    local targetPos = nil
+
+    local success, result = pcall(function()
+        local obj = mapFolder:FindFirstChild(value)
+        if obj then
+            if obj:IsA("BasePart") then
+                return obj.Position
+            elseif obj:IsA("Model") then
+                if obj.PrimaryPart then
+                    return obj.PrimaryPart.Position
+                else
+                    local part = obj:FindFirstChildWhichIsA("BasePart", true)
+                    if part then
+                        return part.Position
+                    end
+                end
+            end
+        end
+        return nil
+    end)
+
+    targetPos = success and result or nil
+
+    if targetPos and humanoidRootPart then
+        tweenToPosition(humanoidRootPart, targetPos + Vector3.new(0, 50, 0))
+        Fluent:Notify({
+            Title = "Teleporting",
+            Content = "Going to: " .. value,
+            Duration = 3
+        })
+    else
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Destination not found or invalid.",
+            Duration = 3
+        })
+    end
+end)
 
 local Taba = Window:AddTab({ Title = "Shop", Icon = "shopping-cart" })
 
@@ -901,7 +910,6 @@ local CoreGui = game:GetService("CoreGui")
 local player = Players.LocalPlayer
 
 local fluentUI = CoreGui:FindFirstChild("ScreenGui")
-end
 
 local toggleUI = Instance.new("ScreenGui")
 toggleUI.Name = "Uigame"
