@@ -3,8 +3,12 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 local killAuraRange = 1000
-local bringRange = 350
+local bringRange = 110
 local offsetY = 50
+local bringOffsetY = 2
+
+local kenEnabled = false
+local busoEnabled = false
 
 local args = {
 	"SetTeam",
@@ -19,21 +23,14 @@ local function activateBusoLoop()
             local args = { "Buso" }
             game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
         end
-        task.wait(2) -- รอ 2 วินาทีก่อนเช็คอีกครั้ง เพื่อลดภาระการทำงาน
+        task.wait(4) 
     end
 end
 
-local function actken()
-    while true do
-        local character = workspace:WaitForChild("Characters"):FindFirstChild(game.Players.LocalPlayer.Name)
-        if character and not character:FindFirstChild("Highlight") then
-            local args = { "Ken" }
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommE"):FireServer(unpack(args))
-        end
-        task.wait(2)
-    end
-end
-
+local args = {
+	"ActivateAbility"
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommE"):FireServer(unpack(args))
 
 
 local selectedBosses = {
@@ -261,6 +258,14 @@ local NetModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local rea = NetModule:WaitForChild("RE/RegisterAttack")
 local reh = NetModule:WaitForChild("RE/RegisterHit")
 
+local function bringEnemyBelowPlayer(enemy)
+    local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
+    if enemyHRP and humanoidRootPart then
+        local newPos = humanoidRootPart.Position - Vector3.new(0, 40, 0)
+        enemyHRP.CFrame = CFrame.new(newPos)
+    end
+end
+
 -- fast attack
 local playerHumanoid = character:WaitForChild("Humanoid")
 
@@ -280,15 +285,14 @@ local function attackAllEnemies()
         end
 
         if not targetEnemy then
-            task.wait(.1)
+            task.wait(0.1)
         else
             local targetHRP = targetEnemy.HumanoidRootPart
             local targetHumanoid = targetEnemy.Humanoid
-
             local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-            local distanceToTarget = (humanoidRootPart.Position - playerTargetPos).Magnitude
 
-            if distanceToTarget > 5 then
+            -- ไปหามอนถ้ายังไม่ถึง
+            if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
                 tweenToPosition(humanoidRootPart, playerTargetPos)
             end
 
@@ -296,47 +300,45 @@ local function attackAllEnemies()
             local lastTime = tick()
 
             while targetHumanoid.Health > 0 and running do
-                if playerHumanoid.Health <= 0 then
-                    local safePosition = Vector3.new(humanoidRootPart.Position.X, offsetY, humanoidRootPart.Position.Z)
+                -- เช็คว่าเราจะตาย ให้หนีก่อน
+                if playerHumanoid.Health <= 20 then
+                    local safePosition = Vector3.new(humanoidRootPart.Position.X, 300, humanoidRootPart.Position.Z)
                     tweenToPosition(humanoidRootPart, safePosition)
                     break
                 end
-                task.spawn(actken)
-                task.spawn(activateBusoLoop)
                 equipWeapon()
 
-                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                    if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                        local enemyHRP = enemy.HumanoidRootPart
-                        local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
+                -- ดึงมอนทุกตัวในระยะ
+                            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                                if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                                    local enemyHRP = enemy.HumanoidRootPart
+                                    local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
 
-                        if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
-                            enableNoclipForEnemy(enemy)
-                            local newPos = Vector3.new(
-                                humanoidRootPart.Position.X,
-                                enemyHRP.Position.Y,
-                                humanoidRootPart.Position.Z
-                            )
-                            enemyHRP.CFrame = CFrame.new(newPos)
+                                    if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
+                                        bringEnemyBelowPlayer(enemy)
+                                    end
+                                end
+                            end
+                -- โจมตีเป้าหมายหลัก
+                rea:FireServer(0.1)
+                reh:FireServer(targetHRP, {})
+
+                -- โจมตีตัวอื่นด้วย
+                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                    if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                        if enemy.Humanoid.Health > 0 then
+                            reh:FireServer(enemy.HumanoidRootPart, {})
                         end
                     end
                 end
 
-                rea:FireServer(0.1)
-                reh:FireServer(targetHRP, {})
-
-                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                    if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                        reh:FireServer(enemy.HumanoidRootPart, {})
-                    end
-                end
-
+                -- ถ้ามอนเลือดไม่ลดนานเกิน 10 วินาที ให้ลบหัว
                 if targetHumanoid.Health == lastHealth then
                     if tick() - lastTime >= 10 then
                         local head = targetEnemy:FindFirstChild("Head")
                         if head then
                             head:Destroy()
-                            warn("delete head:", targetEnemy.Name)
+                            warn("Delete head:", targetEnemy.Name)
                         end
                         lastTime = tick()
                     end
@@ -350,6 +352,7 @@ local function attackAllEnemies()
         end
     end
 end
+
 -- boss attack
 local function attackBossesOnly()
     print("finding boss")
@@ -382,7 +385,6 @@ local function attackBossesOnly()
             if isBoss and humanoid.Health > 0 then
                 print("found", name)
 
-                task.spawn(actken)
                 task.spawn(activateBusoLoop)
                 equipWeapon()
 
@@ -428,6 +430,7 @@ local function startFarming()
     end
 
     equipWeapon()
+    task.spawn(activateBusoLoop)
     attackEnemies()
 end
 -- startKillBoss
@@ -560,7 +563,7 @@ Tabs.Main:AddSlider("PullRangeSlider", {
     Title = "BringRange",
     Default = bringRange,
     Min = 10,
-    Max = 1000,
+    Max = 150,
     Rounding = 0,
 }):OnChanged(function(value)
     pullRange = value
