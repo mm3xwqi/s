@@ -176,6 +176,37 @@ local function tweenToPosition(part, targetPosition)
     TweenService:Create(part, tweenInfo, goal):Play()
     task.wait(duration)
 end
+--enableNoclip
+local function enableNoclip()
+    if not noclipActive then
+        noclipActive = true
+        spawn(function()
+            while noclipActive do
+                pcall(function()
+                    if not humanoidRootPart:FindFirstChild("Lock") then
+                        if character:WaitForChild("Humanoid").Sit then
+                            character.Humanoid.Sit = false
+                        end
+                        local Noclip = Instance.new("BodyVelocity")
+                        Noclip.Name = "Lock"
+                        Noclip.Parent = humanoidRootPart
+                        Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                        Noclip.Velocity = Vector3.new(0, 0, 0)
+                    end
+                end)
+                task.wait()
+            end
+        end)
+    end
+end
+--disableNoclip
+local function disableNoclip()
+    noclipActive = false
+    local lock = humanoidRootPart:FindFirstChild("Lock")
+    if lock then
+        lock:Destroy()
+    end
+end
 
 -- เปิด noclip ให้มอนสเตอร์ (ปิดการชนกัน)
 local function enableNoclipForEnemy(enemy)
@@ -209,18 +240,15 @@ local function attackAllEnemies()
 
         -- หาเป้าหมายในระยะ killAuraRange
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-if humanoid.Health > 0 and dist <= killAuraRange then
-    if bossModeEnabled then
-        local name = enemy.Name
-        local isSelectedBoss =
-            name == selectedBosses.Boss1 or
-            name == selectedBosses.Boss2 or
-            name == selectedBosses.Boss3
-
-        if not isSelectedBoss then
-            continue
+            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                local humanoid = enemy.Humanoid
+                local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                if humanoid.Health > 0 and dist <= killAuraRange then
+                    targetEnemy = enemy
+                    break
+                end
+            end
         end
-    end
 
         if not targetEnemy then
             task.wait(0.5)
@@ -277,42 +305,75 @@ if humanoid.Health > 0 and dist <= killAuraRange then
         end
     end
 end
+
+-- boss attack
+local function attackBossesOnly()
+    print("finding boss")
+
+    if not running then return end
+
+    if selectedBosses.Boss1 == "" and selectedBosses.Boss2 == "" and selectedBosses.Boss3 == "" then
+        warn("ยังไม่ได้เลือก Boss ใดเลย")
+        Fluent:Notify({
+            Title = "Warning",
+            Content = "Please select at least one boss to attack.",
+            Duration = 3
+        })
+        return
+    end
+
+    enableNoclip()  -- เปิด noclip + แข็งตัว
+
+    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+        if not running or not killBossEnabled then break end
+
+        if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+            local name = enemy.Name
+            local humanoid = enemy.Humanoid
+            local hrp = enemy.HumanoidRootPart
+
+            local isBoss = name == selectedBosses.Boss1 or name == selectedBosses.Boss2 or name == selectedBosses.Boss3
+            local dist = (hrp.Position - humanoidRootPart.Position).Magnitude
+
+            if isBoss and humanoid.Health > 0 then
+                print("found", name)
+
+                equipWeapon()
+
+                while humanoid and humanoid.Health > 0 and running and killBossEnabled do
+                    equipWeapon()
+
+                    local swayZ = getSwayZ()
+                    local targetPos = hrp.Position + Vector3.new(0, offsetY, swayZ)
+
+                    -- tween ไปตำแหน่งใหม่ ไม่ต้องรอ
+                    pcall(function()
+                        tweenToPosition(humanoidRootPart, targetPos)
+                    end)
+
+                    -- ยิง Remote ตีบอส
+                    pcall(function()
+                        ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
+                        ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(hrp, {})
+                    end)
+
+                    task.wait(0.1)
+                end
+
+                print("Finished", name)
+                break  -- โจมตีแค่บอสตัวเดียว พอจบแล้วออกจากลูปเลย
+            end
+        end
+    end
+
+    disableNoclip() -- ปิด noclip + ปลดล็อคตัวละครหลังโจมตีเสร็จ
+end
+
 local function attackEnemies()
     running = true
     while running do
         attackAllEnemies()
         task.wait(0.2)
-    end
-end
-
-local function enableNoclip()
-    if not noclipActive then
-        noclipActive = true
-        spawn(function()
-            while noclipActive do
-                pcall(function()
-                    if not humanoidRootPart:FindFirstChild("Lock") then
-                        if character:WaitForChild("Humanoid").Sit then
-                            character.Humanoid.Sit = false
-                        end
-                        local Noclip = Instance.new("BodyVelocity")
-                        Noclip.Name = "Lock"
-                        Noclip.Parent = humanoidRootPart
-                        Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                        Noclip.Velocity = Vector3.new(0, 0, 0)
-                    end
-                end)
-                task.wait()
-            end
-        end)
-    end
-end
-
-local function disableNoclip()
-    noclipActive = false
-    local lock = humanoidRootPart:FindFirstChild("Lock")
-    if lock then
-        lock:Destroy()
     end
 end
 
@@ -327,9 +388,21 @@ local function startFarming()
     attackEnemies()
 end
 
+local function startKillBoss()
+    running = true
+    killBossEnabled = true
+    task.spawn(function()
+        while killBossEnabled and running do
+            attackBossesOnly()
+            task.wait(0.5)
+        end
+    end)
+end
+
 local function stopFarming()
     disableNoclip()
     running = false
+    killBossEnabled = false
     attackedMonsters = {} -- เคลียร์ตารางตอนหยุดฟาร์มด้วย
     unequipWeapon()
 
@@ -342,6 +415,12 @@ local function stopFarming()
     if lock then
         lock:Destroy()
     end
+end
+
+local function stopKillBoss()
+    running = false
+    killBossEnabled = false
+    unequipWeapon()
 end
 
 -- UI 
@@ -380,7 +459,7 @@ Tabs.Main:AddToggle("MyToggle", {
 end)
 
 Tabs.Main:AddDropdown("Dropdown_Boss1", {
-    Title = "Select Boss Tier 1",
+    Title = "Select Boss world 1",
     Values = boss,
     Multi = false
 }):OnChanged(function(value)
@@ -389,7 +468,7 @@ Tabs.Main:AddDropdown("Dropdown_Boss1", {
 end)
 
 Tabs.Main:AddDropdown("Dropdown_Boss2", {
-    Title = "Select Boss Tier 2",
+    Title = "Select Boss world 2",
     Values = boss2,
     Multi = false
 }):OnChanged(function(value)
@@ -398,7 +477,7 @@ Tabs.Main:AddDropdown("Dropdown_Boss2", {
 end)
 
 Tabs.Main:AddDropdown("Dropdown_Boss3", {
-    Title = "Select Boss Tier 3",
+    Title = "Select Boss world 3",
     Values = boss3,
     Multi = false
 }):OnChanged(function(value)
@@ -406,21 +485,20 @@ Tabs.Main:AddDropdown("Dropdown_Boss3", {
     print("Selected Boss3:", value)
 end)
 
-Tabs.Main:AddToggle("Toggle_BossMode", {
-    Title = "Enable Boss Mode",
+Tabs.Main:AddToggle("Toggle_KillBoss", {
+    Title = "Kill Boss",
     Default = false
 }):OnChanged(function(state)
-    bossModeEnabled = state
-    print("Boss Mode Enabled:", state)
-
+    print("Kill Boss Toggle:", state)
     if state then
-        if selectedBosses.Boss1 == "" and selectedBosses.Boss2 == "" and selectedBosses.Boss3 == "" then
-            Fluent:Notify({
-                Title = "Warning",
-                Content = "You have not selected any boss to target.",
-                Duration = 3
-            })
-        end
+        startKillBoss()
+    else
+        stopKillBoss()
+        Fluent:Notify({
+            Title = "Notification",
+            Content = "Kill Boss stopped",
+            Duration = 3
+        })
     end
 end)
 
