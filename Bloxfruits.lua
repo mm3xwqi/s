@@ -7,7 +7,7 @@ local useV3 = false
 local useV4 = false
 local killAuraRange = 1000
 local bringRange = 110
-local offsetY = 50
+local offsetY = 10
 local bringOffsetY = 2
 
 local kenEnabled = false
