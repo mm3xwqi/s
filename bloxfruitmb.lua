@@ -25,7 +25,6 @@ local killBossEnabled = false
 local offsetY = 25
 local killAuraRange = 300
 local bringMobsRange = 100
-local noclipActive = false
 
 -- table
 local selectedBosses = {
