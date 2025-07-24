@@ -4,19 +4,34 @@ local args = {
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
 
-local TweenService = game:GetService("TweenService")
+-- ✅ ประกาศตัวแปรหลักก่อน
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 
-local useV3 = false
-local useV4 = false
-local killAuraRange = 1000
-local bringRange = 110
-local offsetY = 25
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
-local busoLoopRunning = false
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+if not humanoidRootPart then
+    warn("HumanoidRootPart ไม่เจอในตัวละคร")
+    return
+end
+
+local backpack = player:WaitForChild("Backpack")
+
+local SPEED = 350
+local running = false
 local killBossEnabled = false
+local offsetY = 50
+local killAuraRange = 300
+local bringRange = 100
 
+-- table
 local selectedBosses = {
     Boss1 = "",
     Boss2 = "",
@@ -41,16 +56,6 @@ local boss3 = {
     "Soul Reaper", "Cake Prince", "Dough King", "Tyrant of the Skies"
 }
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
-if not humanoidRootPart then
-    warn("HumanoidRootPart ไม่เจอในตัวละคร")
-    return
-end
-local backpack = player:WaitForChild("Backpack")
-
--- ตารางอาวุธ
 local melee = {
     "Combat", "Black Leg", "Electric", "Water Kung Fu", "Dragon Breath",
     "Superhuman", "Death Step", "Sharkman Karate", "Electric Claw",
@@ -85,205 +90,66 @@ local fruit = {
     "Dragon-Dragon"
 }
 
-local SPEED = 350
-local running = false
-local selectedWeaponName = nil
-local noclipActive = false
-
--- ฟังก์ชันอัปเดตตัวละคร
-local function updateCharacter()
-    character = player.Character or player.CharacterAdded:Wait()
-    humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
-    if not humanoidRootPart then
-        warn("HumanoidRootPart ไม่เจอในตัวละคร")
-    end
-end
-
-player.CharacterAdded:Connect(function()
-    updateCharacter()
-    backpack = player:WaitForChild("Backpack")
-    if selectedWeaponName then
-        equipWeapon()
-    end
-    if running then
-        startFarming()
-    end
-end)
-
--- equip weapon
-local function equipWeapon()
-    if not selectedWeaponName then return end
-    local tools = backpack:GetChildren()
-    for _, tool in ipairs(tools) do
-        if tool:IsA("Tool") then
-            if selectedWeaponName == "melee" and table.find(melee, tool.Name) then
-                tool.Parent = character
-                return
-            elseif selectedWeaponName == "sword" and table.find(sword, tool.Name) then
-                tool.Parent = character
-                return
-            elseif selectedWeaponName == "gun" and table.find(gun, tool.Name) then
-                tool.Parent = character
-                return
-            elseif selectedWeaponName == "fruit" and table.find(fruit, tool.Name) then
-                tool.Parent = character
-                return
-            end
-        end
-    end
-end
-
--- unequip weapon
-local function unequipWeapon()
-    if character and character:FindFirstChild("Humanoid") then
-        character.Humanoid:UnequipTools()
-        print("Unequipped all tools safely")
-    end
-end
-
--- tween function
-local function tweenToPosition(part, targetPosition)
-    local distance = (part.Position - targetPosition).Magnitude
-    local duration = distance / SPEED
-
-    spawn(function()
-        while noclipActive do
-            pcall(function()
-                if not humanoidRootPart:FindFirstChild("Lock") then
-                    if character:WaitForChild("Humanoid").Sit then
-                        character.Humanoid.Sit = false
-                    end
-                    local Noclip = Instance.new("BodyVelocity")
-                    Noclip.Name = "Lock"
-                    Noclip.Parent = humanoidRootPart
-                    Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                    Noclip.Velocity = Vector3.new(0, 0, 0)
-                end
-            end)
-            task.wait()
-        end
-    end)
-
-    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    local goal = { CFrame = CFrame.new(targetPosition) }
-    TweenService:Create(part, tweenInfo, goal):Play()
-    task.wait(duration)
-end
-
--- enable noclip
+-- ✅ ฟังก์ชัน Noclip
 local function enableNoclip()
-    if not noclipActive then
-        noclipActive = true
-        spawn(function()
-            while noclipActive do
-                pcall(function()
-                    if not humanoidRootPart:FindFirstChild("Lock") then
-                        if character:WaitForChild("Humanoid").Sit then
-                            character.Humanoid.Sit = false
-                        end
-                        local Noclip = Instance.new("BodyVelocity")
-                        Noclip.Name = "Lock"
-                        Noclip.Parent = humanoidRootPart
-                        Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                        Noclip.Velocity = Vector3.new(0, 0, 0)
-                    end
-                end)
-                task.wait()
-            end
-        end)
+    for _, v in ipairs(character:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.CanCollide = false
+        end
     end
 end
 
--- disable noclip
 local function disableNoclip()
-    noclipActive = false
-    local lock = humanoidRootPart:FindFirstChild("Lock")
-    if lock then
-        lock:Destroy()
+    for _, v in ipairs(character:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.CanCollide = true
+        end
     end
 end
 
--- bring enemy under player
+-- ✅ ฟังก์ชันอาวุธ & Buso
+local function equipWeapon()
+    local tool = player.Backpack:FindFirstChildOfClass("Tool")
+    if tool then
+        tool.Parent = character
+    end
+end
+
+local function unequipWeapon()
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool then
+        tool.Parent = player.Backpack
+    end
+end
+
+local function activateBusoLoop()
+    if character:FindFirstChild("HasBuso") then return end
+
+    local args = {"Buso"}
+    ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+end
+
+-- ✅ Tween
+local function tweenToPosition(part, pos)
+    local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(part, tweenInfo, {CFrame = CFrame.new(pos)})
+    tween:Play()
+end
+
+-- ✅ ฟังก์ชัน bring mobs
 local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
-    local humanoid = enemy:FindFirstChild("Humanoid")
-    if enemyHRP and humanoidRootPart and humanoid then
-        -- ล็อคมอนไม่ให้ขยับ
-        enemyHRP.Anchored = true
-        humanoid.PlatformStand = true
-
-        -- ดึงมาไว้บนพื้น ใต้ตัวผู้เล่นเล็กน้อย
-        local newY = humanoidRootPart.Position.Y - 3
-        local groundPos = Vector3.new(humanoidRootPart.Position.X, newY, humanoidRootPart.Position.Z)
-        enemyHRP.CFrame = CFrame.new(groundPos)
-
-        -- ปลดล็อคหลังผ่านไป 1 วินาที
-        task.delay(1, function()
-            if enemyHRP and humanoid then
-                enemyHRP.Anchored = false
-                humanoid.PlatformStand = false
-            end
-        end)
+    if enemyHRP and humanoidRootPart then
+        local newPos = humanoidRootPart.Position - Vector3.new(0, 2, 0)
+        enemyHRP.CFrame = CFrame.new(newPos)
     end
 end
 
--- ฟังก์ชัน Activate V3
-local function activateV3()
-    local args = { "ActivateAbility" }
-    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommE"):FireServer(unpack(args))
-end
-
--- ฟังก์ชัน Activate V4
-local function activateV4()
-    local args = { true }
-    local success, err = pcall(function()
-        game:GetService("Players").LocalPlayer:WaitForChild("Backpack"):WaitForChild("Awakening"):WaitForChild("RemoteFunction"):InvokeServer(unpack(args))
-    end)
-    if not success then
-        warn("V4 activation failed:", err)
-    end
-end
-
-local function runV3Loop()
-    while useV3 do
-        activateV3()
-        task.wait(2)
-    end
-end
-
-local function runV4Loop()
-    while useV4 do
-        activateV4()
-        task.wait(2)
-    end
-end
-
--- ฟังก์ชัน Activate Buso Loop
-local function activateBusoLoop()
-    if busoLoopRunning then return end
-    busoLoopRunning = true
-
-    while running and (killBossEnabled or farmingEnabled) do
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hasBuso = character:FindFirstChild("HasBuso")
-
-        if not hasBuso then
-            local args = { "Buso" }
-            pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-            end)
-        end
-
-        task.wait(3)
-    end
-
-    busoLoopRunning = false
-end
-
--- attack all enemies
+-- ✅ Kill Aura ปกติ
 local function attackAllEnemies()
-    while running do
+    while running and not killBossEnabled do
         local targetEnemy = nil
+
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                 local humanoid = enemy.Humanoid
@@ -295,67 +161,36 @@ local function attackAllEnemies()
             end
         end
 
+        if targetEnemy then
             local targetHRP = targetEnemy.HumanoidRootPart
             local targetHumanoid = targetEnemy.Humanoid
-            local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-
-            if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
-                tweenToPosition(humanoidRootPart, playerTargetPos)
-            end
-
-            local lastHealth = targetHumanoid.Health
-            local lastTime = tick()
+            local targetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+            tweenToPosition(humanoidRootPart, targetPos)
 
             equipWeapon()
+            activateBusoLoop()
 
             for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                 if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                    local enemyHRP = enemy.HumanoidRootPart
-                    local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
-                    if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
+                    local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                    if dist <= bringRange then
                         bringEnemyBelowPlayer(enemy)
                     end
                 end
             end
 
             pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
-                game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
+                ReplicatedStorage.Modules.Net.RE.RegisterAttack:FireServer(0.1)
+                ReplicatedStorage.Modules.Net.RE.RegisterHit:FireServer(targetHRP, {})
             end)
-
-            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                    if enemy.Humanoid.Health > 0 then
-                        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
-                    end
-                end
-            end
-
-            if targetHumanoid.Health == lastHealth then
-                if tick() - lastTime >= 5 then
-                    local head = targetEnemy:FindFirstChild("Head")
-                    if head then
-                        head:Destroy()
-                    end
-                    lastTime = tick()
-                end
-            else
-                lastHealth = targetHumanoid.Health
-                lastTime = tick()
-            end
-
-            task.wait(0.1)
         end
+        task.wait(0.1)
     end
 end
 
-
--- ฟังก์ชันโจมตีบอสเท่านั้น
+-- ✅ Kill Boss เท่านั้น
 local function attackBossesOnly()
-    print("finding boss")
-
     enableNoclip()
-
     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
         if not running or not killBossEnabled then break end
 
@@ -363,106 +198,69 @@ local function attackBossesOnly()
             local name = enemy.Name
             local humanoid = enemy.Humanoid
             local hrp = enemy.HumanoidRootPart
-
             local isBoss = name == selectedBosses.Boss1 or name == selectedBosses.Boss2 or name == selectedBosses.Boss3
-            local dist = (hrp.Position - humanoidRootPart.Position).Magnitude
 
             if isBoss and humanoid.Health > 0 then
-                print("found", name)
-
                 equipWeapon()
+                activateBusoLoop()
 
                 while humanoid and humanoid.Health > 0 and running and killBossEnabled do
-                    equipWeapon()
-
                     local targetPos = hrp.Position + Vector3.new(0, offsetY, 0)
+                    tweenToPosition(humanoidRootPart, targetPos)
 
                     pcall(function()
-                        tweenToPosition(humanoidRootPart, targetPos)
-                    end)
-
-                    pcall(function()
-                        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.15)
-                        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(hrp, {})
+                        ReplicatedStorage.Modules.Net.RE.RegisterAttack:FireServer(0.1)
+                        ReplicatedStorage.Modules.Net.RE.RegisterHit:FireServer(hrp, {})
                     end)
 
                     task.wait(0.1)
                 end
-
-                print("Finished", name)
                 break
             end
         end
     end
-
     disableNoclip()
 end
 
--- เริ่มโจมตีศัตรูทั่วไป
-local function attackEnemies()
-    running = true
-    while running do
-        attackAllEnemies()
-        task.wait(0.2)
-    end
-end
-
--- เริ่มฟาร์ม
+-- ✅ เริ่มฟาร์มทั่วไป
 local function startFarming()
     running = true
-    farmingEnabled = true
-
     enableNoclip()
-
-    if character and character:FindFirstChild("Humanoid") then
+    if character:FindFirstChild("Humanoid") then
         character.Humanoid.PlatformStand = true
     end
-
-    equipWeapon()
-    task.spawn(activateBusoLoop) 
-    attackEnemies()
+    task.spawn(attackAllEnemies)
 end
 
--- เริ่ม Kill Boss
+-- ✅ เริ่มตีบอส
 local function startKillBoss()
     running = true
     killBossEnabled = true
-
-    task.spawn(activateBusoLoop) -- 🔁 เรียกแค่ครั้งเดียว
-
     task.spawn(function()
-        while killBossEnabled and running do
+        while running and killBossEnabled do
             attackBossesOnly()
-            task.wait(0.5)
+            task.wait(0.2)
         end
     end)
 end
 
--- หยุดฟาร์ม
+-- ✅ หยุดทุกอย่าง
 local function stopFarming()
-    disableNoclip()
     running = false
     killBossEnabled = false
-    farmingEnabled = false
+    disableNoclip()
     unequipWeapon()
-
-    if character and character:FindFirstChild("Humanoid") then
+    if character:FindFirstChild("Humanoid") then
         character.Humanoid.PlatformStand = false
-        character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end
-
-    local lock = humanoidRootPart:FindFirstChild("Lock")
-    if lock then
-        lock:Destroy()
     end
 end
--- หยุด Kill Boss
+
 local function stopKillBoss()
     running = false
     killBossEnabled = false
-    farmingEnabled = false
     unequipWeapon()
 end
+
 
 
 -- UI 
@@ -471,7 +269,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2.3",
+    Title = "Beta v1.2.4",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
