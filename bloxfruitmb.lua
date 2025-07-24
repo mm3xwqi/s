@@ -1,6 +1,11 @@
+local args = {
+    "SetTeam",
+    "Marines"
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 
 local useV3 = false
@@ -292,20 +297,20 @@ local function attackAllEnemies()
                 end
             end
 
-  --          pcall(function()
-   --             ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
-    --            ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
-  --          end)
+pcall(function()
+game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
+game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
+end)
 
--- pcall(function()
---     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
---         if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
---             if enemy.Humanoid.Health > 0 then
---                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
---             end
---         end
---     end
--- end)
+
+for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+ if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+ if enemy.Humanoid.Health > 0 then
+ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
+end
+end
+end
+
 
             if targetHumanoid.Health == lastHealth then
                 if tick() - lastTime >= 5 then
@@ -359,7 +364,7 @@ local function attackBossesOnly()
                     end)
 
                     pcall(function()
-                        ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
+                        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.15)
                         ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(hrp, {})
                     end)
 
@@ -440,7 +445,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.8",
+    Title = "Beta v1.9",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
