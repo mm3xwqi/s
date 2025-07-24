@@ -7,11 +7,27 @@ local enemiesFolder = workspace:WaitForChild("Enemies")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
-if not humanoidRootPart then
-    warn("HumanoidRootPart ไม่เจอในตัวละคร")
-    return
+local function updateCharacterReferences(newCharacter)
+	character = newCharacter
+	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+	backpack = player:WaitForChild("Backpack")
 end
 
+-- ฟัง event ตัวละครเกิดใหม่ (เช่นหลังตาย)
+player.CharacterAdded:Connect(function(newCharacter)
+	updateCharacterReferences(newCharacter)
+
+	-- รอให้โหลดเสร็จก่อนเริ่มทำงานใหม่
+	newCharacter:WaitForChild("HumanoidRootPart")
+	task.wait(1)
+
+	if running then
+		coroutine.wrap(attackAllEnemies)()
+	end
+end)
+
+-- ครั้งแรกตอนเริ่มเกม
+updateCharacterReferences(character)
 local backpack = player:WaitForChild("Backpack")
 
 -- โหลด module ต่างๆ
@@ -173,13 +189,23 @@ local function enableNoclipForEnemy(enemy)
 end
 
 -- bring mobs
-local function bringEnemyBelowPlayer(enemy)
-    local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
-    if enemyHRP and humanoidRootPart then
-        local newPos = humanoidRootPart.Position - Vector3.new(0, 40, 0)
-	enableNoclipForEnemy(enemy)
-        enemyHRP.CFrame = CFrame.new(newPos)
-    end
+local movedEnemies = {}
+
+local function bringEnemiesToTarget(targetEnemy)
+	local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
+	if not targetHRP then return end
+
+	for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+		if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+			local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
+			if dist <= bringMobsRange and not movedEnemies[enemy] then
+				local newPos = targetHRP.Position - Vector3.new(0, 40, 0)
+				enableNoclipForEnemy(enemy)
+				enemy.HumanoidRootPart.CFrame = CFrame.new(newPos)
+				movedEnemies[enemy] = true
+			end
+		end
+	end
 end
 
 -- Kill Aura
@@ -187,6 +213,7 @@ local function attackAllEnemies()
 	while running do
 		local targetEnemy = nil
 		startNoclip()
+
 		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
 				local humanoid = enemy.Humanoid
@@ -209,15 +236,10 @@ local function attackAllEnemies()
 				equipWeapon()
 				activateBusoLoop()
 
-				for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-					if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-						local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-						if dist <= bringMobsRange then
-							bringEnemyBelowPlayer(enemy)
-						end
-					end
-				end
+				-- ดึงมอนเฉพาะตอนเริ่ม target ใหม่
+				bringEnemiesToTarget(targetEnemy)
 
+				-- ตี
 				if registerAttack and registerHit then
 					local success, err = pcall(function()
 						registerAttack:FireServer(0.1)
@@ -232,6 +254,9 @@ local function attackAllEnemies()
 			else
 				warn("targetHRP or targetHumanoid is nil")
 			end
+		else
+			-- รีเซ็ตเมื่อไม่มีเป้าหมาย
+			movedEnemies = {}
 		end
 
 		task.wait(0.1)
@@ -324,7 +349,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.4 MB",
+    Title = "Beta v1.5 MB",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
