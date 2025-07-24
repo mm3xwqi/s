@@ -1,12 +1,11 @@
-local args = {
-    "SetTeam",
-    "Marines"
-}
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-
 -- main local
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local modules = ReplicatedStorage:WaitForChild("Modules")
+local net = modules:WaitForChild("Net")
+
+local registerAttack = net:FindFirstChild("RE/RegisterAttack")
+local registerHit = net:FindFirstChild("RE/RegisterHit")
 local TweenService = game:GetService("TweenService")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 
@@ -227,14 +226,6 @@ local function bringEnemiesToTargetInstant(target)
 end
 
 -- Kill Aura
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local modules = ReplicatedStorage:WaitForChild("Modules")
-local net = modules:WaitForChild("Net")
-
--- ✅ Remote ที่ชื่อมี "/"
-local registerAttack = net:FindFirstChild("RE/RegisterAttack")
-local registerHit = net:FindFirstChild("RE/RegisterHit")
-
 local function attackAllEnemies()
 	while running and not killBossEnabled do
 		local targetEnemy = nil
