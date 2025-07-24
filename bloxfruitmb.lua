@@ -128,6 +128,13 @@ end
 
 local noclipForce
 
+local function stopNoclip()
+    if noclipForce then
+        noclipForce:Destroy()
+        noclipForce = nil
+    end
+end
+
 local function startNoclip()
     if not noclipForce and humanoidRootPart then
         noclipForce = Instance.new("BodyVelocity")
@@ -138,12 +145,10 @@ local function startNoclip()
     end
 end
 
-
 local function tweenToPosition(part, targetPosition)
     local distance = (part.Position - targetPosition).Magnitude
     local duration = distance / SPEED
 
-    -- เรียก startNoclip ก่อนถ้าจำเป็น
     if noclipActive then
         startNoclip()
     else
@@ -154,21 +159,12 @@ local function tweenToPosition(part, targetPosition)
     local goal = { CFrame = CFrame.new(targetPosition) }
     local tween = TweenService:Create(part, tweenInfo, goal)
     tween:Play()
-    tween.Completed:Wait() -- รอจนจบ tween
+    tween.Completed:Wait()
 
-    -- หลัง tween จบ อาจจะหยุด noclip หรือจัดการตามต้องการ
-    -- ตัวอย่าง:
     if not noclipActive then
         stopNoclip()
     end
-
-local function stopNoclip()
-    if noclipForce then
-        noclipForce:Destroy()
-        noclipForce = nil
-    end
 end
-
 --noclip mob
 local function enableNoclipForEnemy(enemy)
     for _, part in ipairs(enemy:GetDescendants()) do
@@ -256,7 +252,7 @@ end
 
 --Kill Boss 
 local function attackBossesOnly()
-    enableNoclip()
+    startNoclip()
     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
         if not running or not killBossEnabled then break end
 
@@ -292,7 +288,7 @@ local function attackBossesOnly()
             end
         end
     end
-    disableNoclip()
+    stopNoclip()
 end
 
 -- startFarming
