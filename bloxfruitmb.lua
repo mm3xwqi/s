@@ -207,9 +207,24 @@ end
 -- bring enemy under player
 local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
-    if enemyHRP and humanoidRootPart then
-        local newPos = humanoidRootPart.Position - Vector3.new(0, 10, 0)
-        enemyHRP.CFrame = CFrame.new(newPos)
+    local humanoid = enemy:FindFirstChild("Humanoid")
+    if enemyHRP and humanoidRootPart and humanoid then
+        -- ล็อคมอนไม่ให้ขยับ
+        enemyHRP.Anchored = true
+        humanoid.PlatformStand = true
+
+        -- ดึงมาไว้บนพื้น ใต้ตัวผู้เล่นเล็กน้อย
+        local newY = humanoidRootPart.Position.Y - 3
+        local groundPos = Vector3.new(humanoidRootPart.Position.X, newY, humanoidRootPart.Position.Z)
+        enemyHRP.CFrame = CFrame.new(groundPos)
+
+        -- ปลดล็อคหลังผ่านไป 1 วินาที
+        task.delay(1, function()
+            if enemyHRP and humanoid then
+                enemyHRP.Anchored = false
+                humanoid.PlatformStand = false
+            end
+        end)
     end
 end
 
@@ -268,29 +283,22 @@ local function attackAllEnemies()
                 local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
                 if humanoid.Health > 0 and dist <= killAuraRange then
                     targetEnemy = enemy
-                    print("🎯 Found target enemy:", enemy.Name)
                     break
                 end
             end
         end
 
-        if not targetEnemy then
-            print("❌ No valid target found within range.")
-            task.wait(0.1)
-        else
             local targetHRP = targetEnemy.HumanoidRootPart
             local targetHumanoid = targetEnemy.Humanoid
             local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
 
             if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
-                print("📍 Tweening to enemy position")
                 tweenToPosition(humanoidRootPart, playerTargetPos)
             end
 
             local lastHealth = targetHumanoid.Health
             local lastTime = tick()
 
-            print("🗡 Equipping weapon")
             equipWeapon()
 
             for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -299,22 +307,18 @@ local function attackAllEnemies()
                     local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
                     if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
                         bringEnemyBelowPlayer(enemy)
-                        print("🧲 Bringing enemy:", enemy.Name)
                     end
                 end
             end
 
             pcall(function()
-                print("🚀 Firing RegisterAttack")
                 game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
-                print("💥 Firing RegisterHit:", targetEnemy.Name)
                 game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
             end)
 
             for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                 if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                     if enemy.Humanoid.Health > 0 then
-                        print("📌 Also hitting:", enemy.Name)
                         game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
                     end
                 end
@@ -325,12 +329,10 @@ local function attackAllEnemies()
                     local head = targetEnemy:FindFirstChild("Head")
                     if head then
                         head:Destroy()
-                        warn("🧨 Delete head due to no damage:", targetEnemy.Name)
                     end
                     lastTime = tick()
                 end
             else
-                print("✅ Target is taking damage:", targetEnemy.Name, "→", targetHumanoid.Health)
                 lastHealth = targetHumanoid.Health
                 lastTime = tick()
             end
@@ -456,7 +458,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2.1",
+    Title = "Beta v1.2.2",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
