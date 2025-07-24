@@ -177,6 +177,7 @@ local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
     if enemyHRP and humanoidRootPart then
         local newPos = humanoidRootPart.Position - Vector3.new(0, 40, 0)
+	enableNoclipForEnemy(enemy)
         enemyHRP.CFrame = CFrame.new(newPos)
     end
 end
