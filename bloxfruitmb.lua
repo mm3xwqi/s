@@ -12,8 +12,9 @@ local useV3 = false
 local useV4 = false
 local killAuraRange = 1000
 local bringRange = 110
-local offsetY = 20
+local offsetY = 25
 
+local busoLoopRunning = false
 local killBossEnabled = false
 
 local selectedBosses = {
@@ -259,21 +260,29 @@ end
 
 -- ฟังก์ชัน Activate Buso Loop
 local function activateBusoLoop()
-    while true do
-        local character = workspace:WaitForChild("Characters"):FindFirstChild(game.Players.LocalPlayer.Name)
-        if character and not character:FindFirstChild("HasBuso") then
+    if busoLoopRunning then return end
+    busoLoopRunning = true
+
+    while running and (killBossEnabled or farmingEnabled) do
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hasBuso = character:FindFirstChild("HasBuso")
+
+        if not hasBuso then
             local args = { "Buso" }
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+            pcall(function()
+                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
+            end)
         end
-        task.wait(4) 
+
+        task.wait(3)
     end
+
+    busoLoopRunning = false
 end
 
 -- attack all enemies
 local function attackAllEnemies()
     while running do
-        print("🔄 Loop start")
-
         local targetEnemy = nil
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
@@ -400,6 +409,9 @@ end
 
 -- เริ่มฟาร์ม
 local function startFarming()
+    running = true
+    farmingEnabled = true
+
     enableNoclip()
 
     if character and character:FindFirstChild("Humanoid") then
@@ -407,7 +419,7 @@ local function startFarming()
     end
 
     equipWeapon()
-    task.spawn(activateBusoLoop)
+    task.spawn(activateBusoLoop) 
     attackEnemies()
 end
 
@@ -415,14 +427,15 @@ end
 local function startKillBoss()
     running = true
     killBossEnabled = true
+
+    task.spawn(activateBusoLoop) -- 🔁 เรียกแค่ครั้งเดียว
+
     task.spawn(function()
         while killBossEnabled and running do
-	task.spawn(activateBusoLoop)
             attackBossesOnly()
             task.wait(0.5)
         end
     end)
-end
 end
 
 -- หยุดฟาร์ม
@@ -430,6 +443,7 @@ local function stopFarming()
     disableNoclip()
     running = false
     killBossEnabled = false
+    farmingEnabled = false
     unequipWeapon()
 
     if character and character:FindFirstChild("Humanoid") then
@@ -442,11 +456,11 @@ local function stopFarming()
         lock:Destroy()
     end
 end
-
 -- หยุด Kill Boss
 local function stopKillBoss()
-    killBossEnabled = false
     running = false
+    killBossEnabled = false
+    farmingEnabled = false
     unequipWeapon()
 end
 
@@ -457,7 +471,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2.2",
+    Title = "Beta v1.2.3",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
