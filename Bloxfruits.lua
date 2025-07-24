@@ -3,6 +3,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 
+local NetModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local registerAttack = NetModule:FindFirstChild("RE/RegisterAttack")
+local registerHit = NetModule:FindFirstChild("RE/RegisterHit")
+
 local useV3 = false
 local useV4 = false
 local killAuraRange = 1000
@@ -286,10 +290,6 @@ local function bringEnemiesToTargetInstant(targetEnemy)
     end
 end
 
-local NetModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local rea = NetModule:WaitForChild("RE/RegisterAttack")
-local reh = NetModule:WaitForChild("RE/RegisterHit")
-
 local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
     if enemyHRP and humanoidRootPart then
@@ -361,14 +361,14 @@ local function attackAllEnemies()
                 end
 
                 -- โจมตีเป้าหมายหลัก
-                rea:FireServer(0.1)
-                reh:FireServer(targetHRP, {})
+                registerAttack:FireServer(0.1)
+                registerHit:FireServer(targetHRP, {})
 
                 -- โจมตีศัตรูอื่นที่อยู่ใกล้
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                     if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                         if enemy.Humanoid.Health > 0 then
-                            reh:FireServer(enemy.HumanoidRootPart, {})
+                        registerHit:FireServer(enemy.HumanoidRootPart, {})
                         end
                     end
                 end
