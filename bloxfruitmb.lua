@@ -163,25 +163,33 @@ end
 local function enableNoclip()
     if not noclipActive then
         noclipActive = true
-        spawn(function()
+
+        task.defer(function()
             while noclipActive do
                 pcall(function()
-                    if not humanoidRootPart:FindFirstChild("Lock") then
-                        if character:WaitForChild("Humanoid").Sit then
-                            character.Humanoid.Sit = false
+                    local player = game:GetService("Players").LocalPlayer
+                    local character = player.Character or player.CharacterAdded:Wait()
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+
+                    if humanoid and humanoidRootPart then
+                        -- ถ้าไม่มี BodyVelocity ชื่อ "Lock" ค่อยเพิ่ม
+                        if not humanoidRootPart:FindFirstChild("Lock") then
+                            if humanoid.Sit then
+                                humanoid.Sit = false
+                            end
+                            local noclipForce = Instance.new("BodyVelocity")
+                            noclipForce.Name = "Lock"
+                            noclipForce.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                            noclipForce.Velocity = Vector3.new(0, 0, 0)
+                            noclipForce.Parent = humanoidRootPart
                         end
-                        local Noclip = Instance.new("BodyVelocity")
-                        Noclip.Name = "Lock"
-                        Noclip.Parent = humanoidRootPart
-                        Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                        Noclip.Velocity = Vector3.new(0, 0, 0)
                     end
                 end)
                 task.wait()
             end
         end)
     end
-end
 
 --noclip mob
 local function enableNoclipForEnemy(enemy)
@@ -194,9 +202,12 @@ end
 
 local function disableNoclip()
     noclipActive = false
-    local lock = humanoidRootPart:FindFirstChild("Lock")
-    if lock then
-        lock:Destroy()
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local lock = hrp:FindFirstChild("Lock")
+        if lock then
+            lock:Destroy()
+        end
     end
 end
 
@@ -217,74 +228,65 @@ end
 
 -- Kill Aura
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local modules = ReplicatedStorage:WaitForChild("Modules")
+local net = modules:WaitForChild("Net")
 
--- โหลด remote ล่วงหน้าอย่างปลอดภัย
-local modules = ReplicatedStorage:WaitForChild("Modules", 5)
-local net = modules and modules:FindFirstChild("Net")
-local re = net and net:FindFirstChild("RE")
+-- ✅ Remote ที่ชื่อมี "/"
+local registerAttack = net:FindFirstChild("RE/RegisterAttack")
+local registerHit = net:FindFirstChild("RE/RegisterHit")
 
-local registerAttack = re and re:FindFirstChild("RegisterAttack")
-local registerHit = re and re:FindFirstChild("RegisterHit")
-
-if not registerAttack then warn("❌ ไม่พบ RegisterAttack") end
-if not registerHit then warn("❌ ไม่พบ RegisterHit") end
-
--- ฟังก์ชันหลัก
 local function attackAllEnemies()
-    while running and not killBossEnabled do
-        local targetEnemy = nil
+	while running and not killBossEnabled do
+		local targetEnemy = nil
 
-        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                local humanoid = enemy.Humanoid
-                local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                if humanoid.Health > 0 and dist <= killAuraRange then
-                    targetEnemy = enemy
-                    break
-                end
-            end
-        end
+		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+				local humanoid = enemy.Humanoid
+				local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+				if humanoid.Health > 0 and dist <= killAuraRange then
+					targetEnemy = enemy
+					break
+				end
+			end
+		end
 
-        if targetEnemy then
-            local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
-            local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
+		if targetEnemy then
+			local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
+			local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
 
-            if targetHRP and targetHumanoid then
-                local targetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-                tweenToPosition(humanoidRootPart, targetPos)
+			if targetHRP and targetHumanoid then
+				local targetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+				tweenToPosition(humanoidRootPart, targetPos)
 
-                equipWeapon()
-                activateBusoLoop()
+				equipWeapon()
+				activateBusoLoop()
 
-                -- ดึงมอนใกล้ๆ ให้มาตรงตำแหน่ง targetEnemy
-                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                    if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
-                        local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                        if dist <= bringRange and enemy.Humanoid.Health > 0 then
-                            bringEnemiesToTargetInstant(targetEnemy)
-                        end
-                    end
-                end
+				for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+					if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+						local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+						if dist <= bringRange then
+							bringEnemiesToTargetInstant(targetEnemy)
+						end
+					end
+				end
 
-                -- ยิง Remote
-                if registerAttack and registerHit then
-                    print("🚀 Fire RegisterAttack")
-                    registerAttack:FireServer(0.1)
+				-- ✅ ใช้ pcall และเช็ค Remote
+				if registerAttack and registerHit then
+					local success, err = pcall(function()
+						registerAttack:FireServer(0.1)
+						registerHit:FireServer(targetHRP, {})
+					end)
+					if not success then
+						warn("🔥 Error calling RegisterAttack/RegisterHit:", err)
+					end
+				else
+					warn("❌ RegisterAttack หรือ RegisterHit ไม่พบ!")
+				end
+			end
+		end
 
-                    print("💥 Fire RegisterHit on:", targetEnemy.Name)
-                    registerHit:FireServer(targetHRP, {})
-                else
-                    warn("❌ Remote ไม่พร้อมใช้งาน (RegisterAttack หรือ RegisterHit)")
-                end
-            else
-                warn("❌ targetEnemy ไม่มี HRP หรือ Humanoid")
-            end
-        else
-            print("🔍 No target in range")
-        end
-
-        task.wait(0.1)
-    end
+		task.wait(0.1)
+	end
 end
 
 --Kill Boss 
@@ -365,7 +367,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.1 MB",
+    Title = "Beta v1.2 MB",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
