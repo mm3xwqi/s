@@ -201,15 +201,15 @@ local function disableNoclip()
 end
 
 -- bring mobs
-local function bringEnemiesToTargetInstant(targetEnemy)
-    local targetHRP = targetEnemy.HumanoidRootPart
+local function bringEnemiesToTargetInstant(target)
+    local targetPos = target:FindFirstChild("HumanoidRootPart") and target.HumanoidRootPart.Position
+    if not targetPos then return end
 
     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-        if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-            local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
-            if dist <= bringRange and enemy.Humanoid.Health > 0 then
-                enableNoclipForEnemy(enemy)
-		enemy.HumanoidRootPart.CFrame = targetHRP.CFrame
+        if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+            local humanoid = enemy.Humanoid
+            if humanoid.Health > 0 then
+                enemy.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y, targetPos.Z)
             end
         end
     end
@@ -218,14 +218,16 @@ end
 -- Kill Aura
 local function attackAllEnemies()
     while running and not killBossEnabled do
-        local targetEnemy = nil
+        print("🔄 Loop: attackAllEnemies")
 
+        local targetEnemy = nil
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                 local humanoid = enemy.Humanoid
                 local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
                 if humanoid.Health > 0 and dist <= killAuraRange then
                     targetEnemy = enemy
+                    print("🎯 Found enemy:", enemy.Name)
                     break
                 end
             end
@@ -234,44 +236,43 @@ local function attackAllEnemies()
         if targetEnemy then
             local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
             local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
-            local targetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
 
-            print("[attackAllEnemies] 🏹 Target found:", targetEnemy.Name)
+            if targetHRP and targetHumanoid then
+                local targetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+                if (humanoidRootPart.Position - targetPos).Magnitude > 5 then
+                    print("📍 Moving to target")
+                    tweenToPosition(humanoidRootPart, targetPos)
+                end
 
-            tweenToPosition(humanoidRootPart, targetPos)
+                equipWeapon()
+                activateBusoLoop()
 
-            equipWeapon()
-            activateBusoLoop()
-
-            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                    local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                    if dist <= bringRange then
-                        bringEnemyBelowPlayer(enemy)
+                -- ดึงมอนรอบข้างเข้ามา
+                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                    if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
+                        local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                        if dist <= bringRange and enemy.Humanoid.Health > 0 then
+                            bringEnemiesToTargetInstant(targetEnemy)
+                        end
                     end
                 end
-            end
 
-            pcall(function()
-                print("[attackAllEnemies] 🚀 Fire RegisterAttack")
-                ReplicatedStorage.Modules.Net.RE.RegisterAttack:FireServer(0.1)
-            end)
+                -- โจมตี
+                pcall(function()
+                    local registerAttack = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE"):WaitForChild("RegisterAttack")
+                    local registerHit = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE"):WaitForChild("RegisterHit")
 
-            if targetHRP then
-                local success, err = pcall(function()
-                    print("[attackAllEnemies] 💥 Fire RegisterHit on target:", targetEnemy.Name)
-                    ReplicatedStorage.Modules.Net.RE.RegisterHit:FireServer(targetHRP, {})
+                    print("🚀 Fire RegisterAttack")
+                    registerAttack:FireServer(0.1)
+
+                    print("💥 Fire RegisterHit on:", targetEnemy.Name)
+                    registerHit:FireServer(targetHRP, {})
                 end)
-                if not success then
-                    warn("[attackAllEnemies] RegisterHit failed:", err)
-                end
             else
-                warn("[attackAllEnemies] targetHRP is nil, cannot fire RegisterHit")
+                warn("⚠️ Enemy missing HRP or Humanoid:", targetEnemy.Name)
             end
-
         else
-            print("[attackAllEnemies] ❌ No valid target found within range.")
-            task.wait(0.1)
+            print("❌ No target in range")
         end
 
         task.wait(0.1)
@@ -356,7 +357,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2.7",
+    Title = "Beta v1.1 MB",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
