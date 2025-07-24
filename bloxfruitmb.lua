@@ -259,6 +259,8 @@ end
 -- attack all enemies
 local function attackAllEnemies()
     while running do
+        print("🔄 Loop start")
+
         local targetEnemy = nil
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
@@ -266,12 +268,14 @@ local function attackAllEnemies()
                 local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
                 if humanoid.Health > 0 and dist <= killAuraRange then
                     targetEnemy = enemy
+                    print("🎯 Found target enemy:", enemy.Name)
                     break
                 end
             end
         end
 
         if not targetEnemy then
+            print("❌ No valid target found within range.")
             task.wait(0.1)
         else
             local targetHRP = targetEnemy.HumanoidRootPart
@@ -279,12 +283,14 @@ local function attackAllEnemies()
             local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
 
             if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
+                print("📍 Tweening to enemy position")
                 tweenToPosition(humanoidRootPart, playerTargetPos)
             end
 
             local lastHealth = targetHumanoid.Health
             local lastTime = tick()
 
+            print("🗡 Equipping weapon")
             equipWeapon()
 
             for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -293,35 +299,38 @@ local function attackAllEnemies()
                     local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
                     if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
                         bringEnemyBelowPlayer(enemy)
+                        print("🧲 Bringing enemy:", enemy.Name)
                     end
                 end
             end
 
-pcall(function()
-game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
-game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
-end)
+            pcall(function()
+                print("🚀 Firing RegisterAttack")
+                game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
+                print("💥 Firing RegisterHit:", targetEnemy.Name)
+                game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
+            end)
 
-
-for _, enemy in ipairs(enemiesFolder:GetChildren()) do
- if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
- if enemy.Humanoid.Health > 0 then
-game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
-end
-end
-end
-
+            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                    if enemy.Humanoid.Health > 0 then
+                        print("📌 Also hitting:", enemy.Name)
+                        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
+                    end
+                end
+            end
 
             if targetHumanoid.Health == lastHealth then
                 if tick() - lastTime >= 5 then
                     local head = targetEnemy:FindFirstChild("Head")
                     if head then
                         head:Destroy()
-                        warn("Delete head:", targetEnemy.Name)
+                        warn("🧨 Delete head due to no damage:", targetEnemy.Name)
                     end
                     lastTime = tick()
                 end
             else
+                print("✅ Target is taking damage:", targetEnemy.Name, "→", targetHumanoid.Health)
                 lastHealth = targetHumanoid.Health
                 lastTime = tick()
             end
@@ -330,6 +339,7 @@ end
         end
     end
 end
+
 
 -- ฟังก์ชันโจมตีบอสเท่านั้น
 local function attackBossesOnly()
@@ -445,7 +455,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2",
+    Title = "Beta v1.2.1",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
