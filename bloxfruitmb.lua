@@ -179,34 +179,7 @@ local function tweenToPosition(part, targetPosition)
 		noclipForce.Position = targetPosition -- ค้างอยู่บนหัวมอน
 	end
 end
---noclip mob
-local function enableNoclipForEnemy(enemy)
-    for _, part in ipairs(enemy:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = false
-        end
-    end
-end
 
--- bring mobs
-local function bringEnemiesBelowPlayer()
-	for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-		if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-			local humanoid = enemy:FindFirstChild("Humanoid")
-			if humanoid and humanoid.Health > 0 then
-				local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
-				if enemyHRP then
-					local dist = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
-					if dist <= bringMobsRange then
-						local newPos = humanoidRootPart.Position - Vector3.new(0, 40, 0)
-						enableNoclipForEnemy(enemy)
-						enemyHRP.CFrame = CFrame.new(newPos)
-					end
-				end
-			end
-		end
-	end
-end
 
 -- Kill Aura
 local function attackAllEnemies()
@@ -240,8 +213,6 @@ local function attackAllEnemies()
                 equipWeapon()
                 activateBusoLoop()
 
-                -- ดึงมอนรอบตัวมารวม
-                bringEnemiesBelowPlayer()
 
                 -- พยายามยิง attack/hit ถ้ามี
                 if registerAttack and registerHit then
