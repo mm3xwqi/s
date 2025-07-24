@@ -1,17 +1,9 @@
 -- main local
+-- main local
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local modules = ReplicatedStorage:WaitForChild("Modules")
-local net = modules:WaitForChild("Net")
-
-local registerAttack = net:FindFirstChild("RE/RegisterAttack")
-local registerHit = net:FindFirstChild("RE/RegisterHit")
 local TweenService = game:GetService("TweenService")
 local enemiesFolder = workspace:WaitForChild("Enemies")
-
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -22,6 +14,12 @@ if not humanoidRootPart then
 end
 
 local backpack = player:WaitForChild("Backpack")
+
+-- โหลด module ต่างๆ
+local modules = ReplicatedStorage:WaitForChild("Modules")
+local net = modules:WaitForChild("Net")
+local registerAttack = net:FindFirstChild("RE"):FindFirstChild("RegisterAttack")
+local registerHit = net:FindFirstChild("RE"):FindFirstChild("RegisterHit")
 
 local SPEED = 350
 local running = false
@@ -166,14 +164,11 @@ local function enableNoclip()
         task.defer(function()
             while noclipActive do
                 pcall(function()
-                    local player = game:GetService("Players").LocalPlayer
-                    local character = player.Character or player.CharacterAdded:Wait()
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                    local humanoid = character:FindFirstChild("Humanoid")
+                    local hrp = character:FindFirstChild("HumanoidRootPart")
 
-                    if humanoid and humanoidRootPart then
-                        -- ถ้าไม่มี BodyVelocity ชื่อ "Lock" ค่อยเพิ่ม
-                        if not humanoidRootPart:FindFirstChild("Lock") then
+                    if humanoid and hrp then
+                        if not hrp:FindFirstChild("Lock") then
                             if humanoid.Sit then
                                 humanoid.Sit = false
                             end
@@ -181,7 +176,7 @@ local function enableNoclip()
                             noclipForce.Name = "Lock"
                             noclipForce.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                             noclipForce.Velocity = Vector3.new(0, 0, 0)
-                            noclipForce.Parent = humanoidRootPart
+                            noclipForce.Parent = hrp
                         end
                     end
                 end)
@@ -189,6 +184,7 @@ local function enableNoclip()
             end
         end)
     end
+end
 
 --noclip mob
 local function enableNoclipForEnemy(enemy)
