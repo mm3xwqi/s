@@ -269,7 +269,7 @@ end
 local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
     if enemyHRP and humanoidRootPart then
-        local newPos = humanoidRootPart.Position - Vector3.new(0, 50, 0)
+        local newPos = humanoidRootPart.Position - Vector3.new(0, 45, 0)
         enemyHRP.CFrame = CFrame.new(newPos)
     end
 end
@@ -295,6 +295,8 @@ local function attackAllEnemies()
 				end
 			end
 		end
+		
+		equipWeapon()
 
 		-- ถ้าไม่มีศัตรูในระยะ
 		if not targetEnemy then
@@ -309,9 +311,6 @@ local function attackAllEnemies()
 				tweenToPosition(humanoidRootPart, playerTargetPos)
 			end
 
-			-- ใส่อาวุธ
-			equipWeapon()
-
 			-- ดึงมอนเข้าใต้ตัว
 			for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 				if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
@@ -323,11 +322,8 @@ local function attackAllEnemies()
 			end
 
 			-- โจมตีหลัก
-			pcall(function()
 				registerAttack:FireServer(0.1)
 				registerHit:FireServer(targetHRP, {})
-			end)
-
 			-- โจมตีตัวอื่นๆ ใกล้ๆ ไปพร้อมกัน
 			for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 				if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
