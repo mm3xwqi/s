@@ -130,10 +130,32 @@ local function activateBusoLoop()
 end
 
 -- Tween
-local function tweenToPosition(part, pos)
-    local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(part, tweenInfo, {CFrame = CFrame.new(pos)})
-    tween:Play()
+local function tweenToPosition(part, targetPosition)
+    local distance = (part.Position - targetPosition).Magnitude
+    local duration = distance / SPEED
+
+    spawn(function()
+        while noclipActive do
+            pcall(function()
+                if not humanoidRootPart:FindFirstChild("Lock") then
+                    if character:WaitForChild("Humanoid").Sit then
+                        character.Humanoid.Sit = false
+                    end
+                    local Noclip = Instance.new("BodyVelocity")
+                    Noclip.Name = "Lock"
+                    Noclip.Parent = humanoidRootPart
+                    Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                    Noclip.Velocity = Vector3.new(0, 0, 0)
+                end
+            end)
+            task.wait()
+        end
+    end)
+
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local goal = { CFrame = CFrame.new(targetPosition) }
+    TweenService:Create(part, tweenInfo, goal):Play()
+    task.wait(duration)
 end
 --noclip mob
 local function enableNoclipForEnemy(enemy)
