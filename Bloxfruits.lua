@@ -283,27 +283,34 @@ local function attackAllEnemies()
 		end
 
 		local targetEnemy = nil
+		local closestDist = killAuraRange
 
-		-- มองหาศัตรูในระยะ
+		-- มองหาศัตรูในระยะที่ยังไม่ตายและใกล้ที่สุด
 		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
 				local humanoid = enemy.Humanoid
 				local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-				if humanoid.Health > 0 and dist <= killAuraRange then
+				if humanoid.Health > 0 and dist <= closestDist then
 					targetEnemy = enemy
-					break
+					closestDist = dist
 				end
 			end
 		end
-		
+
 		equipWeapon()
 
-		-- ถ้าไม่มีศัตรูในระยะ
 		if not targetEnemy then
 			task.wait(0.1)
 		else
-			local targetHRP = targetEnemy.HumanoidRootPart
-			local targetHumanoid = targetEnemy.Humanoid
+			local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
+			local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
+
+			-- ถ้ามอนถูกฆ่าก่อนจะตี ให้ skip
+			if not targetHRP or not targetHumanoid or targetHumanoid.Health <= 0 then
+				task.wait(0.1)
+				continue
+			end
+
 			local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
 
 			-- บินไปหามอน
@@ -322,8 +329,9 @@ local function attackAllEnemies()
 			end
 
 			-- โจมตีหลัก
-				registerAttack:FireServer(0.1)
-				registerHit:FireServer(targetHRP, {})
+			registerAttack:FireServer(0.1)
+			registerHit:FireServer(targetHRP, {})
+
 			-- โจมตีตัวอื่นๆ ใกล้ๆ ไปพร้อมกัน
 			for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 				if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
@@ -335,10 +343,11 @@ local function attackAllEnemies()
 				end
 			end
 
-			task.wait(0.15) -- ระยะห่างระหว่างแต่ละการตี
+			task.wait(0.15)
 		end
 	end
 end
+
 -- boss attack
 local function attackBossesOnly()
     print("finding boss")
