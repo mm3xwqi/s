@@ -1,12 +1,13 @@
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 
 local useV3 = false
 local useV4 = false
 local killAuraRange = 1000
 local bringRange = 110
-local offsetY = 50
+local offsetY = 20
 local bringOffsetY = 2
 
 local killBossEnabled = false
@@ -265,12 +266,11 @@ end
 local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
     if enemyHRP and humanoidRootPart then
-        local newPos = humanoidRootPart.Position - Vector3.new(0, 15, 0)
+        local newPos = humanoidRootPart.Position - Vector3.new(0, 10, 0)
         enemyHRP.CFrame = CFrame.new(newPos)
     end
 end
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- fast attack
 local playerHumanoid = character:WaitForChild("Humanoid")
 
@@ -318,8 +318,8 @@ local function attackAllEnemies()
 
                 -- โจมตีเป้าหมายหลัก
 		pcall(function()
-		game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
-		game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
+		ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
+		ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
 		end)
 
 
@@ -328,7 +328,7 @@ local function attackAllEnemies()
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                     if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                         if enemy.Humanoid.Health > 0 then
-                            game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
+                            ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
                         end
                     end
                 end
@@ -400,8 +400,8 @@ local function attackBossesOnly()
                     end)
 
                     pcall(function()
-			game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
-			game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(hrp, {})
+			ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
+			ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(hrp, {})
                     end)
 
                     task.wait(0.1)
@@ -451,7 +451,6 @@ local function stopFarming()
     disableNoclip()
     running = false
     killBossEnabled = false
-    attackedMonsters = {} -- เคลียร์ตารางตอนหยุดฟาร์มด้วย
     unequipWeapon()
 
     if character and character:FindFirstChild("Humanoid") then
@@ -477,7 +476,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.6",
+    Title = "Beta v1.7",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
