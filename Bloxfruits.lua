@@ -11,8 +11,7 @@ local useV3 = false
 local useV4 = false
 local killAuraRange = 1000
 local bringRange = 110
-local offsetY = 10
-local bringOffsetY = 2
+local offsetY = 35
 
 local kenEnabled = false
 local busoEnabled = false
@@ -276,20 +275,6 @@ local function enableNoclipForEnemy(enemy)
 end
 
 -- bringmobs
-local function bringEnemiesToTargetInstant(targetEnemy)
-    local targetHRP = targetEnemy.HumanoidRootPart
-
-    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-        if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-            local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
-            if dist <= bringRange and enemy.Humanoid.Health > 0 then
-                enableNoclipForEnemy(enemy)
-		enemy.HumanoidRootPart.CFrame = targetHRP.CFrame
-            end
-        end
-    end
-end
-
 local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
     if enemyHRP and humanoidRootPart then
@@ -300,12 +285,6 @@ end
 
 -- fast attack
 local playerHumanoid = character:WaitForChild("Humanoid")
-
-local function waitForHealthToRecover()
-    while playerHumanoid.Health < (playerHumanoid.MaxHealth * 0.35) and running do
-        task.wait(0.5)
-    end
-end
 
 local function attackAllEnemies()
     while running do
@@ -336,15 +315,6 @@ local function attackAllEnemies()
 
             local lastHealth = targetHumanoid.Health
             local lastTime = tick()
-
-            while targetHumanoid.Health > 0 and running do
-                local healthPercent = playerHumanoid.Health / playerHumanoid.MaxHealth
-                if healthPercent <= 0.30 then
-                    local safePosition = Vector3.new(humanoidRootPart.Position.X, 300, humanoidRootPart.Position.Z)
-                    tweenToPosition(humanoidRootPart, safePosition)
-                    waitForHealthToRecover()
-                    break
-                end
 
                 equipWeapon()
 
