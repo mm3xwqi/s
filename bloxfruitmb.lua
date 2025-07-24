@@ -260,17 +260,12 @@ local function attackAllEnemies()
 					end
 				end
 
-				-- ✅ ใช้ pcall และเช็ค Remote
 				if registerAttack and registerHit then
 					local success, err = pcall(function()
 						registerAttack:FireServer(0.1)
 						registerHit:FireServer(targetHRP, {})
 					end)
-					if not success then
-						warn("🔥 Error calling RegisterAttack/RegisterHit:", err)
 					end
-				else
-					warn("❌ RegisterAttack หรือ RegisterHit ไม่พบ!")
 				end
 			end
 		end
@@ -300,8 +295,8 @@ local function attackBossesOnly()
                     tweenToPosition(humanoidRootPart, targetPos)
 
                     pcall(function()
-                        ReplicatedStorage.Modules.Net.RE.RegisterAttack:FireServer(0.1)
-                        ReplicatedStorage.Modules.Net.RE.RegisterHit:FireServer(hrp, {})
+			registerAttack:FireServer(0.1)
+			registerHit:FireServer(targetHRP, {})
                     end)
                     task.wait(0.1)
                 end
