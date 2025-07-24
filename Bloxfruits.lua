@@ -293,7 +293,7 @@ local reh = NetModule:WaitForChild("RE/RegisterHit")
 local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
     if enemyHRP and humanoidRootPart then
-        local newPos = humanoidRootPart.Position - Vector3.new(0, 40, 0)
+        local newPos = humanoidRootPart.Position - Vector3.new(0, 0, 0)
         enemyHRP.CFrame = CFrame.new(newPos)
     end
 end
