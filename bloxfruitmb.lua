@@ -345,7 +345,7 @@ end
 local function attackBossesOnly()
     print("finding boss")
 
-    enableNoclip() 
+    enableNoclip()
 
     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
         if not running or not killBossEnabled then break end
@@ -364,7 +364,7 @@ local function attackBossesOnly()
                 task.spawn(activateBusoLoop)
                 equipWeapon()
 
-                while humanoid and humanoid.Health > 0 do
+                while humanoid and humanoid.Health > 0 and running and killBossEnabled do
                     equipWeapon()
 
                     local targetPos = hrp.Position + Vector3.new(0, offsetY, 0)
@@ -382,12 +382,12 @@ local function attackBossesOnly()
                 end
 
                 print("Finished", name)
-                break 
+                break
             end
         end
     end
 
-    disableNoclip() 
+    disableNoclip()
 end
 
 -- เริ่มโจมตีศัตรูทั่วไป
@@ -444,6 +444,7 @@ end
 
 -- หยุด Kill Boss
 local function stopKillBoss()
+    killBossEnabled = false
     running = false
     unequipWeapon()
 end
