@@ -15,7 +15,7 @@ local registerHit = NetModule:FindFirstChild("RE/RegisterHit")
 local useV3 = false
 local useV4 = false
 local killAuraRange = 1000
-local bringRange = 110
+local bringRange = 50
 local offsetY = 50
 
 local busoEnabled = false
@@ -277,6 +277,7 @@ end
 -- fast attack
 local function attackAllEnemies()
 	while running do
+		-- ตรวจสอบตัวละคร
 		if not character or not character:FindFirstChild("HumanoidRootPart") or playerHumanoid.Health <= 0 then
 			task.wait(1)
 			continue
@@ -285,7 +286,7 @@ local function attackAllEnemies()
 		local targetEnemy = nil
 		local closestDist = killAuraRange
 
-		-- มองหาศัตรูในระยะที่ยังไม่ตายและใกล้ที่สุด
+		-- หาเป้าหมายที่ยังไม่ตาย และใกล้ที่สุด
 		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
 				local humanoid = enemy.Humanoid
@@ -301,50 +302,53 @@ local function attackAllEnemies()
 
 		if not targetEnemy then
 			task.wait(0.1)
-		else
-			local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
-			local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
-
-			-- ถ้ามอนถูกฆ่าก่อนจะตี ให้ skip
-			if not targetHRP or not targetHumanoid or targetHumanoid.Health <= 0 then
-				task.wait(0.1)
-				continue
-			end
-
-			local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-
-			-- บินไปหามอน
-			if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
-				tweenToPosition(humanoidRootPart, playerTargetPos)
-			end
-
-			-- ดึงมอนเข้าใต้ตัว
-			for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-				if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-					local distToPlayer = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-					if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
-						bringEnemyBelowPlayer(enemy)
-					end
-				end
-			end
-
-			-- โจมตีหลัก
-			registerAttack:FireServer(0.1)
-			registerHit:FireServer(targetHRP, {})
-
-			-- โจมตีตัวอื่นๆ ใกล้ๆ ไปพร้อมกัน
-			for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-				if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-					if enemy.Humanoid.Health > 0 then
-						pcall(function()
-							registerHit:FireServer(enemy.HumanoidRootPart, {})
-						end)
-					end
-				end
-			end
-
-			task.wait(0.15)
+			continue
 		end
+
+		local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
+		local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
+
+		-- ถ้ามอนตายไปแล้วก่อนถึงจุดตี
+		if not targetHRP or not targetHumanoid or targetHumanoid.Health <= 0 then
+			task.wait(0.1)
+			continue
+		end
+
+		print("🎯 Target: " .. targetEnemy.Name .. " | HP: " .. targetHumanoid.Health)
+
+		local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+
+		-- บินไปหามอน
+		if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
+			tweenToPosition(humanoidRootPart, playerTargetPos)
+		end
+
+		-- ดึงมอนเข้าใต้ตัว
+		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+				local distToPlayer = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+				if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
+					bringEnemyBelowPlayer(enemy)
+				end
+			end
+		end
+
+		-- โจมตีมอนหลัก
+		registerAttack:FireServer(0.1)
+		registerHit:FireServer(targetHRP, {})
+
+		-- โจมตีมอนอื่นในระยะไปด้วย
+		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+			if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+				if enemy.Humanoid.Health > 0 then
+					pcall(function()
+						registerHit:FireServer(enemy.HumanoidRootPart, {})
+					end)
+				end
+			end
+		end
+
+		task.wait(0.15)
 	end
 end
 
