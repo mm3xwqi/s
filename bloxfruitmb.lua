@@ -128,41 +128,40 @@ end
 local noclipForce
 
 local function stopNoclip()
-    if noclipForce then
-        noclipForce:Destroy()
-        noclipForce = nil
-    end
+	if noclipForce then
+		noclipForce:Destroy()
+		noclipForce = nil
+	end
 end
 
 local function startNoclip()
-    if not noclipForce and humanoidRootPart then
-        noclipForce = Instance.new("BodyVelocity")
-        noclipForce.Name = "Lock"
-        noclipForce.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-        noclipForce.Velocity = Vector3.new(0, 0, 0)
-        noclipForce.Parent = humanoidRootPart
-    end
+	if not noclipForce and humanoidRootPart then
+		noclipForce = Instance.new("BodyPosition")
+		noclipForce.Name = "Lock"
+		noclipForce.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+		noclipForce.Position = humanoidRootPart.Position
+		noclipForce.D = 1000  -- ความหนืด (force dampening)
+		noclipForce.P = 3000  -- ความแรงของแรงดึง
+		noclipForce.Parent = humanoidRootPart
+	end
 end
 
 local function tweenToPosition(part, targetPosition)
-    local distance = (part.Position - targetPosition).Magnitude
-    local duration = distance / SPEED
+	local distance = (part.Position - targetPosition).Magnitude
+	local duration = distance / SPEED
 
-    if noclipActive then
-        startNoclip()
-    else
-        stopNoclip()
-    end
+	startNoclip() -- เปิด noclip พร้อม BodyPosition ให้ลอยค้าง
 
-    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    local goal = { CFrame = CFrame.new(targetPosition) }
-    local tween = TweenService:Create(part, tweenInfo, goal)
-    tween:Play()
-    tween.Completed:Wait()
+	local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+	local goal = { CFrame = CFrame.new(targetPosition) }
+	local tween = TweenService:Create(part, tweenInfo, goal)
+	tween:Play()
+	tween.Completed:Wait()
 
-    if not noclipActive then
-        stopNoclip()
-    end
+	-- ค้างอยู่ ณ จุดนั้น ไม่หยุด noclip ทันที
+	if noclipForce then
+		noclipForce.Position = targetPosition -- ค้างอยู่บนหัวมอน
+	end
 end
 --noclip mob
 local function enableNoclipForEnemy(enemy)
