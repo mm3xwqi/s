@@ -13,7 +13,6 @@ local killAuraRange = 1000
 local bringRange = 110
 local offsetY = 35
 
-local kenEnabled = false
 local busoEnabled = false
 
 local args = {
@@ -288,8 +287,12 @@ local playerHumanoid = character:WaitForChild("Humanoid")
 
 local function attackAllEnemies()
     while running do
-        local targetEnemy = nil
+        if not character or not character:FindFirstChild("HumanoidRootPart") or playerHumanoid.Health <= 0 then
+            task.wait(1)
+            continue
+        end
 
+        local targetEnemy = nil
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                 local humanoid = enemy.Humanoid
@@ -308,62 +311,40 @@ local function attackAllEnemies()
             local targetHumanoid = targetEnemy.Humanoid
             local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
 
-            -- ไปหามอนถ้ายังไม่ถึง
             if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
                 tweenToPosition(humanoidRootPart, playerTargetPos)
             end
 
-            local lastHealth = targetHumanoid.Health
-            local lastTime = tick()
+            equipWeapon()
 
-                equipWeapon()
-
-                -- ดึงมอนทุกตัวในระยะ
-                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                    if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                        local enemyHRP = enemy.HumanoidRootPart
-                        local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
-
-                        if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
-                            bringEnemyBelowPlayer(enemy)
-                        end
+            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                    local distToPlayer = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                    if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
+                        bringEnemyBelowPlayer(enemy)
                     end
                 end
+            end
 
-                -- โจมตีเป้าหมายหลัก
+            pcall(function()
                 registerAttack:FireServer(0.1)
                 registerHit:FireServer(targetHRP, {})
+            end)
 
-                -- โจมตีศัตรูอื่นที่อยู่ใกล้
-                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                    if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                        if enemy.Humanoid.Health > 0 then
-                        registerHit:FireServer(enemy.HumanoidRootPart, {})
-                        end
+            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                    if enemy.Humanoid.Health > 0 then
+                        pcall(function()
+                            registerHit:FireServer(enemy.HumanoidRootPart, {})
+                        end)
                     end
                 end
-
-                -- ถ้ามอนเลือดไม่ลดเกิน 10 วิ ลบหัว
-                if targetHumanoid.Health == lastHealth then
-                    if tick() - lastTime >= 10 then
-                        local head = targetEnemy:FindFirstChild("Head")
-                        if head then
-                            head:Destroy()
-                            warn("Delete head:", targetEnemy.Name)
-                        end
-                        lastTime = tick()
-                    end
-                else
-                    lastHealth = targetHumanoid.Health
-                    lastTime = tick()
-                end
-
-                task.wait(0.15)
             end
+
+            task.wait(0.15)
         end
     end
 end
-
 -- boss attack
 local function attackBossesOnly()
     print("finding boss")
@@ -486,7 +467,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.5",
+    Title = "Beta v1.1 PC",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
