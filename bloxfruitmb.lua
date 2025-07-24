@@ -7,9 +7,10 @@ local useV3 = false
 local useV4 = false
 local killAuraRange = 1000
 local bringRange = 110
-local offsetY = 40
+local offsetY = 50
 local bringOffsetY = 2
 
+local killBossEnabled = false
 local kenEnabled = false
 local busoEnabled = false
 
@@ -393,7 +394,7 @@ local function attackBossesOnly()
                 while humanoid and humanoid.Health > 0 do
                     equipWeapon()
 
-                    local targetPos = hrp.Position + Vector3.new(0, offsetY, swayZ)
+                    local targetPos = hrp.Position + Vector3.new(0, offsetY, 0)
 
                     pcall(function()
                         tweenToPosition(humanoidRootPart, targetPos)
@@ -477,7 +478,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.6",
+    Title = "Beta v1.5",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
