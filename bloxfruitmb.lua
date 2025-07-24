@@ -90,23 +90,6 @@ local fruit = {
     "Dragon-Dragon"
 }
 
---  Noclip
-local function enableNoclip()
-    for _, v in ipairs(character:GetDescendants()) do
-        if v:IsA("BasePart") then
-            v.CanCollide = false
-        end
-    end
-end
-
-local function disableNoclip()
-    for _, v in ipairs(character:GetDescendants()) do
-        if v:IsA("BasePart") then
-            v.CanCollide = true
-        end
-    end
-end
-
 -- weapon & Buso
 local function equipWeapon()
     local tool = player.Backpack:FindFirstChildOfClass("Tool")
@@ -163,6 +146,14 @@ local function enableNoclipForEnemy(enemy)
         if part:IsA("BasePart") then
             part.CanCollide = false
         end
+    end
+end
+
+local function disableNoclip()
+    noclipActive = false
+    local lock = humanoidRootPart:FindFirstChild("Lock")
+    if lock then
+        lock:Destroy()
     end
 end
 
@@ -303,7 +294,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2.5",
+    Title = "Beta v1.2.6",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
