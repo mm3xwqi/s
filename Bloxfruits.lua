@@ -1,6 +1,11 @@
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local playerHumanoid = character:WaitForChild("Humanoid")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 
 local NetModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
@@ -100,31 +105,18 @@ if not humanoidRootPart then
 end
 local backpack = player:WaitForChild("Backpack")
 
-local function updateCharacter()
-    character = player.Character or player.CharacterAdded:Wait()
-    humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
-    if not humanoidRootPart then
-        warn("HumanoidRootPart ไม่เจอในตัวละคร")
-    end
+local function updateCharacterRefs()
+	character = player.Character or player.CharacterAdded:Wait()
+	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+	playerHumanoid = character:WaitForChild("Humanoid")
 end
 
 player.CharacterAdded:Connect(function()
-	updateCharacter()
-
-	-- อัปเดต backpack ใหม่หลังรีตัวละคร
-	backpack = player:WaitForChild("Backpack")
-
-	-- ถืออาวุธทันที (ไม่รอ delay)
-	if selectedWeaponName then
-		equipWeapon()
-	end
-
-	if running then
-		startFarming()
-	end
+	updateCharacterRefs()
 end)
 
-updateCharacter()
+
+updateCharacterRefs()
 
 
 -- Table เก็บชื่ออาวุธ
@@ -283,67 +275,73 @@ local function bringEnemyBelowPlayer(enemy)
 end
 
 -- fast attack
-local playerHumanoid = character:WaitForChild("Humanoid")
-
 local function attackAllEnemies()
-    while running do
-        if not character or not character:FindFirstChild("HumanoidRootPart") or playerHumanoid.Health <= 0 then
-            task.wait(1)
-            continue
-        end
+	while running do
+		if not character or not character:FindFirstChild("HumanoidRootPart") or playerHumanoid.Health <= 0 then
+			task.wait(1)
+			continue
+		end
 
-        local targetEnemy = nil
-        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                local humanoid = enemy.Humanoid
-                local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                if humanoid.Health > 0 and dist <= killAuraRange then
-                    targetEnemy = enemy
-                    break
-                end
-            end
-        end
+		local targetEnemy = nil
 
-        if not targetEnemy then
-            task.wait(0.1)
-        else
-            local targetHRP = targetEnemy.HumanoidRootPart
-            local targetHumanoid = targetEnemy.Humanoid
-            local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+		-- มองหาศัตรูในระยะ
+		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+				local humanoid = enemy.Humanoid
+				local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+				if humanoid.Health > 0 and dist <= killAuraRange then
+					targetEnemy = enemy
+					break
+				end
+			end
+		end
 
-            if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
-                tweenToPosition(humanoidRootPart, playerTargetPos)
-            end
+		-- ถ้าไม่มีศัตรูในระยะ
+		if not targetEnemy then
+			task.wait(0.1)
+		else
+			local targetHRP = targetEnemy.HumanoidRootPart
+			local targetHumanoid = targetEnemy.Humanoid
+			local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
 
-            equipWeapon()
+			-- บินไปหามอน
+			if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
+				tweenToPosition(humanoidRootPart, playerTargetPos)
+			end
 
-            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                    local distToPlayer = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                    if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
-                        bringEnemyBelowPlayer(enemy)
-                    end
-                end
-            end
+			-- ใส่อาวุธ
+			equipWeapon()
 
-            pcall(function()
-                registerAttack:FireServer(0.1)
-                registerHit:FireServer(targetHRP, {})
-            end)
+			-- ดึงมอนเข้าใต้ตัว
+			for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+				if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+					local distToPlayer = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+					if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
+						bringEnemyBelowPlayer(enemy)
+					end
+				end
+			end
 
-            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                    if enemy.Humanoid.Health > 0 then
-                        pcall(function()
-                            registerHit:FireServer(enemy.HumanoidRootPart, {})
-                        end)
-                    end
-                end
-            end
+			-- โจมตีหลัก
+			pcall(function()
+				registerAttack:FireServer(0.1)
+				registerHit:FireServer(targetHRP, {})
+			end)
 
-            task.wait(0.15)
-        end
-    end
+			-- โจมตีตัวอื่นๆ ใกล้ๆ ไปพร้อมกัน
+			for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+				if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+					if enemy.Humanoid.Health > 0 then
+						pcall(function()
+							registerHit:FireServer(enemy.HumanoidRootPart, {})
+						end)
+					end
+				end
+			end
+
+			task.wait(0.15) -- ระยะห่างระหว่างแต่ละการตี
+		end
+	end
 end
 -- boss attack
 local function attackBossesOnly()
