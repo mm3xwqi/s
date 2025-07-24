@@ -137,11 +137,17 @@ local function tweenToPosition(part, pos)
 end
 
 -- ✅ ฟังก์ชัน bring mobs
-local function bringEnemyBelowPlayer(enemy)
-    local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
-    if enemyHRP and humanoidRootPart then
-        local newPos = humanoidRootPart.Position - Vector3.new(0, 2, 0)
-        enemyHRP.CFrame = CFrame.new(newPos)
+local function bringEnemiesToTargetInstant(targetEnemy)
+    local targetHRP = targetEnemy.HumanoidRootPart
+
+    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+        if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+            local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
+            if dist <= bringRange and enemy.Humanoid.Health > 0 then
+                enableNoclipForEnemy(enemy)
+		enemy.HumanoidRootPart.CFrame = targetHRP.CFrame
+            end
+        end
     end
 end
 
