@@ -216,18 +216,30 @@ local function bringEnemiesToTargetInstant(target)
 end
 
 -- Kill Aura
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- โหลด remote ล่วงหน้าอย่างปลอดภัย
+local modules = ReplicatedStorage:WaitForChild("Modules", 5)
+local net = modules and modules:FindFirstChild("Net")
+local re = net and net:FindFirstChild("RE")
+
+local registerAttack = re and re:FindFirstChild("RegisterAttack")
+local registerHit = re and re:FindFirstChild("RegisterHit")
+
+if not registerAttack then warn("❌ ไม่พบ RegisterAttack") end
+if not registerHit then warn("❌ ไม่พบ RegisterHit") end
+
+-- ฟังก์ชันหลัก
 local function attackAllEnemies()
     while running and not killBossEnabled do
-        print("🔄 Loop: attackAllEnemies")
-
         local targetEnemy = nil
+
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                 local humanoid = enemy.Humanoid
                 local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
                 if humanoid.Health > 0 and dist <= killAuraRange then
                     targetEnemy = enemy
-                    print("🎯 Found enemy:", enemy.Name)
                     break
                 end
             end
@@ -239,15 +251,12 @@ local function attackAllEnemies()
 
             if targetHRP and targetHumanoid then
                 local targetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-                if (humanoidRootPart.Position - targetPos).Magnitude > 5 then
-                    print("📍 Moving to target")
-                    tweenToPosition(humanoidRootPart, targetPos)
-                end
+                tweenToPosition(humanoidRootPart, targetPos)
 
                 equipWeapon()
                 activateBusoLoop()
 
-                -- ดึงมอนรอบข้างเข้ามา
+                -- ดึงมอนใกล้ๆ ให้มาตรงตำแหน่ง targetEnemy
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                     if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
                         local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
@@ -257,22 +266,21 @@ local function attackAllEnemies()
                     end
                 end
 
-                -- โจมตี
-                pcall(function()
-                    local registerAttack = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE"):WaitForChild("RegisterAttack")
-                    local registerHit = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE"):WaitForChild("RegisterHit")
-
+                -- ยิง Remote
+                if registerAttack and registerHit then
                     print("🚀 Fire RegisterAttack")
                     registerAttack:FireServer(0.1)
 
                     print("💥 Fire RegisterHit on:", targetEnemy.Name)
                     registerHit:FireServer(targetHRP, {})
-                end)
+                else
+                    warn("❌ Remote ไม่พร้อมใช้งาน (RegisterAttack หรือ RegisterHit)")
+                end
             else
-                warn("⚠️ Enemy missing HRP or Humanoid:", targetEnemy.Name)
+                warn("❌ targetEnemy ไม่มี HRP หรือ Humanoid")
             end
         else
-            print("❌ No target in range")
+            print("🔍 No target in range")
         end
 
         task.wait(0.1)
