@@ -24,7 +24,7 @@ local running = false
 local killBossEnabled = false
 local offsetY = 25
 local killAuraRange = 300
-local bringRange = 100
+local bringMobsRange = 100
 local noclipActive = false
 
 -- table
@@ -213,7 +213,12 @@ local function bringEnemiesToTargetInstant(target)
         if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
             local humanoid = enemy.Humanoid
             if humanoid.Health > 0 then
-                enemy.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y, targetPos.Z)
+                local enemyPos = enemy.HumanoidRootPart.Position
+                local dist = (enemyPos - targetPos).Magnitude
+
+                if dist <= bringMobsRange then
+                    enemy.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y, targetPos.Z)
+                end
             end
         end
     end
@@ -352,7 +357,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2 MB",
+    Title = "Beta v1.3 MB",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -437,8 +442,8 @@ Tabs.Main:AddSlider("AuraRangeSlider", {
     print("Kill aura range set to:", killAuraRange)
 end)
 Tabs.Main:AddSlider("PullRangeSlider", {
-    Title = "BringRange",
-    Default = bringRange,
+    Title = "bringMobsRange",
+    Default = bringMobsRange,
     Min = 10,
     Max = 250,
     Rounding = 0,
