@@ -315,7 +315,7 @@ end
 -- stopFarming
 local function stopFarming()
     running = false
-    disableNoclip()
+    stopNoclip()
     unequipWeapon()
     if character:FindFirstChild("Humanoid") then
         character.Humanoid.PlatformStand = false
