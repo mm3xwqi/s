@@ -202,7 +202,7 @@ end
 local function attackAllEnemies()
 	while running do
 		local targetEnemy = nil
-
+		startNoclip()
 		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
 				local humanoid = enemy.Humanoid
