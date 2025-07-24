@@ -4,7 +4,7 @@ local args = {
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
 
--- ✅ ประกาศตัวแปรหลักก่อน
+-- main local
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -90,7 +90,7 @@ local fruit = {
     "Dragon-Dragon"
 }
 
--- ✅ ฟังก์ชัน Noclip
+--  Noclip
 local function enableNoclip()
     for _, v in ipairs(character:GetDescendants()) do
         if v:IsA("BasePart") then
@@ -107,7 +107,7 @@ local function disableNoclip()
     end
 end
 
--- ✅ ฟังก์ชันอาวุธ & Buso
+-- weapon & Buso
 local function equipWeapon()
     local tool = player.Backpack:FindFirstChildOfClass("Tool")
     if tool then
@@ -129,14 +129,22 @@ local function activateBusoLoop()
     ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
 end
 
--- ✅ Tween
+-- Tween
 local function tweenToPosition(part, pos)
     local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(part, tweenInfo, {CFrame = CFrame.new(pos)})
     tween:Play()
 end
+--noclip mob
+local function enableNoclipForEnemy(enemy)
+    for _, part in ipairs(enemy:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+        end
+    end
+end
 
--- ✅ ฟังก์ชัน bring mobs
+-- bring mobs
 local function bringEnemiesToTargetInstant(targetEnemy)
     local targetHRP = targetEnemy.HumanoidRootPart
 
@@ -151,7 +159,7 @@ local function bringEnemiesToTargetInstant(targetEnemy)
     end
 end
 
--- ✅ Kill Aura ปกติ
+-- Kill Aura
 local function attackAllEnemies()
     while running and not killBossEnabled do
         local targetEnemy = nil
@@ -180,7 +188,7 @@ local function attackAllEnemies()
                 if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                     local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
                     if dist <= bringRange then
-                        bringEnemyBelowPlayer(enemy)
+                        bringEnemiesToTargetInstant(targetEnemy)
                     end
                 end
             end
@@ -194,7 +202,7 @@ local function attackAllEnemies()
     end
 end
 
--- ✅ Kill Boss เท่านั้น
+--Kill Boss 
 local function attackBossesOnly()
     enableNoclip()
     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -228,7 +236,7 @@ local function attackBossesOnly()
     disableNoclip()
 end
 
--- ✅ เริ่มฟาร์มทั่วไป
+-- startFarming
 local function startFarming()
     running = true
     enableNoclip()
@@ -238,7 +246,7 @@ local function startFarming()
     task.spawn(attackAllEnemies)
 end
 
--- ✅ เริ่มตีบอส
+-- startKillBoss
 local function startKillBoss()
     running = true
     killBossEnabled = true
@@ -250,10 +258,9 @@ local function startKillBoss()
     end)
 end
 
--- ✅ หยุดทุกอย่าง
+-- stopFarming
 local function stopFarming()
     running = false
-    killBossEnabled = false
     disableNoclip()
     unequipWeapon()
     if character:FindFirstChild("Humanoid") then
@@ -261,13 +268,12 @@ local function stopFarming()
     end
 end
 
+--stopKillBoss
 local function stopKillBoss()
     running = false
     killBossEnabled = false
     unequipWeapon()
 end
-
-
 
 -- UI 
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
@@ -275,7 +281,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2.4",
+    Title = "Beta v1.2.5",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
