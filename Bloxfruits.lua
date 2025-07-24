@@ -11,7 +11,7 @@ local useV3 = false
 local useV4 = false
 local killAuraRange = 1000
 local bringRange = 110
-local offsetY = 35
+local offsetY = 50
 
 local busoEnabled = false
 
@@ -277,7 +277,7 @@ end
 local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
     if enemyHRP and humanoidRootPart then
-        local newPos = humanoidRootPart.Position - Vector3.new(0, 0, 0)
+        local newPos = humanoidRootPart.Position - Vector3.new(0, 50, 0)
         enemyHRP.CFrame = CFrame.new(newPos)
     end
 end
