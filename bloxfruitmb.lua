@@ -7,7 +7,7 @@ local useV3 = false
 local useV4 = false
 local killAuraRange = 1000
 local bringRange = 110
-local offsetY = 50
+local offsetY = 40
 local bringOffsetY = 2
 
 local kenEnabled = false
@@ -262,10 +262,6 @@ local function disableNoclip()
     end
 end
 
-local NetModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local rea = NetModule:WaitForChild("RE/RegisterAttack")
-local reh = NetModule:WaitForChild("RE/RegisterHit")
-
 local function bringEnemyBelowPlayer(enemy)
     local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
     if enemyHRP and humanoidRootPart then
@@ -325,14 +321,15 @@ local function attackAllEnemies()
                 equipWeapon()
 
                 -- โจมตีเป้าหมายหลัก
-                rea:FireServer(0.1)
-                reh:FireServer(targetHRP, {})
+		game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
+		game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
+
 
                 -- โจมตีศัตรูอื่นที่อยู่ใกล้
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                     if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                         if enemy.Humanoid.Health > 0 then
-                            reh:FireServer(enemy.HumanoidRootPart, {})
+                            game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
                         end
                     end
                 end
@@ -403,8 +400,8 @@ local function attackBossesOnly()
                     end)
 
                     pcall(function()
-                        rea:FireServer(0.1)
-                        reh:FireServer(hrp, {})
+			game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
+			game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(hrp, {})
                     end)
 
                     task.wait(0.1)
