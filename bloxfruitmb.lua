@@ -292,20 +292,20 @@ local function attackAllEnemies()
                 end
             end
 
-            pcall(function()
-                ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
-                ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
-            end)
+  --          pcall(function()
+   --             ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
+    --            ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
+  --          end)
 
-            pcall(function()
-                for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                    if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                        if enemy.Humanoid.Health > 0 then
-                            ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
-                        end
-                    end
-                end
-            end)
+-- pcall(function()
+--     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+--         if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+--             if enemy.Humanoid.Health > 0 then
+--                 ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(enemy.HumanoidRootPart, {})
+--             end
+--         end
+--     end
+-- end)
 
             if targetHumanoid.Health == lastHealth then
                 if tick() - lastTime >= 5 then
@@ -329,14 +329,6 @@ end
 -- ฟังก์ชันโจมตีบอสเท่านั้น
 local function attackBossesOnly()
     print("finding boss")
-
-    if not running then return end
-
-    if selectedBosses.Boss1 == "" and selectedBosses.Boss2 == "" and selectedBosses.Boss3 == "" then
-        warn("ยังไม่ได้เลือก Boss ใดเลย")
-        -- Fluent:Notify() -- ถ้าใช้ Fluent UI ให้เปิดบรรทัดนี้
-        return
-    end
 
     enableNoclip() 
 
@@ -448,7 +440,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.7",
+    Title = "Beta v1.8",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
@@ -552,12 +544,6 @@ Tabs.Main:AddDropdown("Dropdown", {
     selectedWeaponName = value
     print("Selected weapon:", value)
 end)
-
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:BuildConfigSection(Tabs.Main)
-InterfaceManager:BuildInterfaceSection(Tabs.Main)
-SaveManager:LoadAutoloadConfig()
 
 local Tabs = Window:AddTab({ Title = "Player", Icon = "person-standing" })
 
