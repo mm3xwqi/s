@@ -30,6 +30,7 @@ local killBossEnabled = false
 local offsetY = 50
 local killAuraRange = 300
 local bringRange = 100
+local noclipActive = false
 
 -- table
 local selectedBosses = {
@@ -140,6 +141,30 @@ local function tweenToPosition(part, targetPosition)
     TweenService:Create(part, tweenInfo, goal):Play()
     task.wait(duration)
 end
+
+local function enableNoclip()
+    if not noclipActive then
+        noclipActive = true
+        spawn(function()
+            while noclipActive do
+                pcall(function()
+                    if not humanoidRootPart:FindFirstChild("Lock") then
+                        if character:WaitForChild("Humanoid").Sit then
+                            character.Humanoid.Sit = false
+                        end
+                        local Noclip = Instance.new("BodyVelocity")
+                        Noclip.Name = "Lock"
+                        Noclip.Parent = humanoidRootPart
+                        Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                        Noclip.Velocity = Vector3.new(0, 0, 0)
+                    end
+                end)
+                task.wait()
+            end
+        end)
+    end
+end
+
 --noclip mob
 local function enableNoclipForEnemy(enemy)
     for _, part in ipairs(enemy:GetDescendants()) do
@@ -239,7 +264,6 @@ local function attackBossesOnly()
                         ReplicatedStorage.Modules.Net.RE.RegisterAttack:FireServer(0.1)
                         ReplicatedStorage.Modules.Net.RE.RegisterHit:FireServer(hrp, {})
                     end)
-
                     task.wait(0.1)
                 end
                 break
@@ -294,7 +318,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.2.6",
+    Title = "Beta v1.2.7",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
