@@ -226,6 +226,7 @@ local function attackAllEnemies()
                 local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
                 if humanoid.Health > 0 and dist <= killAuraRange then
                     targetEnemy = enemy
+                    print("[AttackAllEnemies] 🎯 Found target:", enemy.Name)
                     break
                 end
             end
@@ -235,25 +236,52 @@ local function attackAllEnemies()
             local targetHRP = targetEnemy.HumanoidRootPart
             local targetHumanoid = targetEnemy.Humanoid
             local targetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-            tweenToPosition(humanoidRootPart, targetPos)
+            
+            print("[AttackAllEnemies] ⏳ Tweening to target position")
+            local successTween, errTween = pcall(function()
+                tweenToPosition(humanoidRootPart, targetPos)
+            end)
+            if not successTween then
+                warn("[AttackAllEnemies] Tween failed:", errTween)
+            end
 
-            equipWeapon()
-            activateBusoLoop()
+            print("[AttackAllEnemies] ⚔️ Equipping weapon")
+            local successEquip, errEquip = pcall(equipWeapon)
+            if not successEquip then
+                warn("[AttackAllEnemies] EquipWeapon failed:", errEquip)
+            end
+
+            print("[AttackAllEnemies] 🔥 Activating Buso Loop")
+            local successBuso, errBuso = pcall(activateBusoLoop)
+            if not successBuso then
+                warn("[AttackAllEnemies] activateBusoLoop failed:", errBuso)
+            end
 
             for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                 if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                     local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
                     if dist <= bringRange then
-                        bringEnemiesToTargetInstant(targetEnemy)
+                        print("[AttackAllEnemies] 🧲 Bringing enemies to target")
+                        local successBring, errBring = pcall(function()
+                            bringEnemiesToTargetInstant(targetEnemy)
+                        end)
+                        if not successBring then
+                            warn("[AttackAllEnemies] bringEnemiesToTargetInstant failed:", errBring)
+                        end
                     end
                 end
             end
 
             pcall(function()
+                print("[AttackAllEnemies] 🚀 Fire RegisterAttack")
                 ReplicatedStorage.Modules.Net.RE.RegisterAttack:FireServer(0.1)
+                print("[AttackAllEnemies] 💥 Fire RegisterHit on target:", targetEnemy.Name)
                 ReplicatedStorage.Modules.Net.RE.RegisterHit:FireServer(targetHRP, {})
             end)
+        else
+            print("[AttackAllEnemies] ❌ No valid target found")
         end
+
         task.wait(0.1)
     end
 end
