@@ -293,7 +293,7 @@ end
 -- startFarming
 local function startFarming()
     running = true
-    enableNoclip()
+    startNoclip()
     if character:FindFirstChild("Humanoid") then
         character.Humanoid.PlatformStand = true
     end
