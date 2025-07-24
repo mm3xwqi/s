@@ -93,16 +93,34 @@ local fruit = {
 
 -- weapon & Buso
 local function equipWeapon()
-    local tool = player.Backpack:FindFirstChildOfClass("Tool")
-    if tool then
-        tool.Parent = character
+    if not selectedWeaponName then return end
+
+    local tools = backpack:GetChildren()
+
+    for _, tool in ipairs(tools) do
+        if tool:IsA("Tool") then
+            if selectedWeaponName == "melee" and table.find(melee, tool.Name) then
+                tool.Parent = character
+                return
+            elseif selectedWeaponName == "sword" and table.find(sword, tool.Name) then
+                tool.Parent = character
+                return
+            elseif selectedWeaponName == "gun" and table.find(gun, tool.Name) then
+                tool.Parent = character
+                return
+            elseif selectedWeaponName == "fruit" and table.find(fruit, tool.Name) then
+                tool.Parent = character
+                return
+            end
+        end
     end
+    -- ไม่มีการแจ้งเตือนใดๆ เมื่อไม่เจออาวุธ
 end
 
 local function unequipWeapon()
-    local tool = character:FindFirstChildOfClass("Tool")
-    if tool then
-        tool.Parent = player.Backpack
+    if character and character:FindFirstChild("Humanoid") then
+        character.Humanoid:UnequipTools()
+        print("Unequipped all tools safely")
     end
 end
 
