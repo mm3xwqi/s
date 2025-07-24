@@ -274,84 +274,99 @@ local function bringEnemyBelowPlayer(enemy)
     end
 end
 
--- fast attack
-local function attackAllEnemies()
-	while running do
-		-- ตรวจสอบตัวละคร
-		if not character or not character:FindFirstChild("HumanoidRootPart") or playerHumanoid.Health <= 0 then
-			task.wait(1)
-			continue
-		end
+local function findClosestEnemy()
+    local closestEnemy = nil
+    local closestDist = killAuraRange
 
-		local targetEnemy = nil
-		local closestDist = killAuraRange
+    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+        if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+            local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+            if enemy.Humanoid.Health > 0 and dist <= closestDist then
+                closestDist = dist
+                closestEnemy = enemy
+            end
+        end
+    end
 
-		-- หาเป้าหมายที่ยังไม่ตาย และใกล้ที่สุด
-		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-				local humanoid = enemy.Humanoid
-				local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-				if humanoid.Health > 0 and dist <= closestDist then
-					targetEnemy = enemy
-					closestDist = dist
-				end
-			end
-		end
-
-		equipWeapon()
-
-		if not targetEnemy then
-			task.wait(0.1)
-			continue
-		end
-
-		local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
-		local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
-
-		-- ถ้ามอนตายไปแล้วก่อนถึงจุดตี
-		if not targetHRP or not targetHumanoid or targetHumanoid.Health <= 0 then
-			task.wait(0.1)
-			continue
-		end
-
-		print("🎯 Target: " .. targetEnemy.Name .. " | HP: " .. targetHumanoid.Health)
-
-		local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-
-		-- บินไปหามอน
-		if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
-			tweenToPosition(humanoidRootPart, playerTargetPos)
-		end
-
-		-- ดึงมอนเข้าใต้ตัว
-		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-				local distToPlayer = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-				if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
-					bringEnemyBelowPlayer(enemy)
-				end
-			end
-		end
-
-		-- โจมตีมอนหลัก
-		registerAttack:FireServer(0.1)
-		registerHit:FireServer(targetHRP, {})
-
-		-- โจมตีมอนอื่นในระยะไปด้วย
-		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-			if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-				if enemy.Humanoid.Health > 0 then
-					pcall(function()
-						registerHit:FireServer(enemy.HumanoidRootPart, {})
-					end)
-				end
-			end
-		end
-
-		task.wait(0.15)
-	end
+    return closestEnemy
 end
 
+-- fast attack
+local function attackAllEnemies()
+    while running do
+        -- รีเซ็ตตัวละครถ้าตายแล้วเกิดใหม่
+        if not character or character.Parent == nil then
+            character = player.Character or player.CharacterAdded:Wait()
+            humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+            playerHumanoid = character:WaitForChild("Humanoid")
+        end
+
+        if playerHumanoid.Health <= 0 then
+            task.wait(1)
+            continue
+        end
+
+        -- ถ้าเลือดต่ำ รอฟื้น
+        if playerHumanoid.Health < (playerHumanoid.MaxHealth * 0.35) then
+            waitForHealthToRecover()
+            continue
+        end
+
+        equipWeapon()
+
+        local targetEnemy = findClosestEnemy()
+
+        if not targetEnemy then
+            task.wait(0.1)
+            continue
+        end
+
+        local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
+        local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
+
+        if not targetHRP or not targetHumanoid or targetHumanoid.Health <= 0 then
+            task.wait(0.1)
+            continue
+        end
+
+        print("💥 กำลังตีมอน: " .. targetEnemy.Name .. " | HP: " .. targetHumanoid.Health)
+
+        -- บินไปหามอน
+        local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+        if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
+            tweenToPosition(humanoidRootPart, playerTargetPos)
+        end
+
+        -- ดึงมอนใต้ตัว
+        if bringMobs then
+            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                    local distToPlayer = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                    if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
+                        bringEnemyBelowPlayer(enemy)
+                    end
+                end
+            end
+        end
+
+        -- โจมตีหลัก
+        registerAttack:FireServer(0.1)
+        registerHit:FireServer(targetHRP, {})
+
+        -- โจมตีตัวอื่นรอบๆ
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+            if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                if enemy.Humanoid.Health > 0 then
+                    pcall(function()
+                        registerHit:FireServer(enemy.HumanoidRootPart, {})
+                    end)
+                end
+            end
+        end
+
+        task.wait(0.15)
+    end
+end
 -- boss attack
 local function attackBossesOnly()
     print("finding boss")
