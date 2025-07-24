@@ -254,21 +254,25 @@ local function attackAllEnemies()
 				for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 					if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
 						local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-						if dist <= bringRange then
+						if dist <= bringMobsRange then
 							bringEnemiesToTargetInstant(targetEnemy)
 						end
 					end
 				end
-					if registerAttack and registerHit then
-					    local success, err = pcall(function()
-					        registerAttack:FireServer(0.1)
-					        registerHit:FireServer(targetHRP, {})
-					    end)
-					    if not success then
-					        warn("Error calling registerAttack/registerHit: " .. tostring(err))
-					    end
+
+				if registerAttack and registerHit then
+					local success, err = pcall(function()
+						registerAttack:FireServer(0.1)
+						registerHit:FireServer(targetHRP, {})
+					end)
+					if not success then
+						warn("Error firing attack/hit remotes:", err)
 					end
+				else
+					warn("registerAttack or registerHit is nil")
 				end
+			else
+				warn("targetHRP or targetHumanoid is nil")
 			end
 		end
 
@@ -277,6 +281,7 @@ local function attackAllEnemies()
 end
 
 --Kill Boss 
+
 local function attackBossesOnly()
     enableNoclip()
     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -296,10 +301,18 @@ local function attackBossesOnly()
                     local targetPos = hrp.Position + Vector3.new(0, offsetY, 0)
                     tweenToPosition(humanoidRootPart, targetPos)
 
-                    pcall(function()
-			registerAttack:FireServer(0.1)
-			registerHit:FireServer(hrp, {})
-                    end)
+                    if registerAttack and registerHit then
+                        local success, err = pcall(function()
+                            registerAttack:FireServer(0.1)
+                            registerHit:FireServer(hrp, {})
+                        end)
+                        if not success then
+                            warn("Error firing attack/hit remotes:", err)
+                        end
+                    else
+                        warn("registerAttack or registerHit is nil")
+                    end
+
                     task.wait(0.1)
                 end
                 break
