@@ -1,6 +1,5 @@
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local enemiesFolder = workspace:WaitForChild("Enemies")
 
 local useV3 = false
@@ -271,14 +270,9 @@ local function bringEnemyBelowPlayer(enemy)
     end
 end
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- fast attack
 local playerHumanoid = character:WaitForChild("Humanoid")
-
-local function waitForHealthToRecover()
-    while playerHumanoid.Health < (playerHumanoid.MaxHealth * 0.35) and running do
-        task.wait(0.5)
-    end
-end
 
 local function attackAllEnemies()
     while running do
@@ -310,23 +304,27 @@ local function attackAllEnemies()
             local lastHealth = targetHumanoid.Health
             local lastTime = tick()
 
-            while targetHumanoid.Health > 0 and running do
-                local healthPercent = playerHumanoid.Health / playerHumanoid.MaxHealth
-                if healthPercent <= 0.30 then
-                    local safePosition = Vector3.new(humanoidRootPart.Position.X, 300, humanoidRootPart.Position.Z)
-                    tweenToPosition(humanoidRootPart, safePosition)
-                    waitForHealthToRecover()
-                    break
+                equipWeapon()
+		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                    if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                        local enemyHRP = enemy.HumanoidRootPart
+                        local distToPlayer = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
+
+                        if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
+                            bringEnemyBelowPlayer(enemy)
+                        end
+                    end
                 end
 
-                equipWeapon()
-
                 -- โจมตีเป้าหมายหลัก
+		pcall(function()
 		game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(0.1)
 		game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(targetHRP, {})
+		end)
 
 
                 -- โจมตีศัตรูอื่นที่อยู่ใกล้
+		pcall(function()
                 for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                     if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
                         if enemy.Humanoid.Health > 0 then
@@ -334,10 +332,11 @@ local function attackAllEnemies()
                         end
                     end
                 end
+	end)
 
                 -- ถ้ามอนเลือดไม่ลดเกิน 10 วิ ลบหัว
                 if targetHumanoid.Health == lastHealth then
-                    if tick() - lastTime >= 10 then
+                    if tick() - lastTime >= 5 then
                         local head = targetEnemy:FindFirstChild("Head")
                         if head then
                             head:Destroy()
@@ -350,7 +349,7 @@ local function attackAllEnemies()
                     lastTime = tick()
                 end
 
-                task.wait(0.15)
+                task.wait(0.1)
             end
         end
     end
@@ -478,7 +477,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.5",
+    Title = "Beta v1.6",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
