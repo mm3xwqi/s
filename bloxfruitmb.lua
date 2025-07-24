@@ -173,22 +173,11 @@ local function enableNoclipForEnemy(enemy)
 end
 
 -- bring mobs
-local function bringEnemiesToTargetInstant(target)
-    local targetPos = target:FindFirstChild("HumanoidRootPart") and target.HumanoidRootPart.Position
-    if not targetPos then return end
-
-    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-        if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") then
-            local humanoid = enemy.Humanoid
-            if humanoid.Health > 0 then
-                local enemyPos = enemy.HumanoidRootPart.Position
-                local dist = (enemyPos - targetPos).Magnitude
-
-                if dist <= bringMobsRange then
-                    enemy.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y, targetPos.Z)
-                end
-            end
-        end
+local function bringEnemyBelowPlayer(enemy)
+    local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
+    if enemyHRP and humanoidRootPart then
+        local newPos = humanoidRootPart.Position - Vector3.new(0, 40, 0)
+        enemyHRP.CFrame = CFrame.new(newPos)
     end
 end
 
@@ -223,7 +212,7 @@ local function attackAllEnemies()
 					if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
 						local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
 						if dist <= bringMobsRange then
-							bringEnemiesToTargetInstant(targetEnemy)
+							bringEnemyBelowPlayer(enemy)
 						end
 					end
 				end
