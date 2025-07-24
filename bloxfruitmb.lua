@@ -15,8 +15,6 @@ local bringRange = 110
 local offsetY = 20
 
 local killBossEnabled = false
-local kenEnabled = false
-local busoEnabled = false
 
 local selectedBosses = {
     Boss1 = "",
@@ -363,7 +361,6 @@ local function attackBossesOnly()
             if isBoss and humanoid.Health > 0 then
                 print("found", name)
 
-                task.spawn(activateBusoLoop)
                 equipWeapon()
 
                 while humanoid and humanoid.Health > 0 and running and killBossEnabled do
@@ -420,10 +417,12 @@ local function startKillBoss()
     killBossEnabled = true
     task.spawn(function()
         while killBossEnabled and running do
+	task.spawn(activateBusoLoop)
             attackBossesOnly()
             task.wait(0.5)
         end
     end)
+end
 end
 
 -- หยุดฟาร์ม
