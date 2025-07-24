@@ -259,12 +259,14 @@ local function attackAllEnemies()
 						end
 					end
 				end
-
-				if registerAttack and registerHit then
-					local success, err = pcall(function()
-						registerAttack:FireServer(0.1)
-						registerHit:FireServer(targetHRP, {})
-					end)
+					if registerAttack and registerHit then
+					    local success, err = pcall(function()
+					        registerAttack:FireServer(0.1)
+					        registerHit:FireServer(targetHRP, {})
+					    end)
+					    if not success then
+					        warn("Error calling registerAttack/registerHit: " .. tostring(err))
+					    end
 					end
 				end
 			end
@@ -296,7 +298,7 @@ local function attackBossesOnly()
 
                     pcall(function()
 			registerAttack:FireServer(0.1)
-			registerHit:FireServer(targetHRP, {})
+			registerHit:FireServer(hrp, {})
                     end)
                     task.wait(0.1)
                 end
