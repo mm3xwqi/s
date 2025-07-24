@@ -38,7 +38,7 @@ local registerHit = NetModule:FindFirstChild("RE/RegisterHit")
 local SPEED = 350
 local running = false
 local killBossEnabled = false
-local offsetY = 25
+local offsetY = 10
 local killAuraRange = 300
 local bringMobsRange = 100
 
@@ -224,7 +224,7 @@ local function attackAllEnemies()
             end
         end
 
-        task.wait(0.05) -- ลด delay ให้ตีเร็วขึ้น
+        task.wait(0.15) -- ลด delay ให้ตีเร็วขึ้น
     end
 end
 
