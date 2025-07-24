@@ -126,61 +126,46 @@ local function activateBusoLoop()
     ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
 end
 
--- Tween
+local noclipForce
+
+local function startNoclip()
+    if not noclipForce and humanoidRootPart then
+        noclipForce = Instance.new("BodyVelocity")
+        noclipForce.Name = "Lock"
+        noclipForce.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        noclipForce.Velocity = Vector3.new(0, 0, 0)
+        noclipForce.Parent = humanoidRootPart
+    end
+end
+
+
 local function tweenToPosition(part, targetPosition)
     local distance = (part.Position - targetPosition).Magnitude
     local duration = distance / SPEED
 
-    spawn(function()
-        while noclipActive do
-            pcall(function()
-                if not humanoidRootPart:FindFirstChild("Lock") then
-                    if character:WaitForChild("Humanoid").Sit then
-                        character.Humanoid.Sit = false
-                    end
-                    local Noclip = Instance.new("BodyVelocity")
-                    Noclip.Name = "Lock"
-                    Noclip.Parent = humanoidRootPart
-                    Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                    Noclip.Velocity = Vector3.new(0, 0, 0)
-                end
-            end)
-            task.wait()
-        end
-    end)
+    -- เรียก startNoclip ก่อนถ้าจำเป็น
+    if noclipActive then
+        startNoclip()
+    else
+        stopNoclip()
+    end
 
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     local goal = { CFrame = CFrame.new(targetPosition) }
-    TweenService:Create(part, tweenInfo, goal):Play()
-    task.wait(duration)
-end
+    local tween = TweenService:Create(part, tweenInfo, goal)
+    tween:Play()
+    tween.Completed:Wait() -- รอจนจบ tween
 
-local function enableNoclip()
+    -- หลัง tween จบ อาจจะหยุด noclip หรือจัดการตามต้องการ
+    -- ตัวอย่าง:
     if not noclipActive then
-        noclipActive = true
+        stopNoclip()
+    end
 
-        task.defer(function()
-            while noclipActive do
-                pcall(function()
-                    local humanoid = character:FindFirstChild("Humanoid")
-                    local hrp = character:FindFirstChild("HumanoidRootPart")
-
-                    if humanoid and hrp then
-                        if not hrp:FindFirstChild("Lock") then
-                            if humanoid.Sit then
-                                humanoid.Sit = false
-                            end
-                            local noclipForce = Instance.new("BodyVelocity")
-                            noclipForce.Name = "Lock"
-                            noclipForce.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                            noclipForce.Velocity = Vector3.new(0, 0, 0)
-                            noclipForce.Parent = hrp
-                        end
-                    end
-                end)
-                task.wait()
-            end
-        end)
+local function stopNoclip()
+    if noclipForce then
+        noclipForce:Destroy()
+        noclipForce = nil
     end
 end
 
@@ -189,17 +174,6 @@ local function enableNoclipForEnemy(enemy)
     for _, part in ipairs(enemy:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = false
-        end
-    end
-end
-
-local function disableNoclip()
-    noclipActive = false
-    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local lock = hrp:FindFirstChild("Lock")
-        if lock then
-            lock:Destroy()
         end
     end
 end
