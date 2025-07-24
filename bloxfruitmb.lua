@@ -226,7 +226,7 @@ end
 
 -- Kill Aura
 local function attackAllEnemies()
-	while running and not killBossEnabled do
+	while running do
 		local targetEnemy = nil
 
 		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -281,7 +281,6 @@ local function attackAllEnemies()
 end
 
 --Kill Boss 
-
 local function attackBossesOnly()
     enableNoclip()
     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -367,7 +366,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Beta v1.3 MB",
+    Title = "Beta v1.4 MB",
     SubTitle = "made by mxw",
     TabWidth = 160,
     Size = UDim2.fromOffset(500, 400),
