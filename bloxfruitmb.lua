@@ -16,8 +16,8 @@ local backpack = player:WaitForChild("Backpack")
 
 -- โหลด module ต่างๆ
 local NetModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local registerAttack = net:WaitForChild("RE/RegisterAttack")
-local registerHit = net:WaitForChild("RE/RegisterHit")
+local registerAttack = NetModule:FindFirstChild("RE/RegisterAttack")
+local registerHit = NetModule:FindFirstChild("RE/RegisterHit")
 
 local SPEED = 350
 local running = false
