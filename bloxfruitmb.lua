@@ -189,20 +189,20 @@ local function enableNoclipForEnemy(enemy)
 end
 
 -- bring mobs
-local movedEnemies = {}
-
-local function bringEnemiesToTarget(targetEnemy)
-	local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
-	if not targetHRP then return end
-
+local function bringEnemiesBelowPlayer()
 	for _, enemy in ipairs(enemiesFolder:GetChildren()) do
 		if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-			local dist = (enemy.HumanoidRootPart.Position - targetHRP.Position).Magnitude
-			if dist <= bringMobsRange and not movedEnemies[enemy] then
-				local newPos = targetHRP.Position - Vector3.new(0, 40, 0)
-				enableNoclipForEnemy(enemy)
-				enemy.HumanoidRootPart.CFrame = CFrame.new(newPos)
-				movedEnemies[enemy] = true
+			local humanoid = enemy:FindFirstChild("Humanoid")
+			if humanoid and humanoid.Health > 0 then
+				local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
+				if enemyHRP then
+					local dist = (enemyHRP.Position - humanoidRootPart.Position).Magnitude
+					if dist <= bringMobsRange then
+						local newPos = humanoidRootPart.Position - Vector3.new(0, 40, 0)
+						enableNoclipForEnemy(enemy)
+						enemyHRP.CFrame = CFrame.new(newPos)
+					end
+				end
 			end
 		end
 	end
@@ -210,57 +210,51 @@ end
 
 -- Kill Aura
 local function attackAllEnemies()
-	while running do
-		local targetEnemy = nil
-		startNoclip()
+    while running do
+        local targetEnemy = nil
+        startNoclip()
 
-		for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-			if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-				local humanoid = enemy.Humanoid
-				local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-				if humanoid.Health > 0 and dist <= killAuraRange then
-					targetEnemy = enemy
-					break
-				end
-			end
-		end
+        -- หาเป้าหมายใหม่ในระยะ
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
+                local humanoid = enemy.Humanoid
+                local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                if humanoid.Health > 0 and dist <= killAuraRange then
+                    targetEnemy = enemy
+                    break
+                end
+            end
+        end
 
-		if targetEnemy then
-			local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
-			local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
+        if targetEnemy then
+            local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
+            local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
 
-			if targetHRP and targetHumanoid then
-				local targetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-				tweenToPosition(humanoidRootPart, targetPos)
+            if targetHRP and targetHumanoid and targetHumanoid.Health > 0 then
+                -- ตำแหน่งลอยตี
+                local targetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
+                pcall(function()
+                    tweenToPosition(humanoidRootPart, targetPos)
+                end)
 
-				equipWeapon()
-				activateBusoLoop()
+                equipWeapon()
+                activateBusoLoop()
 
-				-- ดึงมอนเฉพาะตอนเริ่ม target ใหม่
-				bringEnemiesToTarget(targetEnemy)
+                -- ดึงมอนรอบตัวมารวม
+                bringEnemiesBelowPlayer()
 
-				-- ตี
-				if registerAttack and registerHit then
-					local success, err = pcall(function()
-						registerAttack:FireServer(0.1)
-						registerHit:FireServer(targetHRP, {})
-					end)
-					if not success then
-						warn("Error firing attack/hit remotes:", err)
-					end
-				else
-					warn("registerAttack or registerHit is nil")
-				end
-			else
-				warn("targetHRP or targetHumanoid is nil")
-			end
-		else
-			-- รีเซ็ตเมื่อไม่มีเป้าหมาย
-			movedEnemies = {}
-		end
+                -- พยายามยิง attack/hit ถ้ามี
+                if registerAttack and registerHit then
+                    pcall(function()
+                        registerAttack:FireServer(0.1)
+                        registerHit:FireServer(targetHRP, {})
+                    end)
+                end
+            end
+        end
 
-		task.wait(0.1)
-	end
+        task.wait(0.05) -- ลด delay ให้ตีเร็วขึ้น
+    end
 end
 
 --Kill Boss 
