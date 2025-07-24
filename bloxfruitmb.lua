@@ -1,5 +1,4 @@
 -- main local
--- main local
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -16,10 +15,9 @@ end
 local backpack = player:WaitForChild("Backpack")
 
 -- โหลด module ต่างๆ
-local modules = ReplicatedStorage:WaitForChild("Modules")
-local net = modules:WaitForChild("Net")
-local registerAttack = net:FindFirstChild("RE"):FindFirstChild("RegisterAttack")
-local registerHit = net:FindFirstChild("RE"):FindFirstChild("RegisterHit")
+local NetModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local registerAttack = net:FindFirstChild("RE/RegisterAttack")
+local registerHit = net:FindFirstChild("RE/RegisterHit")
 
 local SPEED = 350
 local running = false
