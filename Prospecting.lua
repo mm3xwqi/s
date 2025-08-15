@@ -1,7 +1,7 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("kk", "DarkTheme")
-local Tab = Window:NewTab("TabName")
-local Section = Tab:NewSection("Section Name")
+local Window = Library.CreateLib("EiEi", "DarkTheme")
+local Tab = Window:NewTab("Main")
+local Section = Tab:NewSection("Farm")
 
 local plr = game:GetService("Players").LocalPlayer
 local panPos = nil
