@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>3.1")
+local win = DiscordLib:Window("MM</>3.2")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -21,25 +21,28 @@ local Pan {"Rusty Pan", "Plastic Pan", "Metal Pan",  "Silver Pan", "Golden Pan",
 
 -- หา Pan tool
 local function findPan()
-    for _, tool in ipairs(plr.Character:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name:lower():find("pan") then
+    for _, panName in ipairs(Pan) do
+        local tool = character:FindFirstChild(panName)
+        if tool and tool:IsA("Tool") then
             return tool
         end
-    end
-    for _, tool in ipairs(plr.Backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name:lower():find("pan") then
+        tool = plr.Backpack:FindFirstChild(panName)
+        if tool and tool:IsA("Tool") then
             return tool
         end
     end
     return nil
 end
 
--- Equip Pan
+-- Equip Pan จากตาราง Pan
 local function equipPan()
     local panTool = findPan()
     if panTool then
-        panTool.Parent = plr.Character
+        panTool.Parent = character
         task.wait(0.1)
+        print("[Auto Pan] Equipped:", panTool.Name)
+    else
+        print("[Auto Pan] No Pan found in table.")
     end
 end
 
