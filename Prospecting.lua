@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>3.3")
+local win = DiscordLib:Window("MM</>1")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -16,34 +16,22 @@ local args = {1}
 local running, runningShake, runningSell = false, false, false
 local fillTextObj = nil
 local walkSpeedValue = humanoid.WalkSpeed 
-local Pan = {"Rusty Pan", "Plastic Pan", "Metal Pan",  "Silver Pan", "Golden Pan", "Magnetic Pan", "Meteoric Pan", "Diamond Pan",
-             "Aurora Pan", "Worldshaker", "Dragonflame Pan", "Fossilized Pan"}
-
--- หา Pan tool
-local function findPan()
-    for _, panName in ipairs(Pan) do
-        local tool = character:FindFirstChild(panName)
-        if tool and tool:IsA("Tool") then
-            return tool
-        end
-        tool = plr.Backpack:FindFirstChild(panName)
-        if tool and tool:IsA("Tool") then
-            return tool
-        end
-    end
-    return nil
-end
+local Pan = {"Rusty Pan", "Plastic Pan", "Metal Pan",  "Silver Pan", "Golden Pan", "Magnetic Pan", "Meteoric Pan", "Diamond Pan", "Aurora Pan", "Worldshaker", "Dragonflame Pan", "Fossilized Pan"}
 
 -- Equip Pan จากตาราง Pan
 local function equipPan()
-    local panTool = findPan()
-    if panTool then
-        panTool.Parent = character
-        task.wait(0.1)
-        print("[Auto Pan] Equipped:", panTool.Name)
-    else
-        print("[Auto Pan] No Pan found in table.")
-    en
+    for _, panName in ipairs(Pan) do
+        local tool = character:FindFirstChild(panName) or plr.Backpack:FindFirstChild(panName)
+        if tool and tool:IsA("Tool") then
+            tool.Parent = character
+            task.wait(0.1)
+            print("[Auto Pan] Equipped:", tool.Name)
+            return tool
+        end
+    end
+    print("[Auto Pan] No Pan found in table!")
+    return nil
+end
 
 -- walkto
 local function moveToPositionSpeed(pos, speed)
@@ -79,26 +67,27 @@ end)
 -- Auto-Pan
 tgls:Toggle("Auto-Pan", false, function(state)
     running = state
-    if running then equipPan() end
     task.spawn(function()
         while running do
-            local fillTextObj = plr.PlayerGui:FindFirstChild("ToolUI")
-                and plr.PlayerGui.ToolUI:FindFirstChild("FillingPan")
-                and plr.PlayerGui.ToolUI.FillingPan:FindFirstChild("FillText")
+            local panTool = equipPan()  -- equipPan() จะคืน Tool ที่ถือแล้ว
+            if panTool then
+                local fillTextObj = plr.PlayerGui:FindFirstChild("ToolUI")
+                    and plr.PlayerGui.ToolUI:FindFirstChild("FillingPan")
+                    and plr.PlayerGui.ToolUI.FillingPan:FindFirstChild("FillText")
 
-            if fillTextObj then
-                local current, max = fillTextObj.Text:match("(%d+)%s*/%s*(%d+)")
-                current, max = tonumber(current), tonumber(max)
-
-                local panTool = findPan()
-                if current and max and panTool then
-                    if current < max and panPos then
-                        moveToPositionSpeed(panPos, 150) -- 300 = ความเร็วปรับได้
-                        pcall(function()
-                            panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(unpack(args))
-                        end)
-                    elseif current >= max and shakePos then
-                        moveToPositionSpeed(shakePos, 150)
+                if fillTextObj then
+                    local current, max = fillTextObj.Text:match("(%d+)%s*/%s*(%d+)")
+                    current, max = tonumber(current), tonumber(max)
+                    
+                    if current and max then
+                        if current < max and panPos then
+                            moveToPositionSpeed(panPos, 150)
+                            pcall(function()
+                                panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(1)
+                            end)
+                        elseif current >= max and shakePos then
+                            moveToPositionSpeed(shakePos, 150)
+                        end
                     end
                 end
             end
@@ -112,17 +101,15 @@ tgls:Toggle("Auto-Shake", false, function(state)
     runningShake = state
     task.spawn(function()
         while runningShake do
-            local panTool = findPan()
+            local panTool = equipPan() 
             if panTool then
-                pcall(function()
-                    local scriptsFolder = panTool:FindFirstChild("Scripts")
-                    if scriptsFolder then
-                        local shakeEvent = scriptsFolder:FindFirstChild("Shake")
-                        if shakeEvent then shakeEvent:FireServer() end
-                        local panEvent = scriptsFolder:FindFirstChild("Pan")
-                        if panEvent then panEvent:InvokeServer() end
-                    end
-                end)
+                local scriptsFolder = panTool:FindFirstChild("Scripts")
+                if scriptsFolder then
+                    local shakeEvent = scriptsFolder:FindFirstChild("Shake")
+                    if shakeEvent then shakeEvent:FireServer() end
+                    local panEvent = scriptsFolder:FindFirstChild("Pan")
+                    if panEvent then panEvent:InvokeServer() end
+                end
             end
             task.wait(0.1)
         end
