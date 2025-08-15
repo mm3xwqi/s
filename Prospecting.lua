@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1")
+local win = DiscordLib:Window("MM</>1.1")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -190,6 +190,61 @@ tgls:Toggle("Auto-Sell", false, function(state)
                 end
             end
             task.wait(2) 
+        end
+    end)
+end)
+
+
+local LockTables = {Common, Uncommon, Rare, Epic, Legendary, Mythic, Exotic}
+local AllLockableItems = {}
+for _, tbl in ipairs(LockTables) do
+    for _, itemName in ipairs(tbl) do
+        table.insert(AllLockableItems, itemName)
+    end
+end
+
+
+local selectedLockItems = {} 
+
+for _, itemName in ipairs(AllLockableItems) do
+    tgls:Toggle(itemName, false, function(state)
+        if state then
+            table.insert(selectedLockItems, itemName)
+        else
+            for i, v in ipairs(selectedLockItems) do
+                if v == itemName then
+                    table.remove(selectedLockItems, i)
+                    break
+                end
+            end
+        end
+    end)
+end
+
+
+local runningLock = false
+tgls:Toggle("Auto Lock", false, function(state)
+    runningLock = state
+    task.spawn(function()
+        while runningLock do
+            for _, item in ipairs(selectedLockItems) do
+                if plr.Character then
+                    local args = {plr.Character:FindFirstChild(item)}
+                    if args[1] then
+                        pcall(function()
+                            RepStorage:WaitForChild("Remotes")
+                                :WaitForChild("Inventory")
+                                :WaitForChild("ToggleLock")
+                                :FireServer(unpack(args))
+                        end)
+                        print("[Lock] Locked:", item)
+                    else
+                        print("[Lock] Item not found in character:", item)
+                    end
+                    task.wait(0.5) -- เว้นระยะ 0.5 วินาทีระหว่างไอเท็ม
+                end
+            end
+            task.wait(1) -- เว้นรอบต่อไป 1 วินาที
         end
     end)
 end)
