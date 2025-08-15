@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.1")
+local win = DiscordLib:Window("MM</>1.2")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -17,13 +17,13 @@ local running, runningShake, runningSell = false, false, false
 local fillTextObj = nil
 local walkSpeedValue = humanoid.WalkSpeed 
 local Pan = {"Rusty Pan", "Plastic Pan", "Metal Pan",  "Silver Pan", "Golden Pan", "Magnetic Pan", "Meteoric Pan", "Diamond Pan", "Aurora Pan", "Worldshaker", "Dragonflame Pan", "Fossilized Pan"}
-local cmore = {"Pyrite", "Silver", "Copper" , "Gold", "Platinum", "Seashell", "Obsidian", "Amethyst", "Pearl"}
-local uncore = {"Titanium", "Neodymium", "Topaz", "Smoky Quartz", "Malachite", "Coral", "Sapphire", "Zircon"}
-local rore = {"Ruby", "Lapis Lazuli", "Jade", "Silver Clamshell", "Peridot", "Onyx", "Meteoric Iron", "Azuralite", "Pyrelith"}
-local eore = {"Iridium", "Moonstone", "Ammonite Fossil", "Ashvein", "Pyronium", "Emerald", "Golden Pearl", "Borealite", "Osmium", "Opal", "Aurorite"}
-local leore = {"Rose Gold", "Palladium", "Cinnabar", "Diamond", "Uranium", "Luminum", "Volcanic Key", "Fire Opal", "Dragon Bone", "Catseye", "Starshine", "Aetherite"}
-local myore = {"Pink Diamond", "Painite", "Inferlume", "Vortessence", "Prismara", "Flarebloom", "Volcanic Core"}
-local exore = {"Dinosaur Skull"}
+local Common = {"Pyrite", "Silver", "Copper" , "Gold", "Platinum", "Seashell", "Obsidian", "Amethyst", "Pearl"} 
+local Uncommon = {"Titanium", "Neodymium", "Topaz", "Smoky Quartz", "Malachite", "Coral", "Sapphire", "Zircon"} 
+local Rare = {"Ruby", "Lapis Lazuli", "Jade", "Silver Clamshell", "Peridot", "Onyx", "Meteoric Iron", "Azuralite", "Pyrelith"} 
+local Epic = {"Iridium", "Moonstone", "Ammonite Fossil", "Ashvein", "Pyronium", "Emerald", "Golden Pearl", "Borealite", "Osmium", "Opal", "Aurorite"} 
+local Legendary = {"Rose Gold", "Palladium", "Cinnabar", "Diamond", "Uranium", "Luminum", "Volcanic Key", "Fire Opal", "Dragon Bone", "Catseye", "Starshine", "Aetherite"} 
+local Mythic = {"Pink Diamond", "Painite", "Inferlume", "Vortessence", "Prismara", "Flarebloom", "Volcanic Core"} 
+local Exotic = {"Dinosaur Skull"}
 
 -- Equip Pan จากตาราง Pan
 local function equipPan()
@@ -195,56 +195,33 @@ tgls:Toggle("Auto-Sell", false, function(state)
 end)
 
 
-local LockTables = {Common, Uncommon, Rare, Epic, Legendary, Mythic, Exotic}
-local AllLockableItems = {}
-for _, tbl in ipairs(LockTables) do
-    for _, itemName in ipairs(tbl) do
-        table.insert(AllLockableItems, itemName)
-    end
-end
+local ItemTables = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Exotic"}
+local selectedTable = "Common"
 
+tgls:Dropdown("Select Item Table", ItemTables, function(tableName)
+    selectedTable = tableName
+    print("Selected table:", selectedTable)
+end)
 
-local selectedLockItems = {} 
-
-for _, itemName in ipairs(AllLockableItems) do
-    tgls:Toggle(itemName, false, function(state)
-        if state then
-            table.insert(selectedLockItems, itemName)
-        else
-            for i, v in ipairs(selectedLockItems) do
-                if v == itemName then
-                    table.remove(selectedLockItems, i)
-                    break
-                end
-            end
-        end
-    end)
-end
-
-
-local runningLock = false
 tgls:Toggle("Auto Lock", false, function(state)
-    runningLock = state
+    local running = state
     task.spawn(function()
-        while runningLock do
-            for _, item in ipairs(selectedLockItems) do
-                if plr.Character then
-                    local args = {plr.Character:FindFirstChild(item)}
-                    if args[1] then
-                        pcall(function()
-                            RepStorage:WaitForChild("Remotes")
-                                :WaitForChild("Inventory")
-                                :WaitForChild("ToggleLock")
-                                :FireServer(unpack(args))
-                        end)
-                        print("[Lock] Locked:", item)
-                    else
-                        print("[Lock] Item not found in character:", item)
-                    end
-                    task.wait(0.5) -- เว้นระยะ 0.5 วินาทีระหว่างไอเท็ม
+        while running do
+            local items = _G[selectedTable] -- สมมติว่า Common, Uncommon… ถูกเก็บเป็น global
+            for _, item in ipairs(items) do
+                local tool = plr.Character:FindFirstChild(item)
+                if tool then
+                    pcall(function()
+                        RepStorage:WaitForChild("Remotes")
+                            :WaitForChild("Inventory")
+                            :WaitForChild("ToggleLock")
+                            :FireServer(tool)
+                    end)
+                    print("[Lock] Locked:", item)
                 end
+                task.wait(0.5)
             end
-            task.wait(1) -- เว้นรอบต่อไป 1 วินาที
+            task.wait(1)
         end
     end)
 end)
