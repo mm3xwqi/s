@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.3")
+local win = DiscordLib:Window("MM</>2.4")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -80,13 +80,13 @@ tgls:Toggle("Auto-Pan", false, function(state)
 
                 if current and max then
                     local panTool = findPan()
-                    if current < max and panTool then
-                        if panPos then moveToPositionSpeed(panPos, 300) end
-                        pcall(function()
-                            panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(unpack(args))
-                        end)
-                    elseif current >= max and panTool and shakePos then
-                        moveToPositionSpeed(shakePos, 300)
+                        if current < max and panTool then
+                            if panPos then tweenTo(panPos, 0.5) end
+                                pcall(function()
+                                        panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(unpack(args))
+                                        end)
+                                        elseif current >= max and panTool and shakePos then
+                            if shakePos then tweenTo(shakePos, 0.5) end
                     end
                 end
             end
