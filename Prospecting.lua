@@ -1,5 +1,5 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("EiEi", "DarkTheme")
+local Window = Library.CreateLib("EiEii", "DarkTheme")
 local Tab = Window:NewTab("Main")
 local Section = Tab:NewSection("Farm")
 
@@ -71,7 +71,7 @@ Section:NewToggle("auto pan", "ToggleInfo", function(state)
                 end
             end
 
-            task.wait(0.3)
+            task.wait(.1)
         end
     end)
 end)
@@ -94,7 +94,7 @@ Section:NewToggle("auto shake", "ToggleInfo", function(state)
                     end
                 end)
             end
-            task.wait(0.3) 
+            task.wait(.1) 
         end
     end)
 end)
