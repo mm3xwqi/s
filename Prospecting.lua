@@ -85,7 +85,7 @@ tgls:Toggle("Auto-Pan", false, function(state)
                     end
                 end
             end
-            task.wait(0.3)
+            task.wait(.1)
         end
     end)
 end)
@@ -107,7 +107,7 @@ tgls:Toggle("Auto-Shake", false, function(state)
                     end
                 end)
             end
-            task.wait(0.3)
+            task.wait(.1)
         end
     end)
 end)
