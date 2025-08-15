@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>3")
+local win = DiscordLib:Window("MM</>3.1")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -198,7 +198,7 @@ tgls:Toggle("Auto-Sell", false, function(state)
 end)
 
 
-local walkSpeedOptions = {16, 30, 50, 100, 200, 300}
+local walkSpeedOptions = {16, 20, 22, 25}
 
 tgls:Dropdown("WalkSpeed", walkSpeedOptions, function(selected)
     walkSpeedValue = selected
