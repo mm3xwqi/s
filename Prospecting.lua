@@ -230,7 +230,7 @@ end
 
 -- Toggle ล็อคไอเท็มเฉพาะระดับที่เลือก
 local runningLock = false
-tgls:Toggle("Lock Owned Items", false, function(state)
+tgls:Toggle("Auto Lock", false, function(state)
     runningLock = state
     task.spawn(function()
         while runningLock do
