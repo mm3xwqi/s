@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.4")
+local win = DiscordLib:Window("MM</>2.5")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -38,10 +38,12 @@ local function equipPan()
 end
 
 -- Tween ไปยังตำแหน่ง
-local function tweenTo(pos, duration)
+local function moveToPositionSpeed(pos, speed)
     if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         local hrp = plr.Character.HumanoidRootPart
-        local info = TweenInfo.new(duration or 0.5, Enum.EasingStyle.Linear)
+        local distance = (hrp.Position - pos).Magnitude
+        local duration = distance / speed
+        local info = TweenInfo.new(duration, Enum.EasingStyle.Linear)
         local tween = TweenService:Create(hrp, info, {CFrame = CFrame.new(pos)})
         tween:Play()
         tween.Completed:Wait()
@@ -78,15 +80,15 @@ tgls:Toggle("Auto-Pan", false, function(state)
                 local current, max = fillTextObj.Text:match("(%d+)%s*/%s*(%d+)")
                 current, max = tonumber(current), tonumber(max)
 
-                if current and max then
-                    local panTool = findPan()
-                        if current < max and panTool then
-                            if panPos then tweenTo(panPos, 0.5) end
-                                pcall(function()
-                                        panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(unpack(args))
-                                        end)
-                                        elseif current >= max and panTool and shakePos then
-                            if shakePos then tweenTo(shakePos, 0.5) end
+                local panTool = findPan()
+                if current and max and panTool then
+                    if current < max and panPos then
+                        moveToPositionSpeed(panPos, 150) -- 300 = ความเร็ว (ปรับได้)
+                        pcall(function()
+                            panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(unpack(args))
+                        end)
+                    elseif current >= max and shakePos then
+                        moveToPositionSpeed(shakePos, 150)
                     end
                 end
             end
