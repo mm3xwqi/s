@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.5")
+local win = DiscordLib:Window("MM</>2.6")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
