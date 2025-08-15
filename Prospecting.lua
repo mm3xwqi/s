@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.6")
+local win = DiscordLib:Window("MM</>1.7")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -210,7 +210,39 @@ local ItemTables = {
 local levels = {"Common","Uncommon","Rare","Epic","Legendary","Mythic","Exotic"}
 local selectedLevel = "Common"
 
-tgls:Dropdown("Select Level", levels, function(level)
+local drops = serv:Channel("Dropdowns")
+
+drops:Dropdown("Select Level", levels, function(level)
+    selectedLevel = level
+    print("[Level] Selected level:", selectedLevel)
+end)
+
+drops:Dropdown("Select Level", levels, function(level)
+    selectedLevel = level
+    print("[Level] Selected level:", selectedLevel)
+end)
+
+drops:Dropdown("Select Level", levels, function(level)
+    selectedLevel = level
+    print("[Level] Selected level:", selectedLevel)
+end)
+
+drops:Dropdown("Select Level", levels, function(level)
+    selectedLevel = level
+    print("[Level] Selected level:", selectedLevel)
+end)
+
+drops:Dropdown("Select Level", levels, function(level)
+    selectedLevel = level
+    print("[Level] Selected level:", selectedLevel)
+end)
+
+drops:Dropdown("Select Level", levels, function(level)
+    selectedLevel = level
+    print("[Level] Selected level:", selectedLevel)
+end)
+
+drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
     print("[Level] Selected level:", selectedLevel)
 end)
@@ -244,7 +276,7 @@ end
 
 -- Toggle ทำงาน
 local runningLock = false
-tgls:Toggle("Auto Lock", false, function(state)
+drops:Toggle("Auto Lock", false, function(state)
     runningLock = state
     task.spawn(function()
         while runningLock do
