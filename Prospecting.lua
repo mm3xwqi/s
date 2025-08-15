@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.7")
+local win = DiscordLib:Window("MM</>1.8")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -10,6 +10,10 @@ local RepStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local character = plr.Character or plr.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
+
+local function isInventoryFull()
+    return getInventorySize() >= 500
+end
 
 local panPos, shakePos = nil, nil
 local args = {1}
@@ -76,7 +80,15 @@ tgls:Toggle("Auto-Pan", false, function(state)
     running = state
     task.spawn(function()
         while running do
-            local panTool = equipPan()  -- equipPan() จะคืน Tool ที่ถือแล้ว
+            -- ถ้ากระเป๋าเต็ม ให้รอขายก่อน
+            if isInventoryFull() then
+                print("[Auto-Pan] Inventory full, waiting for Auto-Sell...")
+                repeat
+                    task.wait(1)
+                until not isInventoryFull() or not running
+            end
+
+            local panTool = equipPan()
             if panTool then
                 local fillTextObj = plr.PlayerGui:FindFirstChild("ToolUI")
                     and plr.PlayerGui.ToolUI:FindFirstChild("FillingPan")
@@ -85,7 +97,7 @@ tgls:Toggle("Auto-Pan", false, function(state)
                 if fillTextObj then
                     local current, max = fillTextObj.Text:match("(%d+)%s*/%s*(%d+)")
                     current, max = tonumber(current), tonumber(max)
-                    
+
                     if current and max then
                         if current < max and panPos then
                             moveToPositionSpeed(panPos, 150)
@@ -118,7 +130,7 @@ tgls:Toggle("Auto-Shake", false, function(state)
                     if panEvent then panEvent:InvokeServer() end
                 end
             end
-            task.wait(0.1)
+            task.wait(.1)
         end
     end)
 end)
@@ -179,17 +191,17 @@ tgls:Toggle("Auto-Sell", false, function(state)
     runningSell = state
     task.spawn(function()
         while runningSell do
-            local invCount = getInventorySize()
-            if invCount >= 500 then
+            if isInventoryFull() then
                 local merchant = findClosestMerchant()
                 if merchant and merchant:FindFirstChild("HumanoidRootPart") then
+                    print("[Auto-Sell] Moving to sell items...")
                     moveToTarget(merchant.HumanoidRootPart.Position, sellSpeed)
                     pcall(function()
                         RepStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellAll"):InvokeServer()
                     end)
                 end
             end
-            task.wait(2) 
+            task.wait(2)
         end
     end)
 end)
