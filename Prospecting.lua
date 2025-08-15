@@ -1,7 +1,11 @@
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("MM</>", "DarkTheme")
-local Tab = Window:NewTab("Main")
-local Section = Tab:NewSection("Farm")
+local DiscordLib =
+    loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
+
+local win = DiscordLib:Window("MM</>")
+
+local serv = win:Server("Preview", "")
+
+local btns = serv:Channel("Buttons")
 
 local plr = game:GetService("Players").LocalPlayer
 local panPos = nil
@@ -19,22 +23,27 @@ local function findPan()
     end
     return nil
 end
-
---Save Pan
-Section:NewButton("savepan", "Save pan position", function()
-    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+-- savepan
+btns:Button(
+    savepan",
+    function()
+            if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         panPos = plr.Character.HumanoidRootPart.Position
         print("[Auto Pan] Saved pan position:", panPos)
     end
-end)
+end
+)
 
 -- Save Shake
-Section:NewButton("saveshake", "Save shake position", function()
+btns:Button(
+    saveshake",
+    function()
     if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         shakePos = plr.Character.HumanoidRootPart.Position
         print("[Auto Pan] Saved shake position:", shakePos)
     end
-end)
+end
+)
 
 local function findPan()
     if plr.Character then
@@ -67,7 +76,12 @@ local function equipPan()
 end
 
 -- Toggle Auto Pan
-Section:NewToggle("auto pan", "ToggleInfo", function(state)
+local tgls = serv:Channel("Toggles")
+
+tgls:Toggle(
+    "Auto-Pan",
+    false,
+    function(state)
     running = state
     if running then
         equipPan() 
@@ -107,11 +121,15 @@ Section:NewToggle("auto pan", "ToggleInfo", function(state)
         end
     end)
 end)
+)
 
-
+-- autoshake
 local runningShake = false 
 
-Section:NewToggle("auto shake", "ToggleInfo", function(state)
+tgls:Toggle(
+    "Auto-Shake",
+    false,
+    function(state)
     runningShake = state
     task.spawn(function()
         while runningShake do
@@ -137,3 +155,56 @@ Section:NewToggle("auto shake", "ToggleInfo", function(state)
     end)
 end)
 
+local runningSell = false
+local sellDistance = 1
+
+local function goToMerchant()
+    local merchant = workspace:FindFirstChild("NPCs") 
+                     and workspace.NPCs:FindFirstChild("RiverTown")
+                     and workspace.NPCs.RiverTown:FindFirstChild("Merchant")
+    if merchant and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        plr.Character.HumanoidRootPart.CFrame = CFrame.new(merchant.Position + Vector3.new(0,3,0))
+        return merchant
+    end
+    return nil
+end
+
+-- Toggle Auto-Sell
+tgls:Toggle(
+    "Auto-Sell",
+    false,
+    function(state)
+        runningSell = state
+        task.spawn(function()
+            while runningSell do
+                local invTextObj = plr.PlayerGui:FindFirstChild("BackpackGui")
+                    and plr.PlayerGui.BackpackGui:FindFirstChild("Backpack")
+                    and plr.PlayerGui.BackpackGui.Backpack:FindFirstChild("Inventory")
+                    and plr.PlayerGui.BackpackGui.Backpack.Inventory:FindFirstChild("TopButtons")
+                    and plr.PlayerGui.BackpackGui.Backpack.Inventory.TopButtons:FindFirstChild("Unaffected")
+                    and plr.PlayerGui.BackpackGui.Backpack.Inventory.TopButtons.Unaffected:FindFirstChild("InventorySize")
+
+                if invTextObj then
+                    local current, max = invTextObj.Text:match("(%d+)%s*/%s*(%d+)")
+                    current, max = tonumber(current), tonumber(max)
+                    if current and max and current >= max then
+                        local merchant = goToMerchant()
+                        if merchant then
+                            task.wait(.2) 
+                            local success, err = pcall(function()
+                                game:GetService("ReplicatedStorage"):WaitForChild("Remotes")
+                                    :WaitForChild("Shop")
+                                    :WaitForChild("SellAll")
+                                    :InvokeServer()
+                            end)
+                            if not success then
+                                warn("SellAll failed:", err)
+                            end
+                        end
+                    end
+                end
+                task.wait(.1) 
+            end
+        end)
+    end
+)
