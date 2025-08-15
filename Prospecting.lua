@@ -1,8 +1,7 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.2")
+local win = DiscordLib:Window("MM</>2.3")
 
 local serv = win:Server("Preview", "")
-local btns = serv:Channel("Buttons")
 local tgls = serv:Channel("Toggles")
 
 local TweenService = game:GetService("TweenService")
@@ -48,22 +47,6 @@ local function tweenTo(pos, duration)
         tween.Completed:Wait()
     end
 end
-
--- Save Pan
-btns:Button("savepan", function()
-    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        panPos = plr.Character.HumanoidRootPart.Position
-        print("[Auto Pan] Saved pan position:", panPos)
-    end
-end)
-
--- Save Shake
-btns:Button("saveshake", function()
-    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        shakePos = plr.Character.HumanoidRootPart.Position
-        print("[Auto Pan] Saved shake position:", shakePos)
-    end
-end)
 
 -- Auto-Pan
 tgls:Toggle("Auto-Pan", false, function(state)
@@ -116,6 +99,22 @@ tgls:Toggle("Auto-Shake", false, function(state)
             task.wait(0.1)
         end
     end)
+end)
+
+-- Save Pan
+tgls:Button("savepan", function()
+    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        panPos = plr.Character.HumanoidRootPart.Position
+        print("[Auto Pan] Saved pan position:", panPos)
+    end
+end)
+
+-- Save Shake
+tgls:Button("saveshake", function()
+    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        shakePos = plr.Character.HumanoidRootPart.Position
+        print("[Auto Pan] Saved shake position:", shakePos)
+    end
 end)
 
 local runningSell = false
