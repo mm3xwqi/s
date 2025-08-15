@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.7")
+local win = DiscordLib:Window("MM</>2.8")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -8,6 +8,8 @@ local TweenService = game:GetService("TweenService")
 local plr = game:GetService("Players").LocalPlayer
 local RepStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local character = plr.Character or plr.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
 local panPos, shakePos = nil, nil
 local args = {1}
@@ -193,3 +195,17 @@ tgls:Toggle("Auto-Sell", false, function(state)
         end
     end)
 end)
+
+
+tgls:Slider(
+    "WalkSpeed",
+    16,      
+    500,     
+    humanoid.WalkSpeed, 
+    function(speed)
+        if humanoid then
+            humanoid.WalkSpeed = speed
+            print("WalkSpeed set to:", speed)
+        end
+    end
+)
