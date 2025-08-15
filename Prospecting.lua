@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.8")
+local win = DiscordLib:Window("MM</>1.7")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -11,13 +11,10 @@ local Workspace = game:GetService("Workspace")
 local character = plr.Character or plr.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
-local function isInventoryFull()
-    return getInventorySize() >= 500
-end
 
 local panPos, shakePos = nil, nil
 local args = {1}
-local running, runningShake, runningSell = false, false, false
+local runningPan, runningShake, runningSell = false, false, false
 local fillTextObj = nil
 local walkSpeedValue = humanoid.WalkSpeed 
 local Pan = {"Rusty Pan", "Plastic Pan", "Metal Pan",  "Silver Pan", "Golden Pan", "Magnetic Pan", "Meteoric Pan", "Diamond Pan", "Aurora Pan", "Worldshaker", "Dragonflame Pan", "Fossilized Pan"}
@@ -36,13 +33,12 @@ local function equipPan()
         if tool and tool:IsA("Tool") then
             tool.Parent = character
             task.wait(0.1)
-            print("[Auto Pan] Equipped:", tool.Name)
             return tool
         end
     end
-    print("[Auto Pan] No Pan found in table!")
     return nil
 end
+
 
 -- walkto
 local function moveToPositionSpeed(pos, speed)
@@ -75,41 +71,58 @@ tgls:Button("saveshake", function()
     end
 end)
 
+local function isInventoryFull()
+    return getInventorySize() >= 500
+end
+
 -- Auto-Pan
 tgls:Toggle("Auto-Pan", false, function(state)
-    running = state
+    runningPan = state
     task.spawn(function()
-        while running do
-            -- ถ้ากระเป๋าเต็ม ให้รอขายก่อน
+        while runningPan do
             if isInventoryFull() then
                 print("[Auto-Pan] Inventory full, waiting for Auto-Sell...")
                 repeat
                     task.wait(1)
-                until not isInventoryFull() or not running
+                until not isInventoryFull() or not runningPan
             end
 
             local panTool = equipPan()
-            if panTool then
-                local fillTextObj = plr.PlayerGui:FindFirstChild("ToolUI")
-                    and plr.PlayerGui.ToolUI:FindFirstChild("FillingPan")
-                    and plr.PlayerGui.ToolUI.FillingPan:FindFirstChild("FillText")
-
-                if fillTextObj then
-                    local current, max = fillTextObj.Text:match("(%d+)%s*/%s*(%d+)")
-                    current, max = tonumber(current), tonumber(max)
-
-                    if current and max then
-                        if current < max and panPos then
-                            moveToPositionSpeed(panPos, 150)
-                            pcall(function()
-                                panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(1)
-                            end)
-                        elseif current >= max and shakePos then
-                            moveToPositionSpeed(shakePos, 150)
-                        end
-                    end
-                end
+            if not panTool then
+                print("[Auto-Pan] No pan equipped.")
+                task.wait(1)
+                continue
             end
+
+            local fillTextObj = plr:FindFirstChild("PlayerGui")
+                and plr.PlayerGui:FindFirstChild("ToolUI")
+                and plr.PlayerGui.ToolUI:FindFirstChild("FillingPan")
+                and plr.PlayerGui.ToolUI.FillingPan:FindFirstChild("FillText")
+
+            if not fillTextObj then
+                print("[Auto-Pan] FillText not found.")
+                task.wait(1)
+                continue
+            end
+
+            local current, max = fillTextObj.Text:match("(%d+)%s*/%s*(%d+)")
+            current, max = tonumber(current), tonumber(max)
+
+            if current and max then
+                if current < max and panPos then
+                    print("[Auto-Pan] Moving to pan position...")
+                    moveToPositionSpeed(panPos, 150)
+                    pcall(function()
+                        panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(1)
+                    end)
+                elseif current >= max and shakePos then
+                    print("[Auto-Pan] Pan full, moving to shake position...")
+                    moveToPositionSpeed(shakePos, 150)
+                end
+            else
+                print("[Auto-Pan] Could not read FillText numbers.")
+            end
+
             task.wait(0.2)
         end
     end)
