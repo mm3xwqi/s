@@ -1,5 +1,5 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("EiEii", "DarkTheme")
+local Window = Library.CreateLib("MM</>", "DarkTheme")
 local Tab = Window:NewTab("Main")
 local Section = Tab:NewSection("Farm")
 
@@ -36,9 +36,42 @@ Section:NewButton("saveshake", "Save shake position", function()
     end
 end)
 
+local function findPan()
+    if plr.Character then
+        for _, tool in ipairs(plr.Character:GetChildren()) do
+            if tool:IsA("Tool") and string.find(tool.Name:lower(), "pan") then
+                return tool
+            end
+        end
+    end
+    for _, tool in ipairs(plr.Backpack:GetChildren()) do
+        if tool:IsA("Tool") and string.find(tool.Name:lower(), "pan") then
+            return tool
+        end
+    end
+    return nil
+end
+
+local function equipPan()
+    local panTool = nil
+    for _, tool in ipairs(plr.Backpack:GetChildren()) do
+        if tool:IsA("Tool") and string.find(tool.Name:lower(), "pan") then
+            panTool = tool
+            break
+        end
+    end
+    if panTool then
+        panTool.Parent = plr.Character
+        task.wait(0.1) 
+    end
+end
+
 -- Toggle Auto Pan
 Section:NewToggle("auto pan", "ToggleInfo", function(state)
     running = state
+    if running then
+        equipPan() 
+    end
     task.spawn(function()
         while running do
             local fillTextObj = plr.PlayerGui:FindFirstChild("ToolUI")
@@ -70,31 +103,37 @@ Section:NewToggle("auto pan", "ToggleInfo", function(state)
                     end
                 end
             end
-
-            task.wait(.1)
+            task.wait(0.3)
         end
     end)
 end)
 
+
+local runningShake = false 
+
 Section:NewToggle("auto shake", "ToggleInfo", function(state)
-    local runningShake = state
+    runningShake = state
     task.spawn(function()
         while runningShake do
             local panTool = findPan()
             if panTool then
                 pcall(function()
-                    local shakeEvent = panTool:FindFirstChild("Scripts") and panTool.Scripts:FindFirstChild("Shake")
-                    if shakeEvent then
-                        shakeEvent:FireServer()
-                    end
+                    local scriptsFolder = panTool:FindFirstChild("Scripts")
+                    if scriptsFolder then
+                        local shakeEvent = scriptsFolder:FindFirstChild("Shake")
+                        if shakeEvent then
+                            shakeEvent:FireServer()
+                        end
 
-                    local panEvent = panTool:FindFirstChild("Scripts") and panTool.Scripts:FindFirstChild("Pan")
-                    if panEvent then
-                        panEvent:InvokeServer()
+                        local panEvent = scriptsFolder:FindFirstChild("Pan")
+                        if panEvent then
+                            panEvent:InvokeServer()
+                        end
                     end
                 end)
             end
-            task.wait(.1) 
+            task.wait(0.3)
         end
     end)
 end)
+
