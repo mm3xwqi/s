@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.8")
+local win = DiscordLib:Window("MM</>2.9")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -197,15 +197,22 @@ tgls:Toggle("Auto-Sell", false, function(state)
 end)
 
 
+local walkSpeedValue = humanoid.WalkSpeed -- เก็บค่าเริ่มต้น
+
 tgls:Slider(
     "WalkSpeed",
-    16,      
-    500,     
+    16,     
+    500,    
     humanoid.WalkSpeed, 
-    function(speed)
-        if humanoid then
-            humanoid.WalkSpeed = speed
-            print("WalkSpeed set to:", speed)
-        end
+    function(value)
+        walkSpeedValue = value 
+        print("Selected WalkSpeed:", walkSpeedValue)
     end
 )
+
+tgls:Button("Change WalkSpeed", function()
+    if humanoid then
+        humanoid.WalkSpeed = walkSpeedValue
+        print("WalkSpeed updated to:", walkSpeedValue)
+    end
+end)
