@@ -1,6 +1,6 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/lime"))()
 
-local w = Library:Window("Main")
+local w = Library:Window("biBi")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -84,6 +84,18 @@ w:Toggle("Super Bar", function(state)
                 wait(0.5)
             end
         end)()
+    end
+end)
+
+local freeze = false
+local hrp = humanoid.Parent:WaitForChild("HumanoidRootPart")
+
+w:Toggle("Freeze Character", function(state)
+    freeze = state
+    if freeze then
+        hrp.Anchored = true
+    else
+        hrp.Anchored = false
     end
 end)
 
