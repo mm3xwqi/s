@@ -181,7 +181,7 @@ tgls:Toggle("Auto-Sell", false, function(state)
                 local merchant = findClosestMerchant()
                 if merchant and merchant:FindFirstChild("HumanoidRootPart") then
                     -- วาปทันทีไปที่ Merchant
-                    plr.Character.HumanoidRootPart.CFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                    plr.Character.HumanoidRootPart.CFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(0, 0, 5)
                     
                     task.wait(0.2) -- รอให้ตำแหน่งเซ็ตก่อน
                     pcall(function()
