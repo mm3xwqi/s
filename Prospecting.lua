@@ -39,17 +39,19 @@ end
 
 -- Tween ไปยังตำแหน่ง
 local function moveToPositionSpeed(pos, speed)
-    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+    if plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoid = plr.Character.Humanoid
         local hrp = plr.Character.HumanoidRootPart
-        local distance = (hrp.Position - pos).Magnitude
-        local duration = distance / speed
-        local info = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-        local tween = TweenService:Create(hrp, info, {CFrame = CFrame.new(pos)})
-        tween:Play()
-        tween.Completed:Wait()
+        local distance = (pos - hrp.Position).Magnitude
+        humanoid:MoveTo(pos)
+        local timeout = distance / speed
+        local elapsed = 0
+        while (hrp.Position - pos).Magnitude > 2 and elapsed < timeout do
+            task.wait(0.1)
+            elapsed = elapsed + 0.1
+        end
     end
 end
-
 -- Save Pan
 tgls:Button("savepan", function()
     if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
@@ -83,7 +85,7 @@ tgls:Toggle("Auto-Pan", false, function(state)
                 local panTool = findPan()
                 if current and max and panTool then
                     if current < max and panPos then
-                        moveToPositionSpeed(panPos, 150) -- 300 = ความเร็ว (ปรับได้)
+                        moveToPositionSpeed(panPos, 150) -- 300 = ความเร็วปรับได้
                         pcall(function()
                             panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(unpack(args))
                         end)
