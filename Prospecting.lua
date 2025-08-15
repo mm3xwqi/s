@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.7")
+local win = DiscordLib:Window("MM</>1.8.1")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -71,25 +71,13 @@ tgls:Button("saveshake", function()
     end
 end)
 
-local function isInventoryFull()
-    return getInventorySize() >= 500
-end
-
 -- Auto-Pan
 tgls:Toggle("Auto-Pan", false, function(state)
     runningPan = state
     task.spawn(function()
         while runningPan do
-            if isInventoryFull() then
-                print("[Auto-Pan] Inventory full, waiting for Auto-Sell...")
-                repeat
-                    task.wait(1)
-                until not isInventoryFull() or not runningPan
-            end
-
             local panTool = equipPan()
             if not panTool then
-                print("[Auto-Pan] No pan equipped.")
                 task.wait(1)
                 continue
             end
@@ -100,7 +88,6 @@ tgls:Toggle("Auto-Pan", false, function(state)
                 and plr.PlayerGui.ToolUI.FillingPan:FindFirstChild("FillText")
 
             if not fillTextObj then
-                print("[Auto-Pan] FillText not found.")
                 task.wait(1)
                 continue
             end
@@ -110,17 +97,13 @@ tgls:Toggle("Auto-Pan", false, function(state)
 
             if current and max then
                 if current < max and panPos then
-                    print("[Auto-Pan] Moving to pan position...")
                     moveToPositionSpeed(panPos, 150)
                     pcall(function()
                         panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(1)
                     end)
                 elseif current >= max and shakePos then
-                    print("[Auto-Pan] Pan full, moving to shake position...")
                     moveToPositionSpeed(shakePos, 150)
                 end
-            else
-                print("[Auto-Pan] Could not read FillText numbers.")
             end
 
             task.wait(0.2)
@@ -167,21 +150,6 @@ local function findClosestMerchant()
     return closest
 end
 
-local function moveToTarget(pos, speed)
-    if plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character:FindFirstChild("HumanoidRootPart") then
-        local humanoid = plr.Character.Humanoid
-        local hrp = plr.Character.HumanoidRootPart
-        local distance = (pos - hrp.Position).Magnitude
-        humanoid:MoveTo(pos)
-        local timeout = distance / speed
-        local elapsed = 0
-        while (hrp.Position - pos).Magnitude > 3 and elapsed < timeout do
-            task.wait(0.1)
-            elapsed = elapsed + 0.1
-        end
-    end
-end
-
 local function getInventorySize()
     local invGui = plr.PlayerGui:FindFirstChild("BackpackGui")
         and plr.PlayerGui.BackpackGui:FindFirstChild("Backpack")
@@ -193,11 +161,16 @@ local function getInventorySize()
     if invGui and invGui:IsA("TextLabel") then
         local contentText = invGui.Text 
         local current, max = contentText:match("(%d+)%s*/%s*(%d+)")
-        if current then
-            return tonumber(current)
+        if current and max then
+            return tonumber(current), tonumber(max)
         end
     end
-    return 0
+    return 0, 0
+end
+
+local function isInventoryFull()
+    local current, max = getInventorySize()
+    return current >= max and max > 0
 end
 
 tgls:Toggle("Auto-Sell", false, function(state)
@@ -207,14 +180,16 @@ tgls:Toggle("Auto-Sell", false, function(state)
             if isInventoryFull() then
                 local merchant = findClosestMerchant()
                 if merchant and merchant:FindFirstChild("HumanoidRootPart") then
-                    print("[Auto-Sell] Moving to sell items...")
-                    moveToTarget(merchant.HumanoidRootPart.Position, sellSpeed)
+                    -- วาปทันทีไปที่ Merchant
+                    plr.Character.HumanoidRootPart.CFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                    
+                    task.wait(0.2) -- รอให้ตำแหน่งเซ็ตก่อน
                     pcall(function()
                         RepStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellAll"):InvokeServer()
                     end)
                 end
             end
-            task.wait(2)
+            task.wait(1)
         end
     end)
 end)
