@@ -15,6 +15,7 @@ local panPos, shakePos = nil, nil
 local args = {1}
 local running, runningShake, runningSell = false, false, false
 local fillTextObj = nil
+local walkSpeedValue = humanoid.WalkSpeed 
 
 -- หา Pan tool
 local function findPan()
@@ -197,17 +198,13 @@ tgls:Toggle("Auto-Sell", false, function(state)
 end)
 
 
-local walkSpeedValue = humanoid.WalkSpeed -- ค่าเริ่มต้น
-
--- สร้าง Dropdown สำหรับ WalkSpeed
-local walkSpeedOptions = {16, 30, 50, 100, 200, 300} -- ปรับค่าได้ตามต้องการ
+local walkSpeedOptions = {16, 30, 50, 100, 200, 300}
 
 tgls:Dropdown("WalkSpeed", walkSpeedOptions, function(selected)
     walkSpeedValue = selected
     print("Selected WalkSpeed:", walkSpeedValue)
 end)
 
--- ปุ่ม Change เพื่ออัปเดตค่า WalkSpeed จริง
 tgls:Button("Change WalkSpeed", function()
     if humanoid then
         humanoid.WalkSpeed = walkSpeedValue
