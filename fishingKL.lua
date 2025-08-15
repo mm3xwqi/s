@@ -5,6 +5,9 @@ local w = Library:Window("biBi")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
 w:Toggle("auto fishing", function(v)
 
@@ -27,12 +30,6 @@ wait()
         end
     end
 end)
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 
 local fishingActive = false 
 
