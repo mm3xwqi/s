@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.3")
+local win = DiscordLib:Window("MM</>1.4")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -209,46 +209,43 @@ local ItemTables = {
 local levels = {"Common","Uncommon","Rare","Epic","Legendary","Mythic","Exotic"}
 local selectedLevel = "Common"
 
-tgls:Dropdown("Select Item Level", levels, function(level)
+tgls:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
     print("[Lock] Selected level:", selectedLevel)
 end)
 
--- ฟังก์ชันตรวจสอบไอเท็มที่เรามีจริงในตัวละคร
-local function getOwnedItems(level)
-    local owned = {}
+local function lockItemsInLevel(level)
     local items = ItemTables[level]
-    if items then
-        for _, itemName in ipairs(items) do
-            if plr.Character:FindFirstChild(itemName) then
-                table.insert(owned, itemName)
+    if not items then return end
+
+    for _, itemName in ipairs(items) do
+        local tool = plr.Character:FindFirstChild(itemName)
+        if tool then
+            local isLocked = tool:GetAttribute("Locked")
+            if not isLocked then
+                pcall(function()
+                    RepStorage:WaitForChild("Remotes")
+                        :WaitForChild("Inventory")
+                        :WaitForChild("ToggleLock")
+                        :FireServer(tool)
+                end)
+                print("[Lock] Locked:", itemName)
+            else
+                print("[Lock] Already locked:", itemName)
             end
+            task.wait(0.2) -- เว้นระยะระหว่างไอเท็ม
         end
     end
-    return owned
 end
 
--- Toggle ล็อคไอเท็มเฉพาะระดับที่เลือก
+-- Toggle ล็อคไอเท็มทั้งหมดในระดับที่เลือก
 local runningLock = false
 tgls:Toggle("Auto Lock", false, function(state)
     runningLock = state
     task.spawn(function()
         while runningLock do
-            local ownedItems = getOwnedItems(selectedLevel)
-            for _, itemName in ipairs(ownedItems) do
-                local tool = plr.Character:FindFirstChild(itemName)
-                if tool then
-                    pcall(function()
-                        RepStorage:WaitForChild("Remotes")
-                            :WaitForChild("Inventory")
-                            :WaitForChild("ToggleLock")
-                            :FireServer(tool)
-                    end)
-                    print("[Lock] Locked:", itemName, "(Level:", selectedLevel .. ")")
-                end
-                task.wait(0.5) -- เว้นระยะ 0.5 วินาที
-            end
-            task.wait(2) -- เว้นรอบต่อไป 2 วินาที
+            lockItemsInLevel(selectedLevel)
+            task.wait(2) -- เว้นรอบเช็ค
         end
     end)
 end)
