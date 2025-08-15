@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.2")
+local win = DiscordLib:Window("MM</>1.3")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -195,21 +195,48 @@ tgls:Toggle("Auto-Sell", false, function(state)
 end)
 
 
-local ItemTables = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Exotic"}
-local selectedTable = "Common"
+local ItemTables = {
+    Common = {"Pyrite", "Silver", "Copper" , "Gold", "Platinum", "Seashell", "Obsidian", "Amethyst", "Pearl"},
+    Uncommon = {"Titanium", "Neodymium", "Topaz", "Smoky Quartz", "Malachite", "Coral", "Sapphire", "Zircon"},
+    Rare = {"Ruby", "Lapis Lazuli", "Jade", "Silver Clamshell", "Peridot", "Onyx", "Meteoric Iron", "Azuralite", "Pyrelith"},
+    Epic = {"Iridium", "Moonstone", "Ammonite Fossil", "Ashvein", "Pyronium", "Emerald", "Golden Pearl", "Borealite", "Osmium", "Opal", "Aurorite"},
+    Legendary = {"Rose Gold", "Palladium", "Cinnabar", "Diamond", "Uranium", "Luminum", "Volcanic Key", "Fire Opal", "Dragon Bone", "Catseye", "Starshine", "Aetherite"},
+    Mythic = {"Pink Diamond", "Painite", "Inferlume", "Vortessence", "Prismara", "Flarebloom", "Volcanic Core"},
+    Exotic = {"Dinosaur Skull"}
+}
 
-tgls:Dropdown("Select Item Table", ItemTables, function(tableName)
-    selectedTable = tableName
-    print("Selected table:", selectedTable)
+-- Dropdown เลือกระดับไอเท็ม
+local levels = {"Common","Uncommon","Rare","Epic","Legendary","Mythic","Exotic"}
+local selectedLevel = "Common"
+
+tgls:Dropdown("Select Item Level", levels, function(level)
+    selectedLevel = level
+    print("[Lock] Selected level:", selectedLevel)
 end)
 
-tgls:Toggle("Auto Lock", false, function(state)
-    local running = state
+-- ฟังก์ชันตรวจสอบไอเท็มที่เรามีจริงในตัวละคร
+local function getOwnedItems(level)
+    local owned = {}
+    local items = ItemTables[level]
+    if items then
+        for _, itemName in ipairs(items) do
+            if plr.Character:FindFirstChild(itemName) then
+                table.insert(owned, itemName)
+            end
+        end
+    end
+    return owned
+end
+
+-- Toggle ล็อคไอเท็มเฉพาะระดับที่เลือก
+local runningLock = false
+tgls:Toggle("Lock Owned Items", false, function(state)
+    runningLock = state
     task.spawn(function()
-        while running do
-            local items = _G[selectedTable] -- สมมติว่า Common, Uncommon… ถูกเก็บเป็น global
-            for _, item in ipairs(items) do
-                local tool = plr.Character:FindFirstChild(item)
+        while runningLock do
+            local ownedItems = getOwnedItems(selectedLevel)
+            for _, itemName in ipairs(ownedItems) do
+                local tool = plr.Character:FindFirstChild(itemName)
                 if tool then
                     pcall(function()
                         RepStorage:WaitForChild("Remotes")
@@ -217,11 +244,11 @@ tgls:Toggle("Auto Lock", false, function(state)
                             :WaitForChild("ToggleLock")
                             :FireServer(tool)
                     end)
-                    print("[Lock] Locked:", item)
+                    print("[Lock] Locked:", itemName, "(Level:", selectedLevel .. ")")
                 end
-                task.wait(0.5)
+                task.wait(0.5) -- เว้นระยะ 0.5 วินาที
             end
-            task.wait(1)
+            task.wait(2) -- เว้นรอบต่อไป 2 วินาที
         end
     end)
 end)
