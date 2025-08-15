@@ -41,7 +41,7 @@ local function equipPan()
     end
 end
 
--- Tween ไปยังตำแหน่ง
+-- walkto
 local function moveToPositionSpeed(pos, speed)
     if plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character:FindFirstChild("HumanoidRootPart") then
         local humanoid = plr.Character.Humanoid
@@ -125,7 +125,7 @@ tgls:Toggle("Auto-Shake", false, function(state)
     end)
 end)
 
-local sellSpeed = 300 -- ความเร็วในการเดินไปหา NPC
+local sellSpeed = 300 
 
 local function findClosestMerchant()
     local closest = nil
@@ -168,7 +168,7 @@ local function getInventorySize()
         and plr.PlayerGui.BackpackGui.Backpack.Inventory.TopButtons.Unaffected:FindFirstChild("InventorySize")
 
     if invGui and invGui:IsA("TextLabel") then
-        local contentText = invGui.Text -- ตัวอย่าง: "500 / 500"
+        local contentText = invGui.Text 
         local current, max = contentText:match("(%d+)%s*/%s*(%d+)")
         if current then
             return tonumber(current)
@@ -186,13 +186,12 @@ tgls:Toggle("Auto-Sell", false, function(state)
                 local merchant = findClosestMerchant()
                 if merchant and merchant:FindFirstChild("HumanoidRootPart") then
                     moveToTarget(merchant.HumanoidRootPart.Position, sellSpeed)
-                    -- รัน SellAll
                     pcall(function()
                         RepStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellAll"):InvokeServer()
                     end)
                 end
             end
-            task.wait(2) -- เช็คทุก 2 วินาที
+            task.wait(2) 
         end
     end)
 end)
