@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.5")
+local win = DiscordLib:Window("MM</>1.6")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -195,6 +195,7 @@ tgls:Toggle("Auto-Sell", false, function(state)
 end)
 
 
+-- ตารางเก็บระดับไอเท็ม
 local ItemTables = {
     Common = {"Pyrite", "Silver", "Copper" , "Gold", "Platinum", "Seashell", "Obsidian", "Amethyst", "Pearl"},
     Uncommon = {"Titanium", "Neodymium", "Topaz", "Smoky Quartz", "Malachite", "Coral", "Sapphire", "Zircon"},
@@ -205,7 +206,7 @@ local ItemTables = {
     Exotic = {"Dinosaur Skull"}
 }
 
--- Dropdown เลือกระดับไอเท็ม
+-- Dropdown เลือกระดับ
 local levels = {"Common","Uncommon","Rare","Epic","Legendary","Mythic","Exotic"}
 local selectedLevel = "Common"
 
@@ -214,78 +215,34 @@ tgls:Dropdown("Select Level", levels, function(level)
     print("[Level] Selected level:", selectedLevel)
 end)
 
--- ฟังก์ชันถือไอเท็มทุกชิ้นในระดับที่เลือก
-local function equipAllItemsInLevel(level)
-    local items = ItemTables[level]
-    if not items then return end
-
-    for _, itemName in ipairs(items) do
-        -- หาไอเท็มในตัวละครหรือ Backpack
-        local tools = {}
-        for _, tool in ipairs(plr.Character:GetChildren()) do
-            if tool:IsA("Tool") and tool.Name == itemName then
-                table.insert(tools, tool)
-            end
-        end
-        for _, tool in ipairs(plr.Backpack:GetChildren()) do
-            if tool:IsA("Tool") and tool.Name == itemName then
-                table.insert(tools, tool)
-            end
-        end
-
-        -- ถือทุก Tool ที่เจอ
-        for _, tool in ipairs(tools) do
-            tool.Parent = plr.Character
-            print("[Equip] Equipped:", tool.Name)
-            task.wait(0.1)
-        end
-    end
-end
-
--- Toggle สำหรับถือไอเท็มในระดับที่เลือก
-local runningEquip = false
-tgls:Toggle("Equip All Items in Level", false, function(state)
-    runningEquip = state
-    task.spawn(function()
-        while runningEquip do
-            equipAllItemsInLevel(selectedLevel)
-            task.wait(2)
-        end
-    end)
-end)
-
--- ฟังก์ชันล็อคไอเท็มทุกชิ้นในระดับที่เลือก
+-- ฟังก์ชันเช็คและล็อค
 local function lockItemsInLevel(level)
     local items = ItemTables[level]
     if not items then return end
 
-    for _, itemName in ipairs(items) do
-        local tools = {}
-        for _, tool in ipairs(plr.Character:GetChildren()) do
-            if tool:IsA("Tool") and tool.Name == itemName then
-                table.insert(tools, tool)
+    for _, tool in ipairs(plr.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            for _, targetName in ipairs(items) do
+                if tool.Name == targetName then
+                    local isLocked = tool:GetAttribute("Locked")
+                    if not isLocked then
+                        pcall(function()
+                            RepStorage:WaitForChild("Remotes")
+                                :WaitForChild("Inventory")
+                                :WaitForChild("ToggleLock")
+                                :FireServer(tool)
+                        end)
+                        print("[Lock] Locked:", tool.Name)
+                    else
+                        print("[Lock] Already locked:", tool.Name)
+                    end
+                end
             end
-        end
-
-        for _, tool in ipairs(tools) do
-            local isLocked = tool:GetAttribute("Locked")
-            if not isLocked then
-                pcall(function()
-                    RepStorage:WaitForChild("Remotes")
-                        :WaitForChild("Inventory")
-                        :WaitForChild("ToggleLock")
-                        :FireServer(tool)
-                end)
-                print("[Lock] Locked:", tool.Name)
-            else
-                print("[Lock] Already locked:", tool.Name)
-            end
-            task.wait(0.2)
         end
     end
 end
 
--- Toggle สำหรับล็อคไอเท็มในระดับที่เลือก
+-- Toggle ทำงาน
 local runningLock = false
 tgls:Toggle("Auto Lock", false, function(state)
     runningLock = state
@@ -296,6 +253,7 @@ tgls:Toggle("Auto Lock", false, function(state)
         end
     end)
 end)
+
 
 
 local walkSpeedOptions = {16, 20, 22, 25}
