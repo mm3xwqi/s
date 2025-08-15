@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.6")
+local win = DiscordLib:Window("MM</>2.7")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -7,6 +7,7 @@ local tgls = serv:Channel("Toggles")
 local TweenService = game:GetService("TweenService")
 local plr = game:GetService("Players").LocalPlayer
 local RepStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local panPos, shakePos = nil, nil
 local args = {1}
@@ -121,16 +122,74 @@ tgls:Toggle("Auto-Shake", false, function(state)
     end)
 end)
 
-local runningSell = false
+local sellSpeed = 300 -- ความเร็วในการเดินไปหา NPC
+
+local function findClosestMerchant()
+    local closest = nil
+    local shortestDist = math.huge
+    for _, folder in ipairs(Workspace.NPCs:GetChildren()) do
+        for _, npc in ipairs(folder:GetChildren()) do
+            if npc:IsA("Model") and npc.Name == "Merchant" and npc:FindFirstChild("HumanoidRootPart") then
+                local dist = (plr.Character.HumanoidRootPart.Position - npc.HumanoidRootPart.Position).Magnitude
+                if dist < shortestDist then
+                    shortestDist = dist
+                    closest = npc
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function moveToTarget(pos, speed)
+    if plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoid = plr.Character.Humanoid
+        local hrp = plr.Character.HumanoidRootPart
+        local distance = (pos - hrp.Position).Magnitude
+        humanoid:MoveTo(pos)
+        local timeout = distance / speed
+        local elapsed = 0
+        while (hrp.Position - pos).Magnitude > 3 and elapsed < timeout do
+            task.wait(0.1)
+            elapsed = elapsed + 0.1
+        end
+    end
+end
+
+local function getInventorySize()
+    local invGui = plr.PlayerGui:FindFirstChild("BackpackGui")
+        and plr.PlayerGui.BackpackGui:FindFirstChild("Backpack")
+        and plr.PlayerGui.BackpackGui.Backpack:FindFirstChild("Inventory")
+        and plr.PlayerGui.BackpackGui.Backpack.Inventory:FindFirstChild("TopButtons")
+        and plr.PlayerGui.BackpackGui.Backpack.Inventory.TopButtons:FindFirstChild("Unaffected")
+        and plr.PlayerGui.BackpackGui.Backpack.Inventory.TopButtons.Unaffected:FindFirstChild("InventorySize")
+
+    if invGui and invGui:IsA("TextLabel") then
+        local contentText = invGui.Text -- ตัวอย่าง: "500 / 500"
+        local current, max = contentText:match("(%d+)%s*/%s*(%d+)")
+        if current then
+            return tonumber(current)
+        end
+    end
+    return 0
+end
 
 tgls:Toggle("Auto-Sell", false, function(state)
     runningSell = state
     task.spawn(function()
         while runningSell do
-            pcall(function()
-                RepStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellAll"):InvokeServer()
-            end)
-            task.wait(5)
+            local invCount = getInventorySize()
+            if invCount >= 500 then
+                local merchant = findClosestMerchant()
+                if merchant and merchant:FindFirstChild("HumanoidRootPart") then
+                    moveToTarget(merchant.HumanoidRootPart.Position, sellSpeed)
+                    -- รัน SellAll
+                    pcall(function()
+                        RepStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellAll"):InvokeServer()
+                    end)
+                end
+            end
+            task.wait(2) -- เช็คทุก 2 วินาที
         end
     end)
 end)
