@@ -16,6 +16,8 @@ local args = {1}
 local running, runningShake, runningSell = false, false, false
 local fillTextObj = nil
 local walkSpeedValue = humanoid.WalkSpeed 
+local Pan {"Rusty Pan", "Plastic Pan", "Metal Pan",  "Silver Pan", "Golden Pan", "Magnetic Pan", "Meteoric Pan", "Diamond Pan",
+            "Aurora Pan", "Worldshaker Pan", "Dragonflame Pan", "Fossilized Pan"}
 
 -- หา Pan tool
 local function findPan()
