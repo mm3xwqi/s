@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>3.2")
+local win = DiscordLib:Window("MM</>3.3")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -16,8 +16,8 @@ local args = {1}
 local running, runningShake, runningSell = false, false, false
 local fillTextObj = nil
 local walkSpeedValue = humanoid.WalkSpeed 
-local Pan {"Rusty Pan", "Plastic Pan", "Metal Pan",  "Silver Pan", "Golden Pan", "Magnetic Pan", "Meteoric Pan", "Diamond Pan",
-            "Aurora Pan", "Worldshaker Pan", "Dragonflame Pan", "Fossilized Pan"}
+local Pan = {"Rusty Pan", "Plastic Pan", "Metal Pan",  "Silver Pan", "Golden Pan", "Magnetic Pan", "Meteoric Pan", "Diamond Pan",
+             "Aurora Pan", "Worldshaker", "Dragonflame Pan", "Fossilized Pan"}
 
 -- หา Pan tool
 local function findPan()
@@ -43,8 +43,7 @@ local function equipPan()
         print("[Auto Pan] Equipped:", panTool.Name)
     else
         print("[Auto Pan] No Pan found in table.")
-    end
-end
+    en
 
 -- walkto
 local function moveToPositionSpeed(pos, speed)
