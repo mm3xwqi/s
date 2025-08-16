@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.2")
+local win = DiscordLib:Window("MM</>2.3")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -233,7 +233,7 @@ local ItemTables = {
 }
 
 -- Dropdown เลือกระดับ
-local levels = {"Common","Uncommon","Rare","Epic","Legendary","Mythic","Exotic"}
+local levels = {"None", "Common","Uncommon","Rare","Epic","Legendary","Mythic","Exotic"}
 local selectedLevel = "Common"
 
 local drops = serv:Channel("Dropdowns")
