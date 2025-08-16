@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.8.3")
+local win = DiscordLib:Window("MM</>1.8.4")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -48,7 +48,7 @@ local function moveToPositionSpeed(pos, speed)
         local humanoid = plr.Character.Humanoid
         local hrp = plr.Character.HumanoidRootPart
 
-        humanoid.WalkSpeed = speed
+        humanoid.WalkSpeed = walkSpeedValue
 
         -- สร้าง path
         local path = PathfindingService:CreatePath({
