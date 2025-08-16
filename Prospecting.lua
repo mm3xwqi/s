@@ -316,3 +316,30 @@ tgls:Button("Change WalkSpeed", function()
         print("WalkSpeed updated to:", walkSpeedValue)
     end
 end)
+
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local player = Players.LocalPlayer
+
+local disUI = CoreGui:FindFirstChild("Discord")
+
+local toggleUI = Instance.new("ScreenGui")
+toggleUI.Name = "Uigame"
+toggleUI.ResetOnSpawn = false
+toggleUI.IgnoreGuiInset = true
+toggleUI.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 120, 0, 45)
+button.Position = UDim2.new(1, -150, 1, -1000)
+button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+button.TextColor3 = Color3.new(1, 1, 1)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 18
+button.Text = "Toggle UI"
+button.Parent = toggleUI
+
+button.MouseButton1Click:Connect(function()
+    disUI.Enabled = not disUI.Enabled
+    button.Text = disUI.Enabled and "Disabled Ui" or "Enabled UI"
+end)
