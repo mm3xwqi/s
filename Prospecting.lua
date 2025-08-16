@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.8.2")
+local win = DiscordLib:Window("MM</>1.8.3")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -41,17 +41,40 @@ end
 
 
 -- walkto
+local PathfindingService = game:GetService("PathfindingService")
+
 local function moveToPositionSpeed(pos, speed)
     if plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character:FindFirstChild("HumanoidRootPart") then
         local humanoid = plr.Character.Humanoid
         local hrp = plr.Character.HumanoidRootPart
-        local distance = (pos - hrp.Position).Magnitude
-        humanoid:MoveTo(pos)
-        local timeout = distance / speed
-        local elapsed = 0
-        while (hrp.Position - pos).Magnitude > 2 and elapsed < timeout do
-            task.wait(0.1)
-            elapsed = elapsed + 0.1
+
+        humanoid.WalkSpeed = speed
+
+        -- สร้าง path
+        local path = PathfindingService:CreatePath({
+            AgentRadius = 2,
+            AgentHeight = 5,
+            AgentCanJump = true,
+            WaypointSpacing = 4
+        })
+
+        path:ComputeAsync(hrp.Position, pos)
+
+        if path.Status == Enum.PathStatus.Success then
+            local waypoints = path:GetWaypoints()
+
+            for _, waypoint in ipairs(waypoints) do
+                humanoid:MoveTo(waypoint.Position)
+                humanoid.MoveToFinished:Wait()
+
+                -- ถ้าต้องกระโดด
+                if waypoint.Action == Enum.PathWaypointAction.Jump then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        else
+            warn("[Auto Pan] Path not found, walking straight to target.")
+            humanoid:MoveTo(pos)
         end
     end
 end
