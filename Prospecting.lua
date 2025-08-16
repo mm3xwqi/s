@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.1")
+local win = DiscordLib:Window("MM</>2.2")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -331,7 +331,7 @@ toggleUI.Parent = player:WaitForChild("PlayerGui")
 
 local button = Instance.new("TextButton")
 button.Size = UDim2.new(0, 120, 0, 45)
-button.Position = UDim2.new(1, -150, 1, -1000)
+button.Position = UDim2.new(1, -150, 1, -400)
 button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 button.TextColor3 = Color3.new(1, 1, 1)
 button.Font = Enum.Font.GothamBold
