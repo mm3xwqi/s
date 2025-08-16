@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2")
+local win = DiscordLib:Window("MM</>2.1")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -297,7 +297,7 @@ drops:Toggle("Auto Lock", false, function(state)
     task.spawn(function()
         while runningLock do
             lockItemsInLevel(selectedLevel)
-            task.wait(2)
+            task.wait(.1)
         end
     end)
 end)
