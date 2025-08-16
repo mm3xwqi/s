@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>1.8.4")
+local win = DiscordLib:Window("MM</>2")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -129,7 +129,7 @@ tgls:Toggle("Auto-Pan", false, function(state)
                 end
             end
 
-            task.wait(0.2)
+            task.wait(.1)
         end
     end)
 end)
@@ -153,8 +153,6 @@ tgls:Toggle("Auto-Shake", false, function(state)
         end
     end)
 end)
-
-local sellSpeed = 300 
 
 local function findClosestMerchant()
     local closest = nil
@@ -203,20 +201,25 @@ tgls:Toggle("Auto-Sell", false, function(state)
             if isInventoryFull() then
                 local merchant = findClosestMerchant()
                 if merchant and merchant:FindFirstChild("HumanoidRootPart") then
-                    -- วาปทันทีไปที่ Merchant
-                    plr.Character.HumanoidRootPart.CFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(0, 0, -5)
-                    
-                    task.wait(0.2) -- รอให้ตำแหน่งเซ็ตก่อน
-                    pcall(function()
-                        RepStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellAll"):InvokeServer()
-                    end)
+                    local targetCFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(3, 0, -5)
+
+                    while isInventoryFull() and runningSell do
+                        plr.Character.HumanoidRootPart.CFrame = targetCFrame
+                        pcall(function()
+                            RepStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellAll"):InvokeServer()
+                        end)
+                        task.wait(0.1)
+                    end
+
+                    if panPos then
+                        moveToPositionSpeed(panPos, 150)
+                    end
                 end
             end
-            task.wait(1)
+            task.wait(0.1)
         end
     end)
 end)
-
 
 -- ตารางเก็บระดับไอเท็ม
 local ItemTables = {
@@ -237,37 +240,30 @@ local drops = serv:Channel("Dropdowns")
 
 drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
-    print("[Level] Selected level:", selectedLevel)
 end)
 
 drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
-    print("[Level] Selected level:", selectedLevel)
 end)
 
 drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
-    print("[Level] Selected level:", selectedLevel)
 end)
 
 drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
-    print("[Level] Selected level:", selectedLevel)
 end)
 
 drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
-    print("[Level] Selected level:", selectedLevel)
 end)
 
 drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
-    print("[Level] Selected level:", selectedLevel)
 end)
 
 drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
-    print("[Level] Selected level:", selectedLevel)
 end)
 
 -- ฟังก์ชันเช็คและล็อค
@@ -288,15 +284,12 @@ local function lockItemsInLevel(level)
                                 :FireServer(tool)
                         end)
                         print("[Lock] Locked:", tool.Name)
-                    else
-                        print("[Lock] Already locked:", tool.Name)
                     end
                 end
             end
         end
     end
 end
-
 -- Toggle ทำงาน
 local runningLock = false
 drops:Toggle("Auto Lock", false, function(state)
@@ -315,7 +308,6 @@ local walkSpeedOptions = {16, 20, 22, 25}
 
 tgls:Dropdown("WalkSpeed", walkSpeedOptions, function(selected)
     walkSpeedValue = selected
-    print("Selected WalkSpeed:", walkSpeedValue)
 end)
 
 tgls:Button("Change WalkSpeed", function()
