@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.8")
+local win = DiscordLib:Window("MM</>3")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -87,15 +87,37 @@ local function equipPan()
     return nil
 end
 
--- Tween to Position
-local function tweenToPosition(pos, speed)
-    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+-- ฟังก์ชัน TweenService Move
+local function smoothTweenMove(hrp, targetPos, speed, runningFlag)
     if not hrp then return end
-    local dist = (hrp.Position - pos).Magnitude
-    local tweenInfo = TweenInfo.new(dist / speed, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(pos)})
-    tween:Play()
-    tween.Completed:Wait()
+
+    -- สร้าง BodyVelocity ชั่วคราว
+    local noclip = Instance.new("BodyVelocity")
+    noclip.Name = "Lock"
+    noclip.Parent = hrp
+    noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    noclip.Velocity = Vector3.new(0,0,0)
+
+    while (hrp.Position - targetPos).Magnitude > 1 do
+        if not runningFlag() then
+            break
+        end
+
+        local dir = (targetPos - hrp.Position).Unit
+        local distance = (targetPos - hrp.Position).Magnitude
+        local step = dir * speed * 0.03
+        if step.Magnitude > distance then
+            step = dir * distance
+        end
+
+        hrp.CFrame = CFrame.new(hrp.Position + step)
+        task.wait(0.03)
+    end
+
+    -- ลบ BodyVelocity หลัง tween จบ
+    if noclip and noclip.Parent then
+        noclip:Destroy()
+    end
 end
 
 -- Get Fill Values
@@ -126,42 +148,24 @@ local function isInventoryFull()
     return current >= autoSellAtCount and max > 0
 end
 
--- FastTravel Remote
-local function fastTravelToIslandRemote(destination)
-    local destWP = workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild(destination)
-    if destWP then
-        local args = {destWP}
-        RepStorage:WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
-        print("[FastTravel] วาปไปเกาะ:", destination)
-    else
-        warn("[FastTravel] ไม่พบ waypoint ของเกาะ:", destination)
-    end
-end
-
 -- Find Closest Merchant
-local function findClosestMerchantAndIsland()
-    local closest, merchantFolderName
-    local shortestDist = math.huge
-    local islandName = nil
-    for _, folderName in ipairs(localMerchant) do
-        local npcFolder = workspace:WaitForChild("NPCs"):FindFirstChild(folderName)
-        if npcFolder then
-            for _, npc in ipairs(npcFolder:GetChildren()) do
-                if npc:IsA("Model") and npc:FindFirstChild("HumanoidRootPart") and npc.Name:lower():find("merchant") then
-                    local dist = (plr.Character.HumanoidRootPart.Position - npc.HumanoidRootPart.Position).Magnitude
-                    if dist < shortestDist then
-                        shortestDist = dist
-                        closest = npc
-                        merchantFolderName = folderName
-                        islandName = merchantToIsland[folderName] or folderName
-                    end
-                end
+local function findClosestMerchant()
+    local hrp = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+    local closest, closestDist = nil, math.huge
+
+    local npcsFolder = workspace:WaitForChild("NPCs")
+    for _, islandFolder in ipairs(npcsFolder:GetChildren()) do
+        local merchant = islandFolder:FindFirstChild("Merchant")
+        if merchant and merchant:FindFirstChild("HumanoidRootPart") then
+            local dist = (hrp.Position - merchant.HumanoidRootPart.Position).Magnitude
+            if dist < closestDist then
+                closest, closestDist = merchant, dist
             end
         end
     end
-    return closest, islandName
-end
 
+    return closest
+end
 -- Lock Items
 local function lockItemsInLevel(level)
     local items = ItemTables[level]
@@ -282,14 +286,26 @@ end)
 --==================================================
 tgls:Toggle("Auto-Pan & Shake", false, function(state)
     runningPanShake = state
+
     task.spawn(function()
         while runningPanShake do
             -- รอ Auto-Sell เสร็จก่อน
             while runningSell and isInventoryFull() do
                 task.wait(0.5)
             end
-            if not panPos then task.wait(1) continue end
-            tweenToPosition(panPos, 150)
+
+            -- ถ้าไม่มี Pan Position ให้รอ
+            if not panPos then
+                task.wait(1)
+                continue
+            end
+
+            local hrp = character:WaitForChild("HumanoidRootPart")
+
+            -- ไป Pan (TweenService)
+            smoothTweenMove(hrp, panPos, 22, function() return runningPanShake end)
+
+            -- Equip Pan Tool
             local panTool = equipPan()
             if panTool then
                 -- ขุดจนเต็ม
@@ -301,24 +317,31 @@ tgls:Toggle("Auto-Pan & Shake", false, function(state)
                     task.wait(0.3)
                     current, max = getFillValues()
                 end
-                -- Tween ไป Shake
-                if shakePos then tweenToPosition(shakePos, 150) end
-                -- เขย่า + Pan จนหมด
+
+                -- ไป Shake (TweenService)
+                if shakePos then
+                    smoothTweenMove(hrp, shakePos, 22, function() return runningPanShake end)
+                end
+
+                -- Shake + Pan จนหมด
                 current, max = getFillValues()
                 while current > 0 and runningPanShake do
                     local scriptsFolder = panTool:FindFirstChild("Scripts")
                     if scriptsFolder then
                         local shakeEvent = scriptsFolder:FindFirstChild("Shake")
                         if shakeEvent then shakeEvent:FireServer() end
+
                         local panEvent = scriptsFolder:FindFirstChild("Pan")
                         if panEvent then panEvent:InvokeServer() end
                     end
                     task.wait(0.3)
                     current, max = getFillValues()
                 end
-                -- Tween กลับ Pan
-                tweenToPosition(panPos, 150)
+
+                -- กลับไป Pan (TweenService)
+                smoothTweenMove(hrp, panPos, 22, function() return runningPanShake end)
             end
+
             task.wait(0.5)
         end
     end)
@@ -334,28 +357,37 @@ end)
 
 tgls:Toggle("Auto-Sell", false, function(state)
     runningSell = state
+
     task.spawn(function()
         while runningSell do
             if isInventoryFull() then
                 print("[Auto-Sell] กระเป๋าเต็ม! หา Merchant...")
-                local merchant, islandName = findClosestMerchantAndIsland()
-                if merchant and islandName then
-                    fastTravelToIslandRemote(islandName)
-                    task.wait(2)
-                    tweenToPosition(merchant.HumanoidRootPart.Position, 150)
+
+                local merchant = findClosestMerchant()
+                if merchant then
+                    local hrp = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+
+                    -- Tween ไปหา Merchant
+                    smoothTweenMove(hrp, merchant.HumanoidRootPart.Position, 22, function()
+                        return runningSell and isInventoryFull()
+                    end)
+
+                    -- Spam SellAll จนขายหมด
                     while isInventoryFull() and runningSell do
                         pcall(function()
-                            RepStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellAll"):InvokeServer()
+                            RepStorage.Remotes.Shop.SellAll:InvokeServer()
                         end)
                         task.wait(0.5)
                     end
+
+                    -- กลับไป Pan
                     if panPos then
-                        fastTravelToIslandRemote("Rubble Creek")
-                        task.wait(2)
-                        tweenToPosition(panPos, 150)
+                        smoothTweenMove(hrp, panPos, 22, function()
+                            return runningSell
+                        end)
                     end
                 else
-                    print("[Auto-Sell] ไม่พบ Merchant รอ 2 วิแล้วลองใหม่")
+                    print("[Auto-Sell] ❌ ไม่พบ Merchant รอ 2 วิแล้วลองใหม่")
                     task.wait(2)
                 end
             end
