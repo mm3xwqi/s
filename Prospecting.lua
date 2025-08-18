@@ -1,8 +1,8 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.4")
+local win = DiscordLib:Window("MM</>2.5")
 
-local serv = win:Server("Preview", "")
-local tgls = serv:Channel("Toggles")
+local serv = win:Server("Main", "")
+local tgls = serv:Channel("Main")
 
 local TweenService = game:GetService("TweenService")
 local plr = game:GetService("Players").LocalPlayer
@@ -311,7 +311,38 @@ game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"
     end
 )
 
+btns:Button(
+    "goto Frozen Peak",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Frozen Peak")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
 
+btns:Button(
+    "goto Snowy Shores",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Snowy Shores")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+btns:Button(
+    "goto Snowy Shores",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Snowy Shores")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
 
 -- ตารางเก็บระดับไอเท็ม
 local ItemTables = {
@@ -328,7 +359,7 @@ local ItemTables = {
 local levels = {"None", "Common","Uncommon","Rare","Epic","Legendary","Mythic","Exotic"}
 local selectedLevel = "Common"
 
-local drops = serv:Channel("Dropdowns")
+local drops = serv:Channel("lock item")
 
 drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
