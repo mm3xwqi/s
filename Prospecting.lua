@@ -95,61 +95,61 @@ tgls:Button("saveshake", function()
 end)
 
 -- Auto-Pan
-tgls:Toggle("Auto-Pan", false, function(state)
-    runningPan = state
+tgls:Toggle("Auto-Pan & Shake", false, function(state)
+    local running = state
     task.spawn(function()
-        while runningPan do
+        local plr = game:GetService("Players").LocalPlayer
+
+        local function getFillValues()
+            local fillTextObj = plr.PlayerGui:WaitForChild("ToolUI")
+                                  :WaitForChild("FillingPan")
+                                  :WaitForChild("FillText")
+            local text = ""
+
+            if fillTextObj:FindFirstChild("ContentText") then
+                text = fillTextObj.ContentText
+            else
+                text = fillTextObj.Text or ""
+            end
+
+            local current, max = text:match("([%d%.]+)%s*/%s*([%d%.]+)")
+            return tonumber(current) or 0, tonumber(max) or 0
+        end
+
+        while running do
             local panTool = equipPan()
             if not panTool then
                 task.wait(1)
                 continue
             end
 
-            local fillTextObj = plr:FindFirstChild("PlayerGui")
-                and plr.PlayerGui:FindFirstChild("ToolUI")
-                and plr.PlayerGui.ToolUI:FindFirstChild("FillingPan")
-                and plr.PlayerGui.ToolUI.FillingPan:FindFirstChild("FillText")
-
-            if not fillTextObj then
-                task.wait(1)
-                continue
-            end
-
-            local current, max = fillTextObj.Text:match("(%d+)%s*/%s*(%d+)")
-            current, max = tonumber(current), tonumber(max)
-
-            if current and max then
-                if current < max and panPos then
+            local current, max = getFillValues()
+            while current < max and running do
+                if panPos then
                     moveToPositionSpeed(panPos, 150)
                     pcall(function()
-                        panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(1)
+                        panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(.1)
                     end)
-                elseif current >= max and shakePos then
+                end
+                task.wait(0.3)
+                current, max = getFillValues()
+            end
+
+            current, max = getFillValues()
+            while current > 0 and running do
+                if shakePos then
                     moveToPositionSpeed(shakePos, 150)
+                    local scriptsFolder = panTool:FindFirstChild("Scripts")
+                    if scriptsFolder then
+                        local shakeEvent = scriptsFolder:FindFirstChild("Shake")
+                        if shakeEvent then shakeEvent:FireServer() end
+                        local panEvent = scriptsFolder:FindFirstChild("Pan")
+                        if panEvent then panEvent:InvokeServer() end
+                    end
                 end
+                task.wait(0.3)
+                current, max = getFillValues()
             end
-
-            task.wait(.1)
-        end
-    end)
-end)
-
--- Auto-Shake
-tgls:Toggle("Auto-Shake", false, function(state)
-    runningShake = state
-    task.spawn(function()
-        while runningShake do
-            local panTool = equipPan() 
-            if panTool then
-                local scriptsFolder = panTool:FindFirstChild("Scripts")
-                if scriptsFolder then
-                    local shakeEvent = scriptsFolder:FindFirstChild("Shake")
-                    if shakeEvent then shakeEvent:FireServer() end
-                    local panEvent = scriptsFolder:FindFirstChild("Pan")
-                    if panEvent then panEvent:InvokeServer() end
-                end
-            end
-            task.wait(.1)
         end
     end)
 end)
@@ -161,7 +161,6 @@ for _, wp in ipairs(workspace:WaitForChild("Map"):WaitForChild("Waypoints"):GetC
     end
 end
 
--- หา Merchant ใกล้ที่สุด พร้อมชื่อเกาะ
 local function findClosestMerchantWithIsland()
     local closest, islandName
     local shortestDist = math.huge
@@ -187,7 +186,6 @@ local function fastTravelToIsland(islandName)
     local waypoints = IslandTable
     local wp = waypoints[islandName]
     if wp then
-        -- สมมติว่า FastTravel ต้องการ 2 argument: จากตำแหน่งปัจจุบัน -> wp
         RepStorage:WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(plr.Character.HumanoidRootPart.CFrame, wp.CFrame)
     else
         warn("[FastTravel] ไม่พบ waypoint ของเกาะ:", islandName)
@@ -536,3 +534,33 @@ button.MouseButton1Click:Connect(function()
     disUI.Enabled = not disUI.Enabled
     button.Text = disUI.Enabled and "Disabled Ui" or "Enabled UI"
 end)
+
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local TeleportService = game:GetService("TeleportService")
+
+local player = Players.LocalPlayer
+while not player do
+    task.wait(0.1)
+    player = Players.LocalPlayer
+end
+
+local function checkDiscordInstances()
+    local count = 0
+    for _, gui in ipairs(CoreGui:GetChildren()) do
+        if gui.Name == "Discord" then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+local discordCount = checkDiscordInstances()
+if discordCount == 2 then
+    warn("[Auto-Rejoin] พบ Discord 2 อัน! กำลัง Rejoin...")
+    task.wait(0.5) 
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, player)
+    end)
+end
+
