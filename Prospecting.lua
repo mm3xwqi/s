@@ -254,10 +254,42 @@ end)
 local btns = serv:Channel("FastTravel")
 
 btns:Button(
+    "Unlock travel",
+    function()
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+
+        local waypoints = workspace:WaitForChild("Map"):WaitForChild("Waypoints")
+
+        for _, waypoint in pairs(waypoints:GetChildren()) do
+            local pos
+            if waypoint:IsA("Model") then
+                pos = waypoint:GetPivot().Position
+            elseif waypoint:IsA("BasePart") then
+                pos = waypoint.Position
+            end
+
+            if pos then
+                hrp.CFrame = CFrame.new(pos + Vector3.new(0, 5, 0))
+
+                for _, prompt in pairs(waypoint:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") then
+                        fireproximityprompt(prompt, math.huge)
+                    end
+                end
+
+                task.wait(0.1)
+            end
+        end
+    end
+)
+
+btns:Button(
     "goto Rubble Creek",
     function()
 local args = {
-    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Caldera Island"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
     workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek")
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
@@ -358,6 +390,17 @@ btns:Button(
 local args = {
     workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
     workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Snowy Shores")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+btns:Button(
+    "goto Frostbitten Path",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Frostbitten Path")
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
     end
