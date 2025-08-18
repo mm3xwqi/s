@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.5")
+local win = DiscordLib:Window("MM</>2.6")
 
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
@@ -317,17 +317,6 @@ btns:Button(
 local args = {
     workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
     workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Frozen Peak")
-}
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
-    end
-)
-
-btns:Button(
-    "goto Snowy Shores",
-    function()
-local args = {
-    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
-    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Snowy Shores")
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
     end
