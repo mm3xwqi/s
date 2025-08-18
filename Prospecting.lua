@@ -81,16 +81,18 @@ end
 -- Save Pan
 tgls:Button("savepan", function()
     if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        panPos = plr.Character.HumanoidRootPart.Position
-        print("[Auto Pan] Saved pan position:", panPos)
+        local hrpPos = plr.Character.HumanoidRootPart.Position
+        panPos = hrpPos + Vector3.new(0,3,0)
+        print("[Auto Pan] Saved pan position (with offset):", panPos)
     end
 end)
 
 -- Save Shake
 tgls:Button("saveshake", function()
     if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        shakePos = plr.Character.HumanoidRootPart.Position
-        print("[Auto Pan] Saved shake position:", shakePos)
+        local hrpPos = plr.Character.HumanoidRootPart.Position
+        shakePos = hrpPos + Vector3.new(0,3,0) 
+        print("[Auto Pan] Saved shake position (with offset):", shakePos)
     end
 end)
 
@@ -181,7 +183,7 @@ local function findClosestMerchantWithIsland()
     return closest, islandName
 end
 
--- FastTravel ไปเกาะโดยใช้ Table
+-- FastTravel
 local function fastTravelToIsland(islandName)
     local waypoints = IslandTable
     local wp = waypoints[islandName]
