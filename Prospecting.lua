@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.8")
+local win = DiscordLib:Window("MM</>3.1")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -93,7 +93,7 @@ local function smoothTweenMove(hrp, targetPos, speed, runningFlag)
     local character = hrp.Parent
     local humanoid = character:FindFirstChildOfClass("Humanoid")
 
-    -- เปิด Noclip (ปิด collisions)
+    -- ฟังก์ชันเปิด noclip
     local function enableNoclip()
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -102,6 +102,7 @@ local function smoothTweenMove(hrp, targetPos, speed, runningFlag)
         end
     end
 
+    -- ฟังก์ชันปิด noclip
     local function disableNoclip()
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -110,14 +111,15 @@ local function smoothTweenMove(hrp, targetPos, speed, runningFlag)
         end
     end
 
-    enableNoclip()
-
     -- สร้าง BodyVelocity
     local bv = Instance.new("BodyVelocity")
     bv.Name = "Lock"
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
     bv.Velocity = Vector3.new(0,0,0)
     bv.Parent = hrp
+
+    -- เปิด noclip ก่อนเริ่ม tween
+    enableNoclip()
 
     while (hrp.Position - targetPos).Magnitude > 1 do
         if not runningFlag() then break end
@@ -129,12 +131,16 @@ local function smoothTweenMove(hrp, targetPos, speed, runningFlag)
             step = dir * distance
         end
 
-        bv.Velocity = step / 0.03 -- ใช้ BodyVelocity ขับเคลื่อน
+        -- Update BodyVelocity
+        bv.Velocity = step / 0.03
+
+        -- เปิด noclip ต่อเนื่องระหว่าง tween
+        enableNoclip()
 
         task.wait(0.03)
     end
 
-    -- ลบ BodyVelocity + ปิด Noclip
+    -- Tween จบ → ลบ BodyVelocity + คืนค่า collisions
     if bv and bv.Parent then bv:Destroy() end
     disableNoclip()
 end
@@ -322,7 +328,7 @@ tgls:Toggle("Auto-Pan & Shake", false, function(state)
             local hrp = character:WaitForChild("HumanoidRootPart")
 
             -- ไป Pan (TweenService)
-            smoothTweenMove(hrp, panPos, 22, function() return runningPanShake end)
+            smoothTweenMove(hrp, panPos, 25, function() return runningPanShake end)
 
             -- Equip Pan Tool
             local panTool = equipPan()
@@ -339,7 +345,7 @@ tgls:Toggle("Auto-Pan & Shake", false, function(state)
 
                 -- ไป Shake (TweenService)
                 if shakePos then
-                    smoothTweenMove(hrp, shakePos, 22, function() return runningPanShake end)
+                    smoothTweenMove(hrp, shakePos, 25, function() return runningPanShake end)
                 end
 
                 -- Shake + Pan จนหมด
@@ -358,7 +364,7 @@ tgls:Toggle("Auto-Pan & Shake", false, function(state)
                 end
 
                 -- กลับไป Pan (TweenService)
-                smoothTweenMove(hrp, panPos, 22, function() return runningPanShake end)
+                smoothTweenMove(hrp, panPos, 25, function() return runningPanShake end)
             end
 
             task.wait(0.5)
@@ -387,7 +393,7 @@ tgls:Toggle("Auto-Sell", false, function(state)
                     local hrp = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
 
                     -- Tween ไปหา Merchant
-                    smoothTweenMove(hrp, merchant.HumanoidRootPart.Position, 22, function()
+                    smoothTweenMove(hrp, merchant.HumanoidRootPart.Position, 25, function()
                         return runningSell and isInventoryFull()
                     end)
 
@@ -401,7 +407,7 @@ tgls:Toggle("Auto-Sell", false, function(state)
 
                     -- กลับไป Pan
                     if panPos then
-                        smoothTweenMove(hrp, panPos, 22, function()
+                        smoothTweenMove(hrp, panPos, 25, function()
                             return runningSell
                         end)
                     end
