@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.7")
+local win = DiscordLib:Window("MM</>2.8")
 
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
@@ -154,28 +154,43 @@ tgls:Toggle("Auto-Shake", false, function(state)
     end)
 end)
 
-local function findClosestWaypoint(targetPos)
-    local closest = nil
-    local shortestDist = math.huge
-    local waypoints = workspace:WaitForChild("Map"):WaitForChild("Waypoints")
+local IslandTable = {}
+for _, wp in ipairs(workspace:WaitForChild("Map"):WaitForChild("Waypoints"):GetChildren()) do
+    if wp:IsA("BasePart") then
+        IslandTable[wp.Name] = wp
+    end
+end
 
-    for _, wp in ipairs(waypoints:GetChildren()) do
-        if wp:IsA("BasePart") then
-            local dist = (targetPos - wp.Position).Magnitude
-            if dist < shortestDist then
-                shortestDist = dist
-                closest = wp
+-- หา Merchant ใกล้ที่สุด พร้อมชื่อเกาะ
+local function findClosestMerchantWithIsland()
+    local closest, islandName
+    local shortestDist = math.huge
+
+    for _, islandFolder in ipairs(workspace:WaitForChild("NPCs"):GetChildren()) do
+        for _, npc in ipairs(islandFolder:GetChildren()) do
+            if npc:IsA("Model") and npc.Name == "Merchant" and npc:FindFirstChild("HumanoidRootPart") then
+                local dist = (plr.Character.HumanoidRootPart.Position - npc.HumanoidRootPart.Position).Magnitude
+                if dist < shortestDist then
+                    shortestDist = dist
+                    closest = npc
+                    islandName = islandFolder.Name
+                end
             end
         end
     end
 
-    return closest
+    return closest, islandName
 end
 
-local function fastTravelTo(fromWaypoint, toWaypoint)
-    if fromWaypoint and toWaypoint then
-        local args = {fromWaypoint, toWaypoint}
-        RepStorage:WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+-- FastTravel ไปเกาะโดยใช้ Table
+local function fastTravelToIsland(islandName)
+    local waypoints = IslandTable
+    local wp = waypoints[islandName]
+    if wp then
+        -- สมมติว่า FastTravel ต้องการ 2 argument: จากตำแหน่งปัจจุบัน -> wp
+        RepStorage:WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(plr.Character.HumanoidRootPart.CFrame, wp.CFrame)
+    else
+        warn("[FastTravel] ไม่พบ waypoint ของเกาะ:", islandName)
     end
 end
 
@@ -207,40 +222,27 @@ tgls:Toggle("Auto-Sell", false, function(state)
     task.spawn(function()
         while runningSell do
             if isInventoryFull() then
-                local merchant = findClosestMerchant()
-                if merchant and merchant:FindFirstChild("HumanoidRootPart") then
-                    local merchantPos = merchant.HumanoidRootPart.Position
+                local merchant, islandName = findClosestMerchantWithIsland()
+                if merchant and islandName then
+                    fastTravelToIsland(islandName)
+                    task.wait(2)
 
-                    -- 🔹 หา waypoint ใกล้ merchant
-                    local merchantWP = findClosestWaypoint(merchantPos)
+                    -- ขายของ
+                    while isInventoryFull() and runningSell do
+                        pcall(function()
+                            RepStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellAll"):InvokeServer()
+                        end)
+                        task.wait(0.5)
+                    end
 
-                    -- 🔹 หา waypoint ใกล้ panPos (จุดฟาร์ม)
-                    local farmWP = panPos and findClosestWaypoint(panPos)
-
-                    if merchantWP and farmWP then
-                        -- เดินทางไปหา merchant
-                        fastTravelTo(farmWP, merchantWP)
-                        task.wait(2)
-
-                        -- ขายของจนกว่าจะไม่เต็ม
-                        while isInventoryFull() and runningSell do
-                            pcall(function()
-                                RepStorage:WaitForChild("Remotes")
-                                    :WaitForChild("Shop")
-                                    :WaitForChild("SellAll")
-                                    :InvokeServer()
-                            end)
-                            task.wait(0.5)
-                        end
-
-                        -- กลับไปฟาร์ม
-                        fastTravelTo(merchantWP, farmWP)
-                        task.wait(2)
-                        if panPos then
+                    -- กลับไปจุดฟาร์ม
+                    if panPos then
+                        local farmWP = IslandTable["Rubble Creek"] -- ใช้ Waypoint ของจุดฟาร์ม
+                        if farmWP then
+                            fastTravelToIsland("Rubble Creek")
+                            task.wait(2)
                             moveToPositionSpeed(panPos, walkSpeedValue)
                         end
-                    else
-                        warn("[Auto-Sell] ไม่เจอ waypoint ที่ใกล้ merchant หรือ panPos")
                     end
                 end
             end
