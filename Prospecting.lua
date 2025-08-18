@@ -266,7 +266,9 @@ drops:Dropdown("Select Level", levels, function(level)
     selectedLevel = level
 end)
 
--- ฟังก์ชันเช็คและล็อค
+
+local lockedCache = {} 
+
 local function lockItemsInLevel(level)
     local items = ItemTables[level]
     if not items then return end
@@ -276,13 +278,16 @@ local function lockItemsInLevel(level)
             for _, targetName in ipairs(items) do
                 if tool.Name == targetName then
                     local isLocked = tool:GetAttribute("Locked")
-                    if not isLocked then
+
+                    -- ถ้ายังไม่เคยล็อค หรือ attribute ยังไม่ได้เป็น true
+                    if not isLocked and not lockedCache[tool] then
                         pcall(function()
                             RepStorage:WaitForChild("Remotes")
                                 :WaitForChild("Inventory")
                                 :WaitForChild("ToggleLock")
                                 :FireServer(tool)
                         end)
+                        lockedCache[tool] = true 
                         print("[Lock] Locked:", tool.Name)
                     end
                 end
@@ -290,18 +295,21 @@ local function lockItemsInLevel(level)
         end
     end
 end
--- Toggle ทำงาน
+
 local runningLock = false
 drops:Toggle("Auto Lock", false, function(state)
     runningLock = state
-    task.spawn(function()
-        while runningLock do
-            lockItemsInLevel(selectedLevel)
-            task.wait(1)
-        end
-    end)
+    if state then
+        task.spawn(function()
+            while runningLock do
+                lockItemsInLevel(selectedLevel)
+                task.wait(2) 
+            end
+        end)
+    else
+        lockedCache = {} 
+    end
 end)
-
 
 
 local walkSpeedOptions = {16, 20, 22, 25}
