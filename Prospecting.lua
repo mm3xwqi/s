@@ -297,7 +297,7 @@ drops:Toggle("Auto Lock", false, function(state)
     task.spawn(function()
         while runningLock do
             lockItemsInLevel(selectedLevel)
-            task.wait(.1)
+            task.wait(1)
         end
     end)
 end)
