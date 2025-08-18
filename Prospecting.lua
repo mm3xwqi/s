@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>3")
+local win = DiscordLib:Window("MM</>2.8")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -90,18 +90,37 @@ end
 -- ฟังก์ชัน TweenService Move
 local function smoothTweenMove(hrp, targetPos, speed, runningFlag)
     if not hrp then return end
+    local character = hrp.Parent
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
 
-    -- สร้าง BodyVelocity ชั่วคราว
-    local noclip = Instance.new("BodyVelocity")
-    noclip.Name = "Lock"
-    noclip.Parent = hrp
-    noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    noclip.Velocity = Vector3.new(0,0,0)
+    -- เปิด Noclip (ปิด collisions)
+    local function enableNoclip()
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+
+    local function disableNoclip()
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+
+    enableNoclip()
+
+    -- สร้าง BodyVelocity
+    local bv = Instance.new("BodyVelocity")
+    bv.Name = "Lock"
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.Velocity = Vector3.new(0,0,0)
+    bv.Parent = hrp
 
     while (hrp.Position - targetPos).Magnitude > 1 do
-        if not runningFlag() then
-            break
-        end
+        if not runningFlag() then break end
 
         local dir = (targetPos - hrp.Position).Unit
         local distance = (targetPos - hrp.Position).Magnitude
@@ -110,14 +129,14 @@ local function smoothTweenMove(hrp, targetPos, speed, runningFlag)
             step = dir * distance
         end
 
-        hrp.CFrame = CFrame.new(hrp.Position + step)
+        bv.Velocity = step / 0.03 -- ใช้ BodyVelocity ขับเคลื่อน
+
         task.wait(0.03)
     end
 
-    -- ลบ BodyVelocity หลัง tween จบ
-    if noclip and noclip.Parent then
-        noclip:Destroy()
-    end
+    -- ลบ BodyVelocity + ปิด Noclip
+    if bv and bv.Parent then bv:Destroy() end
+    disableNoclip()
 end
 
 -- Get Fill Values
