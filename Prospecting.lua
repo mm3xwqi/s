@@ -37,7 +37,7 @@ local runningPanShake = false
 local runningLock = false
 local lockedCache = {}
 local autoSellAtCount = 500
-local tweenSpeed = 100 -- studs per second
+local tweenSpeed = 25
 local Pan = {
     "Rusty Pan", "Plastic Pan", "Metal Pan", "Silver Pan", "Golden Pan", 
     "Magnetic Pan", "Meteoric Pan", "Diamond Pan", "Aurora Pan", 
@@ -128,10 +128,9 @@ end
 
 -- FastTravel Remote
 local function fastTravelToIslandRemote(destination)
-    local startWP = workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek")
     local destWP = workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild(destination)
-    if startWP and destWP then
-        local args = {startWP, destWP}
+    if destWP then
+        local args = {destWP}
         RepStorage:WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
         print("[FastTravel] วาปไปเกาะ:", destination)
     else
@@ -331,11 +330,6 @@ end)
 tgls:Slider("Auto-Sell At", 1, 500, autoSellAtCount, function(value)
     autoSellAtCount = value
     print("[Auto-Sell] จะขายเมื่อกระเป๋ามีไอเท็ม:", autoSellAtCount)
-end)
-
-tgls:Slider("Tween Speed", 100, 200, tweenSpeed, function(value)
-    tweenSpeed = value
-    print("[Auto-Sell] ความเร็ว Tween ตั้งค่าเป็น:", tweenSpeed)
 end)
 
 tgls:Toggle("Auto-Sell", false, function(state)
