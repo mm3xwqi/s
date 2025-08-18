@@ -1,5 +1,5 @@
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>2.3")
+local win = DiscordLib:Window("MM</>2.4")
 
 local serv = win:Server("Preview", "")
 local tgls = serv:Channel("Toggles")
@@ -220,6 +220,98 @@ tgls:Toggle("Auto-Sell", false, function(state)
         end
     end)
 end)
+
+local btns = serv:Channel("FastTravel")
+
+btns:Button(
+    "goto Rubble Creek",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Caldera Island"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+btns:Button(
+    "goto Fortune River",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Fortune River")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+btns:Button(
+    "goto Sunset Beach",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Sunset Beach")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+btns:Button(
+    "goto Fortune River Delta",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Fortune River Delta")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+btns:Button(
+    "goto Crystal Caverns",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Crystal Caverns")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+btns:Button(
+    "goto Caldera Island",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Caldera Island")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+btns:Button(
+    "goto Windswept Beach",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Windswept Beach")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+btns:Button(
+    "goto The Magma Furnace",
+    function()
+local args = {
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+    workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("The Magma Furnace")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end
+)
+
+
 
 -- ตารางเก็บระดับไอเท็ม
 local ItemTables = {
