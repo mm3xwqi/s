@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>3.1")
+local win = DiscordLib:Window("MM</>3.2")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -61,13 +61,13 @@ local walkSpeedOptions = {16, 20, 22, 25}
 -- Item Tables
 --==================================================
 local ItemTables = {
-    Common = {"Pyrite", "Silver", "Copper", "Gold", "Platinum", "Seashell", "Obsidian", "Amethyst", "Pearl"},
+    Common = {"Pyrite", "Silver", "Copper", "Gold", "Platinum", "Seashell", "Obsidian", "Amethyst", "Pearl", "Blue Ice"},
     Uncommon = {"Titanium", "Neodymium", "Topaz", "Smoky Quartz", "Malachite", "Coral", "Sapphire", "Zircon"},
-    Rare = {"Ruby", "Lapis Lazuli", "Jade", "Silver Clamshell", "Peridot", "Onyx", "Meteoric Iron", "Azuralite", "Pyrelith"},
-    Epic = {"Iridium", "Moonstone", "Ammonite Fossil", "Ashvein", "Pyronium", "Emerald", "Golden Pearl", "Borealite", "Osmium", "Opal", "Aurorite"},
-    Legendary = {"Rose Gold", "Palladium", "Cinnabar", "Diamond", "Uranium", "Luminum", "Volcanic Key", "Fire Opal", "Dragon Bone", "Catseye", "Starshine", "Aetherite"},
-    Mythic = {"Pink Diamond", "Painite", "Inferlume", "Vortessence", "Prismara", "Flarebloom", "Volcanic Core"},
-    Exotic = {"Dinosaur Skull"}
+    Rare = {"Ruby", "Lapis Lazuli", "Jade", "Silver Clamshell", "Peridot", "Onyx", "Meteoric Iron", "Azuralite", "Pyrelith", "Glacial Quartz"},
+    Epic = {"Iridium", "Moonstone", "Ammonite Fossil", "Ashvein", "Pyronium", "Emerald", "Golden Pearl", "Borealite", "Osmium", "Opal", "Aurorite", "Cobalt"},
+    Legendary = {"Rose Gold", "Palladium", "Cinnabar", "Diamond", "Uranium", "Luminum", "Volcanic Key", "Fire Opal", "Dragon Bone", "Catseye", "Starshine", "Aetherite", "Tourmaline", "Aquamarine"},
+    Mythic = {"Pink Diamond", "Painite", "Inferlume", "Vortessence", "Prismara", "Flarebloom", "Volcanic Core", "Frostshard", "Mythril"},
+    Exotic = {"Dinosaur Skull", "Cryonic Artifact"}
 }
 
 --==================================================
