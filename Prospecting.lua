@@ -494,9 +494,3 @@ local args = {
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
 end)
 
-shp:Button("Buy Volcanic Strength Potion", function()
-local args = {
-	workspace:WaitForChild("Purchasable"):WaitForChild("Volcano"):WaitForChild("Volcanic Strength Potion"):WaitForChild("ShopItem")
-}
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
-end)
