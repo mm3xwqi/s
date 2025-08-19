@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>4.2")
+local win = DiscordLib:Window("MM</>3.5")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -450,7 +450,7 @@ btns:Button("Unlock travel", function()
     end
 end)
 
-local shp = serv:Channel("Potion Shop")
+local shp = serv:Channel("Shop")
 
 shp:Button("Buy Basic Luck Potion", function()
     local args = {
@@ -490,6 +490,27 @@ end)
 shp:Button("Buy Volcanic Strength Potion", function()
 local args = {
 	workspace:WaitForChild("Purchasable"):WaitForChild("Volcano"):WaitForChild("Volcanic Strength Potion"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
+end)
+
+shp:Button("Buy Volcanic Strength Potion", function()
+local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("Volcano"):WaitForChild("Volcanic Strength Potion"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
+end)
+
+shp:Button("Buy Luck Totem", function()
+local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("RiverTown"):WaitForChild("Luck Totem"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
+end)
+
+shp:Button("Buy Strength Totem", function()
+local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("RiverTown"):WaitForChild("Strength Totem"):WaitForChild("ShopItem")
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
 end)
