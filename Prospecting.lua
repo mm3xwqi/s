@@ -170,7 +170,9 @@ end
 
 local function isInventoryFull()
     local current, max = getInventorySize()
-    return current >= autoSellAtCount and max > 0
+    print("[Check Inventory] " .. current .. "/" .. max .. " | AutoSellAt: " .. autoSellAtCount)
+    if max == 0 then return false end
+    return current >= max or current >= autoSellAtCount
 end
 
 -- Find Closest Merchant
