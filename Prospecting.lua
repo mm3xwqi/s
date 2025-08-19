@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>3.4")
+local win = DiscordLib:Window("MM</>3.5")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -182,22 +182,24 @@ local function findClosestMerchant()
     local closest, closestDist = nil, math.huge
 
     for _, islandFolder in ipairs(npcsFolder:GetChildren()) do
-        local merchant = islandFolder:FindFirstChild("Merchant")
-        if merchant and merchant:FindFirstChild("HumanoidRootPart") then
-            local dist = (hrp.Position - merchant.HumanoidRootPart.Position).Magnitude
-            if dist < 300 and dist < closestDist then
-                closest, closestDist = merchant, dist
+        for _, npc in ipairs(islandFolder:GetChildren()) do
+            if npc.Name:match("Merchant") and npc:FindFirstChild("HumanoidRootPart") then
+                local dist = (hrp.Position - npc.HumanoidRootPart.Position).Magnitude
+                if dist < 300 and dist < closestDist then
+                    closest, closestDist = npc, dist
+                end
             end
         end
     end
 
     if not closest then
         for _, islandFolder in ipairs(npcsFolder:GetChildren()) do
-            local merchant = islandFolder:FindFirstChild("Merchant")
-            if merchant and merchant:FindFirstChild("HumanoidRootPart") then
-                local dist = (hrp.Position - merchant.HumanoidRootPart.Position).Magnitude
-                if dist < closestDist then
-                    closest, closestDist = merchant, dist
+            for _, npc in ipairs(islandFolder:GetChildren()) do
+                if npc.Name:match("Merchant") and npc:FindFirstChild("HumanoidRootPart") then
+                    local dist = (hrp.Position - npc.HumanoidRootPart.Position).Magnitude
+                    if dist < closestDist then
+                        closest, closestDist = npc, dist
+                    end
                 end
             end
         end
