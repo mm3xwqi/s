@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>3.5")
+local win = DiscordLib:Window("MM</>4")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -37,7 +37,7 @@ local runningPanShake = false
 local runningLock = false
 local lockedCache = {}
 local autoSellAtCount = 500
-local tweenSpeed = 25
+local PanSpeed = 28
 local Pan = {
     "Rusty Pan", "Plastic Pan", "Metal Pan", "Silver Pan", "Golden Pan", 
     "Magnetic Pan", "Meteoric Pan", "Diamond Pan", "Aurora Pan", 
@@ -85,64 +85,6 @@ local function equipPan()
         end
     end
     return nil
-end
-
--- ฟังก์ชัน TweenService Move
-local function smoothTweenMove(hrp, targetPos, speed, runningFlag)
-    if not hrp then return end
-    local character = hrp.Parent
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-
-    -- ฟังก์ชันเปิด noclip
-    local function enableNoclip()
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end
-
-    -- ฟังก์ชันปิด noclip
-    local function disableNoclip()
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = true
-            end
-        end
-    end
-
-    -- สร้าง BodyVelocity
-    local bv = Instance.new("BodyVelocity")
-    bv.Name = "Lock"
-    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    bv.Velocity = Vector3.new(0,0,0)
-    bv.Parent = hrp
-
-    -- เปิด noclip ก่อนเริ่ม tween
-    enableNoclip()
-
-    while (hrp.Position - targetPos).Magnitude > 1 do
-        if not runningFlag() then break end
-
-        local dir = (targetPos - hrp.Position).Unit
-        local distance = (targetPos - hrp.Position).Magnitude
-        local step = dir * speed * 0.03
-        if step.Magnitude > distance then
-            step = dir * distance
-        end
-
-        -- Update BodyVelocity
-        bv.Velocity = step / 0.03
-
-        -- เปิด noclip ต่อเนื่องระหว่าง tween
-        enableNoclip()
-
-        task.wait(0.03)
-    end
-
-    -- Tween จบ → ลบ BodyVelocity + คืนค่า collisions
-    if bv and bv.Parent then bv:Destroy() end
-    disableNoclip()
 end
 
 -- Get Fill Values
@@ -231,6 +173,7 @@ local function lockItemsInLevel(level)
     end
 end
 
+
 -- Discord UI Toggle Button
 local disUI = CoreGui:FindFirstChild("Discord")
 local toggleUI = Instance.new("ScreenGui")
@@ -279,14 +222,14 @@ end
 -- Save Pan / Shake Buttons
 tgls:Button("savepan", function()
     if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        panPos = plr.Character.HumanoidRootPart.Position + Vector3.new(0,3,0)
+        panPos = plr.Character.HumanoidRootPart.Position + Vector3.new(0,0,0)
         print("[Auto Pan] Saved pan position:", panPos)
     end
 end)
 
 tgls:Button("saveshake", function()
     if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        shakePos = plr.Character.HumanoidRootPart.Position + Vector3.new(0,3,0)
+        shakePos = plr.Character.HumanoidRootPart.Position + Vector3.new(0,0,0)
         print("[Auto Pan] Saved shake position:", shakePos)
     end
 end)
@@ -331,42 +274,67 @@ tgls:Toggle("Auto-Pan & Shake", false, function(state)
     runningPanShake = state
 
     task.spawn(function()
-        while runningPanShake do
-            -- รอ Auto-Sell เสร็จก่อน
-            while runningSell and isInventoryFull() do
-                task.wait(0.5)
-            end
+        local hrp = character:WaitForChild("HumanoidRootPart")
 
-            -- ถ้าไม่มี Pan Position ให้รอ
+        while runningPanShake do
             if not panPos then
-                task.wait(1)
+                task.wait(0.1)
                 continue
             end
 
-            local hrp = character:WaitForChild("HumanoidRootPart")
-
-            -- ไป Pan (TweenService)
-            smoothTweenMove(hrp, panPos, 25, function() return runningPanShake end)
-
-            -- Equip Pan Tool
             local panTool = equipPan()
-            if panTool then
-                -- ขุดจนเต็ม
-                local current, max = getFillValues()
-                while current < max and runningPanShake do
-                    pcall(function()
-                        panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(0.1)
-                    end)
-                    task.wait(0.3)
-                    current, max = getFillValues()
+            if not panTool then
+                task.wait(0.1)
+                continue
+            end
+
+            local current, max = getFillValues()
+            while current < max and runningPanShake do
+                local bv = Instance.new("BodyVelocity")
+                bv.Name = "Lock"
+                bv.Parent = hrp
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                bv.Velocity = Vector3.new(0,0,0)
+
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
                 end
 
-                -- ไป Shake (TweenService)
-                if shakePos then
-                    smoothTweenMove(hrp, shakePos, 25, function() return runningPanShake end)
+                local distance = (panPos - hrp.Position).Magnitude
+                local tweenTime = distance / PanSpeed
+                local tween = TweenService:Create(hrp, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = CFrame.new(panPos)})
+                tween:Play()
+                tween.Completed:Wait()
+
+                pcall(function()
+                    panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(0.1)
+                end)
+                task.wait(0.1)
+                current, max = getFillValues()
+
+                if bv and bv.Parent then bv:Destroy() end
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = true end
+                end
+            end
+
+            if shakePos then
+                local bv = Instance.new("BodyVelocity")
+                bv.Name = "Lock"
+                bv.Parent = hrp
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                bv.Velocity = Vector3.new(0,0,0)
+
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
                 end
 
-                -- Shake + Pan จนหมด
+                local distance = (shakePos - hrp.Position).Magnitude
+                local tweenTime = distance / PanSpeed
+                local tween = TweenService:Create(hrp, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = CFrame.new(shakePos)})
+                tween:Play()
+                tween.Completed:Wait()
+
                 current, max = getFillValues()
                 while current > 0 and runningPanShake do
                     local scriptsFolder = panTool:FindFirstChild("Scripts")
@@ -377,15 +345,15 @@ tgls:Toggle("Auto-Pan & Shake", false, function(state)
                         local panEvent = scriptsFolder:FindFirstChild("Pan")
                         if panEvent then panEvent:InvokeServer() end
                     end
-                    task.wait(0.3)
+                    task.wait(0.1)
                     current, max = getFillValues()
                 end
 
-                -- กลับไป Pan (TweenService)
-                smoothTweenMove(hrp, panPos, 25, function() return runningPanShake end)
+                if bv and bv.Parent then bv:Destroy() end
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = true end
+                end
             end
-
-            task.wait(0.5)
         end
     end)
 end)
@@ -408,14 +376,10 @@ tgls:Toggle("Auto-Sell", false, function(state)
 
                 local merchant = findClosestMerchant()
                 if merchant then
-                    local hrp = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+                    local hrp = plr.Character:WaitForChild("HumanoidRootPart")
 
-                    -- Tween ไปหา Merchant
-                    smoothTweenMove(hrp, merchant.HumanoidRootPart.Position, 25, function()
-                        return runningSell and isInventoryFull()
-                    end)
+                    hrp.CFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
 
-                    -- Spam SellAll จนขายหมด
                     while isInventoryFull() and runningSell do
                         pcall(function()
                             RepStorage.Remotes.Shop.SellAll:InvokeServer()
@@ -423,11 +387,8 @@ tgls:Toggle("Auto-Sell", false, function(state)
                         task.wait(0.5)
                     end
 
-                    -- กลับไป Pan
                     if panPos then
-                        smoothTweenMove(hrp, panPos, 25, function()
-                            return runningSell
-                        end)
+                        hrp.CFrame = CFrame.new(panPos + Vector3.new(0,3,0))
                     end
                 else
                     print("[Auto-Sell] ❌ ไม่พบ Merchant รอ 2 วิแล้วลองใหม่")
