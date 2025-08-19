@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>4.1")
+local win = DiscordLib:Window("MM</>4.2")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -448,4 +448,55 @@ btns:Button("Unlock travel", function()
             task.wait(0.1)
         end
     end
+end)
+
+local shp = serv:Channel("Potion Shop")
+
+shp:Button("Buy Basic Luck Potion", function()
+    local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("RiverTown"):WaitForChild("Basic Luck Potion"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
+end)
+
+shp:Button("Buy Basic Capacity Potion", function()
+local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("RiverTown"):WaitForChild("Basic Capacity Potion"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
+end)
+
+shp:Button("Buy Greater Luck Potion", function()
+local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("RiverTown"):WaitForChild("Greater Luck Potion"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
+end)
+
+shp:Button("Buy Greater Capacity Potion", function()
+local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("RiverTown"):WaitForChild("Greater Capacity Potion"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
+end)
+
+shp:Button("Buy Volcanic Luck Potion", function()
+local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("Volcano"):WaitForChild("Volcanic Luck Potion"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
+end)
+
+shp:Button("Buy Volcanic Strength Potion", function()
+local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("Volcano"):WaitForChild("Volcanic Strength Potion"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
+end)
+
+shp:Button("Buy Volcanic Strength Potion", function()
+local args = {
+	workspace:WaitForChild("Purchasable"):WaitForChild("Volcano"):WaitForChild("Volcanic Strength Potion"):WaitForChild("ShopItem")
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem"):InvokeServer(unpack(args))
 end)
