@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>4")
+local win = DiscordLib:Window("MM</>4.1")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -307,7 +307,7 @@ tgls:Toggle("Auto-Pan & Shake", false, function(state)
                 tween.Completed:Wait()
 
                 pcall(function()
-                    panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(0.1)
+                    panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(1)
                 end)
                 task.wait(0.1)
                 current, max = getFillValues()
@@ -370,31 +370,35 @@ tgls:Toggle("Auto-Sell", false, function(state)
     runningSell = state
 
     task.spawn(function()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+
         while runningSell do
             if isInventoryFull() then
                 print("[Auto-Sell] กระเป๋าเต็ม! หา Merchant...")
 
                 local merchant = findClosestMerchant()
                 if merchant then
-                    local hrp = plr.Character:WaitForChild("HumanoidRootPart")
-
+                    -- Warp ไป Merchant ทันที
                     hrp.CFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
 
+                    -- Spam ขายจนกระเป๋าว่าง
                     while isInventoryFull() and runningSell do
                         pcall(function()
                             RepStorage.Remotes.Shop.SellAll:InvokeServer()
                         end)
-                        task.wait(0.5)
+                        task.wait(0.3)
                     end
 
+                    -- กลับไป Pan Position ถ้ามี
                     if panPos then
                         hrp.CFrame = CFrame.new(panPos + Vector3.new(0,3,0))
                     end
                 else
-                    print("[Auto-Sell] ❌ ไม่พบ Merchant รอ 2 วิแล้วลองใหม่")
+                    print("[Auto-Sell] ❌ ไม่พบ Merchant รอ 2 วินาทีแล้วลองใหม่")
                     task.wait(2)
                 end
             end
+
             task.wait(1)
         end
     end)
