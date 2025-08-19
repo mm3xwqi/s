@@ -1,898 +1,190 @@
+--==================================================
+-- Services
+--==================================================
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-local playerHumanoid = character:WaitForChild("Humanoid")
-local enemiesFolder = workspace:WaitForChild("Enemies")
-
-local NetModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local registerAttack = NetModule:FindFirstChild("RE/RegisterAttack")
-local registerHit = NetModule:FindFirstChild("RE/RegisterHit")
-
-local useV3 = false
-local useV4 = false
-local killAuraRange = 1000
-local bringRange = 50
-local offsetY = 50
-
-local busoEnabled = false
-
-local args = {
-	"SetTeam",
-	"Marines"
-}
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-
-local function activateV3()
-    local args = { "ActivateAbility" }
-    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommE"):FireServer(unpack(args))
-end
-
-local function activateV4()
-    local args = { true }
-    local success, err = pcall(function()
-        game:GetService("Players").LocalPlayer:WaitForChild("Backpack"):WaitForChild("Awakening"):WaitForChild("RemoteFunction"):InvokeServer(unpack(args))
-    end)
-    if not success then
-        warn("V4 activation failed:", err)
-    end
-end
-
-local function runV3Loop()
-    while useV3 do
-        activateV3()
-        task.wait(2)  -- เว้นช่วง 2 วินาที (ปรับได้)
-    end
-end
-
-local function runV4Loop()
-    while useV4 do
-        activateV4()
-        task.wait(2)  -- เว้นช่วง 2 วินาที (ปรับได้)
-    end
-end
-
-local function activateBusoLoop()
-    while true do
-        local character = workspace:WaitForChild("Characters"):FindFirstChild(game.Players.LocalPlayer.Name)
-        if character and not character:FindFirstChild("HasBuso") then
-            local args = { "Buso" }
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-        end
-        task.wait(4) 
-    end
-end
-
-local args = {
-	"ActivateAbility"
-}
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommE"):FireServer(unpack(args))
-
-
-local selectedBosses = {
-    Boss1 = "",
-    Boss2 = "",
-    Boss3 = ""
-}
--- table boss
-local boss = {
-    "The Gorilla King", "Chef", "The Saw", "Mob Leader", "Vice Admiral",
-    "Yeti", "Saber Expert", "Warden", "Chief Warden", "Swan",
-    "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God",
-    "Cyborg", "Ice Admiral", "Greybeard"
-}
-local boss2 = {
-    "Diamond", "Jeremy", "Orbitus", "Don Swan", "Smoke Admiral",
-    "Awakened Ice Admiral", "Tide Keeper", "rip_indra", "Darkbeard",
-    "Order", "Cursed Captain"
-}
-local boss3 = {
-    "Stone", "Hydra Leader", "Kilo Admiral", "Captain Elephant",
-    "Beautiful Pirate", "Longma", "Cursed Skeleton Boss", "Cake Queen",
-    "Heaven's Guardian", "Hell's Messenger", "rip_indra True Form",
-    "Soul Reaper", "Cake Prince", "Dough King", "Tyrant of the Skies"
-}
-
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
-if not humanoidRootPart then
-    warn("HumanoidRootPart ไม่เจอในตัวละคร")
-    return
-end
-local backpack = player:WaitForChild("Backpack")
-
-local function updateCharacterRefs()
-	character = player.Character or player.CharacterAdded:Wait()
-	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-	playerHumanoid = character:WaitForChild("Humanoid")
-end
-
-player.CharacterAdded:Connect(function()
-	updateCharacterRefs()
-end)
-
-
-updateCharacterRefs()
-
-
--- Table เก็บชื่ออาวุธ
-local melee = {
-    "Combat", "Black Leg", "Electric", "Water Kung Fu", "Dragon Breath",
-    "Superhuman", "Death Step", "Sharkman Karate", "Electric Claw",
-    "Dragon Talon", "Godhuman", "Sanguine Art"
-}
-
-local sword = {
-    "Cutlass", "Dual Katana", "Katana", "Iron Mace", "Shark Saw", "Triple Katana",
-    "Twin Hooks", "Dragon Trident", "Dual-Headed Blade", "Flail", "Gravity Blade", "Longsword",
-    "Pipe", "Soul Cane", "Trident", "Wardens Sword", "Bisento", "Buddy Sword",
-    "Canvander", "Dark Dagger", "Dragonheart", "Fox Lamp", "Koko", "Midnight Blade",
-    "Oroshi", "Pole (1st Form)", "Pole (2nd Form)", "Rengoku", "Saber", "Saishi",
-    "Shark Anchor", "Shizu", "Spikey Trident", "Tushita", "Yama", "Cursed Dual Katana",
-    "Dark Blade", "Hollow Scythe", "Triple Dark Blade", "True Triple Katana",
-}
-
-local gun = {
-	"Slingshot", "Flintlock", "Musket", "Acidum Rifle", "Bizarre Revolver",
-	"Cannon", "Dual Flintlock", "Magma Blaster", "Refined Slingshot",
-	"Bazooka", "Kabucha", "Venom Bow", "Dragonstorm", "Skull Guitar"
-}
-
-local fruit = {
-    "Rocket-Rocket", "Spin-Spin", "Blade-Blade", "Spring-Spring", "Bomb-Bomb",
-    "Smoke-Smoke", "Flame-Flame", "Ice-Ice", "Sand-Sand", "Dark-Dark",
-    "Eagle-Eagle", "Diamond-Diamond", "Light-Light", "Rubber-Rubber", "Ghost-Ghost",
-    "Magmma-Magmma", "Quake-Quake", "Buddha-Buddha", "Love-Love", "Creation-Creation",
-    "Spider-Spider", "Sound-Sound", "Phoenix-Phoenix", "Portal-Portal", "Rumble-Rumble",
-    "Pain-Pain", "Blizzard-Blizzard", "Gravity-Gravity", "Mammoth-Mammoth", "T-Rex-T-Rex",
-    "Dough-Dough", "Shadow-Shadow", "Venom-Venom", "Control-Control", "Gas-Gas",
-    "Spirit-Spirit", "Leopard-Leopard", "Yeti-Yeti", "Kitsune-Kitsune",
-    "Dragon-Dragon"
-}
-
-local SPEED = 350
-local running = false
-local selectedWeaponName = nil
-local noclipActive = false
-
-
--- equip
-local function equipWeapon()
-    if not selectedWeaponName then return end
-
-    local tools = backpack:GetChildren()
-
-    for _, tool in ipairs(tools) do
-        if tool:IsA("Tool") then
-            if selectedWeaponName == "melee" and table.find(melee, tool.Name) then
-                tool.Parent = character
-                return
-            elseif selectedWeaponName == "sword" and table.find(sword, tool.Name) then
-                tool.Parent = character
-                return
-            elseif selectedWeaponName == "gun" and table.find(gun, tool.Name) then
-                tool.Parent = character
-                return
-            elseif selectedWeaponName == "fruit" and table.find(fruit, tool.Name) then
-                tool.Parent = character
-                return
-            end
-        end
-    end
-    -- ไม่มีการแจ้งเตือนใดๆ เมื่อไม่เจออาวุธ
-end
-
-
-
--- unequip
-local function unequipWeapon()
-    if character and character:FindFirstChild("Humanoid") then
-        character.Humanoid:UnequipTools()
-        print("Unequipped all tools safely")
-    end
-end
-
--- Tween 
-local function tweenToPosition(part, targetPosition)
-    local distance = (part.Position - targetPosition).Magnitude
-    local duration = distance / SPEED
-
-    spawn(function()
-        while noclipActive do
-            pcall(function()
-                if not humanoidRootPart:FindFirstChild("Lock") then
-                    if character:WaitForChild("Humanoid").Sit then
-                        character.Humanoid.Sit = false
-                    end
-                    local Noclip = Instance.new("BodyVelocity")
-                    Noclip.Name = "Lock"
-                    Noclip.Parent = humanoidRootPart
-                    Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                    Noclip.Velocity = Vector3.new(0, 0, 0)
-                end
-            end)
-            task.wait()
-        end
-    end)
-
-    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    local goal = { CFrame = CFrame.new(targetPosition) }
-    TweenService:Create(part, tweenInfo, goal):Play()
-    task.wait(duration)
-end
---enableNoclip
-local function enableNoclip()
-    if not noclipActive then
-        noclipActive = true
-        spawn(function()
-            while noclipActive do
-                pcall(function()
-                    if not humanoidRootPart:FindFirstChild("Lock") then
-                        if character:WaitForChild("Humanoid").Sit then
-                            character.Humanoid.Sit = false
-                        end
-                        local Noclip = Instance.new("BodyVelocity")
-                        Noclip.Name = "Lock"
-                        Noclip.Parent = humanoidRootPart
-                        Noclip.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                        Noclip.Velocity = Vector3.new(0, 0, 0)
-                    end
-                end)
-                task.wait()
-            end
-        end)
-    end
-end
---disableNoclip
-local function disableNoclip()
-    noclipActive = false
-    local lock = humanoidRootPart:FindFirstChild("Lock")
-    if lock then
-        lock:Destroy()
-    end
-end
-
--- noclipmob
-local function enableNoclipForEnemy(enemy)
-    for _, part in ipairs(enemy:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = false
-        end
-    end
-end
-
--- bringmobs
-local function bringEnemyBelowPlayer(enemy)
-    local enemyHRP = enemy:FindFirstChild("HumanoidRootPart")
-    if enemyHRP and humanoidRootPart then
-        local newPos = humanoidRootPart.Position - Vector3.new(0, 45, 0)
-        enemyHRP.CFrame = CFrame.new(newPos)
-    end
-end
-
-local function findClosestEnemy()
-    local closestEnemy = nil
-    local closestDist = killAuraRange
-
-    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-        if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-            local dist = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-            if enemy.Humanoid.Health > 0 and dist <= closestDist then
-                closestDist = dist
-                closestEnemy = enemy
-            end
-        end
-    end
-
-    return closestEnemy
-end
-
--- fast attack
-local function attackAllEnemies()
-    while running do
-        -- รีเซ็ตตัวละครถ้าตายแล้วเกิดใหม่
-        if not character or character.Parent == nil then
-            character = player.Character or player.CharacterAdded:Wait()
-            humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-            playerHumanoid = character:WaitForChild("Humanoid")
-        end
-
-        if playerHumanoid.Health <= 0 then
-            task.wait(1)
-            continue
-        end
-
-        -- ถ้าเลือดต่ำ รอฟื้น
-        if playerHumanoid.Health < (playerHumanoid.MaxHealth * 0.35) then
-            waitForHealthToRecover()
-            continue
-        end
-
-        equipWeapon()
-
-        local targetEnemy = findClosestEnemy()
-
-        if not targetEnemy then
-            task.wait(0.1)
-            continue
-        end
-
-        local targetHRP = targetEnemy:FindFirstChild("HumanoidRootPart")
-        local targetHumanoid = targetEnemy:FindFirstChild("Humanoid")
-
-        if not targetHRP or not targetHumanoid or targetHumanoid.Health <= 0 then
-            task.wait(0.1)
-            continue
-        end
-
-        print("💥 กำลังตีมอน: " .. targetEnemy.Name .. " | HP: " .. targetHumanoid.Health)
-
-        -- บินไปหามอน
-        local playerTargetPos = targetHRP.Position + Vector3.new(0, offsetY, 0)
-        if (humanoidRootPart.Position - playerTargetPos).Magnitude > 5 then
-            tweenToPosition(humanoidRootPart, playerTargetPos)
-        end
-
-        -- ดึงมอนใต้ตัว
-        if bringMobs then
-            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                    local distToPlayer = (enemy.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
-                    if distToPlayer <= bringRange and enemy.Humanoid.Health > 0 then
-                        bringEnemyBelowPlayer(enemy)
-                    end
-                end
-            end
-        end
-
-        -- โจมตีหลัก
-        registerAttack:FireServer(0.1)
-        registerHit:FireServer(targetHRP, {})
-
-        -- โจมตีตัวอื่นรอบๆ
-        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-            if enemy ~= targetEnemy and enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-                if enemy.Humanoid.Health > 0 then
-                    pcall(function()
-                        registerHit:FireServer(enemy.HumanoidRootPart, {})
-                    end)
-                end
-            end
-        end
-
-        task.wait(0.15)
-    end
-end
--- boss attack
-local function attackBossesOnly()
-    print("finding boss")
-
-    if not running then return end
-
-    if selectedBosses.Boss1 == "" and selectedBosses.Boss2 == "" and selectedBosses.Boss3 == "" then
-        warn("ยังไม่ได้เลือก Boss ใดเลย")
-        Fluent:Notify({
-            Title = "Warning",
-            Content = "Please select at least one boss to attack.",
-            Duration = 3
-        })
-        return
-    end
-
-    enableNoclip() 
-
-    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-        if not running or not killBossEnabled then break end
-
-        if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") then
-            local name = enemy.Name
-            local humanoid = enemy.Humanoid
-            local hrp = enemy.HumanoidRootPart
-
-            local isBoss = name == selectedBosses.Boss1 or name == selectedBosses.Boss2 or name == selectedBosses.Boss3
-            local dist = (hrp.Position - humanoidRootPart.Position).Magnitude
-
-            if isBoss and humanoid.Health > 0 then
-                print("found", name)
-
-                task.spawn(activateBusoLoop)
-                equipWeapon()
-
-                while humanoid and humanoid.Health > 0 do
-                    equipWeapon()
-
-                    local targetPos = hrp.Position + Vector3.new(0, offsetY, swayZ)
-
-                    pcall(function()
-                        tweenToPosition(humanoidRootPart, targetPos)
-                    end)
-
-                    pcall(function()
-                        rea:FireServer(0.1)
-                        reh:FireServer(hrp, {})
-                    end)
-
-                    task.wait(0.1)
-                end
-
-                print("Finished", name)
-                break 
-            end
-        end
-    end
-
-    disableNoclip() 
-end
--- attackEnemies
-local function attackEnemies()
-    running = true
-    while running do
-        attackAllEnemies()
-        task.wait(0.2)
-    end
-end
--- startFarming
-local function startFarming()
-    enableNoclip()
-
-    if character and character:FindFirstChild("Humanoid") then
-        character.Humanoid.PlatformStand = true
-    end
-
-    equipWeapon()
-    task.spawn(activateBusoLoop)
-    attackEnemies()
-end
--- startKillBoss
-local function startKillBoss()
-    running = true
-    killBossEnabled = true
-    task.spawn(function()
-        while killBossEnabled and running do
-            attackBossesOnly()
-            task.wait(0.5)
-        end
-    end)
-end
--- stopFarming
-local function stopFarming()
-    disableNoclip()
-    running = false
-    killBossEnabled = false
-    attackedMonsters = {} -- เคลียร์ตารางตอนหยุดฟาร์มด้วย
-    unequipWeapon()
-
-    if character and character:FindFirstChild("Humanoid") then
-        character.Humanoid.PlatformStand = false
-        character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end
-
-    local lock = humanoidRootPart:FindFirstChild("Lock")
-    if lock then
-        lock:Destroy()
-    end
-end
--- stopKillBoss
-local function stopKillBoss()
-
-    running = false
-    unequipWeapon()
-end
-
--- UI 
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-
-local Window = Fluent:CreateWindow({
-    Title = "Beta v1.1 PC",
-    SubTitle = "made by mxw",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(500, 400),
-    Acrylic = true,
-    Theme = "Darker",
-    MinimizeKey = Enum.KeyCode.RightControl
-})
-
-local Tabs = {
-    Main = Window:AddTab({ Title = "Main", Icon = "sword" }),
-}
-
-Tabs.Main:AddToggle("MyToggle", {
-    Title = "Kill aura",
-    Default = false
-}):OnChanged(function(value)
-    if value then
-        startFarming()
-    else
-        stopFarming()
-        Fluent:Notify({
-            Title = "Notification",
-            Content = "Tyrant of the Skie is stopped",
-            Duration = 3
-        })
-    end
-end)
-
-Tabs.Main:AddDropdown("Dropdown_Boss1", {
-    Title = "Select Boss world 1",
-    Values = boss,
-    Multi = false
-}):OnChanged(function(value)
-    selectedBosses.Boss1 = value
-    print("Selected Boss1:", value)
-end)
-
-Tabs.Main:AddDropdown("Dropdown_Boss2", {
-    Title = "Select Boss world 2",
-    Values = boss2,
-    Multi = false
-}):OnChanged(function(value)
-    selectedBosses.Boss2 = value
-    print("Selected Boss2:", value)
-end)
-
-Tabs.Main:AddDropdown("Dropdown_Boss3", {
-    Title = "Select Boss world 3",
-    Values = boss3,
-    Multi = false
-}):OnChanged(function(value)
-    selectedBosses.Boss3 = value
-    print("Selected Boss3:", value)
-end)
-
-Tabs.Main:AddToggle("Toggle_KillBoss", {
-    Title = "Kill Boss",
-    Default = false
-}):OnChanged(function(state)
-    print("Kill Boss Toggle:", state)
-    if state then
-        startKillBoss()
-    else
-        stopKillBoss()
-        Fluent:Notify({
-            Title = "Notification",
-            Content = "Kill Boss stopped",
-            Duration = 3
-        })
-    end
-end)
-
-Tabs.Main:AddSlider("AuraRangeSlider", {
-    Title = "Kill Aura Range",
-    Description = "Range to kill enemies",
-    Default = killAuraRange,
-    Min = 10,
-    Max = 10000,
-    Rounding = 0,
-}):OnChanged(function(value)
-    killAuraRange = value
-    print("Kill aura range set to:", killAuraRange)
-end)
-Tabs.Main:AddSlider("PullRangeSlider", {
-    Title = "BringRange",
-    Default = bringRange,
-    Min = 10,
-    Max = 250,
-    Rounding = 0,
-}):OnChanged(function(value)
-    pullRange = value
-    print("Pull range set to:", pullRange)
-end)
-
-Tabs.Main:AddDropdown("Dropdown", {
-    Title = "Select weapon",
-    Values = {"melee", "sword", "gun", "fruit"},
-    Multi = false,
-    Default = 1,
-}):OnChanged(function(value)
-    selectedWeaponName = value
-    print("Selected weapon:", value)
-end)
-
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:BuildConfigSection(Tabs.Main)
-InterfaceManager:BuildInterfaceSection(Tabs.Main)
-SaveManager:LoadAutoloadConfig()
-
-local Tabs = Window:AddTab({ Title = "Player", Icon = "person-standing" })
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CommF_ = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
-
-local toggles = {
-    Melee = false,
-    Defense = false,
-    Sword = false,
-    Gun = false,
-    ["Demon Fruit"] = false
-}
-
-local function addStatPoint(statName)
-    local args = {
-        "AddPoint",
-        statName,
-        1
-    }
-    local success, err = pcall(function()
-        CommF_:InvokeServer(unpack(args))
-    end)
-    if not success then
-        warn("Failed to add point to", statName, ":", err)
-    end
-end
-
-for statName, _ in pairs(toggles) do
-    Tabs:AddToggle("Toggle_" .. statName, {
-        Title = "Auto Add " .. statName,
-        Default = false
-    }):OnChanged(function(state)
-        toggles[statName] = state
-
-        if state then
-            spawn(function()
-                while toggles[statName] do
-                    addStatPoint(statName)
-                    task.wait(.1)
-                end
-            end)
-        end
-    end)
-    end
-
-
-Tabs:AddToggle("Toggle_V3", {
-    Title = "Activate V3",
-    Default = false,
-}):OnChanged(function(value)
-    useV3 = value
-    if value then
-        task.spawn(runV3Loop)
-    end
-end)
-
-Tabs:AddToggle("Toggle_V4", {
-    Title = "Activate V4",
-    Default = false,
-}):OnChanged(function(value)
-    useV4 = value
-    if value then
-        task.spawn(runV4Loop)
-    end
-end)
-
-local Tabq = Window:AddTab({ Title = "islands", Icon = "door-closed" })
-
-local mapFolder = workspace:WaitForChild("Map")
-
-local function getIslandPositions()
-    local parts = {}
-    local unwantedNames = {
-        ["WaterBase-Plane"] = true,
-        ["Fishmen"] = true,
-        ["TempleHitboxes"] = true,
-        ["MiniSky"] = true,
-        ["MiniSky1"] = true,
-        ["MiniSky2"] = true,
-        ["MiniSky3"] = true,
-    }
-
-    for _, obj in ipairs(mapFolder:GetChildren()) do
-        if unwantedNames[obj.Name] then
-            continue
-        end
-
-        if obj:IsA("BasePart") then
-            table.insert(parts, obj.Name)
-        elseif obj:IsA("Model") then
-            if obj.PrimaryPart then
-                table.insert(parts, obj.Name)
-            else
-                local part = obj:FindFirstChildWhichIsA("BasePart", true)
-                if part then
-                    table.insert(parts, obj.Name)
-                end
-            end
-        end
-    end
-
-    return parts
-end
-
-local locationNames = getIslandPositions()
-
-Tabq:AddDropdown("IslandDropdown", {
-    Title = "Teleport to Island",
-    Values = locationNames,
-    Multi = false,
-}):OnChanged(function(value)
-    local targetPos = nil
-
-    local success, result = pcall(function()
-        local obj = mapFolder:FindFirstChild(value)
-        if obj then
-            if obj:IsA("BasePart") then
-                return obj.Position
-            elseif obj:IsA("Model") then
-                if obj.PrimaryPart then
-                    return obj.PrimaryPart.Position
-                else
-                    local part = obj:FindFirstChildWhichIsA("BasePart", true)
-                    if part then
-                        return part.Position
-                    end
-                end
-            end
-        end
-        return nil
-    end)
-
-    targetPos = success and result or nil
-
-    if targetPos and humanoidRootPart then
-        tweenToPosition(humanoidRootPart, targetPos + Vector3.new(0, 50, 0))
-        Fluent:Notify({
-            Title = "Teleporting",
-            Content = "Going to: " .. value,
-            Duration = 3
-        })
-    else
-        Fluent:Notify({
-            Title = "Error",
-            Content = "Destination not found or invalid.",
-            Duration = 3
-        })
-    end
-end)
-
-local Taba = Window:AddTab({ Title = "Shop", Icon = "shopping-cart" })
-
-Taba:AddButton({
-    Title = "Black leg",
-    Description = "Buy the Black Leg",
-    Callback = function()
-        local args = {
-            "BuyBlackLeg"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-Taba:AddButton({
-    Title = "Electro",
-    Description = "Buy the Electro",
-    Callback = function()
-        local args = {
-            "BuyElectro"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-Taba:AddButton({
-    Title = "FishmanKarate",
-    Description = "Buy the FishmanKarate",
-    Callback = function()
-        local args = {
-            "BuyFishmanKarate"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-Taba:AddButton({
-    Title = "DragonClaw",
-    Description = "Buy the DragonClaw",
-    Callback = function()
-        local args = {
-            "BlackbeardReward",
-            "DragonClaw",
-            "2"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-Taba:AddButton({
-    Title = "Superhuman",
-    Description = "Buy the Superhuman",
-    Callback = function()
-        local args = {
-            "BuySuperhuman"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-Taba:AddButton({
-    Title = "DeathStep",
-    Description = "Buy the DeathStep",
-    Callback = function()
-        local args = {
-            "BuyDeathStep"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-Taba:AddButton({
-    Title = "SharkmanKarate",
-    Description = "Buy the SharkmanKarate",
-    Callback = function()
-        local args = {
-            "BuySharkmanKarate"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-
-Taba:AddButton({
-    Title = "DragonTalon",
-    Description = "Buy the DragonTalon",
-    Callback = function()
-        local args = {
-            "BuyDragonTalon"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-Taba:AddButton({
-    Title = "ElectricClaw",
-    Description = "Buy the ElectricClaw",
-    Callback = function()
-        local args = {
-	    "BuyElectricClaw"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-        end
-})
-
-
-Taba:AddButton({
-    Title = "Godhuman",
-    Description = "Buy the Godhuman",
-    Callback = function()
-        local args = {
-            "BuyGodhuman"
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-Taba:AddButton({
-    Title = "SanguineArt",
-    Description = "Buy the SanguineArt",
-    Callback = function()
-        local args = {
-            "BuySanguineArt",
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
-    end
-})
-
-
-local Players = game:GetService("Players")
+local RepStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
-local player = Players.LocalPlayer
+local TeleportService = game:GetService("TeleportService")
 
-local fluentUI = CoreGui:FindFirstChild("ScreenGui")
+--==================================================
+-- Player
+--==================================================
+local plr = Players.LocalPlayer
+local character = plr.Character or plr.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local walkSpeedValue = humanoid.WalkSpeed
 
+--==================================================
+-- UI Library
+--==================================================
+local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
+local win = DiscordLib:Window("MM</>4")
+local serv = win:Server("Main", "")
+local tgls = serv:Channel("Main")
+local btns = serv:Channel("FastTravel")
+local drops = serv:Channel("lock item")
+
+--==================================================
+-- Variables
+--==================================================
+local panPos, shakePos = nil, nil
+local args = {1}
+local runningPan, runningShake, runningSell = false, false, false
+local fillTextObj = nil
+local runningPanShake = false
+local runningLock = false
+local lockedCache = {}
+local autoSellAtCount = 500
+local PanSpeed = 28
+local Pan = {
+    "Rusty Pan", "Plastic Pan", "Metal Pan", "Silver Pan", "Golden Pan", 
+    "Magnetic Pan", "Meteoric Pan", "Diamond Pan", "Aurora Pan", 
+    "Worldshaker", "Dragonflame Pan", "Fossilized Pan"
+}
+local localMerchant = {"StarterTown", "Beach", "Cavern", "Delta", "Mountain", "RiverTown", "Volcano"}
+local merchantToIsland = {
+    StarterTown = "Rubble Creek",
+    Beach = "Sunset Beach",
+    Cavern = "Crystal Caverns",
+    Delta = "Fortune River Delta",
+    Mountain = "Frozen Peak",
+    RiverTown = "Fortune River",
+    Volcano = "The Magma Furnace"
+}
+local levels = {"None", "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Exotic"}
+local selectedLevel = "Common"
+local walkSpeedOptions = {16, 20, 22, 25}
+
+--==================================================
+-- Item Tables
+--==================================================
+local ItemTables = {
+    Common = {"Pyrite", "Silver", "Copper", "Gold", "Platinum", "Seashell", "Obsidian", "Amethyst", "Pearl", "Blue Ice"},
+    Uncommon = {"Titanium", "Neodymium", "Topaz", "Smoky Quartz", "Malachite", "Coral", "Sapphire", "Zircon"},
+    Rare = {"Ruby", "Lapis Lazuli", "Jade", "Silver Clamshell", "Peridot", "Onyx", "Meteoric Iron", "Azuralite", "Pyrelith", "Glacial Quartz"},
+    Epic = {"Iridium", "Moonstone", "Ammonite Fossil", "Ashvein", "Pyronium", "Emerald", "Golden Pearl", "Borealite", "Osmium", "Opal", "Aurorite", "Cobalt"},
+    Legendary = {"Rose Gold", "Palladium", "Cinnabar", "Diamond", "Uranium", "Luminum", "Volcanic Key", "Fire Opal", "Dragon Bone", "Catseye", "Starshine", "Aetherite", "Tourmaline", "Aquamarine"},
+    Mythic = {"Pink Diamond", "Painite", "Inferlume", "Vortessence", "Prismara", "Flarebloom", "Volcanic Core", "Frostshard", "Mythril"},
+    Exotic = {"Dinosaur Skull", "Cryonic Artifact"}
+}
+
+--==================================================
+-- Functions
+--==================================================
+
+-- Equip Pan
+local function equipPan()
+    for _, panName in ipairs(Pan) do
+        local tool = character:FindFirstChild(panName) or plr.Backpack:FindFirstChild(panName)
+        if tool and tool:IsA("Tool") then
+            tool.Parent = character
+            task.wait(0.1)
+            return tool
+        end
+    end
+    return nil
+end
+
+-- Get Fill Values
+local function getFillValues()
+    local fillTextObj = plr.PlayerGui:WaitForChild("ToolUI"):WaitForChild("FillingPan"):WaitForChild("FillText")
+    local text = fillTextObj:FindFirstChild("ContentText") and fillTextObj.ContentText or fillTextObj.Text or ""
+    local current, max = text:match("([%d%.]+)%s*/%s*([%d%.]+)")
+    return tonumber(current) or 0, tonumber(max) or 0
+end
+
+-- Inventory Size & Check
+local function getInventorySize()
+    local invGui = plr.PlayerGui:FindFirstChild("BackpackGui") and
+                   plr.PlayerGui.BackpackGui:FindFirstChild("Backpack") and
+                   plr.PlayerGui.BackpackGui.Backpack:FindFirstChild("Inventory") and
+                   plr.PlayerGui.BackpackGui.Backpack.Inventory:FindFirstChild("TopButtons") and
+                   plr.PlayerGui.BackpackGui.Backpack.Inventory.TopButtons:FindFirstChild("Unaffected") and
+                   plr.PlayerGui.BackpackGui.Backpack.Inventory.TopButtons.Unaffected:FindFirstChild("InventorySize")
+    if invGui and invGui:IsA("TextLabel") then
+        local current, max = invGui.Text:match("(%d+)%s*/%s*(%d+)")
+        if current and max then return tonumber(current), tonumber(max) end
+    end
+    return 0, 0
+end
+
+local function isInventoryFull()
+    local current, max = getInventorySize()
+    print("[Check Inventory] " .. current .. "/" .. max .. " | AutoSellAt: " .. autoSellAtCount)
+    if max == 0 then return false end
+    return current >= max or current >= autoSellAtCount
+end
+
+-- Find Closest Merchant
+local function findClosestMerchant()
+    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+
+    local npcsFolder = workspace:WaitForChild("NPCs")
+    local closest, closestDist = nil, math.huge
+
+    for _, islandFolder in ipairs(npcsFolder:GetChildren()) do
+        for _, npc in ipairs(islandFolder:GetChildren()) do
+            if npc.Name:match("Merchant") and npc:FindFirstChild("HumanoidRootPart") then
+                local dist = (hrp.Position - npc.HumanoidRootPart.Position).Magnitude
+                if dist < 300 and dist < closestDist then
+                    closest, closestDist = npc, dist
+                end
+            end
+        end
+    end
+
+    if not closest then
+        for _, islandFolder in ipairs(npcsFolder:GetChildren()) do
+            for _, npc in ipairs(islandFolder:GetChildren()) do
+                if npc.Name:match("Merchant") and npc:FindFirstChild("HumanoidRootPart") then
+                    local dist = (hrp.Position - npc.HumanoidRootPart.Position).Magnitude
+                    if dist < closestDist then
+                        closest, closestDist = npc, dist
+                    end
+                end
+            end
+        end
+    end
+
+    return closest
+end
+-- Lock Items
+local function lockItemsInLevel(level)
+    local items = ItemTables[level]
+    if not items then return end
+    for _, tool in ipairs(plr.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            for _, targetName in ipairs(items) do
+                if tool.Name == targetName then
+                    local isLocked = tool:GetAttribute("Locked")
+                    if not isLocked and not lockedCache[tool] then
+                        pcall(function()
+                            RepStorage:WaitForChild("Remotes"):WaitForChild("Inventory"):WaitForChild("ToggleLock"):FireServer(tool)
+                        end)
+                        lockedCache[tool] = true
+                        print("[Lock] Locked:", tool.Name)
+                    end
+                end
+            end
+        end
+    end
+end
+
+
+-- Discord UI Toggle Button
+local disUI = CoreGui:FindFirstChild("Discord")
 local toggleUI = Instance.new("ScreenGui")
 toggleUI.Name = "Uigame"
 toggleUI.ResetOnSpawn = false
 toggleUI.IgnoreGuiInset = true
-toggleUI.Parent = player:WaitForChild("PlayerGui")
+toggleUI.Parent = plr:WaitForChild("PlayerGui")
 
 local button = Instance.new("TextButton")
 button.Size = UDim2.new(0, 120, 0, 45)
-button.Position = UDim2.new(1, -130, 1, -70)
+button.Position = UDim2.new(1, -150, 1, -400)
 button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 button.TextColor3 = Color3.new(1, 1, 1)
 button.Font = Enum.Font.GothamBold
@@ -901,7 +193,255 @@ button.Text = "Toggle UI"
 button.Parent = toggleUI
 
 button.MouseButton1Click:Connect(function()
-    fluentUI.Enabled = not fluentUI.Enabled
-    button.Text = fluentUI.Enabled and "Disabled Ui" or "Enabled UI"
+    disUI.Enabled = not disUI.Enabled
+    button.Text = disUI.Enabled and "Disabled Ui" or "Enabled UI"
 end)
 
+-- Check Discord Instances & Auto-Rejoin
+local function checkDiscordInstances()
+    local count = 0
+    for _, gui in ipairs(CoreGui:GetChildren()) do
+        if gui.Name == "Discord" then count = count + 1 end
+    end
+    return count
+end
+
+local discordCount = checkDiscordInstances()
+if discordCount == 2 then
+    warn("[Auto-Rejoin] พบ Discord 2 อัน! กำลัง Rejoin...")
+    task.wait(0.5)
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, plr)
+    end)
+end
+
+--==================================================
+-- GUI & Toggles
+--==================================================
+
+-- Save Pan / Shake Buttons
+tgls:Button("savepan", function()
+    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        panPos = plr.Character.HumanoidRootPart.Position + Vector3.new(0,0,0)
+        print("[Auto Pan] Saved pan position:", panPos)
+    end
+end)
+
+tgls:Button("saveshake", function()
+    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        shakePos = plr.Character.HumanoidRootPart.Position + Vector3.new(0,0,0)
+        print("[Auto Pan] Saved shake position:", shakePos)
+    end
+end)
+
+-- WalkSpeed Dropdown & Button
+tgls:Dropdown("WalkSpeed", walkSpeedOptions, function(selected)
+    walkSpeedValue = selected
+end)
+
+tgls:Button("Change WalkSpeed", function()
+    if humanoid then
+        humanoid.WalkSpeed = walkSpeedValue
+        print("WalkSpeed updated to:", walkSpeedValue)
+    end
+end)
+
+-- Level Lock Dropdowns
+for i = 1, 8 do
+    drops:Dropdown("Select Level", levels, function(level)
+        selectedLevel = level
+    end)
+end
+
+drops:Toggle("Auto Lock", false, function(state)
+    runningLock = state
+    if state then
+        task.spawn(function()
+            while runningLock do
+                lockItemsInLevel(selectedLevel)
+                task.wait(2)
+            end
+        end)
+    else
+        lockedCache = {}
+    end
+end)
+
+--==================================================
+-- Auto-Pan & Shake
+--==================================================
+tgls:Toggle("Auto-Pan & Shake", false, function(state)
+    runningPanShake = state
+
+    task.spawn(function()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+
+        while runningPanShake do
+            if not panPos then
+                task.wait(0.1)
+                continue
+            end
+
+            local panTool = equipPan()
+            if not panTool then
+                task.wait(0.1)
+                continue
+            end
+
+            local current, max = getFillValues()
+            while current < max and runningPanShake do
+                local bv = Instance.new("BodyVelocity")
+                bv.Name = "Lock"
+                bv.Parent = hrp
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                bv.Velocity = Vector3.new(0,0,0)
+
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+
+                local distance = (panPos - hrp.Position).Magnitude
+                local tweenTime = distance / PanSpeed
+                local tween = TweenService:Create(hrp, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = CFrame.new(panPos)})
+                tween:Play()
+                tween.Completed:Wait()
+
+                pcall(function()
+                    panTool:WaitForChild("Scripts"):WaitForChild("Collect"):InvokeServer(0.1)
+                end)
+                task.wait(0.1)
+                current, max = getFillValues()
+
+                if bv and bv.Parent then bv:Destroy() end
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = true end
+                end
+            end
+
+            if shakePos then
+                local bv = Instance.new("BodyVelocity")
+                bv.Name = "Lock"
+                bv.Parent = hrp
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                bv.Velocity = Vector3.new(0,0,0)
+
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+
+                local distance = (shakePos - hrp.Position).Magnitude
+                local tweenTime = distance / PanSpeed
+                local tween = TweenService:Create(hrp, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = CFrame.new(shakePos)})
+                tween:Play()
+                tween.Completed:Wait()
+
+                current, max = getFillValues()
+                while current > 0 and runningPanShake do
+                    local scriptsFolder = panTool:FindFirstChild("Scripts")
+                    if scriptsFolder then
+                        local shakeEvent = scriptsFolder:FindFirstChild("Shake")
+                        if shakeEvent then shakeEvent:FireServer() end
+
+                        local panEvent = scriptsFolder:FindFirstChild("Pan")
+                        if panEvent then panEvent:InvokeServer() end
+                    end
+                    task.wait(0.1)
+                    current, max = getFillValues()
+                end
+
+                if bv and bv.Parent then bv:Destroy() end
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = true end
+                end
+            end
+        end
+    end)
+end)
+
+--==================================================
+-- Auto-Sell
+--==================================================
+tgls:Slider("Auto-Sell At", 1, 500, autoSellAtCount, function(value)
+    autoSellAtCount = value
+    print("[Auto-Sell] จะขายเมื่อกระเป๋ามีไอเท็ม:", autoSellAtCount)
+end)
+
+tgls:Toggle("Auto-Sell", false, function(state)
+    runningSell = state
+
+    task.spawn(function()
+        while runningSell do
+            if isInventoryFull() then
+                print("[Auto-Sell] กระเป๋าเต็ม! หา Merchant...")
+
+                local merchant = findClosestMerchant()
+                if merchant then
+                    local hrp = plr.Character:WaitForChild("HumanoidRootPart")
+
+                    hrp.CFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
+
+                    while isInventoryFull() and runningSell do
+                        pcall(function()
+                            RepStorage.Remotes.Shop.SellAll:InvokeServer()
+                        end)
+                        task.wait(0.5)
+                    end
+
+                    if panPos then
+                        hrp.CFrame = CFrame.new(panPos + Vector3.new(0,3,0))
+                    end
+                else
+                    print("[Auto-Sell] ❌ ไม่พบ Merchant รอ 2 วิแล้วลองใหม่")
+                    task.wait(2)
+                end
+            end
+            task.wait(1)
+        end
+    end)
+end)
+
+--==================================================
+-- FastTravel Buttons
+--==================================================
+local function setupFastTravelButton(name, dest)
+    btns:Button(name, function()
+        local args = {
+            workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild("Rubble Creek"),
+            workspace:WaitForChild("Map"):WaitForChild("Waypoints"):WaitForChild(dest)
+        }
+        RepStorage:WaitForChild("Remotes"):WaitForChild("Misc"):WaitForChild("FastTravel"):FireServer(unpack(args))
+    end)
+end
+
+local islands = {
+    "Rubble Creek", "Fortune River", "Sunset Beach", "Fortune River Delta",
+    "Crystal Caverns", "Caldera Island", "Windswept Beach", "The Magma Furnace",
+    "Frozen Peak", "Snowy Shores", "Frostbitten Path"
+}
+
+for _, island in ipairs(islands) do
+    setupFastTravelButton("goto " .. island, island)
+end
+
+btns:Button("Unlock travel", function()
+    local character = plr.Character or plr.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+    local waypoints = workspace:WaitForChild("Map"):WaitForChild("Waypoints")
+    for _, waypoint in pairs(waypoints:GetChildren()) do
+        local pos
+        if waypoint:IsA("Model") then
+            pos = waypoint:GetPivot().Position
+        elseif waypoint:IsA("BasePart") then
+            pos = waypoint.Position
+        end
+        if pos then
+            hrp.CFrame = CFrame.new(pos + Vector3.new(0,5,0))
+            for _, prompt in pairs(waypoint:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") then
+                    fireproximityprompt(prompt, math.huge)
+                end
+            end
+            task.wait(0.1)
+        end
+    end
+end)
