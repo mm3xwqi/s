@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>3.3")
+local win = DiscordLib:Window("MM</>3.4")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -178,23 +178,28 @@ local function findClosestMerchant()
     local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return nil end
 
-    local closest, closestDist = nil, math.huge
     local npcsFolder = workspace:WaitForChild("NPCs")
+    local closest, closestDist = nil, math.huge
 
-    local playerIsland, islandDist = nil, math.huge
     for _, islandFolder in ipairs(npcsFolder:GetChildren()) do
-        if islandFolder:FindFirstChild("Merchant") and islandFolder.Merchant:FindFirstChild("HumanoidRootPart") then
-            local dist = (hrp.Position - islandFolder.Merchant.HumanoidRootPart.Position).Magnitude
-            if dist < islandDist then
-                playerIsland, islandDist = islandFolder, dist
+        local merchant = islandFolder:FindFirstChild("Merchant")
+        if merchant and merchant:FindFirstChild("HumanoidRootPart") then
+            local dist = (hrp.Position - merchant.HumanoidRootPart.Position).Magnitude
+            if dist < 300 and dist < closestDist then
+                closest, closestDist = merchant, dist
             end
         end
     end
 
-    if playerIsland then
-        local merchant = playerIsland:FindFirstChild("Merchant")
-        if merchant and merchant:FindFirstChild("HumanoidRootPart") then
-            closest = merchant
+    if not closest then
+        for _, islandFolder in ipairs(npcsFolder:GetChildren()) do
+            local merchant = islandFolder:FindFirstChild("Merchant")
+            if merchant and merchant:FindFirstChild("HumanoidRootPart") then
+                local dist = (hrp.Position - merchant.HumanoidRootPart.Position).Magnitude
+                if dist < closestDist then
+                    closest, closestDist = merchant, dist
+                end
+            end
         end
     end
 
