@@ -20,7 +20,7 @@ local walkSpeedValue = humanoid.WalkSpeed
 -- UI Library
 --==================================================
 local DiscordLib = loadstring(game:HttpGet "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/discord")()
-local win = DiscordLib:Window("MM</>4")
+local win = DiscordLib:Window("MM</>4.1")
 local serv = win:Server("Main", "")
 local tgls = serv:Channel("Main")
 local btns = serv:Channel("FastTravel")
@@ -373,29 +373,38 @@ tgls:Toggle("Auto-Sell", false, function(state)
         local hrp = character:WaitForChild("HumanoidRootPart")
 
         while runningSell do
-            if isInventoryFull() then
-                print("[Auto-Sell] กระเป๋าเต็ม! หา Merchant...")
+            -- เช็คว่าของในกระเป๋าถึงเกณฑ์ขายมั้ย
+            local current, max = getFillValues()
+            if current >= autoSellAtCount then
+                print("[Auto-Sell] เริ่มขาย -> ของในกระเป๋า:", current)
 
-                local merchant = findClosestMerchant()
-                if merchant then
-                    -- Warp ไป Merchant ทันที
-                    hrp.CFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
+                -- วนจนกว่าของในกระเป๋าจะเหลือ 0
+                while current > 0 and runningSell do
+                    local merchant = findClosestMerchant()
+                    if merchant and merchant:FindFirstChild("HumanoidRootPart") then
+                        -- Warp ไป Merchant
+                        hrp.CFrame = merchant.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
 
-                    -- Spam ขายจนกระเป๋าว่าง
-                    while isInventoryFull() and runningSell do
+                        -- กดขาย
                         pcall(function()
                             RepStorage.Remotes.Shop.SellAll:InvokeServer()
                         end)
-                        task.wait(0.3)
+
+                        task.wait(0.3) -- เวลารอให้เซิร์ฟประมวลผล
+                    else
+                        print("[Auto-Sell] ❌ ไม่เจอ Merchant")
+                        task.wait(1)
                     end
 
-                    -- กลับไป Pan Position ถ้ามี
-                    if panPos then
-                        hrp.CFrame = CFrame.new(panPos + Vector3.new(0,3,0))
-                    end
-                else
-                    print("[Auto-Sell] ❌ ไม่พบ Merchant รอ 2 วินาทีแล้วลองใหม่")
-                    task.wait(2)
+                    -- อัปเดตจำนวนของในกระเป๋า
+                    current, max = getFillValues()
+                end
+
+                print("[Auto-Sell] ✅ ขายเสร็จ ของในกระเป๋า = 0")
+
+                -- กลับไป Pan Position ถ้ามี
+                if panPos then
+                    hrp.CFrame = CFrame.new(panPos + Vector3.new(0,3,0))
                 end
             end
 
