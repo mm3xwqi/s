@@ -3,7 +3,7 @@ local player = game.Players.LocalPlayer
 local entitiesFolder = workspace:WaitForChild("Entities")
 
 local heightAbove = 5
-local speed = 50
+local speed = 350
 local autoFollow = false
 local character, hrp, bv
 local autoUseSkills = false
