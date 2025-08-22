@@ -106,7 +106,7 @@ end
 -- Fluent UI
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local Window = Fluent:CreateWindow({
-    Title = "TEST v1",
+    Title = "TEST v1.1",
     SubTitle = "by MW",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
@@ -147,8 +147,8 @@ local AutoFarmToggle = Tabs.Main:AddToggle("AutoFarmToggle", {
 if targetEntity and targetEntity:FindFirstChild("HumanoidRootPart") then
     local hrpMon = targetEntity.HumanoidRootPart
 
-    local backOffset = -hrpMon.CFrame.LookVector * 3 
-    local targetPos = hrpMon.Position + backOffset + Vector3.new(0, 3, 0)
+    local backOffset = -hrpMon.CFrame.LookVector * 2
+    local targetPos = hrpMon.Position + backOffset + Vector3.new(0, 4, 0)
 
     local step = 0.6
     hrp.CFrame = hrp.CFrame:lerp(
@@ -230,7 +230,7 @@ local SkillToggle = Tabs.Main:AddToggle("SkillToggle", {
     end
 })
 
-local screenGui = game:GetService("CoreGui"):WaitForChild("ScreenGui")
+local screenGui = game:GetService("CoreGui"):WaitForChild("ScreenGui") -- เปลี่ยนชื่อถ้าไม่ตรง
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "ToggleButtonGui"
