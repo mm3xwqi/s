@@ -53,13 +53,15 @@ end
 
 local function enableVelocity()
     if hrp then
-        if not hrp:FindFirstChild("Lock") then
-            local bv = Instance.new("BodyVelocity")
-            bv.Name = "Lock"
-            bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-            bv.Velocity = Vector3.new(0,0,0)
-            bv.Parent = hrp
+        local bodyVel = hrp:FindFirstChild("Lock")
+        if not bodyVel then
+            bodyVel = Instance.new("BodyVelocity")
+            bodyVel.Name = "Lock"
+            bodyVel.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            bodyVel.Velocity = Vector3.new(0,0,0)
+            bodyVel.Parent = hrp
         end
+        bv = bodyVel
     end
 end
 
@@ -77,7 +79,7 @@ local function moveTo(targetPos)
     while (Vector3.new(targetPos.X,0,targetPos.Z) - Vector3.new(hrp.Position.X,0,hrp.Position.Z)).Magnitude > 0.5 do
         local moveDir = Vector3.new(targetPos.X - hrp.Position.X, 0, targetPos.Z - hrp.Position.Z)
         bv.Velocity = moveDir.Unit * speed
-        hrp.Position = Vector3.new(hrp.Position.X, targetPos.Y + heightAbove, hrp.Position.Z)
+        hrp.Position = Vector3.new(hrp.Position.X, targetPos.Y, hrp.Position.Z)
         task.wait(0.03)
     end
     bv.Velocity = Vector3.new(0,0,0)
@@ -140,7 +142,7 @@ end)
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local Window = Fluent:CreateWindow({
     Title = "TEST",
-    SubTitle = "by MW v1.1",
+    SubTitle = "by MW v1.2",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -175,11 +177,20 @@ local AutoFarmToggle = Tabs.Main:AddToggle("AutoFarmToggle", {
                     end
 
                     if targetEntity and targetEntity:FindFirstChild("HumanoidRootPart") then
-                        local targetHRP = targetEntity.HumanoidRootPart
+                            local targetHRP = targetEntity.HumanoidRootPart
+                        
+                            -- คำนวณตำแหน่งข้างหลังมอน
+                            local distanceBehind = 5
+                            local behindPos = targetHRP.Position 
+                                - (targetHRP.CFrame.LookVector * distanceBehind) 
+                                + Vector3.new(0, heightAbove, 0)
 
-                        attackMonster(targetEntity)
-                    end
+                            moveTo(behindPos)
 
+                            hrp.CFrame = CFrame.lookAt(hrp.Position, targetHRP.Position)
+
+                            attackMonster(targetEntity)
+                        end
                     task.wait(0.05)
                 end
             end)
