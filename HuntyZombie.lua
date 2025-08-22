@@ -238,7 +238,7 @@ gui.Parent = game:GetService("CoreGui")
 
 local button = Instance.new("TextButton")
 button.Size = UDim2.new(0, 120, 0, 50)
-button.Position = UDim2.new(0, 20, 0, 20)
+button.Position = UDim2.new(1, -150, 1, -400)
 button.Text = "Open"
 button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
