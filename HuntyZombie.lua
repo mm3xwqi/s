@@ -74,7 +74,7 @@ end
 
 local function moveTo(targetPos)
     if not hrp or not bv then return end
-    while (Vector3.new(targetPos.X,0,targetPos.Z) - Vector3.new(hrp.Position.X,0,hrp.Position.Z)).Magnitude > 0.1 do
+    while (Vector3.new(targetPos.X,0,targetPos.Z) - Vector3.new(hrp.Position.X,0,hrp.Position.Z)).Magnitude > 0.5 do
         local moveDir = Vector3.new(targetPos.X - hrp.Position.X, 0, targetPos.Z - hrp.Position.Z)
         bv.Velocity = moveDir.Unit * speed
         hrp.Position = Vector3.new(hrp.Position.X, targetPos.Y + heightAbove, hrp.Position.Z)
@@ -140,7 +140,7 @@ end)
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local Window = Fluent:CreateWindow({
     Title = "TEST",
-    SubTitle = "by MW",
+    SubTitle = "by MW v1",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -175,18 +175,21 @@ local AutoFarmToggle = Tabs.Main:AddToggle("AutoFarmToggle", {
                     end
 
                     if targetEntity and targetEntity:FindFirstChild("HumanoidRootPart") then
-                        local targetPos = targetEntity.HumanoidRootPart.Position + Vector3.new(0, heightAbove, 0)
+                        local targetHRP = targetEntity.HumanoidRootPart
 
-                        local step = 0.2
-                        hrp.CFrame = hrp.CFrame:lerp(CFrame.new(targetPos), step)
-                                
-                        local bv = hrp:FindFirstChild("Lock")
-                        if bv then bv.Velocity = Vector3.new(0,0,0) end
+                        local distanceBehind = 5 
+                        local behindPos = targetHRP.Position 
+                            - (targetHRP.CFrame.LookVector * distanceBehind) 
+                            + Vector3.new(0, heightAbove, 0)
+
+                        moveTo(behindPos)
+
+                        hrp.CFrame = CFrame.lookAt(hrp.Position, targetHRP.Position)
 
                         attackMonster(targetEntity)
                     end
 
-                    task.wait(0.03)
+                    task.wait(0.05)
                 end
             end)
         else
