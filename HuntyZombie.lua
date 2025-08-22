@@ -109,6 +109,33 @@ if player.Character then
     setupCharacter(player.Character)
 end
 
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local player = Players.LocalPlayer
+
+local fluentUI = CoreGui:FindFirstChild("ScreenGui")
+
+local toggleUI = Instance.new("ScreenGui")
+toggleUI.Name = "Uigame"
+toggleUI.ResetOnSpawn = false
+toggleUI.IgnoreGuiInset = true
+toggleUI.Parent = player:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 120, 0, 45)
+button.Position = UDim2.new(1, -130, 1, -400)
+button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+button.TextColor3 = Color3.new(1, 1, 1)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 18
+button.Text = "Toggle UI"
+button.Parent = toggleUI
+
+button.MouseButton1Click:Connect(function()
+    fluentUI.Enabled = not fluentUI.Enabled
+    button.Text = fluentUI.Enabled and "Disabled Ui" or "Enabled UI"
+end)
+
 -- Fluent UI
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local Window = Fluent:CreateWindow({
@@ -217,30 +244,3 @@ local SkillToggle = Tabs.Main:AddToggle("SkillToggle", {
         end
     end
 })
-
-local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
-local player = Players.LocalPlayer
-
-local fluentUI = CoreGui:FindFirstChild("ScreenGui")
-
-local toggleUI = Instance.new("ScreenGui")
-toggleUI.Name = "Uigame"
-toggleUI.ResetOnSpawn = false
-toggleUI.IgnoreGuiInset = true
-toggleUI.Parent = player:WaitForChild("PlayerGui")
-
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 120, 0, 45)
-button.Position = UDim2.new(1, -130, 1, -400)
-button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-button.TextColor3 = Color3.new(1, 1, 1)
-button.Font = Enum.Font.GothamBold
-button.TextSize = 18
-button.Text = "Toggle UI"
-button.Parent = toggleUI
-
-button.MouseButton1Click:Connect(function()
-    fluentUI.Enabled = not fluentUI.Enabled
-    button.Text = fluentUI.Enabled and "Disabled Ui" or "Enabled UI"
-end)
