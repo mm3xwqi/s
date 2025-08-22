@@ -234,25 +234,24 @@ local SkillToggle = Tabs.Main:AddToggle("SkillToggle", {
     end
 })
 
-local screenGui = game:GetService("CoreGui"):WaitForChild("ScreenGui")
+local screenGui = game:GetService("CoreGui"):WaitForChild("ScreenGui") -- เปลี่ยนชื่อถ้าไม่ตรง
 
--- สร้างปุ่ม Toggle
-local buttonGui = Instance.new("ScreenGui")
-buttonGui.Name = "ToggleButtonGui"
-buttonGui.Parent = game:GetService("CoreGui")
+-- สร้าง ScreenGui ใหม่สำหรับปุ่ม
+local gui = Instance.new("ScreenGui")
+gui.Name = "ToggleButtonGui"
+gui.Parent = game:GetService("CoreGui")
 
+-- สร้างปุ่ม
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 120, 0, 45)
+button.Size = UDim2.new(0, 120, 0, 50)
 button.Position = UDim2.new(1, -150, 1, -400)
+button.Text = "Toggle GUI"
 button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-button.TextColor3 = Color3.new(1, 1, 1)
-button.Font = Enum.Font.GothamBold
-button.TextSize = 18
-button.Text = "Close UI"
-button.Parent = buttonGui
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Parent = gui
 
--- Toggle UI ของ ScreenGui เดิม
+-- ฟังก์ชันเมื่อกดปุ่ม
 button.MouseButton1Click:Connect(function()
     screenGui.Enabled = not screenGui.Enabled
-    button.Text = screenGui.Enabled and "Close UI" or "Open UI"
+    button.Text = screenGui.Enabled and "GUI Enabled" or "GUI Disabled"
 end)
