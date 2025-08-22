@@ -34,6 +34,10 @@ local Skills = {
         local args = { buffer.fromstring("\a\a\001"), {1755858775.553812} }
         remote:FireServer(unpack(args))
     end,
+    E = function()
+        local args = { buffer.fromstring("\v") }
+        remote:FireServer(unpack(args))
+    end,
 }
 
 -- Noclip
@@ -106,7 +110,7 @@ end
 -- Fluent UI
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local Window = Fluent:CreateWindow({
-    Title = "TEST v1.2",
+    Title = "TEST v1.3",
     SubTitle = "by MW",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
@@ -178,12 +182,12 @@ end
 local SkillMultiDropdown = Tabs.Main:AddDropdown("SkillMultiDropdown", {
     Title = "Select Skills",
     Description = "",
-    Values = {"Z", "X", "C", "G"},
+    Values = {"Z", "X", "C", "G", "E"},
     Multi = true,
     Default = {"Z", "C"},
 })
 
-local selectedSkills = { Z = true, X = false, C = true, G = false }
+local selectedSkills = { Z = true, X = false, C = true, G = false, E = false }
 SkillMultiDropdown:SetValue(selectedSkills)
 
 SkillMultiDropdown:OnChanged(function(Value)
