@@ -110,7 +110,7 @@ end
 -- Fluent UI
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local Window = Fluent:CreateWindow({
-    Title = "TEST v1.4",
+    Title = "TEST v1.5",
     SubTitle = "by MW",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
@@ -234,6 +234,9 @@ local SkillToggle = Tabs.Main:AddToggle("SkillToggle", {
     end
 })
 
+local screenGui = game:GetService("CoreGui"):WaitForChild("ScreenGui")
+
+-- สร้างปุ่ม Toggle
 local buttonGui = Instance.new("ScreenGui")
 buttonGui.Name = "ToggleButtonGui"
 buttonGui.Parent = game:GetService("CoreGui")
@@ -248,8 +251,8 @@ button.TextSize = 18
 button.Text = "Close UI"
 button.Parent = buttonGui
 
--- Toggle Fluent UI
+-- Toggle UI ของ ScreenGui เดิม
 button.MouseButton1Click:Connect(function()
-    Window.Enabled = not Window.Enabled
-    button.Text = Window.Enabled and "Close UI" or "Open UI"
+    screenGui.Enabled = not screenGui.Enabled
+    button.Text = screenGui.Enabled and "Close UI" or "Open UI"
 end)
