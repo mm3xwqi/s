@@ -140,7 +140,7 @@ end)
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local Window = Fluent:CreateWindow({
     Title = "TEST",
-    SubTitle = "by MW v1",
+    SubTitle = "by MW v1.1",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -176,15 +176,6 @@ local AutoFarmToggle = Tabs.Main:AddToggle("AutoFarmToggle", {
 
                     if targetEntity and targetEntity:FindFirstChild("HumanoidRootPart") then
                         local targetHRP = targetEntity.HumanoidRootPart
-
-                        local distanceBehind = 5 
-                        local behindPos = targetHRP.Position 
-                            - (targetHRP.CFrame.LookVector * distanceBehind) 
-                            + Vector3.new(0, heightAbove, 0)
-
-                        moveTo(behindPos)
-
-                        hrp.CFrame = CFrame.lookAt(hrp.Position, targetHRP.Position)
 
                         attackMonster(targetEntity)
                     end
