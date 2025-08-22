@@ -234,9 +234,9 @@ local SkillToggle = Tabs.Main:AddToggle("SkillToggle", {
     end
 })
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "ToggleButtonGui"
-gui.Parent = game:GetService("CoreGui")
+local buttonGui = Instance.new("ScreenGui")
+buttonGui.Name = "ToggleButtonGui"
+buttonGui.Parent = game:GetService("CoreGui")
 
 local button = Instance.new("TextButton")
 button.Size = UDim2.new(0, 120, 0, 45)
@@ -246,9 +246,10 @@ button.TextColor3 = Color3.new(1, 1, 1)
 button.Font = Enum.Font.GothamBold
 button.TextSize = 18
 button.Text = "Close UI"
-button.Parent = gui
+button.Parent = buttonGui
 
+-- Toggle Fluent UI
 button.MouseButton1Click:Connect(function()
-    gui.Enabled = not gui.Enabled
-    button.Text = gui.Enabled and "Close UI" or "Open UI"
+    Window.Enabled = not Window.Enabled
+    button.Text = Window.Enabled and "Close UI" or "Open UI"
 end)
