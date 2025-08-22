@@ -76,10 +76,9 @@ end
 
 local function moveTo(targetPos)
     if not hrp or not bv then return end
-    while (Vector3.new(targetPos.X,0,targetPos.Z) - Vector3.new(hrp.Position.X,0,hrp.Position.Z)).Magnitude > 0.5 do
+    while (Vector3.new(targetPos.X,0,targetPos.Z) - Vector3.new(hrp.Position.X,0,hrp.Position.Z)).Magnitude > 1 do
         local moveDir = Vector3.new(targetPos.X - hrp.Position.X, 0, targetPos.Z - hrp.Position.Z)
         bv.Velocity = moveDir.Unit * speed
-        hrp.Position = Vector3.new(hrp.Position.X, targetPos.Y, hrp.Position.Z)
         task.wait(0.03)
     end
     bv.Velocity = Vector3.new(0,0,0)
@@ -142,7 +141,7 @@ end)
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local Window = Fluent:CreateWindow({
     Title = "TEST",
-    SubTitle = "by MW v1.2",
+    SubTitle = "by MW v1.3",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -177,20 +176,24 @@ local AutoFarmToggle = Tabs.Main:AddToggle("AutoFarmToggle", {
                     end
 
                     if targetEntity and targetEntity:FindFirstChild("HumanoidRootPart") then
-                            local targetHRP = targetEntity.HumanoidRootPart
-                        
-                            -- คำนวณตำแหน่งข้างหลังมอน
-                            local distanceBehind = 5
-                            local behindPos = targetHRP.Position 
-                                - (targetHRP.CFrame.LookVector * distanceBehind) 
-                                + Vector3.new(0, heightAbove, 0)
-
-                            moveTo(behindPos)
-
-                            hrp.CFrame = CFrame.lookAt(hrp.Position, targetHRP.Position)
-
-                            attackMonster(targetEntity)
-                        end
+                                local targetHRP = targetEntity.HumanoidRootPart
+                            
+                                local distanceBehind = 5 -- ยืนห่างหลังมอน
+                                local behindPos = targetHRP.Position 
+                                    - (targetHRP.CFrame.LookVector * distanceBehind)
+                            
+                                -- ใช้ค่า Y เดิมของเรา + heightAbove (ไม่อิง Y ของหัวมอน)
+                                behindPos = Vector3.new(behindPos.X, hrp.Position.Y + heightAbove, behindPos.Z)
+                            
+                                -- เคลื่อนไปหลังมอน
+                                moveTo(behindPos)
+                            
+                                -- หันหน้าเข้าหามอน
+                                hrp.CFrame = CFrame.lookAt(hrp.Position, targetHRP.Position)
+                            
+                                -- โจมตี
+                                attackMonster(targetEntity)
+                            end
                     task.wait(0.05)
                 end
             end)
