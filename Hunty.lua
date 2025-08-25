@@ -1,10 +1,31 @@
 local player = game.Players.LocalPlayer
 local char = player.Character
 local hrp = char and char:FindFirstChild("HumanoidRootPart")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local RepStorage = game:GetService("ReplicatedStorage")
+local ByteNetReliable = RepStorage:WaitForChild("ByteNetReliable")
+local skillStates = {
+    Z = false,
+    X = false,
+    C = false,
+    E = false,
+    G = false
+}
+local lastUsed = {
+    Z = 0,
+    X = 0,
+    C = 0,
+    E = 0,
+    G = 0
+}
+local skillCooldown = 2
+
 
 local lib = loadstring(game:HttpGet"https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt")()
 
-local win = lib:Window("MW V1 beta",Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("MW v1 Beta",Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 local tab = win:Tab("Auto")
 
@@ -45,7 +66,7 @@ tab:Toggle("Auto Attack", false, function(state)
                     { os.clock() }
                 }
                 game:GetService("ReplicatedStorage"):WaitForChild("ByteNetReliable"):FireServer(unpack(args))
-                task.wait(0.00001)
+                task.wait()
             end
         end)
     end
@@ -70,6 +91,56 @@ tab:Toggle("Auto Collect", false, function(state)
                 task.wait()
             end
         end)
+    end
+end)
+
+local tabd = win:Tab("Skill")
+
+tabd:Toggle("Skill Z", false, function(state)
+    skillStates.Z = state
+end)
+
+tabd:Toggle("Skill X", false, function(state)
+    skillStates.X = state
+end)
+
+tabd:Toggle("Skill C", false, function(state)
+    skillStates.C = state
+end)
+
+tabd:Toggle("INF Skill E", false, function(state)
+    skillStates.E = state
+end)
+
+tabd:Toggle("Skill G", false, function(state)
+    skillStates.G = state
+end)
+
+local function useSkill(skill)
+    local args
+    if skill == "Z" then
+        args = {buffer.fromstring("\a\003\001"), {1756116897.145503}}
+    elseif skill == "X" then
+        args = {buffer.fromstring("\a\005\001"), {1756116899.176199}}
+    elseif skill == "C" then
+        args = {buffer.fromstring("\a\006\001"), {1756116902.587347}}
+    elseif skill == "E" then
+        args = {buffer.fromstring("\v")}
+    elseif skill == "G" then
+        args = {buffer.fromstring("\a\a\001"), {1756116983.926151}}
+    end
+    if args then
+        ByteNetReliable:FireServer(unpack(args))
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    local currentTime = tick()
+    for skill, state in pairs(skillStates) do
+        if state and (currentTime - lastUsed[skill] >= skillCooldown) then
+            useSkill(skill)
+            lastUsed[skill] = currentTime
+        end
     end
 end)
 
@@ -157,34 +228,26 @@ tabs:Toggle("Auto Generator", false, function(autoGen)
     if autoGen then
         task.spawn(function()
 
-            -- รอจน Entities และ DropItems ว่าง
-            repeat
-                local hasModels = false
+            local generator = workspace.Sewers.Rooms.BossRoom:WaitForChild("generator")
+            local gen = generator:WaitForChild("gen")
+            local pom = gen:WaitForChild("pom")
+
+            while autoGen do
+                local hasEntities = false
                 for _, child in ipairs(workspace.Entities:GetChildren()) do
                     if child:IsA("Model") then
-                        hasModels = true
+                        hasEntities = true
                         break
                     end
                 end
                 local hasDrops = #workspace.DropItems:GetChildren() > 0
-                task.wait(0.1)
-            until not hasModels and not hasDrops or not autoGen
 
-            if not autoGen then return end
-
-            -- หา generator.gen และ pom
-            local generator = workspace.Sewers.Rooms.BossRoom:WaitForChild("generator")
-            local genPart = generator:WaitForChild("gen")
-            local promptPart = genPart:WaitForChild("pom")
-            local prompt = promptPart:FindFirstChildWhichIsA("ProximityPrompt", true)
-
-            if genPart:IsA("BasePart") and prompt then
-                -- วาปและกดรัว ๆ จน prompt ปิด
-                while prompt.Enabled and autoGen do
-                    hrp.CFrame = genPart.CFrame  -- วาปตรง gen
-                    fireproximityprompt(prompt)  -- กดรัว ๆ
-                    task.wait(0.05)
+                if not hasEntities and not hasDrops and pom.Enabled then
+                    hrp.CFrame = gen.CFrame
+                    fireproximityprompt(pom)
                 end
+
+                task.wait(0.05)
             end
         end)
     end
