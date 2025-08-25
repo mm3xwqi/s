@@ -1,9 +1,10 @@
 local player = game.Players.LocalPlayer
-local hrp = player.Character and player.Character:WaitForChild("HumanoidRootPart")
+local char = player.Character
+local hrp = char and char:FindFirstChild("HumanoidRootPart")
 
 local lib = loadstring(game:HttpGet"https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt")()
 
-local win = lib:Window("PREVIEW",Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("MW V1 beta",Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 local tab = win:Tab("Auto")
 
@@ -19,10 +20,10 @@ tab:Toggle("Auto Teleport Entities", false, function(state)
                     for _, entity in ipairs(workspace.Entities:GetChildren()) do
                         if entity:IsA("Model") and entity:FindFirstChild("HumanoidRootPart") then
                             hrp.CFrame = entity.HumanoidRootPart.CFrame * CFrame.new(0, 3, 0)
-                            task.wait(.1)
+                            task.wait()
                         elseif entity:IsA("BasePart") then
                             hrp.CFrame = entity.CFrame * CFrame.new(0, 2, 4)
-                            task.wait(.1)
+                            task.wait()
                         end
                     end
                 end
@@ -57,10 +58,6 @@ tab:Toggle("Auto Collect", false, function(state)
     if teleportingDrops then
         task.spawn(function()
             while teleportingDrops do
-                local player = game.Players.LocalPlayer
-                local char = player.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-
                 if hrp then
                     for _, drop in ipairs(workspace.DropItems:GetChildren()) do
                         if drop:IsA("Model") and drop.PrimaryPart then
@@ -70,47 +67,125 @@ tab:Toggle("Auto Collect", false, function(state)
                         end
                     end
                 end
-                task.wait(.1)
+                task.wait()
             end
         end)
     end
 end)
 
 local tabb = win:Tab("World 1")
-local autoRadio = false
-
-tabb:Toggle("Auto Radio", false, function(state)
-    autoRadio = state
-
+tabb:Toggle("Auto Radio", false, function(autoRadio)
     if autoRadio then
         task.spawn(function()
-            local player = game.Players.LocalPlayer
-
-            while autoRadio do
-                local char = player.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-
-                local radioModel = workspace:FindFirstChild("School")
-                    and workspace.School.Rooms:FindFirstChild("RooftopBoss")
-                    and workspace.School.Rooms.RooftopBoss.StaticProps:FindFirstChild("jarst_radio")
-
-                if hrp and radioModel then
-                    local targetPart = radioModel.PrimaryPart or radioModel:FindFirstChildWhichIsA("BasePart")
-                    if targetPart then
-                        hrp.CFrame = targetPart.CFrame 
-
-                        local prompt = radioModel:FindFirstChildWhichIsA("ProximityPrompt", true)
-                        if prompt then
-                            task.wait(0.05)
-                            fireproximityprompt(prompt)
-                        end
+            -- รอจน Entities และ DropItems ว่าง
+            repeat
+                local hasModels = false
+                for _, child in ipairs(workspace.Entities:GetChildren()) do
+                    if child:IsA("Model") then
+                        hasModels = true
+                        break
                     end
                 end
-
+                local hasDrops = #workspace.DropItems:GetChildren() > 0
                 task.wait(0.1)
+            until not hasModels and not hasDrops or not autoRadio
+
+            if not autoRadio then return end
+
+            -- หา RadioObjective
+            local radioPart = workspace.School.Rooms.RooftopBoss:FindFirstChild("RadioObjective")
+            if hrp and radioPart and radioPart:IsA("BasePart") then
+                local prompt = radioPart:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if prompt then
+                    while prompt.Enabled and autoRadio do
+                        hrp.CFrame = radioPart.CFrame
+                        fireproximityprompt(prompt)
+                        task.wait()
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+tabb:Toggle("Auto Helicopter", false, function(autoHeli)
+    if autoHeli then
+        task.spawn(function()
+            local player = game.Players.LocalPlayer
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hrp = char:WaitForChild("HumanoidRootPart")
+
+            -- รอจน Entities และ DropItems ว่าง
+            repeat
+                local hasModels = false
+                for _, child in ipairs(workspace.Entities:GetChildren()) do
+                    if child:IsA("Model") then
+                        hasModels = true
+                        break
+                    end
+                end
+                local hasDrops = #workspace.DropItems:GetChildren() > 0
+                task.wait(15)
+            until not hasModels and not hasDrops or not autoHeli
+
+            if not autoHeli then return end
+
+            -- หา HeliObjective BasePart
+            local heliObj = workspace.School.Rooms.RooftopBoss:FindFirstChild("HeliObjective")
+            if not heliObj then return end
+
+            -- วาปไป HeliObjective
+            hrp.CFrame = heliObj.CFrame
+
+            -- หา ProximityPrompt ภายใน HeliObjective
+            local prompt = heliObj:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if prompt then
+                -- กดรัว ๆ จน prompt ปิด
+                while prompt.Enabled and autoHeli do
+                    hrp.CFrame = heliObj.CFrame
+                    fireproximityprompt(prompt)
+                    task.wait(0.05)
+                end
             end
         end)
     end
 end)
 
 local tabs = win:Tab("World 2")
+
+tabs:Toggle("Auto Generator", false, function(autoGen)
+    if autoGen then
+        task.spawn(function()
+
+            -- รอจน Entities และ DropItems ว่าง
+            repeat
+                local hasModels = false
+                for _, child in ipairs(workspace.Entities:GetChildren()) do
+                    if child:IsA("Model") then
+                        hasModels = true
+                        break
+                    end
+                end
+                local hasDrops = #workspace.DropItems:GetChildren() > 0
+                task.wait(0.1)
+            until not hasModels and not hasDrops or not autoGen
+
+            if not autoGen then return end
+
+            -- หา generator.gen และ pom
+            local generator = workspace.Sewers.Rooms.BossRoom:WaitForChild("generator")
+            local genPart = generator:WaitForChild("gen")
+            local promptPart = genPart:WaitForChild("pom")
+            local prompt = promptPart:FindFirstChildWhichIsA("ProximityPrompt", true)
+
+            if genPart:IsA("BasePart") and prompt then
+                -- วาปและกดรัว ๆ จน prompt ปิด
+                while prompt.Enabled and autoGen do
+                    hrp.CFrame = genPart.CFrame  -- วาปตรง gen
+                    fireproximityprompt(prompt)  -- กดรัว ๆ
+                    task.wait(0.05)
+                end
+            end
+        end)
+    end
+end)
