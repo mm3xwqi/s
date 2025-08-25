@@ -25,7 +25,7 @@ local skillCooldown = 2
 
 local lib = loadstring(game:HttpGet"https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt")()
 
-local win = lib:Window("MW v1.02 Beta",Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("MW v1.03 Beta",Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 local tab = win:Tab("Auto")
 
@@ -148,6 +148,7 @@ local tabb = win:Tab("World 1")
 tabb:Toggle("Auto Radio", false, function(autoRadio)
     if autoRadio then
         task.spawn(function()
+            -- รอจน Entities และ DropItems ว่าง
             repeat
                 local hasModels = false
                 for _, child in ipairs(workspace.Entities:GetChildren()) do
@@ -162,6 +163,7 @@ tabb:Toggle("Auto Radio", false, function(autoRadio)
 
             if not autoRadio then return end
 
+            -- หา RadioObjective
             local radioPart = workspace.School.Rooms.RooftopBoss:FindFirstChild("RadioObjective")
             if hrp and radioPart and radioPart:IsA("BasePart") then
                 local prompt = radioPart:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -184,6 +186,7 @@ tabb:Toggle("Auto Helicopter", false, function(autoHeli)
             local char = player.Character or player.CharacterAdded:Wait()
             local hrp = char:WaitForChild("HumanoidRootPart")
 
+            -- รอจน Entities และ DropItems ว่าง
             repeat
                 local hasModels = false
                 for _, child in ipairs(workspace.Entities:GetChildren()) do
@@ -198,13 +201,17 @@ tabb:Toggle("Auto Helicopter", false, function(autoHeli)
 
             if not autoHeli then return end
 
+            -- หา HeliObjective BasePart
             local heliObj = workspace.School.Rooms.RooftopBoss:FindFirstChild("HeliObjective")
             if not heliObj then return end
 
+            -- วาปไป HeliObjective
             hrp.CFrame = heliObj.CFrame
 
+            -- หา ProximityPrompt ภายใน HeliObjective
             local prompt = heliObj:FindFirstChildWhichIsA("ProximityPrompt", true)
             if prompt then
+                -- กดรัว ๆ จน prompt ปิด
                 while prompt.Enabled and autoHeli do
                     hrp.CFrame = heliObj.CFrame
                     fireproximityprompt(prompt)
@@ -242,6 +249,7 @@ tabs:Toggle("Auto Generator", false, function(autoGen)
                     if pom.Enabled then
                         hrp.CFrame = gen.CFrame
                         fireproximityprompt(pom)
+                        task.wait()
                     end
                 end
 
@@ -250,3 +258,25 @@ tabs:Toggle("Auto Generator", false, function(autoGen)
         end)
     end
 end)
+local ui = CoreGui:WaitForChild("ui")
+
+local toggleGui = Instance.new("ScreenGui")
+toggleGui.Name = "ToggleUI"
+toggleGui.Parent = CoreGui
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 120, 0, 45)
+button.Position = UDim2.new(1, -150, 1, -400)
+button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Text = "Toggle UI"
+button.Parent = toggleGui
+
+button.MouseButton1Click:Connect(function()
+    if ui then
+        ui.Enabled = not ui.Enabled
+        button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
+    end
+end)
+
+button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
