@@ -25,7 +25,7 @@ local skillCooldown = 2
 
 local lib = loadstring(game:HttpGet"https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt")()
 
-local win = lib:Window("MW v1.01 Beta",Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("MW v1.02 Beta",Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 local tab = win:Tab("Auto")
 
@@ -40,10 +40,10 @@ tab:Toggle("Auto Teleport Entities", false, function(state)
                     hrp = player.Character.HumanoidRootPart
                     for _, entity in ipairs(workspace.Entities:GetChildren()) do
                         if entity:IsA("Model") and entity:FindFirstChild("HumanoidRootPart") then
-                            hrp.CFrame = entity.HumanoidRootPart.CFrame * CFrame.new(0, 3, 0)
+                            hrp.CFrame = entity.HumanoidRootPart.CFrame * CFrame.new(0, 2, 3)
                             task.wait()
                         elseif entity:IsA("BasePart") then
-                            hrp.CFrame = entity.CFrame * CFrame.new(0, 2, 4)
+                            hrp.CFrame = entity.CFrame * CFrame.new(0, 2, 3)
                             task.wait()
                         end
                     end
@@ -148,7 +148,6 @@ local tabb = win:Tab("World 1")
 tabb:Toggle("Auto Radio", false, function(autoRadio)
     if autoRadio then
         task.spawn(function()
-            -- รอจน Entities และ DropItems ว่าง
             repeat
                 local hasModels = false
                 for _, child in ipairs(workspace.Entities:GetChildren()) do
@@ -163,7 +162,6 @@ tabb:Toggle("Auto Radio", false, function(autoRadio)
 
             if not autoRadio then return end
 
-            -- หา RadioObjective
             local radioPart = workspace.School.Rooms.RooftopBoss:FindFirstChild("RadioObjective")
             if hrp and radioPart and radioPart:IsA("BasePart") then
                 local prompt = radioPart:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -186,7 +184,6 @@ tabb:Toggle("Auto Helicopter", false, function(autoHeli)
             local char = player.Character or player.CharacterAdded:Wait()
             local hrp = char:WaitForChild("HumanoidRootPart")
 
-            -- รอจน Entities และ DropItems ว่าง
             repeat
                 local hasModels = false
                 for _, child in ipairs(workspace.Entities:GetChildren()) do
@@ -201,17 +198,13 @@ tabb:Toggle("Auto Helicopter", false, function(autoHeli)
 
             if not autoHeli then return end
 
-            -- หา HeliObjective BasePart
             local heliObj = workspace.School.Rooms.RooftopBoss:FindFirstChild("HeliObjective")
             if not heliObj then return end
 
-            -- วาปไป HeliObjective
             hrp.CFrame = heliObj.CFrame
 
-            -- หา ProximityPrompt ภายใน HeliObjective
             local prompt = heliObj:FindFirstChildWhichIsA("ProximityPrompt", true)
             if prompt then
-                -- กดรัว ๆ จน prompt ปิด
                 while prompt.Enabled and autoHeli do
                     hrp.CFrame = heliObj.CFrame
                     fireproximityprompt(prompt)
@@ -227,6 +220,9 @@ local tabs = win:Tab("World 2")
 tabs:Toggle("Auto Generator", false, function(autoGen)
     if autoGen then
         task.spawn(function()
+            local player = game.Players.LocalPlayer
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hrp = char:WaitForChild("HumanoidRootPart")
 
             local generator = workspace.Sewers.Rooms.BossRoom:WaitForChild("generator")
             local gen = generator:WaitForChild("gen")
@@ -242,9 +238,11 @@ tabs:Toggle("Auto Generator", false, function(autoGen)
                 end
                 local hasDrops = #workspace.DropItems:GetChildren() > 0
 
-                if not hasEntities and not hasDrops and pom.Enabled then
-                    hrp.CFrame = gen.CFrame
-                    fireproximityprompt(pom)
+                if not hasEntities and not hasDrops then
+                    if pom.Enabled then
+                        hrp.CFrame = gen.CFrame
+                        fireproximityprompt(pom)
+                    end
                 end
 
                 task.wait(0.05)
