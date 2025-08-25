@@ -14,7 +14,7 @@ local skillStates = {Z=false, X=false, C=false, E=false, G=false}
 local lastUsed = {Z=0, X=0, C=0, E=0, G=0}
 local skillCooldown = 2
 
--- Config folder/file
+-- Config folder/file (ไม่ใช้แล้ว แต่ยังคง load เฉยๆ)
 local configFolder = "configs"
 local configFile = configFolder .. "/settings.json"
 
@@ -34,10 +34,6 @@ local function loadConfig()
     return {}
 end
 
-local function saveConfig(settings)
-    writefile(configFile, HttpService:JSONEncode(settings))
-end
-
 local settings = loadConfig()
 
 -- Wait for character
@@ -51,7 +47,7 @@ end)
 
 -- UI library
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("MW v1.1.01", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("MW v1.1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 -- ======= Auto Tab =======
 local tab = win:Tab("Auto")
@@ -60,8 +56,6 @@ local tab = win:Tab("Auto")
 local teleporting = settings["AutoTeleportEntities"] or false
 tab:Toggle("Auto Teleport Entities", teleporting, function(state)
     teleporting = state
-    settings["AutoTeleportEntities"] = state
-    saveConfig(settings)
 
     if teleporting then
         task.spawn(function()
@@ -85,8 +79,6 @@ end)
 local attacking = settings["AutoAttack"] or false
 tab:Toggle("Auto Attack", attacking, function(state)
     attacking = state
-    settings["AutoAttack"] = state
-    saveConfig(settings)
 
     if attacking then
         task.spawn(function()
@@ -102,8 +94,6 @@ end)
 local teleportingDrops = settings["AutoCollect"] or false
 tab:Toggle("Auto Collect", teleportingDrops, function(state)
     teleportingDrops = state
-    settings["AutoCollect"] = state
-    saveConfig(settings)
 
     if teleportingDrops then
         task.spawn(function()
@@ -128,8 +118,6 @@ for _, skill in ipairs({"Z","X","C","E","G"}) do
     local default = settings[skillKey] or false
     tabd:Toggle("Skill "..skill, default, function(state)
         skillStates[skill] = state
-        settings[skillKey] = state
-        saveConfig(settings)
     end)
 end
 
@@ -167,8 +155,6 @@ local tabb = win:Tab("World 1")
 local autoRadio = settings["AutoRadio"] or false
 tabb:Toggle("Auto Radio", autoRadio, function(state)
     autoRadio = state
-    settings["AutoRadio"] = state
-    saveConfig(settings)
 
     if autoRadio then
         task.spawn(function()
@@ -203,8 +189,6 @@ end)
 local autoHeli = settings["AutoHelicopter"] or false
 tabb:Toggle("Auto Helicopter", autoHeli, function(state)
     autoHeli = state
-    settings["AutoHelicopter"] = state
-    saveConfig(settings)
 
     if autoHeli then
         task.spawn(function()
@@ -235,8 +219,6 @@ local tabs = win:Tab("World 2")
 local autoGen = settings["AutoGenerator"] or false
 tabs:Toggle("Auto Generator", autoGen, function(state)
     autoGen = state
-    settings["AutoGenerator"] = state
-    saveConfig(settings)
 
     if autoGen then
         task.spawn(function()
@@ -249,9 +231,7 @@ tabs:Toggle("Auto Generator", autoGen, function(state)
                 local hasDrops = #workspace.DropItems:GetChildren() > 0
 
                 if not hasEntities and not hasDrops and pom.Enabled then
-                    -- วาปไปหา generator
                     hrp.CFrame = gen.CFrame
-                    -- กด proximity รัวๆ
                     fireproximityprompt(pom)
                 end
 
@@ -285,7 +265,5 @@ button.MouseButton1Click:Connect(function()
     if ui then
         ui.Enabled = not ui.Enabled
         button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
-        settings["UIEnabled"] = ui.Enabled
-        saveConfig(settings)
     end
 end)
