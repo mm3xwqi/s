@@ -25,7 +25,7 @@ end)
 
 -- UI library
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("MW v1.1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("MW v1.1.01", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 -- ======= Auto Tab =======
 local tab = win:Tab("Auto")
@@ -37,16 +37,17 @@ tab:Toggle("Auto Teleport Entities", teleporting, function(state)
     if teleporting then
         task.spawn(function()
             while teleporting and hrp and char do
-                for _, entity in ipairs(workspace.Entities:GetChildren()) do
+                local entities = workspace.Entities:GetChildren()
+                for _, entity in ipairs(entities) do
+                    if not teleporting then break end
                     if entity:IsA("Model") and entity:FindFirstChild("HumanoidRootPart") then
                         hrp.CFrame = entity.HumanoidRootPart.CFrame * CFrame.new(0,2,3)
-                        task.wait()
                     elseif entity:IsA("BasePart") then
                         hrp.CFrame = entity.CFrame * CFrame.new(0,2,3)
-                        task.wait()
                     end
+                    task.wait(0.2)
                 end
-                task.wait(0.1)
+                task.wait(0.2)
             end
         end)
     end
@@ -60,7 +61,7 @@ tab:Toggle("Auto Attack", attacking, function(state)
         task.spawn(function()
             while attacking do
                 ByteNetReliable:FireServer(buffer.fromstring("\a\001\001"), {os.clock()})
-                task.wait()
+                task.wait(0.2)
             end
         end)
     end
@@ -73,14 +74,17 @@ tab:Toggle("Auto Collect", teleportingDrops, function(state)
     if teleportingDrops then
         task.spawn(function()
             while teleportingDrops and hrp do
-                for _, drop in ipairs(workspace.DropItems:GetChildren()) do
+                local drops = workspace.DropItems:GetChildren()
+                for _, drop in ipairs(drops) do
+                    if not teleportingDrops then break end
                     if drop:IsA("Model") and drop.PrimaryPart then
                         hrp.CFrame = drop.PrimaryPart.CFrame
                     elseif drop:IsA("BasePart") then
                         hrp.CFrame = drop.CFrame
                     end
+                    task.wait(0.15)
                 end
-                task.wait()
+                task.wait(0.25)
             end
         end)
     end
@@ -114,7 +118,7 @@ local function useSkill(skill)
     end
 end
 
-RunService.RenderStepped:Connect(function()
+RunService.Heartbeat:Connect(function()
     local currentTime = tick()
     for skill, state in pairs(skillStates) do
         if state and (currentTime - lastUsed[skill] >= skillCooldown) then
