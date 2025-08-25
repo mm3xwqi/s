@@ -31,7 +31,6 @@ local win = lib:Window("MW v1.1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.Rig
 local tab = win:Tab("Auto")
 
 -- Auto Teleport Entities
-local teleporting = settings["AutoTeleportEntities"] or false
 tab:Toggle("Auto Teleport Entities", teleporting, function(state)
     teleporting = state
 
@@ -54,7 +53,6 @@ tab:Toggle("Auto Teleport Entities", teleporting, function(state)
 end)
 
 -- Auto Attack
-local attacking = settings["AutoAttack"] or false
 tab:Toggle("Auto Attack", attacking, function(state)
     attacking = state
 
@@ -69,7 +67,6 @@ tab:Toggle("Auto Attack", attacking, function(state)
 end)
 
 -- Auto Collect Drops
-local teleportingDrops = settings["AutoCollect"] or false
 tab:Toggle("Auto Collect", teleportingDrops, function(state)
     teleportingDrops = state
 
@@ -129,8 +126,6 @@ end)
 
 -- ======= World 1 Tab =======
 local tabb = win:Tab("World 1")
-
-local autoRadio = settings["AutoRadio"] or false
 tabb:Toggle("Auto Radio", autoRadio, function(state)
     autoRadio = state
 
@@ -164,7 +159,6 @@ tabb:Toggle("Auto Radio", autoRadio, function(state)
     end
 end)
 
-local autoHeli = settings["AutoHelicopter"] or false
 tabb:Toggle("Auto Helicopter", autoHeli, function(state)
     autoHeli = state
 
@@ -194,12 +188,13 @@ end)
 
 -- ======= World 2 Tab =======
 local tabs = win:Tab("World 2")
-local autoGen = settings["AutoGenerator"] or false
-tabs:Toggle("Auto Generator", autoGen, function(state)
-    autoGen = state
-
+tabs:Toggle("Auto Generator", false, function(autoGen)
     if autoGen then
         task.spawn(function()
+            local player = game.Players.LocalPlayer
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hrp = char:WaitForChild("HumanoidRootPart")
+
             local generator = workspace.Sewers.Rooms.BossRoom:WaitForChild("generator")
             local gen = generator:WaitForChild("gen")
             local pom = gen:WaitForChild("pom")
