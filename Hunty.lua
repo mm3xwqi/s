@@ -69,10 +69,10 @@ tab:Toggle("Auto Teleport Entities", teleporting, function(state)
                 for _, entity in ipairs(workspace.Entities:GetChildren()) do
                     if entity:IsA("Model") and entity:FindFirstChild("HumanoidRootPart") then
                         hrp.CFrame = entity.HumanoidRootPart.CFrame * CFrame.new(0,2,3)
-                        task.wait(0.1)
+                        task.wait()
                     elseif entity:IsA("BasePart") then
                         hrp.CFrame = entity.CFrame * CFrame.new(0,2,3)
-                        task.wait(0.1)
+                        task.wait()
                     end
                 end
                 task.wait(0.1)
@@ -92,7 +92,7 @@ tab:Toggle("Auto Attack", attacking, function(state)
         task.spawn(function()
             while attacking do
                 ByteNetReliable:FireServer(buffer.fromstring("\a\001\001"), {os.clock()})
-                task.wait(0.1)
+                task.wait()
             end
         end)
     end
@@ -115,7 +115,7 @@ tab:Toggle("Auto Collect", teleportingDrops, function(state)
                         hrp.CFrame = drop.CFrame
                     end
                 end
-                task.wait(0.2)
+                task.wait()
             end
         end)
     end
