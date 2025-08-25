@@ -1,9 +1,5 @@
-local TweenService = game:GetService("TweenService")
 local player = game.Players.LocalPlayer
 local hrp = player.Character and player.Character:WaitForChild("HumanoidRootPart")
-
-
-
 
 local lib = loadstring(game:HttpGet"https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt")()
 
