@@ -1,7 +1,6 @@
 local HttpService = game:GetService("HttpService")
-local player = game.Players.LocalPlayer
-local char = player.Character
-local hrp = char and char:FindFirstChild("HumanoidRootPart")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
@@ -39,79 +38,88 @@ end
 
 local settings = loadConfig()
 
+-- Wait for character
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(c)
+    char = c
+    hrp = char:WaitForChild("HumanoidRootPart")
+end)
+
 -- UI library
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
 local win = lib:Window("testsave", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
--- Auto tab
+-- ======= Auto Tab =======
 local tab = win:Tab("Auto")
 
+-- Auto Teleport Entities
 local teleporting = settings["AutoTeleportEntities"] or false
 tab:Toggle("Auto Teleport Entities", teleporting, function(state)
     teleporting = state
     settings["AutoTeleportEntities"] = state
     saveConfig(settings)
+
     if teleporting then
         task.spawn(function()
-            while teleporting do
-                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    hrp = player.Character.HumanoidRootPart
-                    for _, entity in ipairs(workspace.Entities:GetChildren()) do
-                        if entity:IsA("Model") and entity:FindFirstChild("HumanoidRootPart") then
-                            hrp.CFrame = entity.HumanoidRootPart.CFrame * CFrame.new(0,2,3)
-                            task.wait(.1)
-                        elseif entity:IsA("BasePart") then
-                            hrp.CFrame = entity.CFrame * CFrame.new(0,2,3)
-                            task.wait(.1)
-                        end
+            while teleporting and hrp and char do
+                for _, entity in ipairs(workspace.Entities:GetChildren()) do
+                    if entity:IsA("Model") and entity:FindFirstChild("HumanoidRootPart") then
+                        hrp.CFrame = entity.HumanoidRootPart.CFrame * CFrame.new(0,2,3)
+                        task.wait(0.1)
+                    elseif entity:IsA("BasePart") then
+                        hrp.CFrame = entity.CFrame * CFrame.new(0,2,3)
+                        task.wait(0.1)
                     end
                 end
-                task.wait()
+                task.wait(0.1)
             end
         end)
     end
 end)
 
+-- Auto Attack
 local attacking = settings["AutoAttack"] or false
 tab:Toggle("Auto Attack", attacking, function(state)
     attacking = state
     settings["AutoAttack"] = state
     saveConfig(settings)
+
     if attacking then
         task.spawn(function()
             while attacking do
-                local args = {buffer.fromstring("\a\001\001"), {os.clock()}}
-                ByteNetReliable:FireServer(unpack(args))
-                task.wait()
+                ByteNetReliable:FireServer(buffer.fromstring("\a\001\001"), {os.clock()})
+                task.wait(0.1)
             end
         end)
     end
 end)
 
+-- Auto Collect Drops
 local teleportingDrops = settings["AutoCollect"] or false
 tab:Toggle("Auto Collect", teleportingDrops, function(state)
     teleportingDrops = state
     settings["AutoCollect"] = state
     saveConfig(settings)
+
     if teleportingDrops then
         task.spawn(function()
-            while teleportingDrops do
-                if hrp then
-                    for _, drop in ipairs(workspace.DropItems:GetChildren()) do
-                        if drop:IsA("Model") and drop.PrimaryPart then
-                            hrp.CFrame = drop.PrimaryPart.CFrame
-                        elseif drop:IsA("BasePart") then
-                            hrp.CFrame = drop.CFrame
-                        end
+            while teleportingDrops and hrp do
+                for _, drop in ipairs(workspace.DropItems:GetChildren()) do
+                    if drop:IsA("Model") and drop.PrimaryPart then
+                        hrp.CFrame = drop.PrimaryPart.CFrame
+                    elseif drop:IsA("BasePart") then
+                        hrp.CFrame = drop.CFrame
                     end
                 end
-                task.wait(.2)
+                task.wait(0.2)
             end
         end)
     end
 end)
 
--- Skill tab
+-- ======= Skill Tab =======
 local tabd = win:Tab("Skill")
 for _, skill in ipairs({"Z","X","C","E","G"}) do
     local skillKey = "Skill"..skill
@@ -151,12 +159,15 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- ======= World 1 Tab =======
 local tabb = win:Tab("World 1")
+
 local autoRadio = settings["AutoRadio"] or false
 tabb:Toggle("Auto Radio", autoRadio, function(state)
     autoRadio = state
     settings["AutoRadio"] = state
     saveConfig(settings)
+
     if autoRadio then
         task.spawn(function()
             repeat
@@ -172,15 +183,14 @@ tabb:Toggle("Auto Radio", autoRadio, function(state)
             until not hasModels and not hasDrops or not autoRadio
 
             if not autoRadio then return end
-
             local radioPart = workspace.School.Rooms.RooftopBoss:FindFirstChild("RadioObjective")
-            if hrp and radioPart and radioPart:IsA("BasePart") then
+            if hrp and radioPart then
                 local prompt = radioPart:FindFirstChildWhichIsA("ProximityPrompt", true)
                 if prompt then
                     while prompt.Enabled and autoRadio do
                         hrp.CFrame = radioPart.CFrame
                         fireproximityprompt(prompt)
-                        task.wait()
+                        task.wait(0.1)
                     end
                 end
             end
@@ -193,61 +203,46 @@ tabb:Toggle("Auto Helicopter", autoHeli, function(state)
     autoHeli = state
     settings["AutoHelicopter"] = state
     saveConfig(settings)
-           while true do
-            if not autoHeli then
-                task.wait(0.5)
-                continue
-            end
 
-            local main = workspace.School.Rooms.RooftopBoss.Chopper.Body:FindFirstChild("Main")
-            if main then
-                local hasModels = false
-                for _, child in ipairs(workspace.Entities:GetChildren()) do
-                    if child:IsA("Model") then
-                        hasModels = true
-                        break
-                    end
-                end
-                local hasDrops = #workspace.DropItems:GetChildren() > 0
+    if autoHeli then
+        task.spawn(function()
+            while autoHeli do
+                local main = workspace.School.Rooms.RooftopBoss.Chopper.Body:FindFirstChild("Main")
+                if main then
+                    local hasModels = #workspace.Entities:GetChildren() > 0
+                    local hasDrops = #workspace.DropItems:GetChildren() > 0
 
-                if not hasModels and not hasDrops then
-                    local heliObj = workspace.School.Rooms.RooftopBoss:FindFirstChild("HeliObjective")
-                    if heliObj then
-                        local prompt = heliObj:FindFirstChildWhichIsA("ProximityPrompt", true)
-                        if prompt and prompt.Enabled then
-                            fireproximityprompt(prompt)
+                    if not hasModels and not hasDrops then
+                        local heliObj = workspace.School.Rooms.RooftopBoss:FindFirstChild("HeliObjective")
+                        if heliObj then
+                            local prompt = heliObj:FindFirstChildWhichIsA("ProximityPrompt", true)
+                            if prompt and prompt.Enabled then
+                                fireproximityprompt(prompt)
+                            end
                         end
                     end
                 end
+                task.wait(0.5)
             end
-
-            task.wait(0.5)
-        end
-    end)
+        end)
+    end
 end)
 
+-- ======= World 2 Tab =======
 local tabs = win:Tab("World 2")
 local autoGen = settings["AutoGenerator"] or false
 tabs:Toggle("Auto Generator", autoGen, function(state)
     autoGen = state
     settings["AutoGenerator"] = state
     saveConfig(settings)
+
     if autoGen then
         task.spawn(function()
-
             local generator = workspace.Sewers.Rooms.BossRoom:WaitForChild("generator")
             local gen = generator:WaitForChild("gen")
             local pom = gen:WaitForChild("pom")
-
             repeat
-                local hasEntities = false
-                for _, child in ipairs(workspace.Entities:GetChildren()) do
-                    if child:IsA("Model") then
-                        hasEntities = true
-                        break
-                    end
-                end
-
+                local hasEntities = #workspace.Entities:GetChildren() > 0
                 local hasDrops = #workspace.DropItems:GetChildren() > 0
                 task.wait(0.1)
             until (not hasEntities and not hasDrops and pom.Enabled) or not autoGen
@@ -263,8 +258,7 @@ tabs:Toggle("Auto Generator", autoGen, function(state)
     end
 end)
 
-
--- Toggle UI button
+-- ======= Toggle UI Button =======
 local ui = CoreGui:WaitForChild("ui")
 local toggleGui = Instance.new("ScreenGui")
 toggleGui.Name = "ToggleUI"
