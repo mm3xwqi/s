@@ -14,28 +14,6 @@ local skillStates = {Z=false, X=false, C=false, E=false, G=false}
 local lastUsed = {Z=0, X=0, C=0, E=0, G=0}
 local skillCooldown = 2
 
--- Config folder/file (ไม่ใช้แล้ว แต่ยังคง load เฉยๆ)
-local configFolder = "configs"
-local configFile = configFolder .. "/settings.json"
-
-if not isfolder(configFolder) then
-    makefolder(configFolder)
-end
-
-local function loadConfig()
-    if isfile(configFile) then
-        local success, data = pcall(function()
-            return HttpService:JSONDecode(readfile(configFile))
-        end)
-        if success and type(data) == "table" then
-            return data
-        end
-    end
-    return {}
-end
-
-local settings = loadConfig()
-
 -- Wait for character
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
