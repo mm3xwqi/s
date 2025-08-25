@@ -41,7 +41,7 @@ local settings = loadConfig()
 
 -- UI library
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("MW v1.05 Beta", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("testsave", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 -- Auto tab
 local tab = win:Tab("Auto")
@@ -150,6 +150,119 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+local tabb = win:Tab("World 1")
+local autoRadio = settings["AutoRadio"] or false
+tabb:Toggle("Auto Radio", autoRadio, function(state)
+    autoRadio = state
+    settings["AutoRadio"] = state
+    saveConfig(settings)
+    if autoRadio then
+        task.spawn(function()
+            repeat
+                local hasModels = false
+                for _, child in ipairs(workspace.Entities:GetChildren()) do
+                    if child:IsA("Model") then
+                        hasModels = true
+                        break
+                    end
+                end
+                local hasDrops = #workspace.DropItems:GetChildren() > 0
+                task.wait(0.1)
+            until not hasModels and not hasDrops or not autoRadio
+
+            if not autoRadio then return end
+
+            local radioPart = workspace.School.Rooms.RooftopBoss:FindFirstChild("RadioObjective")
+            if hrp and radioPart and radioPart:IsA("BasePart") then
+                local prompt = radioPart:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if prompt then
+                    while prompt.Enabled and autoRadio do
+                        hrp.CFrame = radioPart.CFrame
+                        fireproximityprompt(prompt)
+                        task.wait()
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+local autoHeli = settings["AutoHelicopter"] or false
+tabb:Toggle("Auto Helicopter", autoHeli, function(state)
+    autoHeli = state
+    settings["AutoHelicopter"] = state
+    saveConfig(settings)
+           while true do
+            if not autoHeli then
+                task.wait(0.5)
+                continue
+            end
+
+            local main = workspace.School.Rooms.RooftopBoss.Chopper.Body:FindFirstChild("Main")
+            if main then
+                local hasModels = false
+                for _, child in ipairs(workspace.Entities:GetChildren()) do
+                    if child:IsA("Model") then
+                        hasModels = true
+                        break
+                    end
+                end
+                local hasDrops = #workspace.DropItems:GetChildren() > 0
+
+                if not hasModels and not hasDrops then
+                    local heliObj = workspace.School.Rooms.RooftopBoss:FindFirstChild("HeliObjective")
+                    if heliObj then
+                        local prompt = heliObj:FindFirstChildWhichIsA("ProximityPrompt", true)
+                        if prompt and prompt.Enabled then
+                            fireproximityprompt(prompt)
+                        end
+                    end
+                end
+            end
+
+            task.wait(0.5)
+        end
+    end)
+end)
+
+local tabs = win:Tab("World 2")
+local autoGen = settings["AutoGenerator"] or false
+tabs:Toggle("Auto Generator", autoGen, function(state)
+    autoGen = state
+    settings["AutoGenerator"] = state
+    saveConfig(settings)
+    if autoGen then
+        task.spawn(function()
+
+            local generator = workspace.Sewers.Rooms.BossRoom:WaitForChild("generator")
+            local gen = generator:WaitForChild("gen")
+            local pom = gen:WaitForChild("pom")
+
+            repeat
+                local hasEntities = false
+                for _, child in ipairs(workspace.Entities:GetChildren()) do
+                    if child:IsA("Model") then
+                        hasEntities = true
+                        break
+                    end
+                end
+
+                local hasDrops = #workspace.DropItems:GetChildren() > 0
+                task.wait(0.1)
+            until (not hasEntities and not hasDrops and pom.Enabled) or not autoGen
+
+            if not autoGen then return end
+
+            while autoGen and pom.Enabled do
+                hrp.CFrame = gen.CFrame
+                fireproximityprompt(pom)
+                task.wait(0.05)
+            end
+        end)
+    end
+end)
+
 
 -- Toggle UI button
 local ui = CoreGui:WaitForChild("ui")
