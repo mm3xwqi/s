@@ -6,6 +6,8 @@ local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local RepStorage = game:GetService("ReplicatedStorage")
 local ByteNetReliable = RepStorage:WaitForChild("ByteNetReliable")
+local char = player.Character or player.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
 
 -- Skill system
 local skillStates = {Z=false, X=false, C=false, E=false, G=false}
@@ -49,7 +51,7 @@ end)
 
 -- UI library
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("MW v1.1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("MW v1.1.01", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 -- ======= Auto Tab =======
 local tab = win:Tab("Auto")
@@ -241,17 +243,18 @@ tabs:Toggle("Auto Generator", autoGen, function(state)
             local generator = workspace.Sewers.Rooms.BossRoom:WaitForChild("generator")
             local gen = generator:WaitForChild("gen")
             local pom = gen:WaitForChild("pom")
-            repeat
+
+            while autoGen do
                 local hasEntities = #workspace.Entities:GetChildren() > 0
                 local hasDrops = #workspace.DropItems:GetChildren() > 0
-                task.wait(0.1)
-            until (not hasEntities and not hasDrops and pom.Enabled) or not autoGen
 
-            if not autoGen then return end
+                if not hasEntities and not hasDrops and pom.Enabled then
+                    -- วาปไปหา generator
+                    hrp.CFrame = gen.CFrame
+                    -- กด proximity รัวๆ
+                    fireproximityprompt(pom)
+                end
 
-            while autoGen and pom.Enabled do
-                hrp.CFrame = gen.CFrame
-                fireproximityprompt(pom)
                 task.wait(0.05)
             end
         end)
