@@ -6,15 +6,8 @@ local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local RepStorage = game:GetService("ReplicatedStorage")
 local ByteNetReliable = RepStorage:WaitForChild("ByteNetReliable")
-local char = player.Character or player.CharacterAdded:Wait()
-local hrp = char:WaitForChild("HumanoidRootPart")
 
--- Skill system
-local skillStates = {Z=false, X=false, C=false, E=false, G=false}
-local lastUsed = {Z=0, X=0, C=0, E=0, G=0}
-local skillCooldown = 2
-
--- Wait for character
+-- ==== Fix: ตัวแปรพื้นฐาน ====
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 
@@ -23,9 +16,23 @@ player.CharacterAdded:Connect(function(c)
     hrp = char:WaitForChild("HumanoidRootPart")
 end)
 
+-- กัน error ถ้า settings ยังไม่ประกาศ
+local settings = settings or {}
+
+-- กัน error ถ้า buffer ไม่มี
+local buffer = buffer or {}
+buffer.fromstring = buffer.fromstring or function(str) return str end
+
+-- ==== Flags ====
+local teleporting = false
+local attacking = false
+local teleportingDrops = false
+local autoRadio = false
+local autoHeli = false
+
 -- UI library
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("MW v1.1.01", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("MW v1.1.02", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 -- ======= Auto Tab =======
 local tab = win:Tab("Auto")
