@@ -42,7 +42,7 @@ tab:Toggle("Auto Fishing", Fishing, function(state)
 
                 local pos = getForwardCastPosition()
                 req:InvokeServer("CastLineAtLocation", pos, 100, true)
-                print("[AutoFishing] โยนเบ็ดไปข้างหน้า:", pos)
+                print("[AutoFishing] throwed:", pos)
 
                 task.wait(1)
                 req:InvokeServer("Catching", true, {fastBite = false})
