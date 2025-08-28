@@ -11,24 +11,25 @@ local sellRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):Wait
 local craftRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/Craft")
 
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("WASD", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("WASD1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 local tab = win:Tab("Auto")
 
 local Fishing = false
 
-tab:Toggle("Auto Fishing", AutoFishing, function(state)
-    AutoFishing = state
-    if AutoFishing then
+tab:Toggle("Auto Fishing", Fishing, function(state)
+    Fishing = state
+    if Fishing then
         task.spawn(function()
-            while AutoFishing do
+            while Fishing do
+                local req = game:GetService("ReplicatedStorage"):WaitForChild("FishReplicated"):WaitForChild("FishingRequest")
                 req:InvokeServer("CastLineAtLocation", pos, 100, true)
-                task.wait(1)
+                task.wait(0.2)
                 req:InvokeServer("Catching", true, {fastBite = false})
-                task.wait(1)
+                task.wait(0.2)
                 req:InvokeServer("Catch", 1, 0, 1)
-                task.wait(1)
+                task.wait(0.2)
                 req:InvokeServer("RemoveBobberFish")
-                task.wait(2)
+                task.wait(1)
             end
         end)
     end
