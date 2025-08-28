@@ -2,6 +2,7 @@ local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local player = game.Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
+local notifGui = player:WaitForChild("PlayerGui"):WaitForChild("Notifications")
 local water = workspace:WaitForChild("Map"):WaitForChild("WaterBase-Plane")
 local pos = water.Position
 local req = game:GetService("ReplicatedStorage"):WaitForChild("FishReplicated"):WaitForChild("FishingRequest")
@@ -10,7 +11,7 @@ local sellRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):Wait
 local craftRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/Craft")
 
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("fishing test", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("WASD", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 local tab = win:Tab("Auto")
 
 local Fishing = false
@@ -60,6 +61,25 @@ tab2:Toggle("Auto Craft Bait", AutoCraft, function(state)
                 task.wait(1)
             end
         end)
+    end
+end)
+local AutoNotif = false
+
+tab2:Toggle("Disabled Notification", AutoNotif, function(state)
+    AutoNotif = state
+    if AutoNotif then
+        task.spawn(function()
+            while AutoNotif do
+                if notifGui then
+                    notifGui.Enabled = false
+                end
+                task.wait(0.5)
+            end
+        end)
+    else
+        if notifGui then
+            notifGui.Enabled = true
+        end
     end
 end)
 
