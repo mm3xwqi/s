@@ -65,7 +65,7 @@ tab2:Toggle("Auto Craft Bait", AutoCraft, function(state)
 end)
 local AutoNotif = false
 
-tab2:Toggle("Disabled Notification", AutoNotif, function(state)
+tab2:Toggle("Disable/Enable Notification", AutoNotif, function(state)
     AutoNotif = state
     if AutoNotif then
         task.spawn(function()
