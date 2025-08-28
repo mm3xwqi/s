@@ -3,7 +3,6 @@ local Workspace = game:GetService("Workspace")
 local player = game.Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local notifGui = player:WaitForChild("PlayerGui"):WaitForChild("Notifications")
-local water = workspace:WaitForChild("Map"):WaitForChild("WaterBase-Plane")
 local req = game:GetService("ReplicatedStorage"):WaitForChild("FishReplicated"):WaitForChild("FishingRequest")
 
 local sellRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
@@ -13,7 +12,7 @@ local function getForwardCastPosition()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return Vector3.new(0,0,0) end
 
-    local forwardPos = hrp.Position + hrp.CFrame.LookVector * 7
+    local forwardPos = hrp.Position + hrp.CFrame.LookVector * 35
 
     return forwardPos
 end
@@ -29,7 +28,7 @@ local function equipRodWeapon()
 end
 
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("COSMIC v1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("CXSMIC 1.0.0.1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 local tab = win:Tab("Auto")
 
 local Fishing = false
