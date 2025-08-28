@@ -4,14 +4,32 @@ local player = game.Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local notifGui = player:WaitForChild("PlayerGui"):WaitForChild("Notifications")
 local water = workspace:WaitForChild("Map"):WaitForChild("WaterBase-Plane")
-local pos = water.Position
 local req = game:GetService("ReplicatedStorage"):WaitForChild("FishReplicated"):WaitForChild("FishingRequest")
 
 local sellRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
 local craftRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/Craft")
 
+local function getForwardCastPosition()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return Vector3.new(0,0,0) end
+
+    local forwardPos = hrp.Position + hrp.CFrame.LookVector * 7
+
+    return forwardPos
+end
+
+local function equipRodWeapon()
+    if not char or not player.Backpack then return end
+    for _, tool in ipairs(player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") and string.find(tool.Name, "Rod") then
+            tool.Parent = char
+            return
+        end
+    end
+end
+
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("WASD1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("COSMIC v1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 local tab = win:Tab("Auto")
 
 local Fishing = false
@@ -21,9 +39,13 @@ tab:Toggle("Auto Fishing", Fishing, function(state)
     if Fishing then
         task.spawn(function()
             while Fishing do
-                local req = game:GetService("ReplicatedStorage"):WaitForChild("FishReplicated"):WaitForChild("FishingRequest")
+                equipRodWeapon()
+
+                local pos = getForwardCastPosition()
                 req:InvokeServer("CastLineAtLocation", pos, 100, true)
-                task.wait(0.2)
+                print("[AutoFishing] โยนเบ็ดไปข้างหน้า:", pos)
+
+                task.wait(1)
                 req:InvokeServer("Catching", true, {fastBite = false})
                 task.wait(0.2)
                 req:InvokeServer("Catch", 1, 0, 1)
@@ -34,7 +56,6 @@ tab:Toggle("Auto Fishing", Fishing, function(state)
         end)
     end
 end)
-
 
 local tab2 = win:Tab("sell and buy bait")
 
