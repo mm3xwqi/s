@@ -7,6 +7,12 @@ local req = game:GetService("ReplicatedStorage"):WaitForChild("FishReplicated"):
 
 local sellRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
 local craftRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/Craft")
+local sellCUR = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
+
+local Fishing = false
+local AutoSell = false
+local AutoNotif = false
+local autosc = false
 
 local function getForwardCastPosition()
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -28,10 +34,8 @@ local function equipRodWeapon()
 end
 
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("CXSMIC 1.0.0.1", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("CXSMIC 1.0.0.2", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 local tab = win:Tab("Auto")
-
-local Fishing = false
 
 tab:Toggle("Auto Fishing", Fishing, function(state)
     Fishing = state
@@ -58,8 +62,6 @@ end)
 
 local tab2 = win:Tab("sell and buy bait")
 
-local AutoSell = false
-
 tab2:Toggle("Auto Sell Fish", AutoSell, function(state)
     AutoSell = state
     if AutoSell then
@@ -84,7 +86,6 @@ tab2:Toggle("Auto Craft Bait", AutoCraft, function(state)
         end)
     end
 end)
-local AutoNotif = false
 
 tab2:Toggle("Disable/Enable Notification", AutoNotif, function(state)
     AutoNotif = state
@@ -101,6 +102,22 @@ tab2:Toggle("Disable/Enable Notification", AutoNotif, function(state)
         if notifGui then
             notifGui.Enabled = true
         end
+    end
+end)
+
+tab2:Toggle("Auto SellCorruptedFish", autosc, function(state)
+    autosc = state
+    if autosc then
+        task.spawn(function()
+            while autosc do
+                local args = {
+                    "FishingNPC",
+                    "SellCorruptedFish"
+                }
+                sellRF:InvokeServer(unpack(args))
+                task.wait(1)
+            end
+        end)
     end
 end)
 
