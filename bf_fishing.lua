@@ -84,7 +84,7 @@ end
 -- ==============================
 
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("CXSMIC 1.2.0.5", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("CXSMIC 1.2.0.6", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 local tab = win:Tab("Auto")
 local tab2 = win:Tab("sell and buy bait")
 
@@ -106,9 +106,9 @@ tab:Toggle("Auto Fishing", Fishing, function(state)
                 local pos = getForwardCastPosition()
                 req:InvokeServer("CastLineAtLocation", pos, 100, true)
                 task.wait(1)
-                req:InvokeServer("Catching", true, {fastBite = false})
+                req:InvokeServer("Catching", true, {fastBite = true})
                 task.wait(0.2)
-                req:InvokeServer("Catch", 1, 100, 1)
+                req:InvokeServer("Catch", 1, 0, 1)
                 task.wait(0.2)
                 req:InvokeServer("RemoveBobberFish")
 
