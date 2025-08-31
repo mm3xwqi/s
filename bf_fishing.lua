@@ -75,12 +75,24 @@ tab2:Toggle("Auto Sell Fish", AutoSell, function(state)
 end)
 
 
-tab2:Toggle("Auto Craft Bait", AutoCraft, function(state)
+tab2:Toggle("Auto Craft Basic Bait", AutoCraft, function(state)
     AutoCraft = state
     if AutoCraft then
         task.spawn(function()
             while AutoCraft do
                 craftRF:InvokeServer("Craft", "Basic Bait", {})
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+tab2:Toggle("Auto Craft Good Bait", AutoCraft, function(state)
+    AutoCraft = state
+    if AutoCraft then
+        task.spawn(function()
+            while AutoCraft do
+                craftRF:InvokeServer("Craft", "Good Bait", {})
                 task.wait(1)
             end
         end)
