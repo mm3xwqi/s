@@ -7,7 +7,6 @@ local req = game:GetService("ReplicatedStorage"):WaitForChild("FishReplicated"):
 
 local sellRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
 local craftRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/Craft")
-local sellCUR = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
 
 local Fishing = false
 local AutoSell = false
@@ -81,18 +80,6 @@ tab2:Toggle("Auto Craft Basic Bait", AutoCraft, function(state)
         task.spawn(function()
             while AutoCraft do
                 craftRF:InvokeServer("Craft", "Basic Bait", {})
-                task.wait(1)
-            end
-        end)
-    end
-end)
-
-tab2:Toggle("Auto Craft Good Bait", AutoCraft, function(state)
-    AutoCraft = state
-    if AutoCraft then
-        task.spawn(function()
-            while AutoCraft do
-                craftRF:InvokeServer("Craft", "Good Bait", {})
                 task.wait(1)
             end
         end)
