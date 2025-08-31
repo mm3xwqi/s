@@ -1,26 +1,40 @@
+local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local player = game.Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local char = player.Character or player.CharacterAdded:Wait()
 local notifGui = player:WaitForChild("PlayerGui"):WaitForChild("Notifications")
-local req = game:GetService("ReplicatedStorage"):WaitForChild("FishReplicated"):WaitForChild("FishingRequest")
 
-local sellRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
-local craftRF = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/Craft")
+local req = ReplicatedStorage:WaitForChild("FishReplicated"):WaitForChild("FishingRequest")
+local sellRF = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
+local craftRF = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/Craft")
+local jobsRF = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
 
 local Fishing = false
+local autoQuest = false
 local AutoSell = false
 local AutoNotif = false
 local autosc = false
+local savedSpot = nil
+local rainbow = false
+
+-- ==============================
+-- Functions
+-- ==============================
 
 local function getForwardCastPosition()
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return Vector3.new(0,0,0) end
-
-    local forwardPos = hrp.Position + hrp.CFrame.LookVector * 35
-
-    return forwardPos
+    if not hrp then return Vector3.new(0, 0, 0) end
+    return hrp.Position + hrp.CFrame.LookVector * 15
 end
+
+local function onCharacterAdded(newChar)
+    char = newChar
+    task.wait(1)
+end
+player.CharacterAdded:Connect(onCharacterAdded)
 
 local function equipRodWeapon()
     if not char or not player.Backpack then return end
@@ -32,34 +46,131 @@ local function equipRodWeapon()
     end
 end
 
+local function removeBodyVelocity()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local bv = hrp:FindFirstChild("Lock")
+        if bv then bv:Destroy() end
+    end
+end
+
+local function tweenTo()
+    while Fishing do
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if savedSpot and hrp then
+            local bv = hrp:FindFirstChild("Lock")
+            if not bv then
+                bv = Instance.new("BodyVelocity")
+                bv.Name = "Lock"
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                bv.Velocity = Vector3.new(0, 0, 0)
+                bv.Parent = hrp
+            end
+
+            local distance = (hrp.Position - savedSpot.Position).Magnitude
+            local speed = 350
+            local travelTime = distance / speed
+
+            local tween = TweenService:Create(hrp, TweenInfo.new(travelTime, Enum.EasingStyle.Linear), {CFrame = savedSpot})
+            tween:Play()
+            tween.Completed:Wait()
+        end
+        task.wait(0.1)
+    end
+end
+
+-- ==============================
+-- UI
+-- ==============================
+
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("CXSMIC 1.0.0.2", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("CXSMIC 1.1.0.0", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 local tab = win:Tab("Auto")
+local tab2 = win:Tab("sell and buy bait")
+
+lib:Notification("Notification", "Welcome! Have fun using the cheat", "SURE")
+
+-- ==============================
+-- Auto Fishing Toggle
+-- ==============================
 
 tab:Toggle("Auto Fishing", Fishing, function(state)
     Fishing = state
     if Fishing then
+        task.spawn(tweenTo)
         task.spawn(function()
             while Fishing do
                 equipRodWeapon()
 
                 local pos = getForwardCastPosition()
                 req:InvokeServer("CastLineAtLocation", pos, 100, true)
-                print("[AutoFishing] throwed:", pos)
-
                 task.wait(1)
                 req:InvokeServer("Catching", true, {fastBite = false})
                 task.wait(0.2)
-                req:InvokeServer("Catch", 1, 0, 1)
+                req:InvokeServer("Catch", 1, 100, 1)
                 task.wait(0.2)
                 req:InvokeServer("RemoveBobberFish")
+                local args = {"Z", true}
+                ReplicatedStorage.Modules.Net.RF.JobToolAbilities:InvokeServer(unpack(args))
                 task.wait(1)
+            end
+            removeBodyVelocity()
+        end)
+    else
+        removeBodyVelocity()
+    end
+end)
+
+-- ==============================
+-- Save Fishing Spot
+-- ==============================
+
+tab:Button("Save Fishing Spot", function()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        savedSpot = hrp.CFrame
+        lib:Notification("Save Fishing Spot", "Spot saved!", "Ok")
+    end
+end)
+
+-- ==============================
+-- Auto Quest Toggle
+-- ==============================
+
+local questGui = player:WaitForChild("PlayerGui"):WaitForChild("Main"):WaitForChild("Quest")
+tab:Toggle("Auto Quest", autoQuest, function(state)
+    autoQuest = state
+    if autoQuest then
+        task.spawn(function()
+            while autoQuest do
+                if not questGui.Visible then
+                    local args = {"FishingNPC", "Angler", "AskQuest"}
+                    jobsRF:InvokeServer(unpack(args))
+
+                    task.wait(0.5)
+
+                    local checkArgs = {"FishingNPC", "Angler", "CheckQuest"}
+                    jobsRF:InvokeServer(unpack(checkArgs))
+                end
+                task.wait(2)
             end
         end)
     end
 end)
 
-local tab2 = win:Tab("sell and buy bait")
+-- ==============================
+-- Teleport Button
+-- ==============================
+
+tab:Button("Teleport To OniTemple", function()
+    local args = {"InitiateTeleportToTemple"}
+    ReplicatedStorage.Modules.Net.RF.OniTempleTransportation:InvokeServer(unpack(args))
+    lib:Notification("Notification", "Success", "Done")
+end)
+
+-- ==============================
+-- Sell / Craft Toggles
+-- ==============================
 
 tab2:Toggle("Auto Sell Fish", AutoSell, function(state)
     AutoSell = state
@@ -72,7 +183,6 @@ tab2:Toggle("Auto Sell Fish", AutoSell, function(state)
         end)
     end
 end)
-
 
 tab2:Toggle("Auto Craft Basic Bait", AutoCraft, function(state)
     AutoCraft = state
@@ -91,16 +201,12 @@ tab2:Toggle("Disable/Enable Notification", AutoNotif, function(state)
     if AutoNotif then
         task.spawn(function()
             while AutoNotif do
-                if notifGui then
-                    notifGui.Enabled = false
-                end
+                if notifGui then notifGui.Enabled = false end
                 task.wait(0.5)
             end
         end)
     else
-        if notifGui then
-            notifGui.Enabled = true
-        end
+        if notifGui then notifGui.Enabled = true end
     end
 end)
 
@@ -109,16 +215,36 @@ tab2:Toggle("Auto SellCorruptedFish", autosc, function(state)
     if autosc then
         task.spawn(function()
             while autosc do
-                local args = {
-                    "FishingNPC",
-                    "SellCorruptedFish"
-                }
-                sellRF:InvokeServer(unpack(args))
+                sellRF:InvokeServer("FishingNPC", "SellCorruptedFish")
                 task.wait(1)
             end
         end)
     end
 end)
+
+-- ==============================
+-- UI Color / Rainbow
+-- ==============================
+
+local changeclr = win:Tab("Change UI Color")
+changeclr:Toggle("Rainbow UI", false, function(state)
+    rainbow = state
+    if rainbow then
+        task.spawn(function()
+            local hue = 0
+            while rainbow do
+                hue = (hue + 0.005) % 1
+                local rainbowColor = Color3.fromHSV(hue, 1, 1)
+                lib:ChangePresetColor(rainbowColor)
+                task.wait(0.03)
+            end
+        end)
+    end
+end)
+
+-- ==============================
+-- Toggle UI Button
+-- ==============================
 
 local ui = CoreGui:WaitForChild("ui")
 local toggleGui = Instance.new("ScreenGui")
@@ -126,10 +252,10 @@ toggleGui.Name = "ToggleUI"
 toggleGui.Parent = CoreGui
 
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0,120,0,45)
-button.Position = UDim2.new(1,-150,1,-400)
-button.BackgroundColor3 = Color3.fromRGB(50,50,50)
-button.TextColor3 = Color3.fromRGB(255,255,255)
+button.Size = UDim2.new(0, 120, 0, 45)
+button.Position = UDim2.new(1, -150, 1, -400)
+button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
 button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
 button.Parent = toggleGui
 
