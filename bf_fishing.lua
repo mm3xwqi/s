@@ -84,7 +84,7 @@ end
 -- ==============================
 
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("CXSMIC 1.2.0.4", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("CXSMIC 1.2.0.5", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 local tab = win:Tab("Auto")
 local tab2 = win:Tab("sell and buy bait")
 
