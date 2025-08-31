@@ -27,7 +27,7 @@ local rainbow = false
 local function getForwardCastPosition()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return Vector3.new(0, 0, 0) end
-    return hrp.Position + hrp.CFrame.LookVector * 15
+    return hrp.Position + hrp.CFrame.LookVector * 35
 end
 
 local function onCharacterAdded(newChar)
@@ -84,7 +84,7 @@ end
 -- ==============================
 
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("CXSMIC 1.1.0.0", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("CXSMIC 1.2.0.4", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 local tab = win:Tab("Auto")
 local tab2 = win:Tab("sell and buy bait")
 
@@ -98,6 +98,7 @@ tab:Toggle("Auto Fishing", Fishing, function(state)
     Fishing = state
     if Fishing then
         task.spawn(tweenTo)
+
         task.spawn(function()
             while Fishing do
                 equipRodWeapon()
@@ -110,9 +111,14 @@ tab:Toggle("Auto Fishing", Fishing, function(state)
                 req:InvokeServer("Catch", 1, 100, 1)
                 task.wait(0.2)
                 req:InvokeServer("RemoveBobberFish")
-                local args = {"Z", true}
-                ReplicatedStorage.Modules.Net.RF.JobToolAbilities:InvokeServer(unpack(args))
-                task.wait(1)
+
+                game:GetService("ReplicatedStorage")
+                    :WaitForChild("Modules")
+                    :WaitForChild("Net")
+                    :WaitForChild("RF/JobToolAbilities")
+                    :InvokeServer("Z", true)
+
+                task.wait(.5)
             end
             removeBodyVelocity()
         end)
@@ -120,7 +126,6 @@ tab:Toggle("Auto Fishing", Fishing, function(state)
         removeBodyVelocity()
     end
 end)
-
 -- ==============================
 -- Save Fishing Spot
 -- ==============================
@@ -142,16 +147,26 @@ tab:Toggle("Auto Quest", autoQuest, function(state)
     autoQuest = state
     if autoQuest then
         task.spawn(function()
+            local jobsRF = game:GetService("ReplicatedStorage")
+                :WaitForChild("Modules")
+                :WaitForChild("Net")
+                :WaitForChild("RF/JobsRemoteFunction")
+            
             while autoQuest do
-                if not questGui.Visible then
-                    local args = {"FishingNPC", "Angler", "AskQuest"}
-                    jobsRF:InvokeServer(unpack(args))
+                local askArgs = {"FishingNPC", "Angler", "AskQuest"}
+                local success, err = pcall(function()
+                    jobsRF:InvokeServer(unpack(askArgs))
+                end)
+                if not success then warn("AskQuest failed:", err) end
 
-                    task.wait(0.5)
+                task.wait(0.5)
 
-                    local checkArgs = {"FishingNPC", "Angler", "CheckQuest"}
+                local checkArgs = {"FishingNPC", "Angler", "CheckQuest"}
+                local success2, err2 = pcall(function()
                     jobsRF:InvokeServer(unpack(checkArgs))
-                end
+                end)
+                if not success2 then warn("CheckQuest failed:", err2) end
+
                 task.wait(2)
             end
         end)
@@ -162,10 +177,13 @@ end)
 -- Teleport Button
 -- ==============================
 
-tab:Button("Teleport To OniTemple", function()
-    local args = {"InitiateTeleportToTemple"}
-    ReplicatedStorage.Modules.Net.RF.OniTempleTransportation:InvokeServer(unpack(args))
-    lib:Notification("Notification", "Success", "Done")
+tab:Button("Teleport To OniTemple", function() 
+local args = { 
+"InitiateTeleportToTemple" 
+    
+} 
+game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/OniTempleTransportation"):InvokeServer(unpack(args)) 
+lib:Notification("Notification", "Success", "Done") 
 end)
 
 -- ==============================
