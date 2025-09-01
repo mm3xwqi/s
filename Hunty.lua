@@ -10,7 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ByteNetReliable = ReplicatedStorage:WaitForChild("ByteNetReliable")
 local Doors = workspace:WaitForChild("Sewers"):WaitForChild("Doors")
 
-local offset = Vector3.new(1, -8, -1)
+local offset = Vector3.new(1, 8, -1)
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
