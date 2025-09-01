@@ -26,10 +26,9 @@ local function enableNoclip(character)
 end
 
 
-local function moveToTarget(targetPos, speed)
+function moveToTarget(targetPos, speed)
     if not hrp or not targetPos then return end
 
-    -- สร้าง BodyVelocity ถ้ายังไม่มี
     local bv = hrp:FindFirstChild("Lock")
     if not bv then
         bv = Instance.new("BodyVelocity")
@@ -44,14 +43,13 @@ local function moveToTarget(targetPos, speed)
         local distance = direction.Magnitude
 
         if distance > 0.5 then
-            -- Tween Velocity นิ่ม
             bv.Velocity = bv.Velocity:Lerp(direction.Unit * speed, 0.15)
         else
             bv.Velocity = bv.Velocity:Lerp(Vector3.new(0,0,0), 0.2)
         end
 
-        -- หันหน้าไปยัง target
-        local lookPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z) -- ยังคงความสูงตัวละคร
+        -- หันหน้าไปตามเป้าหมาย
+        local lookPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
         hrp.CFrame = CFrame.lookAt(hrp.Position, lookPos)
 
         enableNoclip(char)
@@ -80,7 +78,6 @@ local Tabs = {
 
 local TeleportToggle = Tabs.Main:AddToggle("TpToZombie", { Title = "Auto Clear Wave W2", Default = false })
 
--- Auto Clear Wave W2
 TeleportToggle:OnChanged(function(state)
     if state then
         task.spawn(function()
@@ -224,3 +221,30 @@ Fluent:Notify({
     Duration = 8
 })
 SaveManager:LoadAutoloadConfig()
+
+local CoreGui = game:GetService("CoreGui")
+local screenGui = CoreGui:WaitForChild("ScreenGui")
+
+local toggleGui = Instance.new("ScreenGui")
+toggleGui.Name = "ToggleButtonGui"
+toggleGui.Parent = CoreGui
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 150, 0, 50)
+button.Position = UDim2.new(1, -150, 1, -400)
+button.Text = "Hide UI"
+button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Font = Enum.Font.SourceSansBold
+button.TextScaled = true
+button.Parent = toggleGui
+
+button.MouseButton1Click:Connect(function()
+    if screenGui.Enabled then
+        screenGui.Enabled = false
+        button.Text = "Show UI"
+    else
+        screenGui.Enabled = true
+        button.Text = "Hide UI"
+    end
+end)
