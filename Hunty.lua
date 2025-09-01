@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ByteNetReliable = ReplicatedStorage:WaitForChild("ByteNetReliable")
 local Doors = workspace:WaitForChild("Sewers"):WaitForChild("Doors")
 
-local offset = Vector3.new(0, 12, 3)
+local offset = Vector3.new(1, 10, -1)
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
@@ -39,23 +39,25 @@ local function moveToTarget(targetPos, speed)
         bv.Parent = hrp
     end
 
-    -- Tween loop
     repeat
         local direction = (targetPos - hrp.Position)
         local distance = direction.Magnitude
 
         if distance > 0.5 then
-            -- ใช้ Lerp เพื่อให้ Velocity นิ่ม
+            -- Tween Velocity นิ่ม
             bv.Velocity = bv.Velocity:Lerp(direction.Unit * speed, 0.15)
         else
             bv.Velocity = bv.Velocity:Lerp(Vector3.new(0,0,0), 0.2)
         end
 
+        -- หันหน้าไปยัง target
+        local lookPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z) -- ยังคงความสูงตัวละคร
+        hrp.CFrame = CFrame.lookAt(hrp.Position, lookPos)
+
         enableNoclip(char)
         RunService.Heartbeat:Wait()
     until (hrp.Position - targetPos).Magnitude < 1
 
-    -- หยุดเมื่อถึง
     bv.Velocity = Vector3.new(0,0,0)
 end
 
@@ -77,10 +79,6 @@ local Tabs = {
 }
 
 local TeleportToggle = Tabs.Main:AddToggle("TpToZombie", { Title = "Auto Clear Wave W2", Default = false })
-
--- Toggle TpToZombie
--- กำหนด offset เดิม
-local offset = Vector3.new(0, 12, 0)
 
 -- Auto Clear Wave W2
 TeleportToggle:OnChanged(function(state)
@@ -146,6 +144,34 @@ Toggle:OnChanged(function(state)
                 }
                 game:GetService("ReplicatedStorage"):WaitForChild("ByteNetReliable"):FireServer(unpack(args))
                 task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+local SkillToggle = Tabs.Main:AddToggle("AutoSkills", {
+    Title = "Auto Skills",
+    Default = false
+})
+
+SkillToggle:OnChanged(function(state)
+    if state then
+        task.spawn(function()
+            local ByteNetReliable = ReplicatedStorage:WaitForChild("ByteNetReliable")
+            local skills = {
+                buffer.fromstring("\b\003\000"),
+                buffer.fromstring("\b\005\000"),
+                buffer.fromstring("\b\006\000"),
+	            buffer.fromstring("\f")
+            }
+
+            while SkillToggle.Value do
+                for _, skill in ipairs(skills) do
+                    if not SkillToggle.Value then break end
+                    ByteNetReliable:FireServer(skill)
+                    task.wait(0.1)
+                end
+                task.wait(0.2)
             end
         end)
     end
