@@ -66,7 +66,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Hunty Zombies",
+    Title = "Hunty Zombies v1.0",
     SubTitle = "by MW",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
@@ -142,6 +142,41 @@ Toggle:OnChanged(function(state)
                 }
                 game:GetService("ReplicatedStorage"):WaitForChild("ByteNetReliable"):FireServer(unpack(args))
                 task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+local DropWarpToggle = Tabs.Main:AddToggle("DropWarpToggle", {
+    Title = "Auto Warp DropItems",
+    Default = false
+})
+
+DropWarpToggle:OnChanged(function(state)
+    if state then
+        task.spawn(function()
+            local player = game.Players.LocalPlayer
+            local hrp = player.Character and player.Character:WaitForChild("HumanoidRootPart")
+            local RunService = game:GetService("RunService")
+            local DropItemsFolder = workspace:WaitForChild("DropItems")
+
+            while DropWarpToggle.Value do
+                for _, item in ipairs(DropItemsFolder:GetChildren()) do
+                    if item:IsA("BasePart") or item:IsA("Model") then
+                        local targetPos
+                        if item:IsA("Model") and item:FindFirstChild("PrimaryPart") then
+                            targetPos = item.PrimaryPart.Position
+                        elseif item:IsA("BasePart") then
+                            targetPos = item.Position
+                        end
+
+                        if targetPos then
+                            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0,3,0)) -- ลอยเล็กน้อยเหนือไอเท็ม
+                        end
+                    end
+                    task.wait(0.05)
+                end
+                task.wait(0.2)
             end
         end)
     end
