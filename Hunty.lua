@@ -1,3 +1,5 @@
+repeat wait() until game:IsLoaded() and game.Players.LocalPlayer 
+
 local player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local char = player.Character or player.CharacterAdded:Wait()
@@ -64,11 +66,10 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "MWQ",
+    Title = "Hunty Zombies",
     SubTitle = "by MW",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
-    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
 local Tabs = {
@@ -194,6 +195,24 @@ BringMobsToggle:OnChanged(function(state)
                     end
                 end
                 task.wait(1)
+            end
+        end)
+    end
+end)
+
+local ReplayToggle = Tabs.Main:AddToggle("ReplayToggle", {
+    Title = "Auto Replay",
+    Default = false
+})
+
+ReplayToggle:OnChanged(function(state)
+    if state then
+        task.spawn(function()
+            local voteReplay = game:GetService("ReplicatedStorage"):WaitForChild("external")
+                                :WaitForChild("Packets"):WaitForChild("voteReplay")
+            while ReplayToggle.Value do
+                voteReplay:FireServer()
+                task.wait(0.5)
             end
         end)
     end
