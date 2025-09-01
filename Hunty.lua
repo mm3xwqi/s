@@ -225,26 +225,22 @@ SaveManager:LoadAutoloadConfig()
 local CoreGui = game:GetService("CoreGui")
 local screenGui = CoreGui:WaitForChild("ScreenGui")
 
+local ui = CoreGui:WaitForChild("ScreenGui")
 local toggleGui = Instance.new("ScreenGui")
-toggleGui.Name = "ToggleButtonGui"
+toggleGui.Name = "ToggleUI"
 toggleGui.Parent = CoreGui
 
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 150, 0, 50)
+button.Size = UDim2.new(0, 120, 0, 45)
 button.Position = UDim2.new(1, -150, 1, -400)
-button.Text = "Hide UI"
 button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Font = Enum.Font.SourceSansBold
-button.TextScaled = true
+button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
 button.Parent = toggleGui
 
 button.MouseButton1Click:Connect(function()
-    if screenGui.Enabled then
-        screenGui.Enabled = false
-        button.Text = "Show UI"
-    else
-        screenGui.Enabled = true
-        button.Text = "Hide UI"
+    if ui then
+        ui.Enabled = not ui.Enabled
+        button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
     end
 end)
