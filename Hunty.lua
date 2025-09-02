@@ -13,9 +13,8 @@ local zombiesFolder = workspace:WaitForChild("Entities"):WaitForChild("Zombie")
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local noclipTouchedParts = {}
-local offset = Vector3.new(1, 6.5, -3)
+local offset = Vector3.new(0, 7.5, 0)
 
--- Character Added Event
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
     hrp = char:WaitForChild("HumanoidRootPart")
@@ -41,7 +40,6 @@ local function disableNoclip(character)
     end
     table.clear(noclipTouchedParts)
 
-    -- Remove lingering BodyVelocity
     if hrp then
         local bv = hrp:FindFirstChild("Lock")
         if bv then bv:Destroy() end
@@ -49,8 +47,9 @@ local function disableNoclip(character)
 end
 
 -- Movement Function
-function moveToTarget(targetPos, speed)
+function moveToTarget(targetPos)
     if not hrp or not targetPos then return end
+    local speed = 100
 
     local bv = hrp:FindFirstChild("Lock")
     if not bv then
@@ -62,17 +61,14 @@ function moveToTarget(targetPos, speed)
     end
 
     repeat
-        local direction = (targetPos - hrp.Position)
+        local direction = targetPos - hrp.Position
         local distance = direction.Magnitude
 
         if distance > 0.5 then
-            bv.Velocity = bv.Velocity:Lerp(direction.Unit * speed, 0.15)
+            bv.Velocity = direction.Unit * speed
         else
-            bv.Velocity = bv.Velocity:Lerp(Vector3.new(0,0,0), 0.2)
+            bv.Velocity = Vector3.new(0,0,0)
         end
-
-        local lookPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
-        hrp.CFrame = CFrame.lookAt(hrp.Position, lookPos)
 
         enableNoclip(char)
         RunService.Heartbeat:Wait()
@@ -87,7 +83,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Hunty Zombies v1.3",
+    Title = "Hunty Zombies",
     SubTitle = "by MW",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
@@ -108,7 +104,6 @@ TeleportToggle:OnChanged(function(state)
     if state then
         task.spawn(function()
             enableNoclip(char)
-            local speed = 200
             local player = game:GetService("Players").LocalPlayer
             local guiLabel = player.PlayerGui.MainScreen.ObjectiveDisplay.ObjectiveElement.List.Value.Label
 
