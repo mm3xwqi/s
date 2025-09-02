@@ -80,7 +80,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Hunty Zombies v1.0",
+    Title = "Hunty Zombies v1.1",
     SubTitle = "by MW",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
