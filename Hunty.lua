@@ -65,7 +65,7 @@ function moveToTarget(targetPos, speed)
         local direction = (targetPos - hrp.Position)
         local distance = direction.Magnitude
 
-        if distance > 0.1 then
+        if distance > 0.5 then
             bv.Velocity = bv.Velocity:Lerp(direction.Unit * speed, 0.15)
         else
             bv.Velocity = bv.Velocity:Lerp(Vector3.new(0,0,0), 0.2)
@@ -87,7 +87,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "Hunty Zombies v1.2",
+    Title = "Hunty Zombies v1.3",
     SubTitle = "by MW",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
