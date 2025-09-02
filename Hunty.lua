@@ -8,22 +8,37 @@ local zombiesFolder = workspace:WaitForChild("Entities"):WaitForChild("Zombie")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ByteNetReliable = ReplicatedStorage:WaitForChild("ByteNetReliable")
-local Doors = workspace:WaitForChild("Sewers"):WaitForChild("Doors")
+local noclipTouchedParts = {}
 
-local offset = Vector3.new(1, 8, -1)
+local offset = Vector3.new(1, 6.5, -1)
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
     hrp = char:WaitForChild("HumanoidRootPart")
-    enableNoclip(char)
+    table.clear(noclipTouchedParts)
 end)
 
 local function enableNoclip(character)
     if not character then return end
     for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
+        if part:IsA("BasePart") and part.CanCollide then
+            noclipTouchedParts[part] = true
             part.CanCollide = false
         end
+    end
+end
+
+local function disableNoclip(character)
+    for part in pairs(noclipTouchedParts) do
+        if part and part.Parent then
+            part.CanCollide = true
+        end
+    end
+    table.clear(noclipTouchedParts)
+
+    if hrp then
+        local bv = hrp:FindFirstChild("Lock")
+        if bv then bv:Destroy() end
     end
 end
 
@@ -50,7 +65,6 @@ function moveToTarget(targetPos, speed)
             bv.Velocity = bv.Velocity:Lerp(Vector3.new(0,0,0), 0.2)
         end
 
-        -- หันหน้าไปตามเป้าหมาย
         local lookPos = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
         hrp.CFrame = CFrame.lookAt(hrp.Position, lookPos)
 
@@ -84,12 +98,17 @@ TeleportToggle:OnChanged(function(state)
         task.spawn(function()
             enableNoclip(char)
             local speed = 200
+            local player = game:GetService("Players").LocalPlayer
+            local guiLabel = player.PlayerGui.MainScreen.ObjectiveDisplay.ObjectiveElement.List.Value.Label
 
             while TeleportToggle.Value do
                 local targetZombie = nil
                 for _, zombie in ipairs(zombiesFolder:GetChildren()) do
                     local hrpZ = zombie:FindFirstChild("HumanoidRootPart")
-                    if hrpZ then
+                    local healthBar = zombie:FindFirstChild("Head") 
+                                    and zombie.Head:FindFirstChild("EntityHealth") 
+                                    and zombie.Head.EntityHealth:FindFirstChild("HealthBar")
+                    if hrpZ and healthBar and healthBar.Bar.Size.X.Scale > 0 then
                         targetZombie = hrpZ
                         break
                     end
@@ -97,34 +116,69 @@ TeleportToggle:OnChanged(function(state)
 
                 if targetZombie then
                     moveToTarget(targetZombie.Position + offset, speed)
-
                     repeat
                         if not targetZombie.Parent then break end
                         moveToTarget(targetZombie.Position + offset, speed)
                         RunService.Heartbeat:Wait()
                     until not targetZombie.Parent or not TeleportToggle.Value
                 else
+                    if hrp:FindFirstChild("Lock") then
+                        hrp.Lock.Velocity = Vector3.new(0,0,0)
+                    end
+
+                    local bossRoom = workspace:FindFirstChild("Sewers")
+                        and workspace.Sewers:FindFirstChild("Rooms")
+                        and workspace.Sewers.Rooms:FindFirstChild("BossRoom")
+
+                    if bossRoom and bossRoom:FindFirstChild("generator") and bossRoom.generator:FindFirstChild("gen") then
+                        local gen = bossRoom.generator.gen
+                        local pom = gen:FindFirstChild("pom")
+                        if pom and pom:IsA("ProximityPrompt") and pom.Enabled then
+                            moveToTarget(gen.Position + Vector3.new(0,6,0), speed)
+                            task.wait(0.5)
+                            fireproximityprompt(pom)
+                            task.wait(1)
+                        end
+                    end
+
+                    local school = workspace:FindFirstChild("School")
+                    if school and school:FindFirstChild("Rooms") then
+                        local rooftop = school.Rooms:FindFirstChild("RooftopBoss")
+                        if rooftop and rooftop:FindFirstChild("RadioObjective") then
+                            local radioPrompt = rooftop.RadioObjective:FindFirstChildOfClass("ProximityPrompt")
+                            if radioPrompt and radioPrompt.Enabled then
+                                moveToTarget(rooftop.RadioObjective.Position + Vector3.new(0,6,0), speed)
+                                task.wait(0.5)
+                                fireproximityprompt(radioPrompt)
+                                task.wait(5)
+
+                                if guiLabel and guiLabel.ContentText == "0" then
+                                    task.wait(5)
+                                    local heliPrompt = rooftop:FindFirstChild("HeliObjective") and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
+                                    if heliPrompt and heliPrompt.Enabled then
+                                        moveToTarget(rooftop.HeliObjective.Position + Vector3.new(0,6,0), speed)
+                                        task.wait(0.5)
+                                        fireproximityprompt(heliPrompt)
+                                    end
+                                end
+                            end
+                        end
+                    end
+
                     task.wait(0.1)
                 end
-
-                local bossRoom = workspace:FindFirstChild("Sewers")
-                    and workspace.Sewers:FindFirstChild("Rooms")
-                    and workspace.Sewers.Rooms:FindFirstChild("BossRoom")
-
-                if bossRoom and bossRoom:FindFirstChild("generator") and bossRoom.generator:FindFirstChild("gen") then
-                    local gen = bossRoom.generator.gen
-                    local pom = gen:FindFirstChild("pom")
-                    if pom and pom:IsA("ProximityPrompt") and pom.Enabled then
-                        moveToTarget(gen.Position + Vector3.new(0,6,0), speed)
-                        task.wait(0.5)
-                        fireproximityprompt(pom)
-                        task.wait(1)
-                    end
-                end
-
-                task.wait(0.1)
             end
+
+            if hrp:FindFirstChild("Lock") then
+                hrp.Lock.Velocity = Vector3.new(0,0,0)
+            end
+            disableNoclip(char)
         end)
+    else
+        if hrp:FindFirstChild("Lock") then
+            hrp.Lock.Velocity = Vector3.new(0,0,0)
+        end
+        disableNoclip(char)
     end
 end)
 
@@ -148,7 +202,7 @@ Toggle:OnChanged(function(state)
 end)
 
 local DropWarpToggle = Tabs.Main:AddToggle("DropWarpToggle", {
-    Title = "Auto Warp DropItems",
+    Title = "Auto Collect",
     Default = false
 })
 
@@ -157,26 +211,26 @@ DropWarpToggle:OnChanged(function(state)
         task.spawn(function()
             local player = game.Players.LocalPlayer
             local hrp = player.Character and player.Character:WaitForChild("HumanoidRootPart")
-            local RunService = game:GetService("RunService")
             local DropItemsFolder = workspace:WaitForChild("DropItems")
 
             while DropWarpToggle.Value do
-                for _, item in ipairs(DropItemsFolder:GetChildren()) do
-                    if item:IsA("BasePart") or item:IsA("Model") then
+                if hrp then
+                    for _, item in ipairs(DropItemsFolder:GetChildren()) do
                         local targetPos
-                        if item:IsA("Model") and item:FindFirstChild("PrimaryPart") then
+
+                        if item:IsA("Model") and item.PrimaryPart then
                             targetPos = item.PrimaryPart.Position
                         elseif item:IsA("BasePart") then
                             targetPos = item.Position
                         end
 
                         if targetPos then
-                            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0,3,0)) -- ลอยเล็กน้อยเหนือไอเท็ม
+                            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                            task.wait(0.1)
                         end
                     end
-                    task.wait(0.05)
                 end
-                task.wait(0.2)
+                task.wait(0.3)
             end
         end)
     end
@@ -215,12 +269,10 @@ local BringMobsToggle = Tabs.Main:AddToggle("BringMobs", { Title = "Bring Mobs",
 BringMobsToggle:OnChanged(function(state)
     if state then
         task.spawn(function()
-            local ByteNetReliable = ReplicatedStorage:WaitForChild("ByteNetReliable")
-            local Doors = workspace:WaitForChild("Sewers"):WaitForChild("Doors")
-
             while BringMobsToggle.Value do
-                for _, door in ipairs(Doors:GetChildren()) do
-                    if door:IsA("Model") or door:IsA("Folder") or door:IsA("Part") then
+                local sewers = workspace:FindFirstChild("Sewers")
+                if sewers and sewers:FindFirstChild("Doors") then
+                    for _, door in ipairs(sewers.Doors:GetChildren()) do
                         local args = {
                             buffer.fromstring("\a\001"),
                             {door}
@@ -229,6 +281,19 @@ BringMobsToggle:OnChanged(function(state)
                         task.wait(0.1)
                     end
                 end
+
+                local school = workspace:FindFirstChild("School")
+                if school and school:FindFirstChild("Doors") then
+                    for _, door in ipairs(school.Doors:GetChildren()) do
+                        local args = {
+                            buffer.fromstring("\a\001"),
+                            {door}
+                        }
+                        ByteNetReliable:FireServer(unpack(args))
+                        task.wait(0.1)
+                    end
+                end
+
                 task.wait(1)
             end
         end)
