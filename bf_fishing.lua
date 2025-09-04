@@ -91,97 +91,91 @@ local Window = Library:Window({
 -- Sidebar Vertical Separator
 local SidebarLine = Instance.new("Frame")
 SidebarLine.Size = UDim2.new(0, 1, 1, 0)
-SidebarLine.Position = UDim2.new(0, 140, 0, 0) -- adjust if needed
+SidebarLine.Position = UDim2.new(0, 140, 0, 0)
 SidebarLine.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 SidebarLine.BorderSizePixel = 0
 SidebarLine.ZIndex = 5
 SidebarLine.Name = "SidebarLine"
-SidebarLine.Parent = game:GetService("CoreGui") -- Or Window.Gui if accessible
+SidebarLine.Parent = CoreGui
 
--- Tab
+-- Main Tab
 local Tab = Window:Tab({Title = "Main", Icon = "star"})
-    -- Section
-    Tab:Section({Title = "Main"})
+Tab:Section({Title = "Main"})
 
-    -- Toggle
-    Tab:Toggle({
-        Title = "Auto Fishing",
-        Desc = "",
-        Value = false,
-        Callback = function(state)
-    Fishing = state
-    if Fishing then
-        task.spawn(tweenTo)
-
-        task.spawn(function()
-            while Fishing do
-                equipRodWeapon()
-
-                local pos = getForwardCastPosition()
-                req:InvokeServer("CastLineAtLocation", pos, 100, true)
-                task.wait(1)
-                req:InvokeServer("Catching", true, {fastBite = true})
-                task.wait(0.2)
-                req:InvokeServer("Catch", 1, 0, 1)
-                task.wait(0.2)
-                req:InvokeServer("RemoveBobberFish")
-
-                game:GetService("ReplicatedStorage")
-                    :WaitForChild("Modules")
-                    :WaitForChild("Net")
-                    :WaitForChild("RF/JobToolAbilities")
-                    :InvokeServer("Z", true)
-
-                task.wait(.5)
-            end
+-- Auto Fishing Toggle
+Tab:Toggle({
+    Title = "Auto Fishing",
+    Desc = "",
+    Value = false,
+    Callback = function(state)
+        Fishing = state
+        if Fishing then
+            task.spawn(tweenTo)
+            task.spawn(function()
+                while Fishing do
+                    equipRodWeapon()
+                    local pos = getForwardCastPosition()
+                    req:InvokeServer("CastLineAtLocation", pos, 100, true)
+                    task.wait(1)
+                    req:InvokeServer("Catching", true, {fastBite = true})
+                    task.wait(0.2)
+                    req:InvokeServer("Catch", 1, 0, 1)
+                    task.wait(0.2)
+                    req:InvokeServer("RemoveBobberFish")
+                    ReplicatedStorage.Modules.Net["RF/JobToolAbilities"]:InvokeServer("Z", true)
+                    task.wait(0.5)
+                end
+                removeBodyVelocity()
+            end)
+        else
             removeBodyVelocity()
-        end)
-    else
-        removeBodyVelocity()
+        end
     end
-end
 })
 
-    Tab:Toggle({
-        Title = "Auto Sell",
-        Desc = "",
-        Value = false,
-        Callback = function(state)
-            AutoSell = state
-    if AutoSell then
-        task.spawn(function()
-            while AutoSell do
-                sellRF:InvokeServer("FishingNPC", "SellFish")
-                task.wait(1)
-            end
-        end)
-end
-end
+-- Auto Sell Toggle
+Tab:Toggle({
+    Title = "Auto Sell",
+    Desc = "",
+    Value = false,
+    Callback = function(state)
+        AutoSell = state
+        if AutoSell then
+            task.spawn(function()
+                while AutoSell do
+                    sellRF:InvokeServer("FishingNPC", "SellFish")
+                    task.wait(1)
+                end
+            end)
+        end
+    end
 })
 
-    Tab:Toggle({
-        Title = "Auto SellCorruptedFish",
-        Desc = "Event Oni",
-        Value = false,
-        Callback = function(state)
-                autosc = state
-    if autosc then
-        task.spawn(function()
-            while autosc do
-                sellRF:InvokeServer("FishingNPC", "SellCorruptedFish")
-                task.wait(1)
-            end
-        end)
-end
-end
-    })
+-- Auto Sell Corrupted Fish Toggle
+Tab:Toggle({
+    Title = "Auto SellCorruptedFish",
+    Desc = "Event Oni",
+    Value = false,
+    Callback = function(state)
+        autosc = state
+        if autosc then
+            task.spawn(function()
+                while autosc do
+                    sellRF:InvokeServer("FishingNPC", "SellCorruptedFish")
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
 
-    Tab:Toggle({
-            Title = "Auto Craft Bait",
-            Desc = "",
-            Value = false,
-            Callback = function(state)
-                AutoCraft = state
+-- Auto Craft Bait Toggle
+Tab:Toggle({
+    Title = "Auto Craft Bait",
+    Desc = "",
+    Value = false,
+    Callback = function(state)
+        AutoCraft = state
         if AutoCraft then
             task.spawn(function()
                 while AutoCraft do
@@ -193,42 +187,33 @@ end
     end
 })
 
-    Tab:Toggle({
-        Title = "Auto Quest",
-        Desc = "Unlock Rods",
-        Value = false,
-        Callback = function(state)
-                autoQuest = state
-    if autoQuest then
-        task.spawn(function()
-            local jobsRF = game:GetService("ReplicatedStorage")
-                :WaitForChild("Modules")
-                :WaitForChild("Net")
-                :WaitForChild("RF/JobsRemoteFunction")
-            
-            while autoQuest do
-                local askArgs = {"FishingNPC", "Angler", "AskQuest"}
-                local success, err = pcall(function()
-                    jobsRF:InvokeServer(unpack(askArgs))
-                end)
-                if not success then warn("AskQuest failed:", err) end
-
-                task.wait(0.5)
-
-                local checkArgs = {"FishingNPC", "Angler", "CheckQuest"}
-                local success2, err2 = pcall(function()
-                    jobsRF:InvokeServer(unpack(checkArgs))
-                end)
-                if not success2 then warn("CheckQuest failed:", err2) end
-
-                task.wait(2)
-            end
-        end)
-end
-end
+-- Auto Quest Toggle
+Tab:Toggle({
+    Title = "Auto Quest",
+    Desc = "Unlock Rods",
+    Value = false,
+    Callback = function(state)
+        autoQuest = state
+        if autoQuest then
+            task.spawn(function()
+                while autoQuest do
+                    local askArgs = {"FishingNPC", "Angler", "AskQuest"}
+                    pcall(function()
+                        jobsRF:InvokeServer(unpack(askArgs))
+                    end)
+                    task.wait(0.5)
+                    local checkArgs = {"FishingNPC", "Angler", "CheckQuest"}
+                    pcall(function()
+                        jobsRF:InvokeServer(unpack(checkArgs))
+                    end)
+                    task.wait(2)
+                end
+            end)
+        end
+    end
 })
 
-    -- Button
+-- Save Fishing Spot Button
 Tab:Button({
     Title = "Save Fishing Spot",
     Desc = "",
@@ -237,11 +222,10 @@ Tab:Button({
         if hrp then
             savedSpot = hrp.CFrame
             local pos = hrp.Position
-
             Window:Notify({
                 Title = "Save Fishing",
                 Desc = "Save Success at: X="..math.floor(pos.X)..", Y="..math.floor(pos.Y)..", Z="..math.floor(pos.Z),
-                Time = 3 
+                Time = 3
             })
         end
     end
@@ -249,28 +233,23 @@ Tab:Button({
 
 Window:Line()
 
-local Extra = Window:Tab({Title = "Teleport", Icon = ""}) do
-    Extra:Section({Title = "Config"})
-    
-    Extra:Button({
-        Title = "Teleport to Oni Temple",
-        Desc = "",
-        Callback = function()
-        local args = { 
-            "InitiateTeleportToTemple" 
-                
-            } 
-            game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/OniTempleTransportation"):InvokeServer(unpack(args))
-        end
-    })
-end
+-- Teleport Tab
+local Extra = Window:Tab({Title = "Teleport", Icon = ""})
+Extra:Section({Title = "Config"})
+Extra:Button({
+    Title = "Teleport to Oni Temple",
+    Desc = "",
+    Callback = function()
+        local args = {"InitiateTeleportToTemple"}
+        ReplicatedStorage.Modules.Net["RF/OniTempleTransportation"]:InvokeServer(unpack(args))
+    end
+})
 
 Window:Line()
 
--- Another Tab Example
+-- Misc Tab
 local Extra = Window:Tab({Title = "Misc", Icon = "tag"})
-    Extra:Section({Title = "About"})
-
+Extra:Section({Title = "About"})
 Extra:Button({
     Title = "Notifications",
     Desc = "Click to enable/disable notifications",
@@ -278,7 +257,6 @@ Extra:Button({
         if notifGui then
             notifEnabled = not notifEnabled
             notifGui.Enabled = notifEnabled
-
             Window:Notify({
                 Title = "Notifications",
                 Desc = notifEnabled and "Notifications Enabled!" or "Notifications Disabled!",
