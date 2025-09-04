@@ -49,7 +49,7 @@ end
 -- Movement Function
 function moveToTarget(targetPos)
     if not hrp or not targetPos then return end
-    local speed = 125
+    local speed = 100
 
     local bv = hrp:FindFirstChild("Lock")
     if not bv then
