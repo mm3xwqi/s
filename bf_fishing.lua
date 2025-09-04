@@ -5,24 +5,14 @@ local player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local char = player.Character or player.CharacterAdded:Wait()
-local notifGui = player:WaitForChild("PlayerGui"):WaitForChild("Notifications")
+local questGui = player:WaitForChild("PlayerGui"):WaitForChild("Main"):WaitForChild("Quest")
+local notifGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Notifications")
+local notifEnabled = true
 
 local req = ReplicatedStorage:WaitForChild("FishReplicated"):WaitForChild("FishingRequest")
 local sellRF = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
 local craftRF = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/Craft")
 local jobsRF = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/JobsRemoteFunction")
-
-local Fishing = false
-local autoQuest = false
-local AutoSell = false
-local AutoNotif = false
-local autosc = false
-local savedSpot = nil
-local rainbow = false
-
--- ==============================
--- Functions
--- ==============================
 
 local function getForwardCastPosition()
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -79,22 +69,46 @@ local function tweenTo()
     end
 end
 
--- ==============================
--- UI
--- ==============================
+-- Load UI Library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
 
-local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
-local win = lib:Window("CXSMIC 1.2.0.6", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
-local tab = win:Tab("Auto")
-local tab2 = win:Tab("sell and buy bait")
+-- Create Main Window
+local Window = Library:Window({
+    Title = "CXSMIC New UI!",
+    Desc = "Welcome! Have fun using the cheat",
+    Icon = 105059922903197,
+    Theme = "Dark",
+    Config = {
+        Keybind = Enum.KeyCode.LeftControl,
+        Size = UDim2.new(0, 500, 0, 400)
+    },
+    CloseUIButton = {
+        Enabled = true,
+        Text = "MW"
+    }
+})
 
-lib:Notification("Notification", "Welcome! Have fun using the cheat", "SURE")
+-- Sidebar Vertical Separator
+local SidebarLine = Instance.new("Frame")
+SidebarLine.Size = UDim2.new(0, 1, 1, 0)
+SidebarLine.Position = UDim2.new(0, 140, 0, 0) -- adjust if needed
+SidebarLine.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+SidebarLine.BorderSizePixel = 0
+SidebarLine.ZIndex = 5
+SidebarLine.Name = "SidebarLine"
+SidebarLine.Parent = game:GetService("CoreGui") -- Or Window.Gui if accessible
 
--- ==============================
--- Auto Fishing Toggle
--- ==============================
+-- Tab
+local Tab = Window:Tab({Title = "Main", Icon = "star"})
+    -- Section
+    Tab:Section({Title = "Main"})
 
-tab:Toggle("Auto Fishing", Fishing, function(state)
+    -- Toggle
+    Tab:Toggle({
+        Title = "Auto Fishing",
+        Desc = "",
+        Value = false,
+        Callback = function(state)
     Fishing = state
     if Fishing then
         task.spawn(tweenTo)
@@ -125,26 +139,66 @@ tab:Toggle("Auto Fishing", Fishing, function(state)
     else
         removeBodyVelocity()
     end
-end)
--- ==============================
--- Save Fishing Spot
--- ==============================
+end
+})
 
-tab:Button("Save Fishing Spot", function()
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        savedSpot = hrp.CFrame
-        lib:Notification("Save Fishing Spot", "Spot saved!", "Ok")
+    Tab:Toggle({
+        Title = "Auto Sell",
+        Desc = "",
+        Value = false,
+        Callback = function(state)
+            AutoSell = state
+    if AutoSell then
+        task.spawn(function()
+            while AutoSell do
+                sellRF:InvokeServer("FishingNPC", "SellFish")
+                task.wait(1)
+            end
+        end)
+end
+end
+})
+
+    Tab:Toggle({
+        Title = "Auto SellCorruptedFish",
+        Desc = "Event Oni",
+        Value = false,
+        Callback = function(state)
+                autosc = state
+    if autosc then
+        task.spawn(function()
+            while autosc do
+                sellRF:InvokeServer("FishingNPC", "SellCorruptedFish")
+                task.wait(1)
+            end
+        end)
+end
+end
+    })
+
+    Tab:Toggle({
+            Title = "Auto Craft Bait",
+            Desc = "",
+            Value = false,
+            Callback = function(state)
+                AutoCraft = state
+        if AutoCraft then
+            task.spawn(function()
+                while AutoCraft do
+                    craftRF:InvokeServer("Craft", "Basic Bait", {})
+                    task.wait(1)
+                end
+            end)
+        end
     end
-end)
+})
 
--- ==============================
--- Auto Quest Toggle
--- ==============================
-
-local questGui = player:WaitForChild("PlayerGui"):WaitForChild("Main"):WaitForChild("Quest")
-tab:Toggle("Auto Quest", autoQuest, function(state)
-    autoQuest = state
+    Tab:Toggle({
+        Title = "Auto Quest",
+        Desc = "Unlock Rods",
+        Value = false,
+        Callback = function(state)
+                autoQuest = state
     if autoQuest then
         task.spawn(function()
             local jobsRF = game:GetService("ReplicatedStorage")
@@ -170,116 +224,66 @@ tab:Toggle("Auto Quest", autoQuest, function(state)
                 task.wait(2)
             end
         end)
+end
+end
+})
+
+    -- Button
+Tab:Button({
+    Title = "Save Fishing Spot",
+    Desc = "",
+    Callback = function()
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            savedSpot = hrp.CFrame
+            local pos = hrp.Position
+
+            Window:Notify({
+                Title = "Save Fishing",
+                Desc = "Save Success at: X="..math.floor(pos.X)..", Y="..math.floor(pos.Y)..", Z="..math.floor(pos.Z),
+                Time = 3 
+            })
+        end
     end
-end)
+})
 
--- ==============================
--- Teleport Button
--- ==============================
+Window:Line()
 
-tab:Button("Teleport To OniTemple", function() 
-local args = { 
-"InitiateTeleportToTemple" 
+local Extra = Window:Tab({Title = "Teleport", Icon = ""}) do
+    Extra:Section({Title = "Config"})
     
-} 
-game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/OniTempleTransportation"):InvokeServer(unpack(args)) 
-lib:Notification("Notification", "Success", "Done") 
-end)
+    Extra:Button({
+        Title = "Teleport to Oni Temple",
+        Desc = "",
+        Callback = function()
+        local args = { 
+            "InitiateTeleportToTemple" 
+                
+            } 
+            game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RF/OniTempleTransportation"):InvokeServer(unpack(args))
+        end
+    })
+end
 
--- ==============================
--- Sell / Craft Toggles
--- ==============================
+Window:Line()
 
-tab2:Toggle("Auto Sell Fish", AutoSell, function(state)
-    AutoSell = state
-    if AutoSell then
-        task.spawn(function()
-            while AutoSell do
-                sellRF:InvokeServer("FishingNPC", "SellFish")
-                task.wait(1)
-            end
-        end)
+-- Another Tab Example
+local Extra = Window:Tab({Title = "Misc", Icon = "tag"})
+    Extra:Section({Title = "About"})
+
+Extra:Button({
+    Title = "Notifications",
+    Desc = "Click to enable/disable notifications",
+    Callback = function()
+        if notifGui then
+            notifEnabled = not notifEnabled
+            notifGui.Enabled = notifEnabled
+
+            Window:Notify({
+                Title = "Notifications",
+                Desc = notifEnabled and "Notifications Enabled!" or "Notifications Disabled!",
+                Time = 3
+            })
+        end
     end
-end)
-
-tab2:Toggle("Auto Craft Basic Bait", AutoCraft, function(state)
-    AutoCraft = state
-    if AutoCraft then
-        task.spawn(function()
-            while AutoCraft do
-                craftRF:InvokeServer("Craft", "Basic Bait", {})
-                task.wait(1)
-            end
-        end)
-    end
-end)
-
-tab2:Toggle("Disable/Enable Notification", AutoNotif, function(state)
-    AutoNotif = state
-    if AutoNotif then
-        task.spawn(function()
-            while AutoNotif do
-                if notifGui then notifGui.Enabled = false end
-                task.wait(0.5)
-            end
-        end)
-    else
-        if notifGui then notifGui.Enabled = true end
-    end
-end)
-
-tab2:Toggle("Auto SellCorruptedFish", autosc, function(state)
-    autosc = state
-    if autosc then
-        task.spawn(function()
-            while autosc do
-                sellRF:InvokeServer("FishingNPC", "SellCorruptedFish")
-                task.wait(1)
-            end
-        end)
-    end
-end)
-
--- ==============================
--- UI Color / Rainbow
--- ==============================
-
-local changeclr = win:Tab("Change UI Color")
-changeclr:Toggle("Rainbow UI", false, function(state)
-    rainbow = state
-    if rainbow then
-        task.spawn(function()
-            local hue = 0
-            while rainbow do
-                hue = (hue + 0.005) % 1
-                local rainbowColor = Color3.fromHSV(hue, 1, 1)
-                lib:ChangePresetColor(rainbowColor)
-                task.wait(0.03)
-            end
-        end)
-    end
-end)
-
--- ==============================
--- Toggle UI Button
--- ==============================
-
-local ui = CoreGui:WaitForChild("ui")
-local toggleGui = Instance.new("ScreenGui")
-toggleGui.Name = "ToggleUI"
-toggleGui.Parent = CoreGui
-
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 120, 0, 45)
-button.Position = UDim2.new(1, -150, 1, -400)
-button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
-button.Parent = toggleGui
-
-button.MouseButton1Click:Connect(function()
-    if ui then
-        ui.Enabled = not ui.Enabled
-        button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
-    end
-end)
+})
