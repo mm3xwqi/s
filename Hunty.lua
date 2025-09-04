@@ -1,5 +1,3 @@
-repeat wait() until game:IsLoaded() and game.Players.LocalPlayer 
-
 -- Services & Player
 local player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -137,7 +135,7 @@ TeleportToggle:OnChanged(function(state)
                         local gen = bossRoom.generator.gen
                         local pom = gen:FindFirstChild("pom")
                         if pom and pom:IsA("ProximityPrompt") and pom.Enabled then
-                            moveToTarget(gen.Position + Vector3.new(0,6,0), speed)
+                            moveToTarget(gen.Position + Vector3.new(0,0,0), speed)
                             task.wait(0.5)
                             fireproximityprompt(pom)
                             task.wait(1)
@@ -150,7 +148,7 @@ TeleportToggle:OnChanged(function(state)
                         if rooftop and rooftop:FindFirstChild("RadioObjective") then
                             local radioPrompt = rooftop.RadioObjective:FindFirstChildOfClass("ProximityPrompt")
                             if radioPrompt and radioPrompt.Enabled then
-                                moveToTarget(rooftop.RadioObjective.Position + Vector3.new(0,6,0), speed)
+                                moveToTarget(rooftop.RadioObjective.Position + Vector3.new(0,0,0), speed)
                                 task.wait(0.5)
                                 fireproximityprompt(radioPrompt)
                                 task.wait(5)
@@ -159,7 +157,7 @@ TeleportToggle:OnChanged(function(state)
                                     local heliPrompt = rooftop:FindFirstChild("HeliObjective") 
                                                         and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
                                     if heliPrompt and heliPrompt.Enabled then
-                                        moveToTarget(rooftop.HeliObjective.Position + Vector3.new(0,6,0), speed)
+                                        moveToTarget(rooftop.HeliObjective.Position + Vector3.new(0,0,0), speed)
                                         task.wait(0.5)
                                         fireproximityprompt(heliPrompt)
                                     end
