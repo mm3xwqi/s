@@ -111,17 +111,21 @@ TeleportToggle:OnChanged(function(state)
                 local targetZombie = nil
                 for _, zombie in ipairs(zombiesFolder:GetChildren()) do
                     local hrpZ = zombie:FindFirstChild("HumanoidRootPart")
-                    if hrpZ then
+                    if hrpZ and hrpZ.Position.Y > -20 then
                         targetZombie = hrpZ
                         break
                     end
                 end
 
                 if targetZombie then
-                    moveToTarget(targetZombie.Position + offset, speed)
+                    moveToTarget(targetZombie.Position + offset)
                     repeat
-                        if not targetZombie.Parent then break end
-                        moveToTarget(targetZombie.Position + offset, speed)
+                        if not targetZombie.Parent 
+                           or targetZombie.Position.Y < -20
+                           or not TeleportToggle.Value then 
+                            break 
+                        end
+                        moveToTarget(targetZombie.Position + offset)
                         RunService.Heartbeat:Wait()
                     until not targetZombie.Parent or not TeleportToggle.Value
                 else
