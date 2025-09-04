@@ -309,7 +309,7 @@ toggleGui.Parent = CoreGui
 
 local button = Instance.new("TextButton")
 button.Size = UDim2.new(0, 120, 0, 45)
-button.Position = UDim2.new(1, -150, 1, -400)
+button.Position = UDim2.new(1, -150, 1, -350)
 button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
 button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
