@@ -296,3 +296,28 @@ Extra:Button({
         end
     end
 })
+
+Extra:Toggle({
+    Title = "Kill Aura",
+    Desc = "For One Shot Boss Oni :)",
+    Default = false,
+    Callback = function(state)
+        killAuraEnabled = state
+
+        if killAuraEnabled then
+            spawn(function()
+                while killAuraEnabled do
+                    local enemies = workspace:FindFirstChild("Enemies")
+                    if enemies then
+                        for _, enemy in pairs(enemies:GetChildren()) do
+                            if enemy:FindFirstChild("Head") then
+                                enemy.Head:Destroy()
+                            end
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
