@@ -13,7 +13,7 @@ local VirtualUser = game:GetService("VirtualUser")
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local noclipTouchedParts = {}
-local offset = Vector3.new(1, 6.7, 0)
+local offset = Vector3.new(1, 6, 0)
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
@@ -107,6 +107,7 @@ TeleportToggle:OnChanged(function(state)
             local guiLabel = player.PlayerGui.MainScreen.ObjectiveDisplay.ObjectiveElement.List.Value.Label
 
             while TeleportToggle.Value do
+                -- หา Zombie เป้าหมาย
                 local targetZombie = nil
                 for _, zombie in ipairs(zombiesFolder:GetChildren()) do
                     local hrpZ = zombie:FindFirstChild("HumanoidRootPart")
@@ -117,17 +118,18 @@ TeleportToggle:OnChanged(function(state)
                 end
 
                 if targetZombie then
-                    moveToTarget(targetZombie, Vector3.new(0,5,0)) 
+                    -- Move ไปยัง Zombie และโจมตี
+                    moveToTarget(targetZombie, Vector3.new(0,5,0))
                     repeat
-                        if not targetZombie.Parent 
-                           or targetZombie.Position.Y < -20
-                           or not TeleportToggle.Value then 
-                            break 
+                        if not targetZombie.Parent or targetZombie.Position.Y < -20 or not TeleportToggle.Value then
+                            break
                         end
                         moveToTarget(targetZombie, Vector3.new(0,5,0))
                         RunService.Heartbeat:Wait()
                     until not targetZombie.Parent or not TeleportToggle.Value
+
                 else
+                    -- ถ้าไม่มี Zombie ให้ไปกด generator (Sewers)
                     local bossRoom = workspace:FindFirstChild("Sewers") 
                                      and workspace.Sewers:FindFirstChild("Rooms") 
                                      and workspace.Sewers.Rooms:FindFirstChild("BossRoom")
@@ -142,6 +144,8 @@ TeleportToggle:OnChanged(function(state)
                             task.wait(1)
                         end
                     end
+
+                    -- ไปทำ RadioObjective (School)
                     local school = workspace:FindFirstChild("School")
                     if school and school:FindFirstChild("Rooms") then
                         local rooftop = school.Rooms:FindFirstChild("RooftopBoss")
@@ -151,16 +155,18 @@ TeleportToggle:OnChanged(function(state)
                                 moveToTarget(rooftop.RadioObjective, Vector3.new(0,0,0))
                                 task.wait(0.5)
                                 fireproximityprompt(radioPrompt)
-                                task.wait(5)
-                                if guiLabel and guiLabel.ContentText == "0" then
-                                    task.wait(5)
-                                    local heliPrompt = rooftop:FindFirstChild("HeliObjective") 
-                                                        and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
-                                    if heliPrompt and heliPrompt.Enabled then
-                                        moveToTarget(rooftop.HeliObjective, Vector3.new(0,0,0))
-                                        task.wait(0.5)
-                                        fireproximityprompt(heliPrompt)
-                                    end
+                                task.wait(10)
+
+                                repeat
+                                    task.wait(1)
+                                until guiLabel and guiLabel.ContentText == "0" or not TeleportToggle.Value
+
+                                local heliPrompt = rooftop:FindFirstChild("HeliObjective") 
+                                                    and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
+                                if heliPrompt and heliPrompt.Enabled then
+                                    moveToTarget(rooftop.HeliObjective, Vector3.new(0,0,0))
+                                    task.wait(0.5)
+                                    fireproximityprompt(heliPrompt)
                                 end
                             end
                         end
@@ -260,7 +266,7 @@ SkillToggle:OnChanged(function(state)
 end)
 
 local PerkToggle = Tabs.Main:AddToggle("UsePerk", {
-    Title = "Auto Use Perk",
+    Title = "Use Perk",
     Default = false
 })
 
