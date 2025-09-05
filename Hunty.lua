@@ -11,7 +11,7 @@ local zombiesFolder = workspace:WaitForChild("Entities"):WaitForChild("Zombie")
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local noclipTouchedParts = {}
-local offset = Vector3.new(0, 6.3, 0)
+local offset = Vector3.new(0, 6, 0)
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
