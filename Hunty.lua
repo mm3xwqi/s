@@ -1,4 +1,5 @@
 -- Services & Player
+local Players = game:GetService("Players")
 local player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -11,7 +12,7 @@ local zombiesFolder = workspace:WaitForChild("Entities"):WaitForChild("Zombie")
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local noclipTouchedParts = {}
-local offset = Vector3.new(0, 6, 0)
+local offset = Vector3.new(1, 6, 0)
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
@@ -44,11 +45,12 @@ local function disableNoclip(character)
     end
 end
 
--- Movement Function
-function moveToTarget(targetPos)
-    if not hrp or not targetPos then return end
+function moveToTarget(targetHRP, offset)
+    if not hrp or not targetHRP then return end
     local speed = 100
+    offset = offset
 
+    -- สร้างหรือหา BodyVelocity
     local bv = hrp:FindFirstChild("Lock")
     if not bv then
         bv = Instance.new("BodyVelocity")
@@ -59,6 +61,7 @@ function moveToTarget(targetPos)
     end
 
     repeat
+        local targetPos = targetHRP.Position + offset
         local direction = targetPos - hrp.Position
         local distance = direction.Magnitude
 
@@ -70,7 +73,7 @@ function moveToTarget(targetPos)
 
         enableNoclip(char)
         RunService.Heartbeat:Wait()
-    until (hrp.Position - targetPos).Magnitude < 1
+    until not targetHRP.Parent or (hrp.Position - targetHRP.Position - offset).Magnitude <= 0.5
 
     bv.Velocity = Vector3.new(0,0,0)
 end
@@ -116,17 +119,18 @@ TeleportToggle:OnChanged(function(state)
                 end
 
                 if targetZombie then
-                    moveToTarget(targetZombie.Position + offset)
+                    moveToTarget(targetZombie, Vector3.new(0,5,0)) 
                     repeat
                         if not targetZombie.Parent 
                            or targetZombie.Position.Y < -20
                            or not TeleportToggle.Value then 
                             break 
                         end
-                        moveToTarget(targetZombie.Position + offset)
+                        moveToTarget(targetZombie, Vector3.new(0,5,0))
                         RunService.Heartbeat:Wait()
                     until not targetZombie.Parent or not TeleportToggle.Value
                 else
+                    -- Boss Room Generator
                     local bossRoom = workspace:FindFirstChild("Sewers") 
                                      and workspace.Sewers:FindFirstChild("Rooms") 
                                      and workspace.Sewers.Rooms:FindFirstChild("BossRoom")
@@ -135,20 +139,21 @@ TeleportToggle:OnChanged(function(state)
                         local gen = bossRoom.generator.gen
                         local pom = gen:FindFirstChild("pom")
                         if pom and pom:IsA("ProximityPrompt") and pom.Enabled then
-                            moveToTarget(gen.Position + Vector3.new(0,0,0), speed)
+                            moveToTarget(gen, Vector3.new(0,0,0))
                             task.wait(0.5)
                             fireproximityprompt(pom)
                             task.wait(1)
                         end
                     end
 
+                    -- School Rooftop Radio/Heli
                     local school = workspace:FindFirstChild("School")
                     if school and school:FindFirstChild("Rooms") then
                         local rooftop = school.Rooms:FindFirstChild("RooftopBoss")
                         if rooftop and rooftop:FindFirstChild("RadioObjective") then
                             local radioPrompt = rooftop.RadioObjective:FindFirstChildOfClass("ProximityPrompt")
                             if radioPrompt and radioPrompt.Enabled then
-                                moveToTarget(rooftop.RadioObjective.Position + Vector3.new(0,0,0), speed)
+                                moveToTarget(rooftop.RadioObjective, Vector3.new(0,0,0))
                                 task.wait(0.5)
                                 fireproximityprompt(radioPrompt)
                                 task.wait(5)
@@ -157,7 +162,7 @@ TeleportToggle:OnChanged(function(state)
                                     local heliPrompt = rooftop:FindFirstChild("HeliObjective") 
                                                         and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
                                     if heliPrompt and heliPrompt.Enabled then
-                                        moveToTarget(rooftop.HeliObjective.Position + Vector3.new(0,0,0), speed)
+                                        moveToTarget(rooftop.HeliObjective, Vector3.new(0,0,0))
                                         task.wait(0.5)
                                         fireproximityprompt(heliPrompt)
                                     end
@@ -177,19 +182,20 @@ TeleportToggle:OnChanged(function(state)
     end
 end)
 
--- Auto Attack
 local Toggle = Tabs.Main:AddToggle("MyToggle", { Title = "Auto Attack", Default = false })
+local VirtualUser = game:GetService("VirtualUser")
+
 Toggle:OnChanged(function(state)
     if state then
         task.spawn(function()
             while Toggle.Value do
-                local args = { buffer.fromstring("\b\004\000") }
-                ByteNetReliable:FireServer(unpack(args))
-                task.wait(0.1)
+                VirtualUser:Button1Down(Vector2.new(958, 466))
+                task.wait(1)
             end
         end)
     end
 end)
+
 
 -- Auto Collect
 local DropWarpToggle = Tabs.Main:AddToggle("DropWarpToggle", { Title = "Auto Collect", Default = false })
@@ -219,24 +225,23 @@ DropWarpToggle:OnChanged(function(state)
 end)
 
 -- Auto Skills
+local UIS = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
 local SkillToggle = Tabs.Main:AddToggle("AutoSkills", { Title = "Auto Skills", Default = false })
 SkillToggle:OnChanged(function(state)
     if state then
         task.spawn(function()
-            local skills = {
-                buffer.fromstring("\b\003\000"),
-                buffer.fromstring("\b\005\000"),
-                buffer.fromstring("\b\006\000"),
-	            buffer.fromstring("\f")
-            }
+            local keys = { Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.G, Enum.KeyCode.E }
 
             while SkillToggle.Value do
-                for _, skill in ipairs(skills) do
+                for _, key in ipairs(keys) do
                     if not SkillToggle.Value then break end
-                    ByteNetReliable:FireServer(skill)
-                    task.wait(0.1)
+                    -- กดและปล่อยทันทีในเฟรมเดียว
+                    VirtualInputManager:SendKeyEvent(true, key, false, game)
+                    VirtualInputManager:SendKeyEvent(false, key, false, game)
                 end
-                task.wait(0.2)
+                RunService.Heartbeat:Wait() -- 1 เฟรม
             end
         end)
     end
