@@ -237,11 +237,10 @@ SkillToggle:OnChanged(function(state)
             while SkillToggle.Value do
                 for _, key in ipairs(keys) do
                     if not SkillToggle.Value then break end
-                    -- กดและปล่อยทันทีในเฟรมเดียว
                     VirtualInputManager:SendKeyEvent(true, key, false, game)
                     VirtualInputManager:SendKeyEvent(false, key, false, game)
                 end
-                RunService.Heartbeat:Wait() -- 1 เฟรม
+                RunService.Heartbeat:Wait()
             end
         end)
     end
