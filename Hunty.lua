@@ -1,4 +1,3 @@
-
 local Players = game:GetService("Players")
 local player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -13,13 +12,23 @@ local VirtualUser = game:GetService("VirtualUser")
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local noclipTouchedParts = {}
+local AutoClearToggle = {Value = true}
+local AutoAttackToggle = {Value = false}
+local AutoSwapToggle = {Value = false}
+local AutoCollectToggle = {Value = false}
+local AutoSkillsToggle = {Value = false}
+local UsePerkToggle = {Value = false}
+local BringMobsToggle = {Value = false}
+local AutoReplayToggle = {Value = false}
 local offset = Vector3.new(1, 6, 0)
+
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
     hrp = char:WaitForChild("HumanoidRootPart")
     table.clear(noclipTouchedParts)
 end)
+
 local function enableNoclip(character)
     if not character then return end
     for _, part in ipairs(character:GetDescendants()) do
@@ -44,10 +53,12 @@ local function disableNoclip(character)
     end
 end
 
-function moveToTarget(targetHRP, offset)
-    if not hrp or not targetHRP then return end
+local function moveToTarget(targetHRP, offset)
+    if not (hrp and hrp.Parent) then return end
+    if not (targetHRP and targetHRP.Parent) then return end
+
+    offset = offset or Vector3.new(0,5,0)
     local speed = 100
-    offset = offset
 
     local bv = hrp:FindFirstChild("Lock")
     if not bv then
@@ -59,340 +70,299 @@ function moveToTarget(targetHRP, offset)
     end
 
     repeat
+        if not (targetHRP and targetHRP.Parent) then break end
         local targetPos = targetHRP.Position + offset
-        local direction = targetPos - hrp.Position
-        local distance = direction.Magnitude
-
-        if distance > 0.5 then
-            bv.Velocity = direction.Unit * speed
+        local dir = targetPos - hrp.Position
+        if dir.Magnitude > 0.5 then
+            bv.Velocity = dir.Unit * speed
         else
-            bv.Velocity = Vector3.new(0,0,0)
+            bv.Velocity = Vector3.zero
         end
-
         enableNoclip(char)
         RunService.Heartbeat:Wait()
-    until not targetHRP.Parent or (hrp.Position - targetHRP.Position - offset).Magnitude <= 0.5
+    until not (targetHRP and targetHRP.Parent) or (hrp.Position - targetHRP.Position - offset).Magnitude <= 0.5
 
-    bv.Velocity = Vector3.new(0,0,0)
+    bv.Velocity = Vector3.zero
 end
 
--- Fluent UI
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+-- โหลด UI ใหม่ (x2zu Framework)
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
 
-local Window = Fluent:CreateWindow({
-    Title = "Hunty Zombies",
-    SubTitle = "by MW",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
+-- สร้างหน้าต่างหลัก
+local Window = Library:Window({
+    Title = "Hunty Zombies [MW]",
+    Desc = "x2zu UI Framework",
+    Icon = 105059922903197,
+    Theme = "Dark",
+    Config = {
+        Keybind = Enum.KeyCode.LeftControl,
+        Size = UDim2.new(0, 500, 0, 400)
+    },
+    CloseUIButton = {
+        Enabled = true,
+        Text = "MW"
+    }
 })
 
-local Tabs = {
-    Main = Window:AddTab({ Title = "Main", Icon = "" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
-}
+-- Tab หลัก
+local MainTab = Window:Tab({Title = "Main", Icon = "star"})
 
--- Auto Clear Wave
-local TeleportToggle = Tabs.Main:AddToggle("TpToZombie", {
+MainTab:Toggle({
     Title = "Auto Clear Wave",
-    Default = false
-})
-
-TeleportToggle:OnChanged(function(state)
-    if state then
-        task.spawn(function()
-            enableNoclip(char)
-            local player = game:GetService("Players").LocalPlayer
-            local guiLabel = player.PlayerGui.MainScreen.ObjectiveDisplay.ObjectiveElement.List.Value.Label
-
-            while TeleportToggle.Value do
-                local targetZombie = nil
-                for _, zombie in ipairs(zombiesFolder:GetChildren()) do
-                    local hrpZ = zombie:FindFirstChild("HumanoidRootPart")
-                    if hrpZ and hrpZ.Position.Y > -20 then
-                        targetZombie = hrpZ
-                        break
-                    end
-                end
-
-                if targetZombie then
-                            moveToTarget(targetZombie, Vector3.new(0,5,0))
-                    repeat
-                        if not targetZombie.Parent or targetZombie.Position.Y < -20 or not TeleportToggle.Value then
+    Value = true,
+    Callback = function(state)
+        AutoClearToggle.Value = state
+        if state then
+            task.spawn(function()
+                enableNoclip(char)
+                while AutoClearToggle.Value do
+                    local targetZombie = nil
+                    -- หา zombie ตัวสูงกว่า -20
+                    for _, z in ipairs(zombiesFolder:GetChildren()) do
+                        local zHRP = z:FindFirstChild("HumanoidRootPart")
+                        if zHRP and zHRP.Position.Y > -20 then
+                            targetZombie = zHRP
                             break
                         end
-                        moveToTarget(targetZombie, Vector3.new(0,5,0))
-                        RunService.Heartbeat:Wait()
-                    until not targetZombie.Parent or not TeleportToggle.Value
-
-                else
-                    local bossRoom = workspace:FindFirstChild("Sewers") 
-                                     and workspace.Sewers:FindFirstChild("Rooms") 
-                                     and workspace.Sewers.Rooms:FindFirstChild("BossRoom")
-                    
-                    if bossRoom and bossRoom:FindFirstChild("generator") and bossRoom.generator:FindFirstChild("gen") then
-                        local gen = bossRoom.generator.gen
-                        local pom = gen:FindFirstChild("pom")
-                        if pom and pom:IsA("ProximityPrompt") and pom.Enabled then
-                            moveToTarget(gen, Vector3.new(0,0,0))
-                            task.wait(0.5)
-                            fireproximityprompt(pom)
-                            task.wait(1)
-                        end
                     end
 
-                    local school = workspace:FindFirstChild("School")
-                    if school and school:FindFirstChild("Rooms") then
-                        local rooftop = school.Rooms:FindFirstChild("RooftopBoss")
-                        if rooftop and rooftop:FindFirstChild("RadioObjective") then
-                            local radioPrompt = rooftop.RadioObjective:FindFirstChildOfClass("ProximityPrompt")
-                            if radioPrompt and radioPrompt.Enabled then
-                                moveToTarget(rooftop.RadioObjective, Vector3.new(0,0,0))
+                    if targetZombie and targetZombie.Parent then
+                        moveToTarget(targetZombie, Vector3.new(0,5,0))
+                        task.wait(0.1)
+                    else
+                        -- ถ้าไม่มี zombie → จัดการ generator / radio / heli
+                        local handled = false
+
+                        -- BossRoom generator
+                        local bossRoom = workspace:FindFirstChild("Sewers") 
+                                         and workspace.Sewers:FindFirstChild("Rooms") 
+                                         and workspace.Sewers.Rooms:FindFirstChild("BossRoom")
+                        if bossRoom and bossRoom:FindFirstChild("generator") and bossRoom.generator:FindFirstChild("gen") then
+                            local gen = bossRoom.generator.gen
+                            local pom = gen:FindFirstChild("pom")
+                            if pom and pom:IsA("ProximityPrompt") and pom.Enabled then
+                                moveToTarget(gen, Vector3.new(0,0,0))
                                 task.wait(0.5)
-                                fireproximityprompt(radioPrompt)
-                                task.wait(10)
+                                fireproximityprompt(pom)
+                                task.wait(1)
+                                handled = true
+                            end
+                        end
 
-                                local timeout = 15
-                                local startTime = os.clock()
-                                repeat
-                                    task.wait(1)
-                                until (guiLabel and guiLabel.ContentText == "0") 
-                                   or not TeleportToggle.Value 
-                                   or (os.clock() - startTime > timeout)
-
-                                local heliPrompt = rooftop:FindFirstChild("HeliObjective") 
-                                                    and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
-                                if heliPrompt and heliPrompt.Enabled then
-                                    moveToTarget(rooftop.HeliObjective, Vector3.new(0,0,0))
+                        -- School Rooftop radio → heli
+                        local school = workspace:FindFirstChild("School")
+                        if school and school:FindFirstChild("Rooms") then
+                            local rooftop = school.Rooms:FindFirstChild("RooftopBoss")
+                            if rooftop and rooftop:FindFirstChild("RadioObjective") then
+                                local radioPrompt = rooftop.RadioObjective:FindFirstChildOfClass("ProximityPrompt")
+                                if radioPrompt and radioPrompt.Enabled then
+                                    moveToTarget(rooftop.RadioObjective, Vector3.new(0,0,0))
                                     task.wait(0.5)
-                                    fireproximityprompt(heliPrompt)
+                                    fireproximityprompt(radioPrompt)
+                                    task.wait(10)
+
+                                    local guiLabel = player.PlayerGui 
+                                        and player.PlayerGui.MainScreen 
+                                        and player.PlayerGui.MainScreen.ObjectiveDisplay
+                                        and player.PlayerGui.MainScreen.ObjectiveDisplay.ObjectiveElement
+                                        and player.PlayerGui.MainScreen.ObjectiveDisplay.ObjectiveElement.List
+                                        and player.PlayerGui.MainScreen.ObjectiveDisplay.ObjectiveElement.List.Value
+                                        and player.PlayerGui.MainScreen.ObjectiveDisplay.ObjectiveElement.List.Value.Label
+
+                                    local timeout = 15
+                                    local startTime = os.clock()
+                                    repeat
+                                        task.wait(1)
+                                    until (guiLabel and guiLabel.ContentText == "0") 
+                                       or (os.clock() - startTime > timeout)
+
+                                    local heliPrompt = rooftop:FindFirstChild("HeliObjective") 
+                                                        and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
+                                    if heliPrompt and heliPrompt.Enabled then
+                                        moveToTarget(rooftop.HeliObjective, Vector3.new(0,0,0))
+                                        task.wait(0.5)
+                                        fireproximityprompt(heliPrompt)
+                                    end
+                                    handled = true
                                 end
                             end
                         end
+
+                        if not handled then
+                            task.wait(1)
+                        end
                     end
                 end
-
-                task.wait(0.1)
-            end
-
+                disableNoclip(char)
+            end)
+        else
             disableNoclip(char)
-        end)
-    else
-        disableNoclip(char)
+        end
     end
-end)
-
-local Toggle = Tabs.Main:AddToggle("MyToggle", { Title = "Auto Attack", Default = false })
-Toggle:OnChanged(function(state)
-    if state then
-        task.spawn(function()
-            while Toggle.Value do
-                VirtualUser:Button1Down(Vector2.new(958, 466))
-                task.wait(1)
-            end
-        end)
-    end
-end)
-
-local SwapToggle = Tabs.Main:AddToggle("AutoSwapWeapons", {
-    Title = "Auto Swap Weapons",
-    Default = false
 })
 
-SwapToggle:OnChanged(function(state)
-    if state then
-        task.spawn(function()
-            local keys = { Enum.KeyCode.One, Enum.KeyCode.Two }
-            local current = 1
-
-            while SwapToggle.Value do
-                local key = keys[current]
-                VirtualInputManager:SendKeyEvent(true, key, false, game)
-                VirtualInputManager:SendKeyEvent(false, key, false, game)
-
-                current = current == 1 and 2 or 1
-
-                task.wait(2)
-            end
-        end)
+-- Auto Attack
+MainTab:Toggle({
+    Title = "Auto Attack",
+    Desc = "",
+    Value = true,
+    Callback = function(state)
+    AutoAttackToggle.Value = state
+        if state then
+            task.spawn(function()
+                while state do
+                    VirtualUser:Button1Down(Vector2.new(958, 466))
+                    task.wait(1)
+                end
+            end)
+        end
     end
-end)
+})
 
--- Auto Collect
-local DropWarpToggle = Tabs.Main:AddToggle("DropWarpToggle", { Title = "Auto Collect", Default = false })
-DropWarpToggle:OnChanged(function(state)
-    if state then
-        task.spawn(function()
-            local DropItemsFolder = workspace:WaitForChild("DropItems")
-            while DropWarpToggle.Value do
-                if hrp then
-                    for _, item in ipairs(DropItemsFolder:GetChildren()) do
-                        local targetPos
-                        if item:IsA("Model") and item.PrimaryPart then
-                            targetPos = item.PrimaryPart.Position
-                        elseif item:IsA("BasePart") then
-                            targetPos = item.Position
+-- Auto Swap Weapons
+MainTab:Toggle({
+    Title = "Auto Swap Weapons",
+    Value = true,
+    Callback = function(state)
+        AutoSwapToggle.Value = state
+        if state then
+            task.spawn(function()
+                local keys = { Enum.KeyCode.One, Enum.KeyCode.Two }
+                local current = 1
+                while AutoSwapToggle.Value do
+                    local key = keys[current]
+                    VirtualInputManager:SendKeyEvent(true, key, false, game)
+                    VirtualInputManager:SendKeyEvent(false, key, false, game)
+                    current = current == 1 and 2 or 1
+                    task.wait(2)
+                end
+            end)
+        end
+    end
+})
+
+-- Auto Collect\
+MainTab:Toggle({
+    Title = "Auto Collect",
+    Value = true,
+    Callback = function(state)
+        AutoCollectToggle.Value = state
+        if state then
+            task.spawn(function()
+                local DropItemsFolder = workspace:WaitForChild("DropItems")
+                while AutoCollectToggle.Value do
+                    if hrp then
+                        for _, item in ipairs(DropItemsFolder:GetChildren()) do
+                            local targetPos
+                            if item:IsA("Model") and item.PrimaryPart then
+                                targetPos = item.PrimaryPart.Position
+                            elseif item:IsA("BasePart") then
+                                targetPos = item.Position
+                            end
+                            if targetPos then
+                                hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                                task.wait(0.1)
+                            end
                         end
-                        if targetPos then
-                            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                    end
+                    task.wait(0.3)
+                end
+            end)
+        end
+    end
+})
+
+local Extra = Window:Tab({Title = "Skill", Icon = "tag"})
+    Extra:Section({Title = "About"})
+
+Extra:Toggle({
+    Title = "Auto Skills",
+    Value = true,
+    Callback = function(state)
+        AutoSkillsToggle.Value = state
+        if state then
+            task.spawn(function()
+                local keys = { Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.G }
+                while AutoSkillsToggle.Value do
+                    for _, key in ipairs(keys) do
+                        VirtualInputManager:SendKeyEvent(true, key, false, game)
+                        VirtualInputManager:SendKeyEvent(false, key, false, game)
+                    end
+                    RunService.Heartbeat:Wait()
+                end
+            end)
+        end
+    end
+})
+
+Extra:Toggle({
+    Title = "Use Perk",
+    Value = true,
+    Callback = function(state)
+        UsePerkToggle.Value = state
+
+        if state then
+            task.spawn(function()
+                local args = { buffer.fromstring("\f") }
+                while UsePerkToggle.Value do
+                    ByteNetReliable:FireServer(unpack(args))
+                    RunService.Heartbeat:Wait()
+                end
+            end)
+        end
+    end
+})
+
+local Extra = Window:Tab({Title = "Misc", Icon = "wrench"})
+    Extra:Section({Title = "Config"})
+
+-- Bring Mobs
+Extra:Toggle({
+    Title = "Bring Mobs",
+    Value = true,
+    Callback = function(state)
+        BringMobsToggle.Value = state
+
+        if state then
+            task.spawn(function()
+                while BringMobsToggle.Value do
+                    local sewers = workspace:FindFirstChild("Sewers")
+                    if sewers and sewers:FindFirstChild("Doors") then
+                        for _, door in ipairs(sewers.Doors:GetChildren()) do
+                            local args = { buffer.fromstring("\a\001"), {door} }
+                            ByteNetReliable:FireServer(unpack(args))
                             task.wait(0.1)
                         end
                     end
+                    local school = workspace:FindFirstChild("School")
+                    if school and school:FindFirstChild("Doors") then
+                        for _, door in ipairs(school.Doors:GetChildren()) do
+                            local args = { buffer.fromstring("\a\001"), {door} }
+                            ByteNetReliable:FireServer(unpack(args))
+                            task.wait(0.1)
+                        end
+                    end
+                    task.wait(1)
                 end
-                task.wait(0.3)
-            end
-        end)
+            end)
+        end
     end
-end)
-
--- Auto Skills
-local SkillToggle = Tabs.Main:AddToggle("AutoSkills", { Title = "Auto Skills", Default = false })
-SkillToggle:OnChanged(function(state)
-    if state then
-        task.spawn(function()
-            local keys = { Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.G }
-
-            while SkillToggle.Value do
-                for _, key in ipairs(keys) do
-                    if not SkillToggle.Value then break end
-                    VirtualInputManager:SendKeyEvent(true, key, false, game)
-                    VirtualInputManager:SendKeyEvent(false, key, false, game)
-                end
-                RunService.Heartbeat:Wait()
-            end
-        end)
-    end
-end)
-
-local PerkToggle = Tabs.Main:AddToggle("UsePerk", {
-    Title = "Use Perk",
-    Default = false
 })
-
-PerkToggle:OnChanged(function(state)
-    if state then
-        task.spawn(function()
-            local args = { buffer.fromstring("\f") }
-
-            while PerkToggle.Value do
-                ByteNetReliable:FireServer(unpack(args))
-                RunService.Heartbeat:Wait()
-            end
-        end)
-    end
-end)
-
--- Bring Mobs
-local BringMobsToggle = Tabs.Main:AddToggle("BringMobs", { Title = "Bring Mobs", Default = false })
-BringMobsToggle:OnChanged(function(state)
-    if state then
-        task.spawn(function()
-            while BringMobsToggle.Value do
-                local sewers = workspace:FindFirstChild("Sewers")
-                if sewers and sewers:FindFirstChild("Doors") then
-                    for _, door in ipairs(sewers.Doors:GetChildren()) do
-                        local args = { buffer.fromstring("\a\001"), {door} }
-                        ByteNetReliable:FireServer(unpack(args))
-                        task.wait(0.1)
-                    end
-                end
-                local school = workspace:FindFirstChild("School")
-                if school and school:FindFirstChild("Doors") then
-                    for _, door in ipairs(school.Doors:GetChildren()) do
-                        local args = { buffer.fromstring("\a\001"), {door} }
-                        ByteNetReliable:FireServer(unpack(args))
-                        task.wait(0.1)
-                    end
-                end
-                task.wait(1)
-            end
-        end)
-    end
-end)
-
 -- Auto Replay
-local ReplayToggle = Tabs.Main:AddToggle("ReplayToggle", { Title = "Auto Replay", Default = false })
-ReplayToggle:OnChanged(function(state)
-    if state then
-        task.spawn(function()
-            local voteReplay = ReplicatedStorage:WaitForChild("external"):WaitForChild("Packets"):WaitForChild("voteReplay")
-            while ReplayToggle.Value do
-                voteReplay:FireServer()
-                task.wait(0.5)
-            end
-        end)
+ Extra:Toggle({
+    Title = "Auto Replay",
+    Value = true,
+    Callback = function(state)
+        AutoReplayToggle.Value = state
+
+        if state then
+            task.spawn(function()
+                local voteReplay = ReplicatedStorage:WaitForChild("external"):WaitForChild("Packets"):WaitForChild("voteReplay")
+                while AutoReplayToggle.Value do
+                    voteReplay:FireServer()
+                    task.wait(0.5)
+                end
+            end)
+        end
     end
-end)
-
--- Save & Interface Manager
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("FluentScriptHub")
-SaveManager:SetFolder("FluentScriptHub/specific-game")
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
-Window:SelectTab(1)
-
-Fluent:Notify({ Title = "Fluent", Content = "ENJOY!", Duration = 10 })
-SaveManager:LoadAutoloadConfig()
-
--- Toggle UI Button
-local ui = CoreGui:WaitForChild("ScreenGui")
-local toggleGui = Instance.new("ScreenGui")
-toggleGui.Name = "ToggleUI"
-toggleGui.Parent = CoreGui
-
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 60, 0, 45)
-button.Position = UDim2.new(1, -150, 1, -350)
-button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Text = ui.Enabled and "MW" or "MW"
-button.Parent = toggleGui
-
-button.MouseButton1Click:Connect(function()
-    if ui then
-        ui.Enabled = not ui.Enabled
-        button.Text = ui.Enabled and "MW" or "MW"
-    end
-end)
-
-local UserInputService = game:GetService("UserInputService")
-local dragging, dragInput, dragStart, startPos
-
-local function update(input)
-    local delta = input.Position - dragStart
-    button.Position = UDim2.new(
-        startPos.X.Scale, startPos.X.Offset + delta.X,
-        startPos.Y.Scale, startPos.Y.Offset + delta.Y
-    )
-end
-
-button.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = button.Position
-
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-button.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
-    end
-end)
+})
