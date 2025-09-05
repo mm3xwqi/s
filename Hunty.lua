@@ -1,4 +1,4 @@
--- Services & Player
+
 local Players = game:GetService("Players")
 local player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -7,8 +7,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ByteNetReliable = ReplicatedStorage:WaitForChild("ByteNetReliable")
 local CoreGui = game:GetService("CoreGui")
 local zombiesFolder = workspace:WaitForChild("Entities"):WaitForChild("Zombie")
-
--- Character
+local UIS = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local noclipTouchedParts = {}
@@ -19,8 +20,6 @@ player.CharacterAdded:Connect(function(newChar)
     hrp = char:WaitForChild("HumanoidRootPart")
     table.clear(noclipTouchedParts)
 end)
-
--- Noclip Functions
 local function enableNoclip(character)
     if not character then return end
     for _, part in ipairs(character:GetDescendants()) do
@@ -50,7 +49,6 @@ function moveToTarget(targetHRP, offset)
     local speed = 100
     offset = offset
 
-    -- สร้างหรือหา BodyVelocity
     local bv = hrp:FindFirstChild("Lock")
     if not bv then
         bv = Instance.new("BodyVelocity")
@@ -130,7 +128,6 @@ TeleportToggle:OnChanged(function(state)
                         RunService.Heartbeat:Wait()
                     until not targetZombie.Parent or not TeleportToggle.Value
                 else
-                    -- Boss Room Generator
                     local bossRoom = workspace:FindFirstChild("Sewers") 
                                      and workspace.Sewers:FindFirstChild("Rooms") 
                                      and workspace.Sewers.Rooms:FindFirstChild("BossRoom")
@@ -145,8 +142,6 @@ TeleportToggle:OnChanged(function(state)
                             task.wait(1)
                         end
                     end
-
-                    -- School Rooftop Radio/Heli
                     local school = workspace:FindFirstChild("School")
                     if school and school:FindFirstChild("Rooms") then
                         local rooftop = school.Rooms:FindFirstChild("RooftopBoss")
@@ -183,8 +178,6 @@ TeleportToggle:OnChanged(function(state)
 end)
 
 local Toggle = Tabs.Main:AddToggle("MyToggle", { Title = "Auto Attack", Default = false })
-local VirtualUser = game:GetService("VirtualUser")
-
 Toggle:OnChanged(function(state)
     if state then
         task.spawn(function()
@@ -196,6 +189,29 @@ Toggle:OnChanged(function(state)
     end
 end)
 
+local SwapToggle = Tabs.Main:AddToggle("AutoSwapWeapons", {
+    Title = "Auto Swap Weapons",
+    Default = false
+})
+
+SwapToggle:OnChanged(function(state)
+    if state then
+        task.spawn(function()
+            local keys = { Enum.KeyCode.One, Enum.KeyCode.Two }
+            local current = 1
+
+            while SwapToggle.Value do
+                local key = keys[current]
+                VirtualInputManager:SendKeyEvent(true, key, false, game)
+                VirtualInputManager:SendKeyEvent(false, key, false, game)
+
+                current = current == 1 and 2 or 1
+
+                task.wait(2)
+            end
+        end)
+    end
+end)
 
 -- Auto Collect
 local DropWarpToggle = Tabs.Main:AddToggle("DropWarpToggle", { Title = "Auto Collect", Default = false })
@@ -225,9 +241,6 @@ DropWarpToggle:OnChanged(function(state)
 end)
 
 -- Auto Skills
-local UIS = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-
 local SkillToggle = Tabs.Main:AddToggle("AutoSkills", { Title = "Auto Skills", Default = false })
 SkillToggle:OnChanged(function(state)
     if state then
@@ -252,7 +265,6 @@ BringMobsToggle:OnChanged(function(state)
     if state then
         task.spawn(function()
             while BringMobsToggle.Value do
-                -- Sewers Doors
                 local sewers = workspace:FindFirstChild("Sewers")
                 if sewers and sewers:FindFirstChild("Doors") then
                     for _, door in ipairs(sewers.Doors:GetChildren()) do
@@ -261,8 +273,6 @@ BringMobsToggle:OnChanged(function(state)
                         task.wait(0.1)
                     end
                 end
-
-                -- School Doors
                 local school = workspace:FindFirstChild("School")
                 if school and school:FindFirstChild("Doors") then
                     for _, door in ipairs(school.Doors:GetChildren()) do
@@ -302,7 +312,7 @@ InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
 
-Fluent:Notify({ Title = "Fluent", Content = "The script has been loaded.", Duration = 8 })
+Fluent:Notify({ Title = "Fluent", Content = "ENJOY!", Duration = 10 })
 SaveManager:LoadAutoloadConfig()
 
 -- Toggle UI Button
