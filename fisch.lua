@@ -32,8 +32,8 @@ local autoshake = false
 
 local NothingLibrary = loadstring(game:HttpGetAsync('https://raw.githubusercontent.com/3345-c-a-t-s-u-s/NOTHING/main/source.lua'))();
 local Windows = NothingLibrary.new({
-	Title = "NOTHING",
-	Description = "Nothing UI Library",
+	Title = "test",
+	Description = "Alpha",
 	Keybind = Enum.KeyCode.LeftControl,
 	Logo = 'http://www.roblox.com/asset/?id=18898582662'
 })
@@ -57,19 +57,22 @@ Section:NewToggle({
     Callback = function(state)
         autocast = state
         if autocast then
-            EquipRods()
-            
             task.spawn(function()
-                local char = player.Character or player.CharacterAdded:Wait()
-                
                 while autocast do
-                    for _, tool in ipairs(player.Character:GetChildren()) do
+                    local hasRod = false
+                    for _, tool in ipairs(char:GetChildren()) do
                         if tool:IsA("Tool") and string.find(tool.Name, "Rod") then
+                            hasRod = true
                             if tool:FindFirstChild("events") and tool.events:FindFirstChild("cast") then
                                 tool.events.cast:FireServer(100, true)
                             end
                         end
                     end
+
+                    if not hasRod then
+                        EquipRods()
+                    end
+
                     task.wait(0.5)
                 end
             end)
