@@ -11,7 +11,7 @@ local zombiesFolder = workspace:WaitForChild("Entities"):WaitForChild("Zombie")
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local noclipTouchedParts = {}
-local offset = Vector3.new(0, 6, 0)
+local offset = Vector3.new(0, 6.7, 0)
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
@@ -308,17 +308,17 @@ toggleGui.Name = "ToggleUI"
 toggleGui.Parent = CoreGui
 
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 120, 0, 45)
+button.Size = UDim2.new(0, 60, 0, 45)
 button.Position = UDim2.new(1, -150, 1, -350)
 button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
+button.Text = ui.Enabled and "MW" or "MW"
 button.Parent = toggleGui
 
 button.MouseButton1Click:Connect(function()
     if ui then
         ui.Enabled = not ui.Enabled
-        button.Text = ui.Enabled and "UI: ON" or "UI: OFF"
+        button.Text = ui.Enabled and "MW" or "MW"
     end
 end)
 
