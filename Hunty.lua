@@ -90,8 +90,8 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 
 -- สร้างหน้าต่างหลัก
 local Window = Library:Window({
-    Title = "Hunty Zombies [MW]",
-    Desc = "x2zu UI Framework",
+    Title = "Hunty Zombies",
+    Desc = "By Cxsmic",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
