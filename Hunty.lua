@@ -245,7 +245,7 @@ local SkillToggle = Tabs.Main:AddToggle("AutoSkills", { Title = "Auto Skills", D
 SkillToggle:OnChanged(function(state)
     if state then
         task.spawn(function()
-            local keys = { Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.G, Enum.KeyCode.E }
+            local keys = { Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.G }
 
             while SkillToggle.Value do
                 for _, key in ipairs(keys) do
@@ -253,6 +253,24 @@ SkillToggle:OnChanged(function(state)
                     VirtualInputManager:SendKeyEvent(true, key, false, game)
                     VirtualInputManager:SendKeyEvent(false, key, false, game)
                 end
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+local PerkToggle = Tabs.Main:AddToggle("UsePerk", {
+    Title = "Auto Use Perk",
+    Default = false
+})
+
+PerkToggle:OnChanged(function(state)
+    if state then
+        task.spawn(function()
+            local args = { buffer.fromstring("\f") }
+
+            while PerkToggle.Value do
+                ByteNetReliable:FireServer(unpack(args))
                 RunService.Heartbeat:Wait()
             end
         end)
