@@ -150,7 +150,7 @@ TeleportToggle:OnChanged(function(state)
                                 moveToTarget(rooftop.RadioObjective, Vector3.new(0,0,0))
                                 task.wait(0.5)
                                 fireproximityprompt(radioPrompt)
-                                task.wait(7.5)
+                                task.wait(8.5)
 
                                 repeat
                                     task.wait(1)
