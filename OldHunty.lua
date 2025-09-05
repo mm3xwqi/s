@@ -1,4 +1,4 @@
--- Services & Player
+
 local Players = game:GetService("Players")
 local player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -7,20 +7,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ByteNetReliable = ReplicatedStorage:WaitForChild("ByteNetReliable")
 local CoreGui = game:GetService("CoreGui")
 local zombiesFolder = workspace:WaitForChild("Entities"):WaitForChild("Zombie")
-
--- Character
+local UIS = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local noclipTouchedParts = {}
-local offset = Vector3.new(0, 6, 0)
+local offset = Vector3.new(1, 6, 0)
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
     hrp = char:WaitForChild("HumanoidRootPart")
     table.clear(noclipTouchedParts)
 end)
-
--- Noclip Functions
 local function enableNoclip(character)
     if not character then return end
     for _, part in ipairs(character:GetDescendants()) do
@@ -45,10 +44,10 @@ local function disableNoclip(character)
     end
 end
 
--- Movement Function
-function moveToTarget(targetPos)
-    if not hrp or not targetPos then return end
+function moveToTarget(targetHRP, offset)
+    if not hrp or not targetHRP then return end
     local speed = 100
+    offset = offset
 
     local bv = hrp:FindFirstChild("Lock")
     if not bv then
@@ -60,6 +59,7 @@ function moveToTarget(targetPos)
     end
 
     repeat
+        local targetPos = targetHRP.Position + offset
         local direction = targetPos - hrp.Position
         local distance = direction.Magnitude
 
@@ -71,7 +71,7 @@ function moveToTarget(targetPos)
 
         enableNoclip(char)
         RunService.Heartbeat:Wait()
-    until (hrp.Position - targetPos).Magnitude < 1
+    until not targetHRP.Parent or (hrp.Position - targetHRP.Position - offset).Magnitude <= 0.5
 
     bv.Velocity = Vector3.new(0,0,0)
 end
@@ -117,16 +117,15 @@ TeleportToggle:OnChanged(function(state)
                 end
 
                 if targetZombie then
-                    moveToTarget(targetZombie.Position + offset)
+                            moveToTarget(targetZombie, Vector3.new(0,5,0))
                     repeat
-                        if not targetZombie.Parent 
-                           or targetZombie.Position.Y < -20
-                           or not TeleportToggle.Value then 
-                            break 
+                        if not targetZombie.Parent or targetZombie.Position.Y < -20 or not TeleportToggle.Value then
+                            break
                         end
-                        moveToTarget(targetZombie.Position + offset)
+                        moveToTarget(targetZombie, Vector3.new(0,5,0))
                         RunService.Heartbeat:Wait()
                     until not targetZombie.Parent or not TeleportToggle.Value
+
                 else
                     local bossRoom = workspace:FindFirstChild("Sewers") 
                                      and workspace.Sewers:FindFirstChild("Rooms") 
@@ -136,7 +135,7 @@ TeleportToggle:OnChanged(function(state)
                         local gen = bossRoom.generator.gen
                         local pom = gen:FindFirstChild("pom")
                         if pom and pom:IsA("ProximityPrompt") and pom.Enabled then
-                            moveToTarget(gen.Position + Vector3.new(0,0,0), speed)
+                            moveToTarget(gen, Vector3.new(0,0,0))
                             task.wait(0.5)
                             fireproximityprompt(pom)
                             task.wait(1)
@@ -149,19 +148,25 @@ TeleportToggle:OnChanged(function(state)
                         if rooftop and rooftop:FindFirstChild("RadioObjective") then
                             local radioPrompt = rooftop.RadioObjective:FindFirstChildOfClass("ProximityPrompt")
                             if radioPrompt and radioPrompt.Enabled then
-                                moveToTarget(rooftop.RadioObjective.Position + Vector3.new(0,0,0), speed)
+                                moveToTarget(rooftop.RadioObjective, Vector3.new(0,0,0))
                                 task.wait(0.5)
                                 fireproximityprompt(radioPrompt)
-                                task.wait(5)
-                                if guiLabel and guiLabel.ContentText == "0" then
-                                    task.wait(5)
-                                    local heliPrompt = rooftop:FindFirstChild("HeliObjective") 
-                                                        and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
-                                    if heliPrompt and heliPrompt.Enabled then
-                                        moveToTarget(rooftop.HeliObjective.Position + Vector3.new(0,0,0), speed)
-                                        task.wait(0.5)
-                                        fireproximityprompt(heliPrompt)
-                                    end
+                                task.wait(10)
+
+                                local timeout = 15
+                                local startTime = os.clock()
+                                repeat
+                                    task.wait(1)
+                                until (guiLabel and guiLabel.ContentText == "0") 
+                                   or not TeleportToggle.Value 
+                                   or (os.clock() - startTime > timeout)
+
+                                local heliPrompt = rooftop:FindFirstChild("HeliObjective") 
+                                                    and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
+                                if heliPrompt and heliPrompt.Enabled then
+                                    moveToTarget(rooftop.HeliObjective, Vector3.new(0,0,0))
+                                    task.wait(0.5)
+                                    fireproximityprompt(heliPrompt)
                                 end
                             end
                         end
@@ -178,19 +183,37 @@ TeleportToggle:OnChanged(function(state)
     end
 end)
 
-local toolButton = player.PlayerGui:WaitForChild("MainScreenConcept")
-                        :WaitForChild("TouchControlFrame")
-                        :WaitForChild("JumpButton")
-                        :WaitForChild("TouchButtons")
-                        :WaitForChild("ToolUseButton")
-
 local Toggle = Tabs.Main:AddToggle("MyToggle", { Title = "Auto Attack", Default = false })
 Toggle:OnChanged(function(state)
     if state then
         task.spawn(function()
             while Toggle.Value do
-                toolButton:Activate()
-                task.wait(0.1)
+                VirtualUser:Button1Down(Vector2.new(958, 466))
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+local SwapToggle = Tabs.Main:AddToggle("AutoSwapWeapons", {
+    Title = "Auto Swap Weapons",
+    Default = false
+})
+
+SwapToggle:OnChanged(function(state)
+    if state then
+        task.spawn(function()
+            local keys = { Enum.KeyCode.One, Enum.KeyCode.Two }
+            local current = 1
+
+            while SwapToggle.Value do
+                local key = keys[current]
+                VirtualInputManager:SendKeyEvent(true, key, false, game)
+                VirtualInputManager:SendKeyEvent(false, key, false, game)
+
+                current = current == 1 and 2 or 1
+
+                task.wait(2)
             end
         end)
     end
@@ -228,20 +251,33 @@ local SkillToggle = Tabs.Main:AddToggle("AutoSkills", { Title = "Auto Skills", D
 SkillToggle:OnChanged(function(state)
     if state then
         task.spawn(function()
-            local skills = {
-                buffer.fromstring("\b\003\000"),
-                buffer.fromstring("\b\005\000"),
-                buffer.fromstring("\b\006\000"),
-	            buffer.fromstring("\f")
-            }
+            local keys = { Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.G }
 
             while SkillToggle.Value do
-                for _, skill in ipairs(skills) do
+                for _, key in ipairs(keys) do
                     if not SkillToggle.Value then break end
-                    ByteNetReliable:FireServer(skill)
-                    task.wait(0.1)
+                    VirtualInputManager:SendKeyEvent(true, key, false, game)
+                    VirtualInputManager:SendKeyEvent(false, key, false, game)
                 end
-                task.wait(0.2)
+                RunService.Heartbeat:Wait()
+            end
+        end)
+    end
+end)
+
+local PerkToggle = Tabs.Main:AddToggle("UsePerk", {
+    Title = "Use Perk",
+    Default = false
+})
+
+PerkToggle:OnChanged(function(state)
+    if state then
+        task.spawn(function()
+            local args = { buffer.fromstring("\f") }
+
+            while PerkToggle.Value do
+                ByteNetReliable:FireServer(unpack(args))
+                RunService.Heartbeat:Wait()
             end
         end)
     end
@@ -253,7 +289,6 @@ BringMobsToggle:OnChanged(function(state)
     if state then
         task.spawn(function()
             while BringMobsToggle.Value do
-                -- Sewers Doors
                 local sewers = workspace:FindFirstChild("Sewers")
                 if sewers and sewers:FindFirstChild("Doors") then
                     for _, door in ipairs(sewers.Doors:GetChildren()) do
@@ -262,8 +297,6 @@ BringMobsToggle:OnChanged(function(state)
                         task.wait(0.1)
                     end
                 end
-
-                -- School Doors
                 local school = workspace:FindFirstChild("School")
                 if school and school:FindFirstChild("Doors") then
                     for _, door in ipairs(school.Doors:GetChildren()) do
@@ -303,7 +336,7 @@ InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
 
-Fluent:Notify({ Title = "Fluent", Content = "The script has been loaded.", Duration = 8 })
+Fluent:Notify({ Title = "Fluent", Content = "ENJOY!", Duration = 10 })
 SaveManager:LoadAutoloadConfig()
 
 -- Toggle UI Button
