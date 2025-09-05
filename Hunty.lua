@@ -117,7 +117,7 @@ TeleportToggle:OnChanged(function(state)
                 end
 
                 if targetZombie then
-                    moveToTarget(targetZombie, Vector3.new(0,5,0))
+                            moveToTarget(targetZombie, Vector3.new(0,5,0))
                     repeat
                         if not targetZombie.Parent or targetZombie.Position.Y < -20 or not TeleportToggle.Value then
                             break
@@ -141,6 +141,7 @@ TeleportToggle:OnChanged(function(state)
                             task.wait(1)
                         end
                     end
+
                     local school = workspace:FindFirstChild("School")
                     if school and school:FindFirstChild("Rooms") then
                         local rooftop = school.Rooms:FindFirstChild("RooftopBoss")
@@ -152,9 +153,13 @@ TeleportToggle:OnChanged(function(state)
                                 fireproximityprompt(radioPrompt)
                                 task.wait(10)
 
+                                local timeout = 15
+                                local startTime = os.clock()
                                 repeat
                                     task.wait(1)
-                                until guiLabel and guiLabel.ContentText == "0" or not TeleportToggle.Value
+                                until (guiLabel and guiLabel.ContentText == "0") 
+                                   or not TeleportToggle.Value 
+                                   or (os.clock() - startTime > timeout)
 
                                 local heliPrompt = rooftop:FindFirstChild("HeliObjective") 
                                                     and rooftop.HeliObjective:FindFirstChildOfClass("ProximityPrompt")
