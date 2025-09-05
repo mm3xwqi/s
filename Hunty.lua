@@ -13,7 +13,7 @@ local VirtualUser = game:GetService("VirtualUser")
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 local noclipTouchedParts = {}
-local offset = Vector3.new(1, 6, 0)
+local offset = Vector3.new(1, 6.7, 0)
 
 player.CharacterAdded:Connect(function(newChar)
     char = newChar
