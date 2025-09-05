@@ -107,7 +107,6 @@ TeleportToggle:OnChanged(function(state)
             local guiLabel = player.PlayerGui.MainScreen.ObjectiveDisplay.ObjectiveElement.List.Value.Label
 
             while TeleportToggle.Value do
-                -- หา Zombie เป้าหมาย
                 local targetZombie = nil
                 for _, zombie in ipairs(zombiesFolder:GetChildren()) do
                     local hrpZ = zombie:FindFirstChild("HumanoidRootPart")
@@ -118,7 +117,6 @@ TeleportToggle:OnChanged(function(state)
                 end
 
                 if targetZombie then
-                    -- Move ไปยัง Zombie และโจมตี
                     moveToTarget(targetZombie, Vector3.new(0,5,0))
                     repeat
                         if not targetZombie.Parent or targetZombie.Position.Y < -20 or not TeleportToggle.Value then
@@ -129,7 +127,6 @@ TeleportToggle:OnChanged(function(state)
                     until not targetZombie.Parent or not TeleportToggle.Value
 
                 else
-                    -- ถ้าไม่มี Zombie ให้ไปกด generator (Sewers)
                     local bossRoom = workspace:FindFirstChild("Sewers") 
                                      and workspace.Sewers:FindFirstChild("Rooms") 
                                      and workspace.Sewers.Rooms:FindFirstChild("BossRoom")
@@ -144,8 +141,6 @@ TeleportToggle:OnChanged(function(state)
                             task.wait(1)
                         end
                     end
-
-                    -- ไปทำ RadioObjective (School)
                     local school = workspace:FindFirstChild("School")
                     if school and school:FindFirstChild("Rooms") then
                         local rooftop = school.Rooms:FindFirstChild("RooftopBoss")
@@ -155,7 +150,7 @@ TeleportToggle:OnChanged(function(state)
                                 moveToTarget(rooftop.RadioObjective, Vector3.new(0,0,0))
                                 task.wait(0.5)
                                 fireproximityprompt(radioPrompt)
-                                task.wait(10)
+                                task.wait(7.5)
 
                                 repeat
                                     task.wait(1)
