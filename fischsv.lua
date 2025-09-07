@@ -9,6 +9,7 @@ local Settings = {
     AutoCast = false,
     AutoReel = false,
     AutoShake = false,
+	AutoSell = false,
     TpToIsland = false,
     SelectedIsland = nil,
     SavedPosition = nil
@@ -30,6 +31,7 @@ end
 local autocast = Settings.AutoCast
 local autoreel = Settings.AutoReel
 local autoshake = Settings.AutoShake
+local autosell = Settings.AutoSell
 local teleporting = Settings.TpToIsland
 local selectedIsland = Settings.SelectedIsland
 local savedPosition = Settings.SavedPosition
@@ -163,6 +165,35 @@ Section:NewToggle({
     end,
 })
 
+Section:NewToggle({
+    Title = "Auto Sell",
+    Default = autosell,
+    Callback = function(state)
+        autosell = state
+        Settings.AutoSell = state
+        SaveSettings()
+
+        if autosell then
+            task.spawn(function()
+                while autosell do
+                    local success, err = pcall(function()
+                        local args = {{
+                            voice = 12,
+                            npc = workspace:WaitForChild("world"):WaitForChild("npcs"):WaitForChild("Marc Merchant"),
+                            idle = workspace:WaitForChild("world"):WaitForChild("npcs"):WaitForChild("Marc Merchant"):WaitForChild("description"):WaitForChild("idle")
+                        }}
+                        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer(unpack(args))
+                    end)
+                    if not success then
+                        warn("Auto Sell failed:", err)
+                    end
+                    task.wait(1)
+                end
+            end)
+        end
+    end,
+})
+
 Section:NewDropdown({
     Title = "Select Islands",
     Data = tpNames,
@@ -209,6 +240,10 @@ end
 if Settings.AutoShake then
     autoshake = true
     Section:FindToggle("Auto Shake").SetState(autoshake)
+end
+if Settings.AutoSell then
+    autosell = true
+    Section:FindToggle("Auto Sell").SetState(autosell)
 end
 if Settings.TpToIsland then
     teleporting = true
