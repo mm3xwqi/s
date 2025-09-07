@@ -65,31 +65,41 @@ local Section = TabFrame:NewSection({
 
 
 Section:NewToggle({
-    Title = "Auto Cast",
+    Title = "Auto Farm",
     Default = false,
     Callback = function(state)
-        autocast = state
-        if autocast then
+        autoCastTp = state
+        if autoCastTp then
             task.spawn(function()
-                while autocast do
-                    local hasRod = false
-                    for _, tool in ipairs(char:GetChildren()) do
-                        if tool:IsA("Tool") and string.find(tool.Name, "Rod") then
-                            hasRod = true
-                            if tool:FindFirstChild("events") and tool.events:FindFirstChild("cast") then
-                                tool.events.cast:FireServer(100, true)
-                            end
-                        end
+                while autoCastTp do
+                    local char = player.Character
+                    if not char or not char.Parent then
+                        char = player.CharacterAdded:Wait()
                     end
 
-                    if not hasRod then
-                        EquipRods()
+                    local success, hrp = pcall(function()
+                        return char:WaitForChild("HumanoidRootPart", 10)
+                    end)
+
+                    if success and hrp and savedPosition then
+                        pcall(function()
+                            hrp.CFrame = savedPosition
+                        end)
                     end
 
-                    task.wait(0.5)
+                    task.wait()
                 end
             end)
         end
+    end,
+})
+
+Section:NewButton({
+    Title = "Save Position",
+    Callback = function()
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char:WaitForChild("HumanoidRootPart")
+        savedPosition = hrp.CFrame
     end,
 })
 
