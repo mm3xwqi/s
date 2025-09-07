@@ -1,5 +1,6 @@
-local player = game:GetService("Players").LocalPlayer
+local player = game.Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
+local humroot = char:WaitForChild("HumanoidRootPart")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local shakeRemote = ReplicatedStorage:WaitForChild("resources")
     .replicated
@@ -24,6 +25,15 @@ local function EquipRods()
         end
     end
 end
+
+local tpFolder = workspace.world.spawns.TpSpots
+local tpNames = {}
+
+for _, spot in ipairs(tpFolder:GetChildren()) do
+    table.insert(tpNames, spot.Name)
+end
+
+local selectedIsland = tpNames[1] or nil
 
 
 local autocast = false
@@ -107,20 +117,40 @@ Section:NewToggle({
                 local player = game:GetService("Players").LocalPlayer
 
                 while autoshake do
-                    -- ตรวจสอบว่าปุ่ม shake ยังอยู่
                     local shakeButton = player.PlayerGui:FindFirstChild("shakeui")
                     shakeButton = shakeButton and shakeButton:FindFirstChild("safezone")
                     shakeButton = shakeButton and shakeButton:FindFirstChild("button")
                     shakeButton = shakeButton and shakeButton:FindFirstChild("shake")
 
                     if shakeButton then
-                        -- FireServer รัว ๆ
                         shakeButton:FireServer()
                     end
 
-                    task.wait(0.05) -- ความเร็วในการ shake
+                    task.wait(0.05)
                 end
             end)
+        end
+    end,
+})
+
+Section:NewDropdown({
+    Title = "Select Islands",
+    Data = tpNames,
+    Default = selectedIsland,
+    Callback = function(choice)
+        selectedIsland = choice
+    end,
+})
+
+Section:NewToggle({
+    Title = "tp to island",
+    Default = false,
+    Callback = function(state)
+        if state and selectedIsland then
+            local spot = tpFolder:FindFirstChild(selectedIsland)
+            if spot and spot:IsA("BasePart") then
+                humroot.CFrame = spot.CFrame + Vector3.new(0, 5, 0)
+            end
         end
     end,
 })
