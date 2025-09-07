@@ -26,12 +26,15 @@ local function EquipRods()
     end
 end
 
-local tpFolder = workspace.world.spawns.TpSpots
-local tpNames = {}
+local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
 
+local tpNames = {}
 for _, spot in ipairs(tpFolder:GetChildren()) do
     table.insert(tpNames, spot.Name)
 end
+table.sort(tpNames, function(a, b)
+    return a:lower() < b:lower()
+end)
 
 local selectedIsland = tpNames[1] or nil
 
@@ -143,18 +146,32 @@ Section:NewDropdown({
 })
 
 Section:NewToggle({
-    Title = "tp to island",
+    Title = "Tp to island",
     Default = false,
     Callback = function(state)
+        if state == teleporting then return end
         teleporting = state
+
         if teleporting then
             task.spawn(function()
-                while teleporting and selectedIsland do
-                    local spot = tpFolder:FindFirstChild(selectedIsland)
-                    if spot and spot:IsA("BasePart") then
-                        humroot.CFrame = spot.CFrame + Vector3.new(0, 5, 0)
+                while teleporting do
+                    local char = player.Character
+                    if not char or not char.Parent then
+                        char = player.CharacterAdded:Wait()
                     end
-                    task.wait()
+
+                    local success, hrp = pcall(function()
+                        return char:WaitForChild("HumanoidRootPart", 10)
+                    end)
+
+                    local spot = tpFolder:FindFirstChild(selectedIsland)
+                    if success and hrp and hrp:IsA("BasePart") and spot and spot:IsA("BasePart") then
+                        pcall(function()
+                            hrp.CFrame = spot.CFrame + Vector3.new(0, 5, 0)
+                        end)
+                    end
+
+                    task.wait(0.2)
                 end
             end)
         end
