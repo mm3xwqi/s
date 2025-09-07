@@ -97,7 +97,7 @@ Section:NewToggle({
                         end
                     end
 
-                    task.wait(0.5)
+                    task.wait(0.2)
                 end
             end)
         end
@@ -191,7 +191,7 @@ Section:NewToggle({
                     if hrp and spot then
                         pcall(function() hrp.CFrame = spot.CFrame + Vector3.new(0,5,0) end)
                     end
-                    task.wait(0.2)
+                    task.wait()
                 end
             end)
         end
