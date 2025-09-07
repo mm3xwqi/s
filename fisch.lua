@@ -38,9 +38,6 @@ end)
 
 local selectedIsland = tpNames[1] or nil
 
-local Notification = NothingLibrary.Notification();
-
-
 local autocast = false
 local autoreel = false
 local autoshake = false
@@ -117,16 +114,6 @@ Section:NewButton({
         local char = player.Character or player.CharacterAdded:Wait()
         local hrp = char:WaitForChild("HumanoidRootPart")
         savedPosition = hrp.CFrame
-
-        local pos = hrp.Position
-        local msg = string.format("Saved Position at X: %.1f, Y: %.1f, Z: %.1f", pos.X, pos.Y, pos.Z)
-
-        Notification.new({
-            Title = "Position Saved!",
-            Description = msg,
-            Duration = 3,
-            Icon = "rbxassetid://7733993369",
-        })
     end,
 })
 
