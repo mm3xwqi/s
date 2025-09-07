@@ -165,6 +165,7 @@ Section:NewToggle({
     end,
 })
 
+
 Section:NewToggle({
     Title = "Auto Sell",
     Default = autosell,
@@ -177,12 +178,23 @@ Section:NewToggle({
             task.spawn(function()
                 while autosell do
                     local success, err = pcall(function()
-                        local args = {{
-                            voice = 12,
-                            npc = workspace:WaitForChild("world"):WaitForChild("npcs"):WaitForChild("Marc Merchant"),
-                            idle = workspace:WaitForChild("world"):WaitForChild("npcs"):WaitForChild("Marc Merchant"):WaitForChild("description"):WaitForChild("idle")
-                        }}
-                        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer(unpack(args))
+                        local npcFolder = workspace:WaitForChild("world"):WaitForChild("npcs")
+                        local targetNpc = nil
+                        for _, npc in ipairs(npcFolder:GetChildren()) do
+                            if string.find(npc.Name, "Merchant") then
+                                targetNpc = npc
+                                break
+                            end
+                        end
+
+                        if targetNpc then
+                            local args = {{
+                                voice = 12,
+                                npc = targetNpc,
+                                idle = targetNpc:WaitForChild("description"):WaitForChild("idle")
+                            }}
+                            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer(unpack(args))
+                        end
                     end)
                     if not success then
                         warn("Auto Sell failed:", err)
@@ -193,7 +205,6 @@ Section:NewToggle({
         end
     end,
 })
-
 Section:NewDropdown({
     Title = "Select Islands",
     Data = tpNames,
