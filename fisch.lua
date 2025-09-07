@@ -68,26 +68,41 @@ Section:NewToggle({
     Title = "Auto Farm",
     Default = false,
     Callback = function(state)
-        autoCastTp = state
-        if autoCastTp then
+        autocast = state
+        if autocast then
             task.spawn(function()
-                while autoCastTp do
+                while autocast do
                     local char = player.Character
                     if not char or not char.Parent then
                         char = player.CharacterAdded:Wait()
                     end
 
-                    local success, hrp = pcall(function()
-                        return char:WaitForChild("HumanoidRootPart", 10)
-                    end)
-
-                    if success and hrp and savedPosition then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp and savedPosition then
                         pcall(function()
                             hrp.CFrame = savedPosition
                         end)
                     end
 
-                    task.wait()
+                    local rod = nil
+                    for _, tool in ipairs(char:GetChildren()) do
+                        if tool:IsA("Tool") and string.find(tool.Name, "Rod") then
+                            rod = tool
+                            break
+                        end
+                    end
+
+                    if not rod then
+                        EquipRods()
+                    else
+                        local events = rod:FindFirstChild("events")
+                        local cast = events and events:FindFirstChild("cast")
+                        if cast then
+                            cast:FireServer(100, true)
+                        end
+                    end
+
+                    task.wait(.2)
                 end
             end)
         end
