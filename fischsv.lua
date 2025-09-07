@@ -112,9 +112,10 @@ Section:NewButton({
         local char = player.Character or player.CharacterAdded:Wait()
         local hrp = char:WaitForChild("HumanoidRootPart")
         savedPosition = hrp.CFrame
+
         Settings.SavedPosition = savedPosition
         SaveSettings()
-        print("Saved Position:", savedPosition)
+
     end,
 })
 
