@@ -164,7 +164,7 @@ local function StartTeleport()
             if hrp and spot then
                 pcall(function() hrp.CFrame = spot.CFrame + Vector3.new(0,5,0) end)
             end
-            task.wait(0.2)
+            task.wait()
         end
     end)
 end
