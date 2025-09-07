@@ -241,6 +241,14 @@ Section:NewToggle({
     end,
 })
 
+autocast = Settings.AutoCast
+autoreel = Settings.AutoReel
+autoshake = Settings.AutoShake
+autosell = Settings.AutoSell
+teleporting = Settings.TpToIsland
+selectedIsland = Settings.SelectedIsland
+savedPosition = Settings.SavedPosition
+
 if Settings.AutoCast then
     autocast = true
     Section:FindToggle("Auto Cast").SetState(autocast)
