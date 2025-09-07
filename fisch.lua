@@ -146,11 +146,17 @@ Section:NewToggle({
     Title = "tp to island",
     Default = false,
     Callback = function(state)
-        if state and selectedIsland then
-            local spot = tpFolder:FindFirstChild(selectedIsland)
-            if spot and spot:IsA("BasePart") then
-                humroot.CFrame = spot.CFrame + Vector3.new(0, 5, 0)
-            end
+        teleporting = state
+        if teleporting then
+            task.spawn(function()
+                while teleporting and selectedIsland do
+                    local spot = tpFolder:FindFirstChild(selectedIsland)
+                    if spot and spot:IsA("BasePart") then
+                        humroot.CFrame = spot.CFrame + Vector3.new(0, 5, 0)
+                    end
+                    task.wait()
+                end
+            end)
         end
     end,
 })
