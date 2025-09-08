@@ -3,6 +3,11 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
+local noclipEnabled = false
+local infinityJumpEnabled = false
+local walkspeedValue = 16
+local jumppowerValue = 50
+
 local SETTINGS_FILE = "Fischsv.json"
 
 local Settings = {
@@ -73,7 +78,7 @@ table.sort(tpNames, function(a,b) return a:lower() < b:lower() end)
 
 local NothingLibrary = loadstring(game:HttpGetAsync('https://raw.githubusercontent.com/3345-c-a-t-s-u-s/NOTHING/main/source.lua'))();
 local Windows = NothingLibrary.new({
-    Title = "Fisch 0.0.2",
+    Title = "Fisch 0.0.3",
     Description = "Alpha",
     Keybind = Enum.KeyCode.LeftControl,
     Logo = 'http://www.roblox.com/asset/?id=18898582662'
@@ -82,11 +87,14 @@ local Windows = NothingLibrary.new({
 local TabFrame = Windows:NewTab({Title = "Main", Description = "etc", Icon = "rbxassetid://7733960981"})
 local Section = TabFrame:NewSection({Title = "Farms", Icon = "rbxassetid://7743869054", Position = "Left"})
 
-local TabFrame2 = Windows:NewTab({Title = "Teleport", Description = "Islands", Icon = ""})
-local Section2 = TabFrame2:NewSection({Title = "Teleport", Icon = "rbxassetid://7743869054", Position = "Left"})
+local TabFrame2 = Windows:NewTab({Title = "Local Player", Description = "Islands", Icon = ""})
+local Section2 = TabFrame2:NewSection({Title = "Player", Icon = "rbxassetid://7743869054", Position = "Left"})
 
 local TabFrame3 = Windows:NewTab({Title = "Setting Farm", Description = "Method", Icon = ""})
 local Section3 = TabFrame3:NewSection({Title = "Reel Settings", Icon = "rbxassetid://7743869054", Position = "Left"})
+
+local TabFrame4 = Windows:NewTab({Title = "Teleport", Description = "Player Settings", Icon = ""})
+local Section4 = TabFrame4:NewSection({Title = "Teleport", Icon = "rbxassetid://7743869054", Position = "Left"})
 
 local rodNames = {}
 local rodsFolder = ReplicatedStorage:WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods")
@@ -386,7 +394,7 @@ Section:NewButton({
     end
 })
 
-Section2:NewDropdown({
+Section4:NewDropdown({
     Title = "Select Islands",
     Data = tpNames,
     Default = selectedIsland or tpNames[1],
@@ -397,7 +405,7 @@ Section2:NewDropdown({
     end
 })
 
-Section2:NewToggle({
+Section4:NewToggle({
     Title = "Tp to Island",
     Default = teleporting,
     Callback = function(state)
@@ -407,6 +415,141 @@ Section2:NewToggle({
         if teleporting then StartTeleport() end
     end
 })
+
+Section2:NewSlider({
+    Title = "Walkspeed",
+    Min = 15,
+    Max = 500,
+    Default = 16,
+    Callback = function(value)
+        walkspeedValue = value
+    end
+})
+
+Section2:NewSlider({
+    Title = "Jumppower",
+    Min = 50,
+    Max = 500,
+    Default = 50,
+    Callback = function(value)
+        jumppowerValue = value
+    end
+})
+
+local changePlayerEnabled = false
+Section2:NewToggle({
+    Title = "Change Player",
+    Default = false,
+    Callback = function(state)
+        changePlayerEnabled = state
+    end
+})
+
+Section2:NewToggle({
+    Title = "Noclip",
+    Default = false,
+    Callback = function(state)
+        noclipEnabled = state
+    end
+})
+
+Section2:NewToggle({
+    Title = "Infinity Jump",
+    Default = false,
+    Callback = function(state)
+        infinityJumpEnabled = state
+    end
+})
+
+local flyEnabled = false
+local flySpeed = 50
+
+Section2:NewSlider({
+    Title = "Fly Speed",
+    Min = 10,
+    Max = 500,
+    Default = 50,
+    Callback = function(value)
+        flySpeed = value
+    end
+})
+
+Section2:NewToggle({
+    Title = "Fly",
+    Default = false,
+    Callback = function(state)
+        flyEnabled = state
+        local char = player.Character
+        if char then
+            local humanoidRootPart = char:FindFirstChild("HumanoidRootPart")
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if flyEnabled then
+                if humanoid then humanoid.PlatformStand = true end
+                task.spawn(function()
+                    while flyEnabled and humanoidRootPart do
+                        local moveDirection = Vector3.zero
+                        local uis = game:GetService("UserInputService")
+                        local cam = workspace.CurrentCamera
+                        local forward = cam.CFrame.LookVector
+                        local right = cam.CFrame.RightVector
+                        
+                        if uis:IsKeyDown(Enum.KeyCode.W) then moveDirection += forward end
+                        if uis:IsKeyDown(Enum.KeyCode.S) then moveDirection -= forward end
+                        if uis:IsKeyDown(Enum.KeyCode.A) then moveDirection -= right end
+                        if uis:IsKeyDown(Enum.KeyCode.D) then moveDirection += right end
+                        if uis:IsKeyDown(Enum.KeyCode.Space) then moveDirection += Vector3.new(0,1,0) end
+                        if uis:IsKeyDown(Enum.KeyCode.LeftControl) then moveDirection -= Vector3.new(0,1,0) end
+
+                        moveDirection = moveDirection.Unit * flySpeed
+                        if moveDirection ~= moveDirection then moveDirection = Vector3.zero end -- handle zero vector
+                        
+                        humanoidRootPart.Velocity = moveDirection
+                        task.wait()
+                    end
+                    if humanoid then humanoid.PlatformStand = false end
+                end)
+            else
+                if humanoid then humanoid.PlatformStand = false end
+            end
+        end
+    end
+})
+
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        local char = player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if changePlayerEnabled then
+                    humanoid.WalkSpeed = walkspeedValue
+                    humanoid.JumpPower = jumppowerValue
+                end
+            end
+
+            if noclipEnabled then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    end
+end)
+
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infinityJumpEnabled then
+        local char = player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
 
 if autocast then StartAutoCast() end
 if autoreel then StartAutoReel() end
