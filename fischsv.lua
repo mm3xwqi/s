@@ -13,8 +13,8 @@ local Settings = {
     TpToIsland = false,
     SelectedIsland = nil,
     SavedPosition = nil,
-    ReelMethod = "Perfect",
-    ReelMethod2 = "Instant"
+    CatchMethod = "Perfect",
+    ReelMethod = "Instant"
 }
 
 if pcall(function() return readfile(SETTINGS_FILE) end) then
@@ -55,13 +55,13 @@ end
 
 local autocast = Settings.AutoCast
 local autoreel = Settings.AutoReel
-local reelMethod = Settings.ReelMethod
+local CatchMethod = Settings.CatchMethod
 local autoshake = Settings.AutoShake
 local autosell = Settings.AutoSell
 local teleporting = Settings.TpToIsland
 local selectedIsland = Settings.SelectedIsland
 local savedPosition = Settings.SavedPosition
-local reelMethod2 = Settings.ReelMethod2 or "Instant"
+local reelMethod = Settings.ReelMethod or "Instant"
 
 local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
 
@@ -270,15 +270,15 @@ local function StartAutoReel()
             local playerbar = bar and bar:FindFirstChild("playerbar")
 
             pcall(function()
-                if reelMethod2 == "Legit" then
+                if reelMethod == "Legit" then
                     if fish and playerbar then
                         playerbar.Position = fish.Position
                     end
-                elseif reelMethod2 == "Instant" then
+                elseif reelMethod == "Instant" then
                     local isPerfect
-                    if reelMethod == "Perfect" then
+                    if CatchMethod == "Perfect" then
                         isPerfect = true
-                    elseif reelMethod == "Random" then
+                    elseif CatchMethod == "Random" then
                         isPerfect = (math.random(0,1) == 1)
                     else
                         isPerfect = true
@@ -316,23 +316,23 @@ Section:NewToggle({
 })
 
 Section3:NewDropdown({
-    Title = "Reel Method",
+    Title = "Catch Method",
     Data = {"Perfect", "Random"},
-    Default = reelMethod or "Perfect",
+    Default = CatchMethod or "Perfect",
     Callback = function(choice)
-        reelMethod = choice
-        Settings.ReelMethod = choice
+        CatchMethod = choice
+        Settings.CatchMethod = choice
         SaveSettings()
     end
 })
 
 Section3:NewDropdown({
-    Title = "Reel Method 2",
+    Title = "Reel Method",
     Data = {"Legit", "Instant"},
-    Default = reelMethod2 or "Legit",
+    Default = reelMethod or "Legit",
     Callback = function(choice)
-        reelMethod2 = choice
-        Settings.ReelMethod2 = choice
+        reelMethod = choice
+        Settings.ReelMethod = choice
         SaveSettings()
 
         if autoreel then
@@ -340,7 +340,7 @@ Section3:NewDropdown({
             StartAutoReel()
         end
 
-        if reelMethod2 == "Instant" then
+        if reelMethod == "Instant" then
             local isPerfect = (reelMethod == "Perfect") or (reelMethod == "Random" and math.random(0,1) == 1)
             pcall(function()
                 game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
@@ -378,7 +378,8 @@ Section:NewButton({
         local hrp = GetHumanoidRootPart()
         if hrp then
             savedPosition = hrp.CFrame
-            Settings.SavedPosition = savedPosition
+            local pos = savedPosition.Position
+            Settings.SavedPosition = {X=pos.X, Y=pos.Y, Z=pos.Z}
             SaveSettings()
             print("Saved Position:", savedPosition)
         end
