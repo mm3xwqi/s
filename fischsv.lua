@@ -12,7 +12,8 @@ local Settings = {
     AutoSell = false,
     TpToIsland = false,
     SelectedIsland = nil,
-    SavedPosition = nil
+    SavedPosition = nil,
+    ReelMethod = "Perfect"
 }
 
 if pcall(function() return readfile(SETTINGS_FILE) end) then
@@ -30,6 +31,7 @@ end
 
 local autocast = Settings.AutoCast
 local autoreel = Settings.AutoReel
+local reelMethod = Settings.ReelMethod
 local autoshake = Settings.AutoShake
 local autosell = Settings.AutoSell
 local teleporting = Settings.TpToIsland
@@ -46,7 +48,7 @@ table.sort(tpNames, function(a,b) return a:lower() < b:lower() end)
 
 local NothingLibrary = loadstring(game:HttpGetAsync('https://raw.githubusercontent.com/3345-c-a-t-s-u-s/NOTHING/main/source.lua'))();
 local Windows = NothingLibrary.new({
-    Title = "Fisch",
+    Title = "Fisch 0.0.1",
     Description = "Alpha",
     Keybind = Enum.KeyCode.LeftControl,
     Logo = 'http://www.roblox.com/asset/?id=18898582662'
@@ -103,7 +105,14 @@ local function StartAutoReel()
     task.spawn(function()
         while autoreel do
             pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100,true)
+                local isPerfect
+                if reelMethod == "Perfect" then
+                    isPerfect = true
+                elseif reelMethod == "Random" then
+                    isPerfect = (math.random(0,1) == 1)
+                end
+
+                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
             end)
             task.wait(0.1)
         end
@@ -189,6 +198,17 @@ Section:NewToggle({
         Settings.AutoReel = state
         SaveSettings()
         if autoreel then StartAutoReel() end
+    end
+})
+
+Section:NewDropdown({
+    Title = "Reel Method",
+    Data = {"Perfect", "Random"},
+    Default = reelMethod or "Perfect",
+    Callback = function(choice)
+        reelMethod = choice
+        Settings.ReelMethod = choice
+        SaveSettings()
     end
 })
 
