@@ -55,6 +55,11 @@ local Windows = NothingLibrary.new({
 })
 local TabFrame = Windows:NewTab({Title = "Main", Description = "etc", Icon = "rbxassetid://7733960981"})
 local Section = TabFrame:NewSection({Title = "Farms", Icon = "rbxassetid://7743869054", Position = "Left"})
+local TabFrame2 = Windows:NewTab({Title = "Teleport",Description = "Islands",Icon = ""})
+local Section2 = TabFrame:NewSection({Title = "Section",Icon = "rbxassetid://7743869054",Position = "Left"})
+local TabFrame3 = Windows:NewTab({Title = "Setting Farm",Description = "Method",Icon = ""})
+local Section3 = TabFrame:NewSection({Title = "Section",Icon = "rbxassetid://7743869054",Position = "Left"})
+
 
 local function EquipRods()
     local char = player.Character or player.CharacterAdded:Wait()
@@ -201,7 +206,7 @@ Section:NewToggle({
     end
 })
 
-Section:NewDropdown({
+Section3:NewDropdown({
     Title = "Reel Method",
     Data = {"Perfect", "Random"},
     Default = reelMethod or "Perfect",
@@ -245,7 +250,7 @@ Section:NewButton({
     end
 })
 
-Section:NewDropdown({
+Section2:NewDropdown({
     Title = "Select Islands",
     Data = tpNames,
     Default = selectedIsland or tpNames[1],
@@ -256,7 +261,7 @@ Section:NewDropdown({
     end
 })
 
-Section:NewToggle({
+Section2:NewToggle({
     Title = "Tp to Island",
     Default = teleporting,
     Callback = function(state)
