@@ -87,14 +87,20 @@ local Windows = NothingLibrary.new({
 local TabFrame = Windows:NewTab({Title = "Main", Description = "etc", Icon = "rbxassetid://7733960981"})
 local Section = TabFrame:NewSection({Title = "Farms", Icon = "rbxassetid://7743869054", Position = "Left"})
 
-local TabFrame2 = Windows:NewTab({Title = "Local Player", Description = "Player Settings", Icon = ""})
+local TabFrame2 = Windows:NewTab({Title = "Local Player", Description = "Islands", Icon = ""})
 local Section2 = TabFrame2:NewSection({Title = "Player", Icon = "rbxassetid://7743869054", Position = "Left"})
+local SectionRight = TabFrame2:NewSection({
+    Title = "Player",
+    Icon = "rbxassetid://7743869054",
+    Position = "Right"
+})
 
-local TabFrame3 = Windows:NewTab({Title = "Setting Farm", Description = "", Icon = ""})
+local TabFrame3 = Windows:NewTab({Title = "Setting Farm", Description = "Method", Icon = ""})
 local Section3 = TabFrame3:NewSection({Title = "Reel Settings", Icon = "rbxassetid://7743869054", Position = "Left"})
 
-local TabFrame4 = Windows:NewTab({Title = "Teleport", Description = "island", Icon = ""})
+local TabFrame4 = Windows:NewTab({Title = "Teleport", Description = "Player Settings", Icon = ""})
 local Section4 = TabFrame4:NewSection({Title = "Teleport", Icon = "rbxassetid://7743869054", Position = "Left"})
+
 
 local rodNames = {}
 local rodsFolder = ReplicatedStorage:WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods")
@@ -445,7 +451,7 @@ Section2:NewToggle({
     end
 })
 
-Section2:NewToggle({
+SectionRight:NewToggle({
     Title = "Noclip",
     Default = false,
     Callback = function(state)
@@ -453,7 +459,7 @@ Section2:NewToggle({
     end
 })
 
-Section2:NewToggle({
+SectionRight:NewToggle({
     Title = "Infinity Jump",
     Default = false,
     Callback = function(state)
@@ -461,57 +467,10 @@ Section2:NewToggle({
     end
 })
 
-local flyEnabled = false
-local flySpeed = 50
-
-Section2:NewSlider({
-    Title = "Fly Speed",
-    Min = 10,
-    Max = 500,
-    Default = 50,
-    Callback = function(value)
-        flySpeed = value
-    end
-})
-
-Section2:NewToggle({
+SectionRight:NewButton({
     Title = "Fly",
-    Default = false,
-    Callback = function(state)
-        flyEnabled = state
-        local char = player.Character
-        if char then
-            local humanoidRootPart = char:FindFirstChild("HumanoidRootPart")
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if flyEnabled then
-                if humanoid then humanoid.PlatformStand = true end
-                task.spawn(function()
-                    while flyEnabled and humanoidRootPart do
-                        local moveDirection = Vector3.zero
-                        local uis = game:GetService("UserInputService")
-                        local cam = workspace.CurrentCamera
-                        local forward = cam.CFrame.LookVector
-                        local right = cam.CFrame.RightVector
-                        
-                        if uis:IsKeyDown(Enum.KeyCode.W) then moveDirection += forward end
-                        if uis:IsKeyDown(Enum.KeyCode.S) then moveDirection -= forward end
-                        if uis:IsKeyDown(Enum.KeyCode.A) then moveDirection -= right end
-                        if uis:IsKeyDown(Enum.KeyCode.D) then moveDirection += right end
-                        if uis:IsKeyDown(Enum.KeyCode.Space) then moveDirection += Vector3.new(0,1,0) end
-                        if uis:IsKeyDown(Enum.KeyCode.LeftControl) then moveDirection -= Vector3.new(0,1,0) end
-
-                        moveDirection = moveDirection.Unit * flySpeed
-                        if moveDirection ~= moveDirection then moveDirection = Vector3.zero end -- handle zero vector
-                        
-                        humanoidRootPart.Velocity = moveDirection
-                        task.wait()
-                    end
-                    if humanoid then humanoid.PlatformStand = false end
-                end)
-            else
-                if humanoid then humanoid.PlatformStand = false end
-            end
-        end
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
     end
 })
 
