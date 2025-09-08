@@ -2,8 +2,7 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
--- ================== Settings ==================
-local SETTINGS_FILE = "FishingAutoSettings.json"
+local SETTINGS_FILE = "Fischsv.json"
 
 local Settings = {
     AutoCast = false,
@@ -13,7 +12,8 @@ local Settings = {
     TpToIsland = false,
     SelectedIsland = nil,
     SavedPosition = nil,
-    ReelMethod = "Perfect"
+    ReelMethod = "Perfect",
+    ReelMethod2 = "Instant"
 }
 
 if pcall(function() return readfile(SETTINGS_FILE) end) then
@@ -21,12 +21,35 @@ if pcall(function() return readfile(SETTINGS_FILE) end) then
         return HttpService:JSONDecode(readfile(SETTINGS_FILE))
     end)
     if success and data then
-        Settings = data
+        for k,v in pairs(data) do Settings[k] = v end
+    end
+end
+
+local savedPosition = nil
+if Settings.SavedPosition then
+    local sp = Settings.SavedPosition
+    if sp.X and sp.Y and sp.Z then
+        savedPosition = CFrame.new(sp.X, sp.Y, sp.Z)
     end
 end
 
 local function SaveSettings()
-    writefile(SETTINGS_FILE, HttpService:JSONEncode(Settings))
+    pcall(function()
+        local dataToSave = {}
+
+        for k,v in pairs(Settings) do
+            dataToSave[k] = v
+        end
+
+        if savedPosition then
+            local pos = savedPosition.Position
+            dataToSave.SavedPosition = {X=pos.X, Y=pos.Y, Z=pos.Z}
+        else
+            dataToSave.SavedPosition = nil
+        end
+
+        writefile(SETTINGS_FILE, HttpService:JSONEncode(dataToSave))
+    end)
 end
 
 local autocast = Settings.AutoCast
@@ -37,7 +60,9 @@ local autosell = Settings.AutoSell
 local teleporting = Settings.TpToIsland
 local selectedIsland = Settings.SelectedIsland
 local savedPosition = Settings.SavedPosition
+local reelMethod2 = Settings.ReelMethod2 or "Instant"
 
+-- ================== Teleport spots ==================
 local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
 
 local tpNames = {}
@@ -46,6 +71,7 @@ for _, spot in ipairs(tpFolder:GetChildren()) do
 end
 table.sort(tpNames, function(a,b) return a:lower() < b:lower() end)
 
+-- ================== UI library ==================
 local NothingLibrary = loadstring(game:HttpGetAsync('https://raw.githubusercontent.com/3345-c-a-t-s-u-s/NOTHING/main/source.lua'))();
 local Windows = NothingLibrary.new({
     Title = "Fisch 0.0.1",
@@ -53,16 +79,18 @@ local Windows = NothingLibrary.new({
     Keybind = Enum.KeyCode.LeftControl,
     Logo = 'http://www.roblox.com/asset/?id=18898582662'
 })
+
+-- Create tabs & sections (use the same 'Windows' object)
 local TabFrame = Windows:NewTab({Title = "Main", Description = "etc", Icon = "rbxassetid://7733960981"})
 local Section = TabFrame:NewSection({Title = "Farms", Icon = "rbxassetid://7743869054", Position = "Left"})
 
-local TabFrame2 = Windows:NewTab({Title = "Teleport",Description = "Islands",Icon = ""})
-local Section2 = TabFrame2:NewSection({Title = "Section",Icon = "rbxassetid://7743869054",Position = "Left"})
+local TabFrame2 = Windows:NewTab({Title = "Teleport", Description = "Islands", Icon = ""})
+local Section2 = TabFrame2:NewSection({Title = "Teleport", Icon = "rbxassetid://7743869054", Position = "Left"})
 
-local TabFrame3 = Windows:NewTab({Title = "Setting Farm",Description = "Method",Icon = ""})
-local Section3 = TabFrame3:NewSection({Title = "Section",Icon = "rbxassetid://7743869054",Position = "Left"})
+local TabFrame3 = Windows:NewTab({Title = "Setting Farm", Description = "Method", Icon = ""})
+local Section3 = TabFrame3:NewSection({Title = "Reel Settings", Icon = "rbxassetid://7743869054", Position = "Left"})
 
-
+-- ================== Helper functions ==================
 local function EquipRods()
     local char = player.Character or player.CharacterAdded:Wait()
     for _, tool in ipairs(player.Backpack:GetChildren()) do
@@ -77,6 +105,7 @@ local function GetHumanoidRootPart()
     return char:WaitForChild("HumanoidRootPart")
 end
 
+-- ================== Auto Cast ==================
 local function StartAutoCast()
     task.spawn(function()
         while autocast do
@@ -102,32 +131,41 @@ local function StartAutoCast()
                     pcall(function() cast:FireServer(100,true) end)
                 end
             end
-            task.wait(0.2)
+            task.wait()
         end
     end)
 end
 
 -- ================== Auto Reel ==================
-local function StartAutoReel()
-    task.spawn(function()
-        while autoreel do
-            pcall(function()
-                local isPerfect
-                if reelMethod == "Perfect" then
-                    isPerfect = true
-                elseif reelMethod == "Random" then
-                    isPerfect = (math.random(0,1) == 1)
-                end
-
-                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
-            end)
-            task.wait(0.1)
-        end
-    end)
-end
+--local autoreel_running = false
+--local function StartAutoReel()
+ --   if autoreel_running then return end
+ --   autoreel_running = true
+ --   task.spawn(function()
+ --       while autoreel do
+ --           pcall(function()
+ --               local isPerfect
+ --               if reelMethod == "Perfect" then
+ --                   isPerfect = true
+ --               elseif reelMethod == "Random" then
+ --                   isPerfect = (math.random(0,1) == 1)
+ --               else
+ --                   isPerfect = true
+  --              end
+--
+  --              ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
+  --          end)
+ --           task.wait(0.1)
+ --       end
+ --       autoreel_running = false
+ --   end)
+--end
 
 -- ================== Auto Shake ==================
+local autoshake_running = false
 local function StartAutoShake()
+    if autoshake_running then return end
+    autoshake_running = true
     task.spawn(function()
         while autoshake do
             local shakeButton = player.PlayerGui:FindFirstChild("shakeui")
@@ -140,11 +178,15 @@ local function StartAutoShake()
             end
             task.wait(0.05)
         end
+        autoshake_running = false
     end)
 end
 
 -- ================== Auto Sell ==================
+local autosell_running = false
 local function StartAutoSell()
+    if autosell_running then return end
+    autosell_running = true
     task.spawn(function()
         while autosell do
             local npcFolder = workspace:WaitForChild("world"):WaitForChild("npcs")
@@ -163,16 +205,20 @@ local function StartAutoSell()
                     idle = targetNpc:WaitForChild("description"):WaitForChild("idle")
                 }}
                 pcall(function()
-                    game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer(unpack(args))
+                    ReplicatedStorage:WaitForChild("events"):WaitForChild("SellAll"):InvokeServer(unpack(args))
                 end)
             end
             task.wait(1)
         end
+        autosell_running = false
     end)
 end
 
 -- ================== Teleport ==================
+local teleport_running = false
 local function StartTeleport()
+    if teleport_running then return end
+    teleport_running = true
     task.spawn(function()
         while teleporting do
             local hrp = GetHumanoidRootPart()
@@ -182,10 +228,49 @@ local function StartTeleport()
             end
             task.wait()
         end
+        teleport_running = false
     end)
 end
 
--- ================== UI ==================
+-- ================== Reel Method 2 (Legit / Instant) ==================
+local autoreel_running = false
+
+local function StartAutoReel()
+    if autoreel_running then return end
+    autoreel_running = true
+    task.spawn(function()
+        while autoreel do
+            local gui = player:FindFirstChild("PlayerGui")
+            local reel = gui and gui:FindFirstChild("reel")
+            local bar = reel and reel:FindFirstChild("bar")
+            local fish = bar and bar:FindFirstChild("fish")
+            local playerbar = bar and bar:FindFirstChild("playerbar")
+
+            pcall(function()
+                if reelMethod2 == "Legit" then
+                    if fish and playerbar then
+                        playerbar.Position = fish.Position
+                    end
+                elseif reelMethod2 == "Instant" then
+                    local isPerfect
+                    if reelMethod == "Perfect" then
+                        isPerfect = true
+                    elseif reelMethod == "Random" then
+                        isPerfect = (math.random(0,1) == 1)
+                    else
+                        isPerfect = true
+                    end
+                    game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
+                end
+            end)
+
+            task.wait()
+        end
+        autoreel_running = false
+    end)
+end
+
+-- ================== UI (สร้าง Toggle/Dropdown) ==================
 Section:NewToggle({
     Title = "Auto Cast",
     Default = autocast,
@@ -219,6 +304,30 @@ Section3:NewDropdown({
     end
 })
 
+Section3:NewDropdown({
+    Title = "Reel Method 2",
+    Data = {"Legit", "Instant"},
+    Default = reelMethod2 or "Legit",
+    Callback = function(choice)
+        reelMethod2 = choice
+        Settings.ReelMethod2 = choice
+        SaveSettings()
+
+        if autoreel then
+            autoreel_running = false
+            StartAutoReel()
+        end
+
+        if reelMethod2 == "Instant" then
+            local isPerfect = (reelMethod == "Perfect") or (reelMethod == "Random" and math.random(0,1) == 1)
+            pcall(function()
+                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
+            end)
+        end
+    end
+})
+
+
 Section:NewToggle({
     Title = "Auto Shake",
     Default = autoshake,
@@ -245,10 +354,12 @@ Section:NewButton({
     Title = "Save Position",
     Callback = function()
         local hrp = GetHumanoidRootPart()
-        savedPosition = hrp.CFrame
-        Settings.SavedPosition = savedPosition
-        SaveSettings()
-        print("Saved Position:", savedPosition)
+        if hrp then
+            savedPosition = hrp.CFrame
+            Settings.SavedPosition = savedPosition
+            SaveSettings()
+            print("Saved Position:", savedPosition)
+        end
     end
 })
 
@@ -274,6 +385,7 @@ Section2:NewToggle({
     end
 })
 
+-- ================== Start any modes that were saved as on ==================
 if autocast then StartAutoCast() end
 if autoreel then StartAutoReel() end
 if autoshake then StartAutoShake() end
