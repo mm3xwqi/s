@@ -172,7 +172,7 @@ local function StartAutoCast()
                 end
             end
 
-            task.wait()
+            task.wait(.1)
         end
     end)
 end
