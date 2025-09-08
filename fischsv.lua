@@ -270,6 +270,23 @@ local function SetWalkOnWater(state)
     end
 end
 
+local teleport_running = false
+local function StartTeleport()
+    if teleport_running then return end
+    teleport_running = true
+    task.spawn(function()
+        while teleporting do
+            local hrp = GetHumanoidRootPart()
+            local spot = tpFolder:FindFirstChild(selectedIsland)
+            if hrp and spot then
+                pcall(function() hrp.CFrame = spot.CFrame + Vector3.new(0,5,0) end)
+            end
+            task.wait()
+        end
+        teleport_running = false
+    end)
+end
+
 -- ================== Compkiller UI ==================
 local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/CompKiller/refs/heads/main/src/source.luau"))();
 local Notifier = Compkiller.newNotify();
@@ -284,8 +301,8 @@ local Window = Compkiller.new({Name="Fisch - Cxsmic", Keybind="LeftAlt", Logo="r
 Notifier.new({
 	Title = "Notification",
 	Content = "Thank you for use this script!",
-	Duration = 10,
-	Icon = "rbxassetid://120245531583106"
+	Duration = 25,
+	Icon = "rbxassetid://74493757521216"
 });
 
 local Watermark = Window:Watermark();
@@ -546,15 +563,6 @@ game:GetService("UserInputService").JumpRequest:Connect(function()
     end
 end)
 
-if autocast then StartAutoCast() end
-if autoreel then StartAutoReel() end
-if autoshake then StartAutoShake() end
-if autosell then StartAutoSell() end
-if teleporting then StartTeleport() end
-if walkOnWaterEnabled then
-    SetWalkOnWater(true)
-end
-
 Window:DrawCategory({
 	Name = "Misc"
 });
@@ -742,3 +750,12 @@ local ConfigUI = Window:DrawConfig({
 });
 
 ConfigUI:Init();
+
+if autocast then StartAutoCast() end
+if autoreel then StartAutoReel() end
+if autoshake then StartAutoShake() end
+if autosell then StartAutoSell() end
+if teleporting then StartTeleport() end
+if walkOnWaterEnabled then
+    SetWalkOnWater(true)
+end
