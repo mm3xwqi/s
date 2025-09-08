@@ -1,3 +1,4 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
@@ -62,7 +63,6 @@ local selectedIsland = Settings.SelectedIsland
 local savedPosition = Settings.SavedPosition
 local reelMethod2 = Settings.ReelMethod2 or "Instant"
 
--- ================== Teleport spots ==================
 local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
 
 local tpNames = {}
@@ -71,16 +71,14 @@ for _, spot in ipairs(tpFolder:GetChildren()) do
 end
 table.sort(tpNames, function(a,b) return a:lower() < b:lower() end)
 
--- ================== UI library ==================
 local NothingLibrary = loadstring(game:HttpGetAsync('https://raw.githubusercontent.com/3345-c-a-t-s-u-s/NOTHING/main/source.lua'))();
 local Windows = NothingLibrary.new({
-    Title = "Fisch 0.0.1",
+    Title = "Fisch 0.0.2",
     Description = "Alpha",
     Keybind = Enum.KeyCode.LeftControl,
     Logo = 'http://www.roblox.com/asset/?id=18898582662'
 })
 
--- Create tabs & sections (use the same 'Windows' object)
 local TabFrame = Windows:NewTab({Title = "Main", Description = "etc", Icon = "rbxassetid://7733960981"})
 local Section = TabFrame:NewSection({Title = "Farms", Icon = "rbxassetid://7743869054", Position = "Left"})
 
@@ -90,12 +88,41 @@ local Section2 = TabFrame2:NewSection({Title = "Teleport", Icon = "rbxassetid://
 local TabFrame3 = Windows:NewTab({Title = "Setting Farm", Description = "Method", Icon = ""})
 local Section3 = TabFrame3:NewSection({Title = "Reel Settings", Icon = "rbxassetid://7743869054", Position = "Left"})
 
--- ================== Helper functions ==================
+local rodNames = {}
+local rodsFolder = ReplicatedStorage:WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods")
+for _, rod in ipairs(rodsFolder:GetChildren()) do
+    table.insert(rodNames, rod.Name)
+end
+
 local function EquipRods()
     local char = player.Character or player.CharacterAdded:Wait()
-    for _, tool in ipairs(player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") and string.find(tool.Name, "Rod") then
-            tool.Parent = char
+    local backpack = player:WaitForChild("Backpack")
+
+    for _, rodName in ipairs(rodNames) do
+        local hasRodInChar = false
+        local hasRodInBackpack = false
+
+        for _, tool in ipairs(char:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == rodName then
+                hasRodInChar = true
+                break
+            end
+        end
+
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == rodName then
+                hasRodInBackpack = true
+                break
+            end
+        end
+
+        if not hasRodInChar and hasRodInBackpack then
+            for _, tool in ipairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") and tool.Name == rodName then
+                    tool.Parent = char
+                    break
+                end
+            end
         end
     end
 end
@@ -105,7 +132,6 @@ local function GetHumanoidRootPart()
     return char:WaitForChild("HumanoidRootPart")
 end
 
--- ================== Auto Cast ==================
 local function StartAutoCast()
     task.spawn(function()
         while autocast do
@@ -114,24 +140,25 @@ local function StartAutoCast()
                 pcall(function() hrp.CFrame = savedPosition end)
             end
 
+            EquipRods()
+
             local char = player.Character
             local rod = nil
             for _, tool in ipairs(char:GetChildren()) do
-                if tool:IsA("Tool") and string.find(tool.Name, "Rod") then
+                if tool:IsA("Tool") and table.find(rodNames, tool.Name) then
                     rod = tool
                     break
                 end
             end
 
-            if not rod then
-                EquipRods()
-            else
+            if rod then
                 local cast = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
                 if cast then
                     pcall(function() cast:FireServer(100,true) end)
                 end
             end
-            task.wait()
+
+            task.wait(0.2)
         end
     end)
 end
@@ -161,7 +188,6 @@ end
  --   end)
 --end
 
--- ================== Auto Shake ==================
 local autoshake_running = false
 local function StartAutoShake()
     if autoshake_running then return end
@@ -182,7 +208,6 @@ local function StartAutoShake()
     end)
 end
 
--- ================== Auto Sell ==================
 local autosell_running = false
 local function StartAutoSell()
     if autosell_running then return end
@@ -214,7 +239,6 @@ local function StartAutoSell()
     end)
 end
 
--- ================== Teleport ==================
 local teleport_running = false
 local function StartTeleport()
     if teleport_running then return end
@@ -232,7 +256,6 @@ local function StartTeleport()
     end)
 end
 
--- ================== Reel Method 2 (Legit / Instant) ==================
 local autoreel_running = false
 
 local function StartAutoReel()
@@ -270,7 +293,6 @@ local function StartAutoReel()
     end)
 end
 
--- ================== UI (สร้าง Toggle/Dropdown) ==================
 Section:NewToggle({
     Title = "Auto Cast",
     Default = autocast,
@@ -385,7 +407,6 @@ Section2:NewToggle({
     end
 })
 
--- ================== Start any modes that were saved as on ==================
 if autocast then StartAutoCast() end
 if autoreel then StartAutoReel() end
 if autoshake then StartAutoShake() end
