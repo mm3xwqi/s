@@ -55,10 +55,10 @@ local Windows = NothingLibrary.new({
 })
 local TabFrame = Windows:NewTab({Title = "Main", Description = "etc", Icon = "rbxassetid://7733960981"})
 local Section = TabFrame:NewSection({Title = "Farms", Icon = "rbxassetid://7743869054", Position = "Left"})
-local TabFrame2 = Windows:NewTab2({Title = "Teleport",Description = "Islands",Icon = ""})
-local Section2 = TabFrame:NewSection2({Title = "Section",Icon = "rbxassetid://7743869054",Position = "Left"})
-local TabFrame3 = Windows:NewTab3({Title = "Setting Farm",Description = "Method",Icon = ""})
-local Section3 = TabFrame:NewSection3({Title = "Section",Icon = "rbxassetid://7743869054",Position = "Left"})
+local TabFrame2 = Windows2:NewTab({Title = "Teleport",Description = "Islands",Icon = ""})
+local Section2 = TabFrame2:NewSection({Title = "Section",Icon = "rbxassetid://7743869054",Position = "Left"})
+local TabFrame3 = Windows3:NewTab({Title = "Setting Farm",Description = "Method",Icon = ""})
+local Section3 = TabFrame3:NewSection({Title = "Section",Icon = "rbxassetid://7743869054",Position = "Left"})
 
 
 local function EquipRods()
