@@ -87,13 +87,13 @@ local Windows = NothingLibrary.new({
 local TabFrame = Windows:NewTab({Title = "Main", Description = "etc", Icon = "rbxassetid://7733960981"})
 local Section = TabFrame:NewSection({Title = "Farms", Icon = "rbxassetid://7743869054", Position = "Left"})
 
-local TabFrame2 = Windows:NewTab({Title = "Local Player", Description = "Islands", Icon = ""})
+local TabFrame2 = Windows:NewTab({Title = "Local Player", Description = "Player Settings", Icon = ""})
 local Section2 = TabFrame2:NewSection({Title = "Player", Icon = "rbxassetid://7743869054", Position = "Left"})
 
-local TabFrame3 = Windows:NewTab({Title = "Setting Farm", Description = "Method", Icon = ""})
+local TabFrame3 = Windows:NewTab({Title = "Setting Farm", Description = "", Icon = ""})
 local Section3 = TabFrame3:NewSection({Title = "Reel Settings", Icon = "rbxassetid://7743869054", Position = "Left"})
 
-local TabFrame4 = Windows:NewTab({Title = "Teleport", Description = "Player Settings", Icon = ""})
+local TabFrame4 = Windows:NewTab({Title = "Teleport", Description = "island", Icon = ""})
 local Section4 = TabFrame4:NewSection({Title = "Teleport", Icon = "rbxassetid://7743869054", Position = "Left"})
 
 local rodNames = {}
