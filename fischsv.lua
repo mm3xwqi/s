@@ -47,8 +47,10 @@ end
 local savedPosition = nil
 if Settings.SavedPosition then
 	local sp = Settings.SavedPosition
-	if sp.X and sp.Y and sp.Z then
-		savedPosition = CFrame.new(sp.X, sp.Y, sp.Z)
+	if sp.X and sp.Y and sp.Z and sp.Yaw then
+		local pos = Vector3.new(sp.X, sp.Y, sp.Z)
+		local yawRad = math.rad(sp.Yaw)
+		savedPosition = CFrame.new(pos) * CFrame.Angles(0, yawRad, 0)
 	end
 end
 
@@ -60,7 +62,13 @@ local function SaveSettings()
 		end
 		if savedPosition then
 			local pos = savedPosition.Position
-			dataToSave.SavedPosition = {X=pos.X, Y=pos.Y, Z=pos.Z}
+			local _, yRot, _ = savedPosition:ToEulerAnglesXYZ() -- แปลงเป็นมุม X/Y/Z
+			dataToSave.SavedPosition = {
+				X = pos.X,
+				Y = pos.Y,
+				Z = pos.Z,
+				Yaw = math.deg(yRot)
+			}
 		else
 			dataToSave.SavedPosition = nil
 		end
@@ -299,7 +307,7 @@ local ConfigManager = Compkiller:ConfigManager({Directory="Compkiller-UI",Config
 local Window = Compkiller.new({Name="Fisch - Cxsmic", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=15})
 
 Notifier.new({
-	Title = "Notification",
+	Title = "Cxs Hub",
 	Content = "Thank you for use this script!",
 	Duration = 25,
 	Icon = "rbxassetid://74493757521216"
@@ -309,7 +317,7 @@ local Watermark = Window:Watermark();
 
 Watermark:AddText({
 	Icon = "user",
-	Text = "Nate",
+	Text = "Yo",
 });
 
 Watermark:AddText({
@@ -433,16 +441,24 @@ SettingSection:AddButton({Name="Save Position",Callback=function()
 	if hrp then
 		savedPosition = hrp.CFrame
 		local pos = savedPosition.Position
-		Settings.SavedPosition = {X=pos.X,Y=pos.Y,Z=pos.Z}
+		local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
+		Settings.SavedPosition = {
+			X = pos.X,
+			Y = pos.Y,
+			Z = pos.Z,
+			Yaw = math.deg(yRot)
+		}
 		SaveSettings()
 	end
 end})
+
+
 
 plTab:AddSlider({
     Name = "Walkspeed",
     Min = 50,
     Max = 500,
-    Default = 50,
+    Default = 100,
     Round = 0,
     Flag = "Walk_power",
     Callback = function(value)
@@ -751,11 +767,27 @@ local ConfigUI = Window:DrawConfig({
 
 ConfigUI:Init();
 
-if autocast then StartAutoCast() end
-if autoreel then StartAutoReel() end
-if autoshake then StartAutoShake() end
-if autosell then StartAutoSell() end
-if teleporting then StartTeleport() end
+if autocast then
+    StartAutoCastThrow()
+    StartAutoCastTeleport()
+end
+
+if autoreel then
+    StartAutoReel()
+end
+
+if autoshake then
+    StartAutoShake()
+end
+
+if autosell then
+    StartAutoSell()
+end
+
+if teleporting then
+    StartTeleport()
+end
+
 if walkOnWaterEnabled then
     SetWalkOnWater(true)
 end
