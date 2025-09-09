@@ -309,7 +309,7 @@ local Watermark = Window:Watermark();
 
 Watermark:AddText({
 	Icon = "user",
-	Text = "Yo",
+	Text = "Nate",
 });
 
 Watermark:AddText({
