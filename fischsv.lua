@@ -90,6 +90,8 @@ local jumppowerValue = 50
 local noclipEnabled = false
 local infinityJumpEnabled = false
 local changePlayerEnabled = false
+local selectedPlayer = nil
+local tpToPlayerEnabled = false
 
 local function EquipRods()
 	local char = player.Character or player.CharacterAdded:Wait()
@@ -109,6 +111,15 @@ local function EquipRods()
 			end
 		end
 	end
+end
+
+local function GetPlayerNames()
+	local names = {}
+	for _, plr in ipairs(Players:GetPlayers()) do
+		table.insert(names, plr.Name)
+	end
+	table.sort(names, function(a,b) return a:lower() < b:lower() end)
+	return names
 end
 
 local function GetHumanoidRootPart()
@@ -307,7 +318,7 @@ local ConfigManager = Compkiller:ConfigManager({Directory="Compkiller-UI",Config
 local Window = Compkiller.new({Name="Fisch - Cxsmic", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=15})
 
 Notifier.new({
-	Title = "Cxs Hub",
+	Title = "Notification",
 	Content = "Thank you for use this script!",
 	Duration = 25,
 	Icon = "rbxassetid://74493757521216"
@@ -353,15 +364,17 @@ local tab2 = Window:DrawTab({
 	Type = "Single"
 });
 
-local plTab = tab2:DrawSection({Name="Player",Position="left"})
+local plTab = tab2:DrawSection({Name="Local Player",Position="left"})
 
 local tab3 = Window:DrawTab({
-	Name = "Islands",
+	Name = "Islands & Player",
 	Icon = "home",
-	Type = "Single"
+	EnableScrolling=true
 });
 
-local tpTab = tab3:DrawSection({Name="Player",Position="left"})
+local tpTab = tab3:DrawSection({Name="Island",Position="left"})
+
+local tpTabRight = tab3:DrawSection({Name="Player",Position="right"})
 
 
 FischSection:AddToggle({
@@ -542,6 +555,48 @@ tpTab:AddToggle({
     end
 })
 
+tpTabRight:AddDropdown({
+	Name = "Select Player",
+	Values = GetPlayerNames(),
+	Default = selectedPlayer or Players.LocalPlayer.Name,
+	Callback = function(choice)
+		selectedPlayer = choice
+	end
+})
+
+tpTabRight:AddToggle({
+	Name = "Tp to Player",
+	Default = tpToPlayerEnabled,
+	Callback = function(state)
+		tpToPlayerEnabled = state
+
+		if tpToPlayerEnabled then
+			task.spawn(function()
+				while tpToPlayerEnabled do
+					local hrp = GetHumanoidRootPart()
+					local targetPlayer = Players:FindFirstChild(selectedPlayer)
+					if hrp and targetPlayer and targetPlayer.Character then
+						local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+						if targetHRP then
+							pcall(function()
+								hrp.CFrame = targetHRP.CFrame + Vector3.new(0,0,0)
+							end)
+						end
+					end
+					task.wait()
+				end
+			end)
+		end
+	end
+})
+
+Players.PlayerAdded:Connect(function()
+	tpTabRight:UpdateDropdown("Select Player", GetPlayerNames())
+end)
+
+Players.PlayerRemoving:Connect(function()
+	tpTabRight:UpdateDropdown("Select Player", GetPlayerNames())
+end)
 
 task.spawn(function()
     while true do
