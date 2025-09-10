@@ -368,50 +368,6 @@ local function StartTeleport()
         teleport_running = false
     end)
 end
-
-local autoReelSimple_running = false
-local function StartAutoReelSimple()
-    if autoReelSimple_running then return end
-    autoReelSimple_running = true
-
-    task.spawn(function()
-        while autoreel do
-            local gui = player:FindFirstChild("PlayerGui")
-            local reelGui = gui and gui:FindFirstChild("reel")
-
-            if reelGui then
-                local char = player.Character
-                if char then
-                    for _, rodName in ipairs(rodNames) do
-                        local rod = char:FindFirstChild(rodName)
-                        if rod then
-                            -- Unequip rod 1 ครั้ง
-                            if rod.Parent ~= player.Backpack then
-                                rod.Parent = player.Backpack
-                            end
-
-                            -- Fire reset event 1 ครั้ง
-                            local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
-                            if resetEvent then
-                                pcall(function() resetEvent:FireServer() end)
-                            end
-
-                            -- Fire reelfinished event 1 ครั้ง
-                            local reelfinished = ReplicatedStorage:WaitForChild("events"):FindFirstChild("reelfinished")
-                            if reelfinished then
-                                local isPerfect = (CatchMethod == "Perfect") or (CatchMethod == "Random" and math.random(0,1) == 1)
-                                pcall(function() reelfinished:FireServer(100, isPerfect) end)
-                            end
-                        end
-                    end
-                end
-            end
-
-            task.wait(0.1) -- เริ่มลูปใหม่
-        end
-        autoReelSimple_running = false
-    end)
-end
 -- ================== Compkiller UI ==================
 local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/CompKiller/refs/heads/main/src/source.luau"))();
 local Notifier = Compkiller.newNotify();
@@ -504,19 +460,6 @@ FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callba
 	SaveSettings()
 	if state then StartAutoReel() end
 end})
-
-FischSection:AddToggle({
-    Name = "Instant Reel (beta)",
-    Default = instantReelEnabled,
-    Callback = function(state)
-        instantReelEnabled = state
-        Settings.InstantReel = state
-        SaveSettings()
-        if state then
-            StartAutoReelSimple()
-        end
-    end
-})
 
 FischSection:AddToggle({
     Name = "Auto Equip Rod",
