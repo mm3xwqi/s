@@ -394,7 +394,7 @@ local ConfigManager = Compkiller:ConfigManager({
 });
 Compkiller:Loader("rbxassetid://74493757521216" , 2.5).yield();
 local ConfigManager = Compkiller:ConfigManager({Directory="Compkiller-UI",Config="Fisch-Configs"})
-local Window = Compkiller.new({Name="Fisch - Cxsmic v0.1 Beta", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=15})
+local Window = Compkiller.new({Name="Cxsmic Beta", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=15})
 
 Notifier.new({
 	Title = "Notification",
@@ -676,13 +676,11 @@ plTab:AddToggle({
         local UIS = game:GetService("UserInputService")
         local RunService = game:GetService("RunService")
 
-        -- ปิดก่อนถ้ามี connection เก่า
         if flyConnection then
             flyConnection:Disconnect()
             flyConnection = nil
         end
 
-        -- ลบ BodyVelocity เดิมถ้ามี
         if hrp:FindFirstChild("FlyVelocity") then
             hrp.FlyVelocity:Destroy()
         end
@@ -694,14 +692,13 @@ plTab:AddToggle({
             bodyVelocity.Velocity = Vector3.new(0,0,0)
             bodyVelocity.Parent = hrp
 
-            local speed = 50
+            local speed = 100
 
             flyConnection = RunService.RenderStepped:Connect(function()
                 local moveDir = Vector3.new(0,0,0)
                 local cam = workspace.CurrentCamera
 
                 if UIS.KeyboardEnabled then
-                    -- บินตาม W/A/S/D ปกติ
                     if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
                     if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
                     if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
@@ -709,12 +706,14 @@ plTab:AddToggle({
                     if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
                     if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
                 elseif UIS.TouchEnabled then
-                    -- บินตามทิศทางกล้องสำหรับมือถือ
-                    moveDir = cam.CFrame.LookVector * humanoid.MoveDirection.Magnitude
-                    if humanoid.MoveDirection.Magnitude > 0 then
-                        -- ปรับให้บินขึ้นลงได้ ถ้ากดปุ่ม UI เพิ่มเติม (สามารถสร้างปุ่มเองได้)
-                        -- moveDir = moveDir + Vector3.new(0,1,0) -- เพิ่มให้บินขึ้น
-                    end
+                    local move = humanoid.MoveDirection
+                    local camLook = Vector3.new(cam.CFrame.LookVector.X, 0, cam.CFrame.LookVector.Z).Unit
+                    local camRight = Vector3.new(cam.CFrame.RightVector.X, 0, cam.CFrame.RightVector.Z).Unit
+
+                    moveDir = (camLook * move.Z) + (camRight * move.X)
+
+                    if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
+                    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
                 end
 
                 if moveDir.Magnitude > 0 then
