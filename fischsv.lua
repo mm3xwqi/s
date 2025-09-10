@@ -62,7 +62,7 @@ local function SaveSettings()
 		end
 		if savedPosition then
 			local pos = savedPosition.Position
-			local _, yRot, _ = savedPosition:ToEulerAnglesXYZ() -- แปลงเป็นมุม X/Y/Z
+			local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
 			dataToSave.SavedPosition = {
 				X = pos.X,
 				Y = pos.Y,
@@ -221,7 +221,6 @@ local function StartAutoReel()
             local gui = player:FindFirstChild("PlayerGui")
             local reel = gui and gui:FindFirstChild("reel")
 
-            -- รอจนเจอ GUI reel
             while autoreel and gui and not reel do
                 reel = gui:FindFirstChild("reel")
                 task.wait(0.1)
@@ -235,11 +234,9 @@ local function StartAutoReel()
                         if rod then
                             local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
                             if resetEvent then
-                                -- ยิง resetEvent รัว ๆ จน GUI หายไป
                                 while autoreel and reel and reel.Parent and rod.Parent == char do
                                     pcall(function() resetEvent:FireServer() end)
 
-                                    -- การรีลปกติ
                                     local bar = reel:FindFirstChild("bar")
                                     local fish = bar and bar:FindFirstChild("fish")
                                     local playerbar = bar and bar:FindFirstChild("playerbar")
@@ -266,7 +263,6 @@ local function StartAutoReel()
                                     reel = gui:FindFirstChild("reel")
                                 end
 
-                                -- Unequip rod 1 ครั้ง หลัง GUI หาย
                                 if rod.Parent ~= player.Backpack then
                                     rod.Parent = player.Backpack
                                 end
@@ -276,7 +272,7 @@ local function StartAutoReel()
                 end
             end
 
-            task.wait(0.1) -- เริ่ม loop ใหม่
+            task.wait(0.1)
         end
         autoreel_running = false
     end)
