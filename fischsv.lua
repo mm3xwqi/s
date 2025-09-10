@@ -96,23 +96,27 @@ local tpToPlayerEnabled = false
 local autoEquipRod_running = false
 
 local function EquipRods()
-	local char = player.Character or player.CharacterAdded:Wait()
-	local backpack = player:WaitForChild("Backpack")
-	for _, rodName in ipairs(rodNames) do
-		local hasRodInChar = false
-		local hasRodInBackpack = false
-		for _, tool in ipairs(char:GetChildren()) do
-			if tool:IsA("Tool") and tool.Name == rodName then hasRodInChar = true break end
-		end
-		for _, tool in ipairs(backpack:GetChildren()) do
-			if tool:IsA("Tool") and tool.Name == rodName then hasRodInBackpack = true break end
-		end
-		if not hasRodInChar and hasRodInBackpack then
-			for _, tool in ipairs(backpack:GetChildren()) do
-				if tool:IsA("Tool") and tool.Name == rodName then tool.Parent = char break end
-			end
-		end
-	end
+    local char = player.Character or player.CharacterAdded:Wait()
+    local backpack = player:WaitForChild("Backpack")
+
+    local hasRodInHand = false
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") and table.find(rodNames, tool.Name) then
+            hasRodInHand = true
+            break
+        end
+    end
+
+    if hasRodInHand then return end
+
+    for _, rodName in ipairs(rodNames) do
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == rodName then
+                tool.Parent = char
+                return
+            end
+        end
+    end
 end
 
 local function GetPlayerNames()
@@ -211,11 +215,13 @@ local autoreel_running = false
 local function StartAutoReel()
     if autoreel_running then return end
     autoreel_running = true
+
     task.spawn(function()
         while autoreel do
             local gui = player:FindFirstChild("PlayerGui")
             local reel = gui and gui:FindFirstChild("reel")
 
+            -- รอจนเจอ GUI reel
             while autoreel and gui and not reel do
                 reel = gui:FindFirstChild("reel")
                 task.wait(0.1)
@@ -229,33 +235,48 @@ local function StartAutoReel()
                         if rod then
                             local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
                             if resetEvent then
-                                pcall(function() resetEvent:FireServer() end)
+                                -- ยิง resetEvent รัว ๆ จน GUI หายไป
+                                while autoreel and reel and reel.Parent and rod.Parent == char do
+                                    pcall(function() resetEvent:FireServer() end)
+
+                                    -- การรีลปกติ
+                                    local bar = reel:FindFirstChild("bar")
+                                    local fish = bar and bar:FindFirstChild("fish")
+                                    local playerbar = bar and bar:FindFirstChild("playerbar")
+
+                                    pcall(function()
+                                        if reelMethod == "Legit" then
+                                            if fish and playerbar then
+                                                playerbar.Position = fish.Position
+                                            end
+                                        elseif reelMethod == "Instant" then
+                                            local isPerfect
+                                            if CatchMethod == "Perfect" then
+                                                isPerfect = true
+                                            elseif CatchMethod == "Random" then
+                                                isPerfect = (math.random(0,1) == 1)
+                                            else
+                                                isPerfect = true
+                                            end
+                                            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100,isPerfect)
+                                        end
+                                    end)
+
+                                    task.wait(0.05)
+                                    reel = gui:FindFirstChild("reel")
+                                end
+
+                                -- Unequip rod 1 ครั้ง หลัง GUI หาย
+                                if rod.Parent ~= player.Backpack then
+                                    rod.Parent = player.Backpack
+                                end
                             end
                         end
                     end
                 end
-
-                local bar = reel:FindFirstChild("bar")
-                local fish = bar and bar:FindFirstChild("fish")
-                local playerbar = bar and bar:FindFirstChild("playerbar")
-
-                -- การรีลปกติ
-                pcall(function()
-                    if reelMethod == "Legit" then
-                        if fish and playerbar then
-                            playerbar.Position = fish.Position
-                        end
-                    elseif reelMethod == "Instant" then
-                        local isPerfect
-                        if CatchMethod == "Perfect" then isPerfect = true
-                        elseif CatchMethod == "Random" then isPerfect = (math.random(0,1) == 1)
-                        else isPerfect = true end
-                        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100,isPerfect)
-                    end
-                end)
             end
 
-            task.wait(0.1)
+            task.wait(0.1) -- เริ่ม loop ใหม่
         end
         autoreel_running = false
     end)
@@ -348,53 +369,47 @@ local function StartTeleport()
     end)
 end
 
-local instantReelEnabled = false
-local instantReel_running = false
-
-local function StartInstantReel()
-    if instantReel_running then return end
-    instantReel_running = true
+local autoReelSimple_running = false
+local function StartAutoReelSimple()
+    if autoReelSimple_running then return end
+    autoReelSimple_running = true
 
     task.spawn(function()
-        while instantReelEnabled do
-            local char = player.Character
-            if not char then task.wait(0.1) continue end
-
-            local rodsInChar = {}
-            for _, tool in ipairs(char:GetChildren()) do
-                if tool:IsA("Tool") and table.find(rodNames, tool.Name) then
-                    table.insert(rodsInChar, tool)
-                end
-            end
-
-            local gui = player:WaitForChild("PlayerGui")
-            local reelGui = gui:FindFirstChild("reel")
+        while autoreel do
+            local gui = player:FindFirstChild("PlayerGui")
+            local reelGui = gui and gui:FindFirstChild("reel")
 
             if reelGui then
-                for _, rod in ipairs(rodsInChar) do
-                    local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
-                    if resetEvent then
-                        pcall(function() resetEvent:FireServer() end)
-                    end
+                local char = player.Character
+                if char then
+                    for _, rodName in ipairs(rodNames) do
+                        local rod = char:FindFirstChild(rodName)
+                        if rod then
+                            -- Unequip rod 1 ครั้ง
+                            if rod.Parent ~= player.Backpack then
+                                rod.Parent = player.Backpack
+                            end
 
-                    for i = 1, 2 do
-                        if rod.Parent ~= player.Backpack then
-                            rod.Parent = player.Backpack
+                            -- Fire reset event 1 ครั้ง
+                            local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
+                            if resetEvent then
+                                pcall(function() resetEvent:FireServer() end)
+                            end
+
+                            -- Fire reelfinished event 1 ครั้ง
+                            local reelfinished = ReplicatedStorage:WaitForChild("events"):FindFirstChild("reelfinished")
+                            if reelfinished then
+                                local isPerfect = (CatchMethod == "Perfect") or (CatchMethod == "Random" and math.random(0,1) == 1)
+                                pcall(function() reelfinished:FireServer(100, isPerfect) end)
+                            end
                         end
-                        task.wait(0.05)
                     end
-                end
-
-                while reelGui and reelGui.Parent do
-                    reelGui.Enabled = false
-                    task.wait(0.1)
-                    reelGui = gui:FindFirstChild("reel")
                 end
             end
 
-            task.wait(0.1)
+            task.wait(0.1) -- เริ่มลูปใหม่
         end
-        instantReel_running = false
+        autoReelSimple_running = false
     end)
 end
 -- ================== Compkiller UI ==================
@@ -406,7 +421,7 @@ local ConfigManager = Compkiller:ConfigManager({
 });
 Compkiller:Loader("rbxassetid://74493757521216" , 2.5).yield();
 local ConfigManager = Compkiller:ConfigManager({Directory="Compkiller-UI",Config="Fisch-Configs"})
-local Window = Compkiller.new({Name="Fisch - Cxsmic", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=15})
+local Window = Compkiller.new({Name="Fisch - Cxsmic v0.1 Beta", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=15})
 
 Notifier.new({
 	Title = "Notification",
@@ -483,7 +498,7 @@ FischSection:AddToggle({
 	end
 })
 
-FischSection:AddToggle({Name="Auto Reel Normal",Flag="AutoReel",Default=autoreel,Callback=function(state)
+FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callback=function(state)
 	autoreel = state
 	Settings.AutoReel = state
 	SaveSettings()
@@ -495,8 +510,10 @@ FischSection:AddToggle({
     Default = instantReelEnabled,
     Callback = function(state)
         instantReelEnabled = state
+        Settings.InstantReel = state
+        SaveSettings()
         if state then
-            StartInstantReel()
+            StartAutoReelSimple()
         end
     end
 })
@@ -961,3 +978,6 @@ end
 if walkOnWaterEnabled then
     SetWalkOnWater(true)
 end
+
+if autoEquipRodEnabled then StartAutoEquipRod() end
+if instantReelEnabled then StartInstantReel() end
