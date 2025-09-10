@@ -11,11 +11,21 @@ for _, rod in ipairs(rodsFolder:GetChildren()) do
 	table.insert(rodNames, rod.Name)
 end
 
+local extraTPs = {
+    {Name = "Carrot Garden", Position = Vector3.new(3744, -1116, -1108)},
+    {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
+    {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)}
+}
+
 local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
 
 local tpNames = {}
 for _, spot in ipairs(tpFolder:GetChildren()) do
-	table.insert(tpNames, spot.Name)
+    table.insert(tpNames, spot.Name)
+end
+
+for _, tp in ipairs(extraTPs) do
+    table.insert(tpNames, tp.Name)
 end
 
 table.sort(tpNames,function(a,b) return a:lower() < b:lower() end)
@@ -356,6 +366,16 @@ local function StartTeleport()
         while teleporting do
             local hrp = GetHumanoidRootPart()
             local spot = tpFolder:FindFirstChild(selectedIsland)
+
+            if not spot then
+                for _, tp in ipairs(extraTPs) do
+                    if tp.Name == selectedIsland then
+                        spot = {CFrame = CFrame.new(tp.Position)}
+                        break
+                    end
+                end
+            end
+
             if hrp and spot then
                 pcall(function() hrp.CFrame = spot.CFrame + Vector3.new(0,5,0) end)
             end
