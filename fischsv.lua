@@ -360,7 +360,6 @@ local function StartInstantReel()
             local char = player.Character
             if not char then task.wait(0.1) continue end
 
-            -- หาเบ็ดทั้งหมดในตัวละคร
             local rodsInChar = {}
             for _, tool in ipairs(char:GetChildren()) do
                 if tool:IsA("Tool") and table.find(rodNames, tool.Name) then
@@ -371,16 +370,13 @@ local function StartInstantReel()
             local gui = player:WaitForChild("PlayerGui")
             local reelGui = gui:FindFirstChild("reel")
 
-            -- ถ้า GUI โผล่มา
             if reelGui then
                 for _, rod in ipairs(rodsInChar) do
-                    -- Fire reset event ถ้ามี events/reset
                     local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
                     if resetEvent then
                         pcall(function() resetEvent:FireServer() end)
                     end
 
-                    -- Unequip rod 2 ครั้ง
                     for i = 1, 2 do
                         if rod.Parent ~= player.Backpack then
                             rod.Parent = player.Backpack
@@ -389,7 +385,6 @@ local function StartInstantReel()
                     end
                 end
 
-                -- ปิด GUI เรื่อย ๆ
                 while reelGui and reelGui.Parent do
                     reelGui.Enabled = false
                     task.wait(0.1)
@@ -488,7 +483,7 @@ FischSection:AddToggle({
 	end
 })
 
-FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callback=function(state)
+FischSection:AddToggle({Name="Auto Reel Normal",Flag="AutoReel",Default=autoreel,Callback=function(state)
 	autoreel = state
 	Settings.AutoReel = state
 	SaveSettings()
