@@ -78,6 +78,7 @@ end
 
 local autocast = Settings.AutoCast
 local autoreel = Settings.AutoReel
+local autoEquipRodEnabled = Settings.AutoEquipRod
 local CatchMethod = Settings.CatchMethod
 local autoshake = Settings.AutoShake
 local autosell = Settings.AutoSell
@@ -92,6 +93,7 @@ local infinityJumpEnabled = false
 local changePlayerEnabled = false
 local selectedPlayer = nil
 local tpToPlayerEnabled = false
+local autoEquipRod_running = false
 
 local function EquipRods()
 	local char = player.Character or player.CharacterAdded:Wait()
@@ -127,26 +129,42 @@ local function GetHumanoidRootPart()
 	return char:WaitForChild("HumanoidRootPart")
 end
 
+local function StartAutoEquipRod()
+    if autoEquipRod_running then return end
+    autoEquipRod_running = true
+    task.spawn(function()
+        while autoEquipRodEnabled do
+            EquipRods()
+            task.wait(.1)
+        end
+        autoEquipRod_running = false
+    end)
+end
+
 local autocast_running = false
 local function StartAutoCastThrow()
-	if autocast_running then return end
-	autocast_running = true
-	task.spawn(function()
-		while autocast do
-			EquipRods()
-			local char = player.Character
-			local rod = nil
-			for _, tool in ipairs(char:GetChildren()) do
-				if tool:IsA("Tool") and table.find(rodNames, tool.Name) then rod = tool break end
-			end
-			if rod then
-				local cast = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
-				if cast then pcall(function() cast:FireServer(100,true) end) end
-			end
-			task.wait(0.3)
-		end
-		autocast_running = false
-	end)
+    if autocast_running then return end
+    autocast_running = true
+    task.spawn(function()
+        while autocast do
+            local char = player.Character
+            local rod = nil
+            for _, tool in ipairs(char:GetChildren()) do
+                if tool:IsA("Tool") and table.find(rodNames, tool.Name) then 
+                    rod = tool 
+                    break 
+                end
+            end
+            if rod then
+                local cast = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
+                if cast then 
+                    pcall(function() cast:FireServer(100,true) end) 
+                end
+            end
+            task.wait(.3)
+        end
+        autocast_running = false
+    end)
 end
 
 local teleport_running = false
@@ -191,32 +209,56 @@ end
 
 local autoreel_running = false
 local function StartAutoReel()
-	if autoreel_running then return end
-	autoreel_running = true
-	task.spawn(function()
-		while autoreel do
-			local gui = player:FindFirstChild("PlayerGui")
-			local reel = gui and gui:FindFirstChild("reel")
-			local bar = reel and reel:FindFirstChild("bar")
-			local fish = bar and bar:FindFirstChild("fish")
-			local playerbar = bar and bar:FindFirstChild("playerbar")
-			pcall(function()
-				if reelMethod == "Legit" then
-					if fish and playerbar then
-						playerbar.Position = fish.Position
-					end
-				elseif reelMethod == "Instant" then
-					local isPerfect
-					if CatchMethod == "Perfect" then isPerfect = true
-					elseif CatchMethod == "Random" then isPerfect = (math.random(0,1) == 1)
-					else isPerfect = true end
-					game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100,isPerfect)
-				end
-			end)
-			task.wait()
-		end
-		autoreel_running = false
-	end)
+    if autoreel_running then return end
+    autoreel_running = true
+    task.spawn(function()
+        while autoreel do
+            local gui = player:FindFirstChild("PlayerGui")
+            local reel = gui and gui:FindFirstChild("reel")
+
+            while autoreel and gui and not reel do
+                reel = gui:FindFirstChild("reel")
+                task.wait(0.1)
+            end
+
+            if reel then
+                local char = player.Character
+                if char then
+                    for _, rodName in ipairs(rodNames) do
+                        local rod = char:FindFirstChild(rodName)
+                        if rod then
+                            local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
+                            if resetEvent then
+                                pcall(function() resetEvent:FireServer() end)
+                            end
+                        end
+                    end
+                end
+
+                local bar = reel:FindFirstChild("bar")
+                local fish = bar and bar:FindFirstChild("fish")
+                local playerbar = bar and bar:FindFirstChild("playerbar")
+
+                -- การรีลปกติ
+                pcall(function()
+                    if reelMethod == "Legit" then
+                        if fish and playerbar then
+                            playerbar.Position = fish.Position
+                        end
+                    elseif reelMethod == "Instant" then
+                        local isPerfect
+                        if CatchMethod == "Perfect" then isPerfect = true
+                        elseif CatchMethod == "Random" then isPerfect = (math.random(0,1) == 1)
+                        else isPerfect = true end
+                        game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100,isPerfect)
+                    end
+                end)
+            end
+
+            task.wait(0.1)
+        end
+        autoreel_running = false
+    end)
 end
 
 local autoshake_running = false
@@ -306,6 +348,60 @@ local function StartTeleport()
     end)
 end
 
+local instantReelEnabled = false
+local instantReel_running = false
+
+local function StartInstantReel()
+    if instantReel_running then return end
+    instantReel_running = true
+
+    task.spawn(function()
+        while instantReelEnabled do
+            local char = player.Character
+            if not char then task.wait(0.1) continue end
+
+            -- หาเบ็ดทั้งหมดในตัวละคร
+            local rodsInChar = {}
+            for _, tool in ipairs(char:GetChildren()) do
+                if tool:IsA("Tool") and table.find(rodNames, tool.Name) then
+                    table.insert(rodsInChar, tool)
+                end
+            end
+
+            local gui = player:WaitForChild("PlayerGui")
+            local reelGui = gui:FindFirstChild("reel")
+
+            -- ถ้า GUI โผล่มา
+            if reelGui then
+                for _, rod in ipairs(rodsInChar) do
+                    -- Fire reset event ถ้ามี events/reset
+                    local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
+                    if resetEvent then
+                        pcall(function() resetEvent:FireServer() end)
+                    end
+
+                    -- Unequip rod 2 ครั้ง
+                    for i = 1, 2 do
+                        if rod.Parent ~= player.Backpack then
+                            rod.Parent = player.Backpack
+                        end
+                        task.wait(0.05)
+                    end
+                end
+
+                -- ปิด GUI เรื่อย ๆ
+                while reelGui and reelGui.Parent do
+                    reelGui.Enabled = false
+                    task.wait(0.1)
+                    reelGui = gui:FindFirstChild("reel")
+                end
+            end
+
+            task.wait(0.1)
+        end
+        instantReel_running = false
+    end)
+end
 -- ================== Compkiller UI ==================
 local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/CompKiller/refs/heads/main/src/source.luau"))();
 local Notifier = Compkiller.newNotify();
@@ -398,6 +494,30 @@ FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callba
 	SaveSettings()
 	if state then StartAutoReel() end
 end})
+
+FischSection:AddToggle({
+    Name = "Instant Reel (beta)",
+    Default = instantReelEnabled,
+    Callback = function(state)
+        instantReelEnabled = state
+        if state then
+            StartInstantReel()
+        end
+    end
+})
+
+FischSection:AddToggle({
+    Name = "Auto Equip Rod",
+    Default = autoEquipRodEnabled,
+    Callback = function(state)
+        autoEquipRodEnabled = state
+        Settings.AutoEquipRod = state
+        SaveSettings()
+        if state then
+            StartAutoEquipRod()
+        end
+    end
+})
 
 FischSection:AddToggle({Name="Auto Shake",Flag="AutoShake",Default=autoshake,Callback=function(state)
 	autoshake = state
