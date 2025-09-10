@@ -471,25 +471,25 @@ FischSection:AddToggle({
 	end
 })
 
+local instantBobberConnection = nil
+
 FischSection:AddToggle({
     Name = "Instant Bobber",
-    Default = Settings.InstantBobber or true,
+    Default = Settings.InstantBobber or false,
     Callback = function(state)
         local player = game.Players.LocalPlayer
         local RunService = game:GetService("RunService")
 
-        local oldConn = player:GetAttribute("InstantBobberConnection")
-        if oldConn then
-            oldConn:Disconnect()
-            player:SetAttribute("InstantBobberConnection", nil)
+        if instantBobberConnection then
+            instantBobberConnection:Disconnect()
+            instantBobberConnection = nil
         end
 
         Settings.InstantBobber = state
         SaveSettings()
 
         if state then
-            local connection
-            connection = RunService.RenderStepped:Connect(function()
+            instantBobberConnection = RunService.RenderStepped:Connect(function()
                 local char = player.Character
                 if not char then return end
 
@@ -511,8 +511,6 @@ FischSection:AddToggle({
                     bobber.CFrame = CFrame.new(targetPos)
                 end)
             end)
-
-            player:SetAttribute("InstantBobberConnection", connection)
         end
     end
 })
@@ -665,40 +663,58 @@ plTab:AddToggle({
     end
 })
 
+-- ตัวแปรเก็บ connection ของฟังก์ชันบิน
+local flyConnection = nil
+
 plTab:AddToggle({
     Name = "Fly",
     Callback = function(state)
         local player = game.Players.LocalPlayer
         local character = player.Character or player.CharacterAdded:Wait()
-        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        local hrp = character:WaitForChild("HumanoidRootPart")
         local humanoid = character:WaitForChild("Humanoid")
         local UIS = game:GetService("UserInputService")
         local RunService = game:GetService("RunService")
+
+        -- ปิดก่อนถ้ามี connection เก่า
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
+
+        -- ลบ BodyVelocity เดิมถ้ามี
+        if hrp:FindFirstChild("FlyVelocity") then
+            hrp.FlyVelocity:Destroy()
+        end
 
         if state then
             local bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.Name = "FlyVelocity"
             bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
             bodyVelocity.Velocity = Vector3.new(0,0,0)
-            bodyVelocity.Parent = humanoidRootPart
+            bodyVelocity.Parent = hrp
 
             local speed = 50
 
-            local flyConnection
             flyConnection = RunService.RenderStepped:Connect(function()
                 local moveDir = Vector3.new(0,0,0)
+                local cam = workspace.CurrentCamera
 
                 if UIS.KeyboardEnabled then
-                    if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + workspace.CurrentCamera.CFrame.LookVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - workspace.CurrentCamera.CFrame.LookVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - workspace.CurrentCamera.CFrame.RightVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + workspace.CurrentCamera.CFrame.RightVector end
+                    -- บินตาม W/A/S/D ปกติ
+                    if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
                     if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
                     if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
-                end
-
-                if UIS.TouchEnabled and not UIS.KeyboardEnabled then
-                    moveDir = character.Humanoid.MoveDirection
+                elseif UIS.TouchEnabled then
+                    -- บินตามทิศทางกล้องสำหรับมือถือ
+                    moveDir = cam.CFrame.LookVector * humanoid.MoveDirection.Magnitude
+                    if humanoid.MoveDirection.Magnitude > 0 then
+                        -- ปรับให้บินขึ้นลงได้ ถ้ากดปุ่ม UI เพิ่มเติม (สามารถสร้างปุ่มเองได้)
+                        -- moveDir = moveDir + Vector3.new(0,1,0) -- เพิ่มให้บินขึ้น
+                    end
                 end
 
                 if moveDir.Magnitude > 0 then
@@ -707,15 +723,6 @@ plTab:AddToggle({
                     bodyVelocity.Velocity = Vector3.new(0,0,0)
                 end
             end)
-
-            character:SetAttribute("FlyConnection", flyConnection)
-
-        else
-            if character:FindFirstChild("HumanoidRootPart"):FindFirstChild("FlyVelocity") then
-                character.HumanoidRootPart.FlyVelocity:Destroy()
-            end
-            local flyConnection = character:GetAttribute("FlyConnection")
-            if flyConnection then flyConnection:Disconnect() end
         end
     end
 })
@@ -989,6 +996,13 @@ end
 
 if walkOnWaterEnabled then
     SetWalkOnWater(true)
+end
+
+if Settings.InstantBobber then
+    local toggle = FischSection:GetToggle("Instant Bobber")
+    if toggle then
+        toggle.Callback(true)
+    end
 end
 
 if autoEquipRodEnabled then StartAutoEquipRod() end
