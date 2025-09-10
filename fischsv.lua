@@ -471,6 +471,52 @@ FischSection:AddToggle({
 	end
 })
 
+FischSection:AddToggle({
+    Name = "Instant Bobber",
+    Default = Settings.InstantBobber or true,
+    Callback = function(state)
+        local player = game.Players.LocalPlayer
+        local RunService = game:GetService("RunService")
+
+        local oldConn = player:GetAttribute("InstantBobberConnection")
+        if oldConn then
+            oldConn:Disconnect()
+            player:SetAttribute("InstantBobberConnection", nil)
+        end
+
+        Settings.InstantBobber = state
+        SaveSettings()
+
+        if state then
+            local connection
+            connection = RunService.RenderStepped:Connect(function()
+                local char = player.Character
+                if not char then return end
+
+                local rod = nil
+                for _, rodName in ipairs(rodNames) do
+                    rod = char:FindFirstChild(rodName)
+                    if rod then break end
+                end
+                if not rod then return end
+
+                local bobber = rod:FindFirstChild("bobber")
+                if not bobber then return end
+
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+
+                local targetPos = hrp.Position + Vector3.new(0, -3, 0)
+                pcall(function()
+                    bobber.CFrame = CFrame.new(targetPos)
+                end)
+            end)
+
+            player:SetAttribute("InstantBobberConnection", connection)
+        end
+    end
+})
+
 FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callback=function(state)
 	autoreel = state
 	Settings.AutoReel = state
@@ -619,10 +665,58 @@ plTab:AddToggle({
     end
 })
 
-plTab:AddButton({
+plTab:AddToggle({
     Name = "Fly",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
+    Callback = function(state)
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        local humanoid = character:WaitForChild("Humanoid")
+        local UIS = game:GetService("UserInputService")
+        local RunService = game:GetService("RunService")
+
+        if state then
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Name = "FlyVelocity"
+            bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+            bodyVelocity.Velocity = Vector3.new(0,0,0)
+            bodyVelocity.Parent = humanoidRootPart
+
+            local speed = 50
+
+            local flyConnection
+            flyConnection = RunService.RenderStepped:Connect(function()
+                local moveDir = Vector3.new(0,0,0)
+
+                if UIS.KeyboardEnabled then
+                    if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + workspace.CurrentCamera.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - workspace.CurrentCamera.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - workspace.CurrentCamera.CFrame.RightVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + workspace.CurrentCamera.CFrame.RightVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
+                    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
+                end
+
+                if UIS.TouchEnabled and not UIS.KeyboardEnabled then
+                    moveDir = character.Humanoid.MoveDirection
+                end
+
+                if moveDir.Magnitude > 0 then
+                    bodyVelocity.Velocity = moveDir.Unit * speed
+                else
+                    bodyVelocity.Velocity = Vector3.new(0,0,0)
+                end
+            end)
+
+            character:SetAttribute("FlyConnection", flyConnection)
+
+        else
+            if character:FindFirstChild("HumanoidRootPart"):FindFirstChild("FlyVelocity") then
+                character.HumanoidRootPart.FlyVelocity:Destroy()
+            end
+            local flyConnection = character:GetAttribute("FlyConnection")
+            if flyConnection then flyConnection:Disconnect() end
+        end
     end
 })
 
