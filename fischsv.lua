@@ -4,7 +4,6 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
-
 local rodNames = {}
 local rodsFolder = ReplicatedStorage:WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods")
 for _, rod in ipairs(rodsFolder:GetChildren()) do
@@ -14,7 +13,8 @@ end
 local extraTPs = {
     {Name = "Carrot Garden", Position = Vector3.new(3744, -1116, -1108)},
     {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
-    {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)}
+    {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
+    {Name = "Castaway Cliffs", Position = Vector3.new (655, 179, -1793)}
 }
 
 local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
@@ -65,25 +65,25 @@ if Settings.SavedPosition then
 end
 
 local function SaveSettings()
-	pcall(function()
-		local dataToSave = {}
-		for k,v in pairs(Settings) do
-			dataToSave[k] = v
-		end
-		if savedPosition then
-			local pos = savedPosition.Position
-			local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
-			dataToSave.SavedPosition = {
-				X = pos.X,
-				Y = pos.Y,
-				Z = pos.Z,
-				Yaw = math.deg(yRot)
-			}
-		else
-			dataToSave.SavedPosition = nil
-		end
-		writefile(SETTINGS_FILE, HttpService:JSONEncode(dataToSave))
-	end)
+    pcall(function()
+        local dataToSave = {}
+        for k,v in pairs(Settings) do
+            dataToSave[k] = v
+        end
+        if savedPosition then
+            local pos = savedPosition.Position
+            local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
+            dataToSave.SavedPosition = {
+                X = pos.X,
+                Y = pos.Y,
+                Z = pos.Z,
+                Yaw = math.deg(yRot)
+            }
+        else
+            dataToSave.SavedPosition = nil
+        end
+        writefile(SETTINGS_FILE, HttpService:JSONEncode(dataToSave))
+    end)
 end
 
 local autocast = Settings.AutoCast
@@ -384,6 +384,7 @@ local function StartTeleport()
         teleport_running = false
     end)
 end
+
 -- ================== Compkiller UI ==================
 local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/CompKiller/refs/heads/main/src/source.luau"))();
 local Notifier = Compkiller.newNotify();
@@ -503,6 +504,7 @@ FischSection:AddToggle({Name="Auto Sell",Flag="AutoSell",Default=autosell,Callba
 	SaveSettings()
 	if state then StartAutoSell() end
 end})
+
 
 local SettingSection = MainTab:DrawSection({Name="Setting Farm",Position="right"})
 
@@ -645,49 +647,6 @@ tpTab:AddToggle({
         if teleporting then StartTeleport() end
     end
 })
-
-tpTabRight:AddDropdown({
-	Name = "Select Player",
-	Values = GetPlayerNames(),
-	Default = selectedPlayer or Players.LocalPlayer.Name,
-	Callback = function(choice)
-		selectedPlayer = choice
-	end
-})
-
-tpTabRight:AddToggle({
-	Name = "Tp to Player",
-	Default = tpToPlayerEnabled,
-	Callback = function(state)
-		tpToPlayerEnabled = state
-
-		if tpToPlayerEnabled then
-			task.spawn(function()
-				while tpToPlayerEnabled do
-					local hrp = GetHumanoidRootPart()
-					local targetPlayer = Players:FindFirstChild(selectedPlayer)
-					if hrp and targetPlayer and targetPlayer.Character then
-						local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-						if targetHRP then
-							pcall(function()
-								hrp.CFrame = targetHRP.CFrame + Vector3.new(0,0,0)
-							end)
-						end
-					end
-					task.wait()
-				end
-			end)
-		end
-	end
-})
-
-Players.PlayerAdded:Connect(function()
-	tpTabRight:UpdateDropdown("Select Player", GetPlayerNames())
-end)
-
-Players.PlayerRemoving:Connect(function()
-	tpTabRight:UpdateDropdown("Select Player", GetPlayerNames())
-end)
 
 task.spawn(function()
     while true do
