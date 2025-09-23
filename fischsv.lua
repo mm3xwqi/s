@@ -299,7 +299,7 @@ local function StartAutoShake()
 			shakeButton = shakeButton and shakeButton:FindFirstChild("button")
 			shakeButton = shakeButton and shakeButton:FindFirstChild("shake")
 			if shakeButton then pcall(function() shakeButton:FireServer() end) end
-			task.wait(0.05)
+			task.wait(0.5)
 		end
 		autoshake_running = false
 	end)
@@ -660,69 +660,6 @@ plTab:AddToggle({
     Default = walkOnWaterEnabled,
     Callback = function(state)
         SetWalkOnWater(state)
-    end
-})
-
--- ตัวแปรเก็บ connection ของฟังก์ชันบิน
-local flyConnection = nil
-
-plTab:AddToggle({
-    Name = "Fly",
-    Callback = function(state)
-        local player = game.Players.LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:WaitForChild("HumanoidRootPart")
-        local humanoid = character:WaitForChild("Humanoid")
-        local UIS = game:GetService("UserInputService")
-        local RunService = game:GetService("RunService")
-
-        if flyConnection then
-            flyConnection:Disconnect()
-            flyConnection = nil
-        end
-
-        if hrp:FindFirstChild("FlyVelocity") then
-            hrp.FlyVelocity:Destroy()
-        end
-
-        if state then
-            local bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.Name = "FlyVelocity"
-            bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-            bodyVelocity.Velocity = Vector3.new(0,0,0)
-            bodyVelocity.Parent = hrp
-
-            local speed = 100
-
-            flyConnection = RunService.RenderStepped:Connect(function()
-                local moveDir = Vector3.new(0,0,0)
-                local cam = workspace.CurrentCamera
-
-                if UIS.KeyboardEnabled then
-                    if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-                    if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
-                    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
-                elseif UIS.TouchEnabled then
-                    local move = humanoid.MoveDirection
-                    local camLook = Vector3.new(cam.CFrame.LookVector.X, 0, cam.CFrame.LookVector.Z).Unit
-                    local camRight = Vector3.new(cam.CFrame.RightVector.X, 0, cam.CFrame.RightVector.Z).Unit
-
-                    moveDir = (camLook * move.Z) + (camRight * move.X)
-
-                    if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
-                    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
-                end
-
-                if moveDir.Magnitude > 0 then
-                    bodyVelocity.Velocity = moveDir.Unit * speed
-                else
-                    bodyVelocity.Velocity = Vector3.new(0,0,0)
-                end
-            end)
-        end
     end
 })
 
