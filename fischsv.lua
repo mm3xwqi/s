@@ -14,7 +14,9 @@ local extraTPs = {
     {Name = "Carrot Garden", Position = Vector3.new(3744, -1116, -1108)},
     {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
     {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
-    {Name = "Castaway Cliffs", Position = Vector3.new (655, 179, -1793)}
+    {Name = "Castaway Cliffs", Position = Vector3.new (655, 179, -1793)},
+	{Name = "Luminescent Cavern", Position = Vector3.new (-1016, -337, -4071)},
+	{Name = "Crimson Cavern", Position = Vector3.new (-1013, -340, -4891)}
 }
 
 local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
@@ -394,7 +396,7 @@ local ConfigManager = Compkiller:ConfigManager({
 });
 Compkiller:Loader("rbxassetid://74493757521216" , 2.5).yield();
 local ConfigManager = Compkiller:ConfigManager({Directory="Compkiller-UI",Config="Fisch-Configs"})
-local Window = Compkiller.new({Name="Cxsmic Beta", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=15})
+local Window = Compkiller.new({Name="Cxsmic Risk BAN", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=15})
 
 Notifier.new({
 	Title = "Notification",
