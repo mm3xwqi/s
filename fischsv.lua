@@ -502,16 +502,7 @@ Watermark:AddText({
     Text = player.Name,
 })
 
-local dateUtc = Compkiller:GetDate()
-local dateThai = dateUtc + 7 * 3600
-
-local dateTable = os.date("*t", dateThai)
-local thaiTime = string.format("%02d:%02d:%02d", dateTable.hour, dateTable.min, dateTable.sec)
-
-Watermark:AddText({
-    Icon = "clock",
-    Text = thaiTime,
-})
+Watermark:AddText({ Icon = "clock", Text = Compkiller:GetDate(), });
 
 Watermark:AddText({
 	Icon = "server",
