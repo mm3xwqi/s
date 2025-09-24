@@ -434,6 +434,8 @@ local function StartInstantBobber()
         instantBobberConnection = nil
     end
 
+    local teleportedBobber = nil 
+
     instantBobberConnection = RunService.Heartbeat:Connect(function()
         local char = player.Character
         if not char then return end
@@ -444,12 +446,22 @@ local function StartInstantBobber()
             if rod then break end
         end
         if not rod then return end
+
         local bobber = rod:FindFirstChild("bobber", true)
         if bobber and bobber:IsA("BasePart") then
-            local targetPos = bobber.Position - Vector3.new(0, 1, 0)
-            pcall(function()
-                bobber.CFrame = CFrame.new(targetPos)
-            end)
+            if bobber ~= teleportedBobber then
+                teleportedBobber = bobber
+
+                local shakeUI = player.PlayerGui:FindFirstChild("shakeui")
+                if not shakeUI then
+                    local targetPos = bobber.Position - Vector3.new(0, 1, 0)
+                    pcall(function()
+                        bobber.CFrame = CFrame.new(targetPos)
+                    end)
+                end
+            end
+        else
+            teleportedBobber = nil
         end
     end)
 end
