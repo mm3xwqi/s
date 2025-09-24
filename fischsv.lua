@@ -224,6 +224,31 @@ local function StartAutoCastTeleport()
 end
 
 local autoreel_running = false
+
+local function GetProgressBarScale()
+    local ok, result = pcall(function()
+        local gui = player:FindFirstChild("PlayerGui")
+        if not gui then return nil end
+        local reel = gui:FindFirstChild("reel")
+        if not reel then return nil end
+        local bar = reel:FindFirstChild("bar")
+        if not bar then return nil end
+        local progress = bar:FindFirstChild("progress")
+        if not progress then return nil end
+        local inner = progress:FindFirstChild("bar")
+        if not inner then return nil end
+        if inner.Size and inner.Size.X and type(inner.Size.X.Scale) == "number" then
+            return inner.Size.X.Scale
+        end
+        return nil
+    end)
+    if ok then
+        return result
+    else
+        return nil
+    end
+end
+
 local function StartAutoReel()
     if autoreel_running then return end
     autoreel_running = true
@@ -247,7 +272,9 @@ local function StartAutoReel()
                             local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
                             if resetEvent then
                                 while autoreel and reel and reel.Parent and rod.Parent == char do
-                                    pcall(function() resetEvent:FireServer() end)
+                                    pcall(function()
+                                        resetEvent:FireServer()
+                                    end)
 
                                     local bar = reel:FindFirstChild("bar")
                                     local fish = bar and bar:FindFirstChild("fish")
@@ -255,37 +282,46 @@ local function StartAutoReel()
 
                                     pcall(function()
                                         if reelMethod == "Legit" then
-                                            if fish and playerbar then
-                                                playerbar.Position = fish.Position
+                                            if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
+                                                playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
                                             end
+
+                                        elseif reelMethod == "Safe" then
+                                            if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
+                                                playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
+                                            end
+                                            local prog = GetProgressBarScale()
+                                            if prog and prog >= 0.80 then
+                                                pcall(function()
+                                                    ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, true)
+                                                end)
+                                            end
+
                                         elseif reelMethod == "Instant" then
                                             local isPerfect
                                             if CatchMethod == "Perfect" then
                                                 isPerfect = true
                                             elseif CatchMethod == "Random" then
-                                                isPerfect = (math.random(0,1) == 1)
+                                                isPerfect = (math.random(0, 1) == 1)
                                             else
                                                 isPerfect = true
                                             end
-                                            game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100,isPerfect)
+                                            pcall(function()
+                                                ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
+                                            end)
                                         end
                                     end)
 
-                                    task.wait(0.05)
-                                    reel = gui:FindFirstChild("reel")
-                                end
-
-                                if rod.Parent ~= player.Backpack then
-                                    rod.Parent = player.Backpack
+                                    task.wait()
                                 end
                             end
                         end
                     end
                 end
             end
-
-            task.wait(0.1)
+            task.wait()
         end
+
         autoreel_running = false
     end)
 end
@@ -301,7 +337,7 @@ local function StartAutoShake()
 			shakeButton = shakeButton and shakeButton:FindFirstChild("button")
 			shakeButton = shakeButton and shakeButton:FindFirstChild("shake")
 			if shakeButton then pcall(function() shakeButton:FireServer() end) end
-			task.wait(0.5)
+			task.wait(0.2)
 		end
 		autoshake_running = false
 	end)
@@ -384,6 +420,37 @@ local function StartTeleport()
             task.wait()
         end
         teleport_running = false
+    end)
+end
+
+local instantBobberConnection = nil
+
+local function StartInstantBobber()
+    local player = game.Players.LocalPlayer
+    local RunService = game:GetService("RunService")
+
+    if instantBobberConnection then
+        instantBobberConnection:Disconnect()
+        instantBobberConnection = nil
+    end
+
+    instantBobberConnection = RunService.Heartbeat:Connect(function()
+        local char = player.Character
+        if not char then return end
+
+        local rod
+        for _, rodName in ipairs(rodNames) do
+            rod = char:FindFirstChild(rodName)
+            if rod then break end
+        end
+        if not rod then return end
+        local bobber = rod:FindFirstChild("bobber", true)
+        if bobber and bobber:IsA("BasePart") then
+            local targetPos = bobber.Position - Vector3.new(0, 1, 0)
+            pcall(function()
+                bobber.CFrame = CFrame.new(targetPos)
+            end)
+        end
     end)
 end
 
@@ -473,50 +540,6 @@ FischSection:AddToggle({
 	end
 })
 
-local instantBobberConnection = nil
-
-FischSection:AddToggle({
-    Name = "Instant Bobber",
-    Default = Settings.InstantBobber or false,
-    Callback = function(state)
-        local player = game.Players.LocalPlayer
-        local RunService = game:GetService("RunService")
-
-        if instantBobberConnection then
-            instantBobberConnection:Disconnect()
-            instantBobberConnection = nil
-        end
-
-        Settings.InstantBobber = state
-        SaveSettings()
-
-        if state then
-            instantBobberConnection = RunService.RenderStepped:Connect(function()
-                local char = player.Character
-                if not char then return end
-
-                local rod = nil
-                for _, rodName in ipairs(rodNames) do
-                    rod = char:FindFirstChild(rodName)
-                    if rod then break end
-                end
-                if not rod then return end
-
-                local bobber = rod:FindFirstChild("bobber")
-                if not bobber then return end
-
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if not hrp then return end
-
-                local targetPos = hrp.Position + Vector3.new(0, -3, 0)
-                pcall(function()
-                    bobber.CFrame = CFrame.new(targetPos)
-                end)
-            end)
-        end
-    end
-})
-
 FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callback=function(state)
 	autoreel = state
 	Settings.AutoReel = state
@@ -556,7 +579,7 @@ local SettingSection = MainTab:DrawSection({Name="Setting Farm",Position="right"
 
 SettingSection:AddDropdown({
     Name = "Catch Method",
-    Values = {"Perfect", "Random"},
+    Values = {"Perfect", "Random(Work For Instant)"},
     Default = CatchMethod or "Perfect",
     Callback = function(choice)
         CatchMethod = choice
@@ -567,8 +590,8 @@ SettingSection:AddDropdown({
 
 SettingSection:AddDropdown({
     Name = "Reel Method",
-    Values = {"Legit", "Instant"},
-    Default = reelMethod or "Legit",
+    Values = {"Legit", "Instant", "Safe"},
+    Default = reelMethod or "Safe",
     Callback = function(choice)
         reelMethod = choice
         Settings.ReelMethod = choice
@@ -583,6 +606,67 @@ SettingSection:AddDropdown({
             local isPerfect = (reelMethod == "Perfect") or (reelMethod == "Random" and math.random(0,1) == 1)
             pcall(function()
                 game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
+            end)
+        end
+    end
+})
+
+
+SettingSection:AddToggle({
+    Name = "Instant Bobber V1",
+    Default = Settings.InstantBobber or false,
+    Callback = function(state)
+        Settings.InstantBobber = state
+        SaveSettings()
+
+        if state then
+            StartInstantBobber()
+        else
+            if instantBobberConnection then
+                instantBobberConnection:Disconnect()
+                instantBobberConnection = nil
+            end
+        end
+    end
+})
+
+SettingSection:AddToggle({
+    Name = "Instant Bobber V2",
+    Default = Settings.InstantBobber or false,
+    Callback = function(state)
+        local player = game.Players.LocalPlayer
+        local RunService = game:GetService("RunService")
+
+        if instantBobberConnection then
+            instantBobberConnection:Disconnect()
+            instantBobberConnection = nil
+        end
+
+        Settings.InstantBobber = state
+        SaveSettings()
+
+        if state then
+            instantBobberConnection = RunService.RenderStepped:Connect(function()
+                local char = player.Character
+                if not char then return end
+
+                local rod = nil
+                for _, rodName in ipairs(rodNames) do
+                    rod = char:FindFirstChild(rodName)
+                    if rod then break end
+                end
+                if not rod then return end
+
+                local bobber = rod:FindFirstChild("bobber")
+                if not bobber then return end
+
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+
+                local targetPos = hrp.Position + Vector3.new(0, -3, 0)
+                pcall(function()
+                    bobber.CFrame = CFrame.new(targetPos)
+                end)
             end)
         end
     end
@@ -638,6 +722,38 @@ plTab:AddToggle({
         changePlayerEnabled = state
     end
 })
+
+local antiAFKEnabled = false
+local antiAFKConnection = nil
+
+plTab:AddToggle({
+    Name = "Anti-AFK",
+    Default = true,
+    Callback = function(state)
+        antiAFKEnabled = state
+
+        if antiAFKConnection then
+            antiAFKConnection:Disconnect()
+            antiAFKConnection = nil
+        end
+
+        if state then
+            local VirtualUser = game:GetService("VirtualUser")
+            antiAFKConnection = game:GetService("Players").LocalPlayer.Idled:Connect(function()
+                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(0.1)
+                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            end)
+        end
+    end
+})
+
+task.spawn(function()
+    local toggle = plTab:GetToggle("Anti-AFK")
+    if toggle then
+        toggle.Callback(true)
+    end
+end)
 
 plTab:AddToggle({
     Name = "Noclip",
@@ -937,10 +1053,24 @@ if walkOnWaterEnabled then
 end
 
 if Settings.InstantBobber then
-    local toggle = FischSection:GetToggle("Instant Bobber")
-    if toggle then
-        toggle.Callback(true)
-    end
+    task.spawn(function()
+        local player = game.Players.LocalPlayer
+        while true do
+            task.wait(0.1)
+            local char = player.Character
+            if not char then continue end
+
+            local rod
+            for _, rodName in ipairs(rodNames) do
+                rod = char:FindFirstChild(rodName)
+                if rod then break end
+            end
+            if rod and rod:FindFirstChild("bobber", true) then
+                StartInstantBobber()
+                break
+            end
+        end
+    end)
 end
 
 if autoEquipRodEnabled then StartAutoEquipRod() end
