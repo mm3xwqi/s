@@ -463,7 +463,7 @@ local function StartInstantBobber()
                 end)
             end
         elseif not bobber then
-            hasTeleported = false -- รีเซ็ตถ้า bobber หาย
+            hasTeleported = false
         end
     end)
 end
@@ -488,15 +488,37 @@ Notifier.new({
 
 local Watermark = Window:Watermark();
 
-Watermark:AddText({
-	Icon = "user",
-	Text = "Yo",
-});
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local userId = player.UserId
+local thumbType = Enum.ThumbnailType.HeadShot
+local thumbSize = Enum.ThumbnailSize.Size48x48
+
+local content, isReady = Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
 
 Watermark:AddText({
-	Icon = "clock",
-	Text = Compkiller:GetDate(),
-});
+    Icon = content,
+    Text = player.Name,
+})
+
+local dateUtc = Compkiller:GetDate()
+local dateTable = os.date("!*t", dateUtc)
+dateTable.hour = dateTable.hour + 7
+
+if dateTable.hour >= 24 then
+    dateTable.hour = dateTable.hour - 24
+    dateTable.day = dateTable.day + 1
+end
+
+-- สร้าง string ใหม่
+local thaiTime = string.format("%02d:%02d:%02d", dateTable.hour, dateTable.min, dateTable.sec)
+
+-- ใส่เข้า watermark
+Watermark:AddText({
+    Icon = "clock",
+    Text = thaiTime,
+})
 
 local Time = Watermark:AddText({
 	Icon = "timer",
