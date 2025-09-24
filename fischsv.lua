@@ -434,48 +434,36 @@ local function StartInstantBobber()
         instantBobberConnection = nil
     end
 
-    local shouldTeleport = true -- ตัวแปรควบคุมการวาร์ป bobber
+    local hasTeleported = false
 
     instantBobberConnection = RunService.Heartbeat:Connect(function()
         local char = player.Character
         if not char then return end
 
-        -- หา rod ที่ถืออยู่
         local rod
         for _, rodName in ipairs(rodNames) do
             rod = char:FindFirstChild(rodName)
             if rod then break end
         end
         if not rod then
-            shouldTeleport = true -- รีเซ็ตเมื่อ rod หาย
+            hasTeleported = false
             return
         end
 
-        -- หา bobber
         local bobber = rod:FindFirstChild("bobber", true)
-        if bobber and bobber:IsA("BasePart") then
-            -- ถ้าเรายังต้องวาร์ป
-            if shouldTeleport then
-                local targetPos = bobber.Position - Vector3.new(0, 1, 0)
-                pcall(function()
-                    bobber.CFrame = CFrame.new(targetPos)
+        if bobber and bobber:IsA("BasePart") and not hasTeleported then
+            hasTeleported = true
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local targetPos = hrp.CFrame.Position + (hrp.CFrame.LookVector * 5) - Vector3.new(0, 10, 0)
+                task.spawn(function()
+                    pcall(function()
+                        bobber.CFrame = CFrame.new(targetPos)
+                    end)
                 end)
             end
-
-            -- ตรวจสอบ shakeui → ถ้ามีให้หยุดวาร์ป
-            local shakeUI = player.PlayerGui:FindFirstChild("shakeui")
-            if shakeUI then
-                shouldTeleport = false
-            end
-
-            -- ตรวจสอบ reel GUI → ถ้า reel ไม่อยู่แล้วให้วาร์ปใหม่ครั้งหน้า
-            local reelGUI = player.PlayerGui:FindFirstChild("reel")
-            if not reelGUI then
-                shouldTeleport = true
-            end
-        else
-            -- bobber หายไป → รีเซ็ต flag
-            shouldTeleport = true
+        elseif not bobber then
+            hasTeleported = false -- รีเซ็ตถ้า bobber หาย
         end
     end)
 end
@@ -489,7 +477,7 @@ local ConfigManager = Compkiller:ConfigManager({
 });
 Compkiller:Loader("rbxassetid://74493757521216" , 2.5).yield();
 local ConfigManager = Compkiller:ConfigManager({Directory="Compkiller-UI",Config="Fisch-Configs"})
-local Window = Compkiller.new({Name="Cxsmic Risk BAN", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=15})
+local Window = Compkiller.new({Name="Cxsmic-RiskBAN", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=10})
 
 Notifier.new({
 	Title = "Notification",
@@ -714,8 +702,6 @@ SettingSection:AddButton({Name="Save Position",Callback=function()
 	end
 end})
 
-
-
 plTab:AddSlider({
     Name = "Walkspeed",
     Min = 50,
@@ -797,6 +783,106 @@ plTab:AddToggle({
     end
 })
 
+local flyEnabled = false
+local flyConnection, flyKeyDown, flyKeyUp
+local iyflyspeed = 3
+local QEfly = true
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local function getRoot(char)
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+end
+
+local function StartFly()
+    local player = Players.LocalPlayer
+    local char = player.Character or player.CharacterAdded:Wait()
+    local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
+    local root = getRoot(char)
+    if not root then return end
+
+    local CONTROL = {F=0,B=0,L=0,R=0,Q=0,E=0}
+    local SPEED = 0
+
+    local BG = Instance.new("BodyGyro")
+    local BV = Instance.new("BodyVelocity")
+    BG.P = 9e4
+    BG.MaxTorque = Vector3.new(9e9,9e9,9e9)
+    BG.CFrame = root.CFrame
+    BV.MaxForce = Vector3.new(9e9,9e9,9e9)
+    BV.Velocity = Vector3.new(0,0,0)
+    BG.Parent = root
+    BV.Parent = root
+    humanoid.PlatformStand = true
+
+    flyKeyDown = UserInputService.InputBegan:Connect(function(input, processed)
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            if input.KeyCode == Enum.KeyCode.W then CONTROL.F = iyflyspeed
+            elseif input.KeyCode == Enum.KeyCode.S then CONTROL.B = -iyflyspeed
+            elseif input.KeyCode == Enum.KeyCode.A then CONTROL.L = -iyflyspeed
+            elseif input.KeyCode == Enum.KeyCode.D then CONTROL.R = iyflyspeed
+            elseif input.KeyCode == Enum.KeyCode.E and QEfly then CONTROL.Q = iyflyspeed*2
+            elseif input.KeyCode == Enum.KeyCode.Q and QEfly then CONTROL.E = -iyflyspeed*2
+            end
+        end
+    end)
+
+    flyKeyUp = UserInputService.InputEnded:Connect(function(input, processed)
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            if input.KeyCode == Enum.KeyCode.W then CONTROL.F = 0
+            elseif input.KeyCode == Enum.KeyCode.S then CONTROL.B = 0
+            elseif input.KeyCode == Enum.KeyCode.A then CONTROL.L = 0
+            elseif input.KeyCode == Enum.KeyCode.D then CONTROL.R = 0
+            elseif input.KeyCode == Enum.KeyCode.E then CONTROL.Q = 0
+            elseif input.KeyCode == Enum.KeyCode.Q then CONTROL.E = 0
+            end
+        end
+    end)
+
+    flyConnection = RunService.Heartbeat:Connect(function(delta)
+        local cam = workspace.CurrentCamera
+        SPEED = 50
+        local vel = ((cam.CFrame.LookVector*(CONTROL.F+CONTROL.B)) + ((cam.CFrame*CFrame.new(CONTROL.L+CONTROL.R,(CONTROL.F+CONTROL.B+CONTROL.Q+CONTROL.E)*0.2,0).p)-cam.CFrame.p))*SPEED
+        BV.Velocity = vel
+        BG.CFrame = cam.CFrame
+    end)
+end
+
+local function StopFly()
+    flyEnabled = false
+    if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+    if flyKeyDown then flyKeyDown:Disconnect() flyKeyDown = nil end
+    if flyKeyUp then flyKeyUp:Disconnect() flyKeyUp = nil end
+
+    local char = Players.LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        local root = getRoot(char)
+        if root then
+            for _, obj in pairs(root:GetChildren()) do
+                if obj:IsA("BodyGyro") or obj:IsA("BodyVelocity") then
+                    obj:Destroy()
+                end
+            end
+        end
+        if humanoid then humanoid.PlatformStand = false end
+    end
+end
+
+plTab:AddToggle({
+    Name = "Fly",
+    Default = false,
+    Callback = function(state)
+        flyEnabled = state
+        if state then
+            StartFly()
+        else
+            StopFly()
+        end
+    end
+})
+
 local walkOnWaterEnabled = true
 
 plTab:AddToggle({
@@ -837,7 +923,7 @@ task.spawn(function()
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             if humanoid then
                 if changePlayerEnabled then
-                    humanoid.WalkSpeed = walkspeedValue
+                    humanoid.WalkSpeed = Tpwalk
                     humanoid.JumpPower = jumppowerValue
                 end
             end
