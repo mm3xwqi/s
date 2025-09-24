@@ -503,33 +503,15 @@ Watermark:AddText({
 })
 
 local dateUtc = Compkiller:GetDate()
-local dateTable = os.date("!*t", dateUtc)
-dateTable.hour = dateTable.hour + 7
+local dateThai = dateUtc + 7 * 3600
 
-if dateTable.hour >= 24 then
-    dateTable.hour = dateTable.hour - 24
-    dateTable.day = dateTable.day + 1
-end
-
--- สร้าง string ใหม่
+local dateTable = os.date("*t", dateThai)
 local thaiTime = string.format("%02d:%02d:%02d", dateTable.hour, dateTable.min, dateTable.sec)
 
--- ใส่เข้า watermark
 Watermark:AddText({
     Icon = "clock",
     Text = thaiTime,
 })
-
-local Time = Watermark:AddText({
-	Icon = "timer",
-	Text = "TIME",
-});
-
-task.spawn(function()
-	while true do task.wait()
-		Time:SetText(Compkiller:GetTimeNow());
-	end
-end)
 
 Watermark:AddText({
 	Icon = "server",
