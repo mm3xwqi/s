@@ -1,3 +1,5 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/KazeOnTop/Rice-Anti-Afk/main/Wind", true))()
+
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -732,31 +734,6 @@ plTab:AddToggle({
     Default = false,
     Callback = function(state)
         changePlayerEnabled = state
-    end
-})
-
-local antiAFKEnabled = false
-local antiAFKConnection = nil
-
-plTab:AddToggle({
-    Name = "Anti-AFK",
-    Default = true,
-    Callback = function(state)
-        antiAFKEnabled = state
-
-        if antiAFKConnection then
-            antiAFKConnection:Disconnect()
-            antiAFKConnection = nil
-        end
-
-        if state then
-            local VirtualUser = game:GetService("VirtualUser")
-            antiAFKConnection = game:GetService("Players").LocalPlayer.Idled:Connect(function()
-                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                task.wait(0.1)
-                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-            end)
-        end
     end
 })
 
