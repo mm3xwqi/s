@@ -477,10 +477,10 @@ local ConfigManager = Compkiller:ConfigManager({
 });
 Compkiller:Loader("rbxassetid://74493757521216" , 2.5).yield();
 local ConfigManager = Compkiller:ConfigManager({Directory="Compkiller-UI",Config="Fisch-Configs"})
-local userId = player.UserId
-local thumbType1 = Enum.ThumbnailType1.HeadShot
-local thumbSize1 = Enum.ThumbnailSize1.Size420x420
-local content1, isReady = Players:GetUserThumbnailAsync(userId, thumbType1, thumbSize1)
+local userId1 = player.UserId
+local thumbType1 = Enum.ThumbnailType.HeadShot
+local thumbSize1 = Enum.ThumbnailSize.Size420x420
+local content1, isReady1 = Players:GetUserThumbnailAsync(userId1, thumbType1, thumbSize1)
 
 local Window = Compkiller.new({
     Name = "Cxsmic-RiskBAN",
@@ -497,15 +497,11 @@ Notifier.new({
 	Icon = "rbxassetid://74493757521216"
 });
 
-local Watermark = Window:Watermark();
-
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
+local Watermark = Window:Watermark()
 
 local userId = player.UserId
 local thumbType = Enum.ThumbnailType.HeadShot
 local thumbSize = Enum.ThumbnailSize.Size48x48
-
 local content, isReady = Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
 
 Watermark:AddText({
