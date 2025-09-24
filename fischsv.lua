@@ -502,8 +502,6 @@ Watermark:AddText({
     Text = player.Name,
 })
 
-Watermark:AddText({ Icon = "clock", Text = Compkiller:GetDate(), });
-
 Watermark:AddText({
 	Icon = "server",
 	Text = Compkiller.Version,
