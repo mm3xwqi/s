@@ -477,7 +477,18 @@ local ConfigManager = Compkiller:ConfigManager({
 });
 Compkiller:Loader("rbxassetid://74493757521216" , 2.5).yield();
 local ConfigManager = Compkiller:ConfigManager({Directory="Compkiller-UI",Config="Fisch-Configs"})
-local Window = Compkiller.new({Name="Cxsmic-RiskBAN", Keybind="LeftAlt", Logo="rbxassetid://74493757521216",Scale=Compkiller.Scale.Window,TextSize=10})
+local userId = player.UserId
+local thumbType1 = Enum.ThumbnailType1.HeadShot
+local thumbSize1 = Enum.ThumbnailSize1.Size420x420
+local content1, isReady = Players:GetUserThumbnailAsync(userId, thumbType1, thumbSize1)
+
+local Window = Compkiller.new({
+    Name = "Cxsmic-RiskBAN",
+    Keybind = "LeftAlt",
+    Logo = content1,
+    Scale = Compkiller.Scale.Window,
+    TextSize = 10
+})
 
 Notifier.new({
 	Title = "Notification",
