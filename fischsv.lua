@@ -434,39 +434,48 @@ local function StartInstantBobber()
         instantBobberConnection = nil
     end
 
-    local teleportedBobber = nil
+    local shouldTeleport = true -- ตัวแปรควบคุมการวาร์ป bobber
 
     instantBobberConnection = RunService.Heartbeat:Connect(function()
         local char = player.Character
         if not char then return end
 
+        -- หา rod ที่ถืออยู่
         local rod
         for _, rodName in ipairs(rodNames) do
             rod = char:FindFirstChild(rodName)
             if rod then break end
         end
         if not rod then
-            teleportedBobber = nil
+            shouldTeleport = true -- รีเซ็ตเมื่อ rod หาย
             return
         end
 
+        -- หา bobber
         local bobber = rod:FindFirstChild("bobber", true)
         if bobber and bobber:IsA("BasePart") then
-            if bobber ~= teleportedBobber then
-                teleportedBobber = bobber
-
+            -- ถ้าเรายังต้องวาร์ป
+            if shouldTeleport then
                 local targetPos = bobber.Position - Vector3.new(0, 1, 0)
                 pcall(function()
                     bobber.CFrame = CFrame.new(targetPos)
                 end)
             end
 
+            -- ตรวจสอบ shakeui → ถ้ามีให้หยุดวาร์ป
             local shakeUI = player.PlayerGui:FindFirstChild("shakeui")
             if shakeUI then
-                teleportedBobber = bobber
+                shouldTeleport = false
+            end
+
+            -- ตรวจสอบ reel GUI → ถ้า reel ไม่อยู่แล้วให้วาร์ปใหม่ครั้งหน้า
+            local reelGUI = player.PlayerGui:FindFirstChild("reel")
+            if not reelGUI then
+                shouldTeleport = true
             end
         else
-            teleportedBobber = nil
+            -- bobber หายไป → รีเซ็ต flag
+            shouldTeleport = true
         end
     end)
 end
