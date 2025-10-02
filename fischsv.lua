@@ -595,7 +595,7 @@ local SettingSection = MainTab:DrawSection({Name="Setting Farm",Position="right"
 
 SettingSection:AddDropdown({
     Name = "Catch Method",
-    Values = {"Perfect", "Random(Work For Instant)"},
+    Values = {"Perfect", "Random(Does work with legit)"},
     Default = CatchMethod or "Perfect",
     Callback = function(choice)
         CatchMethod = choice
