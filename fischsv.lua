@@ -630,9 +630,9 @@ SettingSection:AddDropdown({
 
 SettingSection:AddToggle({
     Name = "Instant Bobber V1",
-    Default = Settings.InstantBobber or false,
+    Default = Settings.InstantBobberV1 or false,
     Callback = function(state)
-        Settings.InstantBobber = state
+        Settings.InstantBobberV1 = state
         SaveSettings()
 
         if state then
@@ -648,7 +648,7 @@ SettingSection:AddToggle({
 
 SettingSection:AddToggle({
     Name = "Instant Bobber V2",
-    Default = Settings.InstantBobber or false,
+    Default = Settings.InstantBobberV2 or false,
     Callback = function(state)
         local player = game.Players.LocalPlayer
         local RunService = game:GetService("RunService")
@@ -658,7 +658,7 @@ SettingSection:AddToggle({
             instantBobberConnection = nil
         end
 
-        Settings.InstantBobber = state
+        Settings.InstantBobberV2 = state
         SaveSettings()
 
         if state then
