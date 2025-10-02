@@ -1,6 +1,3 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/KazeOnTop/Rice-Anti-Afk/main/Wind", true))()
-
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -496,6 +493,13 @@ Notifier.new({
 	Title = "Notification",
 	Content = "Thank you for use this script!",
 	Duration = 25,
+	Icon = "rbxassetid://74493757521216"
+});
+
+Notifier.new({
+	Title = "Bypass",
+	Content = "BYPASS ANTI CHEAT FISCH",
+	Duration = 10,
 	Icon = "rbxassetid://74493757521216"
 });
 
