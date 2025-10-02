@@ -45,7 +45,7 @@ local Settings = {
 	SelectedIsland = nil,
 	SavedPosition = nil,
 	CatchMethod = "Perfect",
-	ReelMethod = "Instant",
+	ReelMethod = "Safe",
 	WalkOnWater = false
 }
 
