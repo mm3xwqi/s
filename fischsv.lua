@@ -42,7 +42,7 @@ local Settings = {
 	SelectedIsland = nil,
 	SavedPosition = nil,
 	CatchMethod = "Perfect",
-	ReelMethod = "Safe",
+	ReelMethod = "Safe(Safe to Use)",
 	WalkOnWater = false
 }
 
@@ -280,12 +280,12 @@ local function StartAutoReel()
                                     local playerbar = bar and bar:FindFirstChild("playerbar")
 
                                     pcall(function()
-                                        if reelMethod == "Legit" then
+                                        if reelMethod == "Legit(Safe to Use)" then
                                             if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
                                                 playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
                                             end
 
-                                        elseif reelMethod == "Safe" then
+                                        elseif reelMethod == "Safe(Safe to Use)" then
                                             if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
                                                 playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
                                             end
@@ -296,7 +296,7 @@ local function StartAutoReel()
                                                 end)
                                             end
 
-                                        elseif reelMethod == "Instant" then
+                                        elseif reelMethod == "Instant(Risk Ban)" then
                                             local isPerfect
                                             if CatchMethod == "Perfect" then
                                                 isPerfect = true
@@ -610,8 +610,8 @@ SettingSection:AddDropdown({
 
 SettingSection:AddDropdown({
     Name = "Reel Method",
-    Values = {"Legit", "Instant", "Safe"},
-    Default = reelMethod or "Safe",
+    Values = {"Legit(Safe to Use)", "Instant(Risk Ban)", "Safe(Safe to Use)"},
+    Default = reelMethod or "Safe(Safe to Use)",
     Callback = function(choice)
         reelMethod = choice
         Settings.ReelMethod = choice
