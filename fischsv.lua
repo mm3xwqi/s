@@ -979,6 +979,39 @@ tpTab:AddDropdown({
     end
 })
 
+local antiAFKEnabled = false
+local antiAFKConnection = nil
+
+local function StartAntiAFK()
+    if antiAFKConnection then return end
+    
+    antiAFKConnection = game:GetService("Players").LocalPlayer.Idled:Connect(function()
+        local VirtualUser = game:GetService("VirtualUser")
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0, 0))
+    end)
+end
+
+local function StopAntiAFK()
+    if antiAFKConnection then
+        antiAFKConnection:Disconnect()
+        antiAFKConnection = nil
+    end
+end
+
+plTab:AddToggle({
+    Name = "Anti-AFK",
+    Default = true,
+    Callback = function(state)
+        antiAFKEnabled = state
+        if state then
+            StartAntiAFK()
+        else
+            StopAntiAFK()
+        end
+    end
+})
+
 tpTab:AddToggle({
     Name = "Tp to Island",
     Default = teleporting,
