@@ -44,7 +44,7 @@ local Settings = {
 	SelectedIsland = nil,
 	SavedPosition = nil,
 	CatchMethod = "Perfect",
-	ReelMethod = "Safe(Safe to Use)",
+	ReelMethod = "Legit(Safe to Use)",
 	WalkOnWater = false
 }
 
@@ -108,7 +108,6 @@ local selectedPlayer = nil
 local tpToPlayerEnabled = false
 local autoEquipRod_running = false
 
--- โหลดอนิเมชั่น
 local waitingAnim = ReplicatedStorage.resources.animations.fishing.waiting
 local throwAnim = ReplicatedStorage.resources.animations.fishing.throw
 local castholdAnim = ReplicatedStorage.resources.animations.fishing.casthold
@@ -190,28 +189,23 @@ local function StartAutoCastThrow()
             end
             
             if rod then
-                -- เล่นอนิเมชั่น casthold ก่อน
                 local castholdTrack = humanoid:LoadAnimation(castholdAnim)
                 castholdTrack:Play()
 
                 task.wait(0.7)
-                
-                -- เล่นอนิเมชั่นขว้าง
+
                 local throwTrack = humanoid:LoadAnimation(throwAnim)
                 throwTrack:Play()
 
-                -- ส่งรีโมท
                 local cast = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
                 if cast then 
                     pcall(function() cast:FireServer(100, true) end) 
                 end
 
-                -- หยุดอนิเมชั่น casthold
                 castholdTrack:Stop()
                 
                 task.wait(0.5)
-                
-                -- เล่นอนิเมชั่นรอ
+
                 local waitingTrack = humanoid:LoadAnimation(waitingAnim)
                 waitingTrack:Play()
             end
@@ -343,7 +337,7 @@ local function StartAutoReel()
                                                 playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
                                             end
 
-                                        elseif reelMethod == "Safe(Safe to Use)" then
+                                        elseif reelMethod == "80% legit" then
                                             if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
                                                 playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
                                             end
@@ -684,8 +678,8 @@ SettingSection:AddDropdown({
 
 SettingSection:AddDropdown({
     Name = "Reel Method",
-    Values = {"Legit(Safe to Use)", "Instant(Risk Ban)", "Safe(Safe to Use)"},
-    Default = reelMethod or "Safe(Safe to Use)",
+    Values = {"Legit(Safe to Use)", "Instant(Risk Ban)", "80% legit"},
+    Default = reelMethod or "Legit(Safe to Use)",
     Callback = function(choice)
         reelMethod = choice
         Settings.ReelMethod = choice
