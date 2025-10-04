@@ -238,20 +238,19 @@ local function GetProgressBarScale()
         if not progress then return nil end
         local inner = progress:FindFirstChild("bar")
         if not inner then return nil end
-        if inner.Size and inner.Size.X and type(inner.Size.X.Scale) == "number" then
-            return inner.Size.X.Scale
+        if inner:FindFirstChild("bar") then
+            inner = inner.bar
         end
-        return nil
+        return inner.Size.X.Scale
     end)
-    if ok then
-        return result
-    else
-        return nil
-    end
+    return ok and result or nil
 end
 
 local function HookAutoReel()
-    if hookedReelFinished then return end
+    if hookedReelFinished then 
+        UnhookAutoReel()
+        task.wait(0.1)
+    end
     
     local reelEvent = ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished")
     originalReelFinished = reelEvent.FireServer
@@ -303,44 +302,49 @@ local function StartAutoReel()
             local gui = player:FindFirstChild("PlayerGui")
             local reel = gui and gui:FindFirstChild("reel")
 
+            -- รอจนกว่า reel UI จะปรากฏ
             while autoreel and gui and not reel do
                 reel = gui:FindFirstChild("reel")
                 task.wait(0.1)
             end
 
-            if reel then
+            if reel and reel:IsA("ScreenGui") and reel.Enabled then
                 local char = player.Character
                 if char then
+                    local rod
                     for _, rodName in ipairs(rodNames) do
-                        local rod = char:FindFirstChild(rodName)
-                        if rod then
-                            local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
-                            if resetEvent then
-                                while autoreel and reel and reel.Parent and rod.Parent == char do
-                                    pcall(function()
-                                        resetEvent:FireServer()
-                                    end)
+                        rod = char:FindFirstChild(rodName)
+                        if rod then break end
+                    end
+                    
+                    if rod then
+                        local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
+                        if resetEvent then
+                            -- Auto reel loop
+                            while autoreel and reel and reel.Parent and reel.Enabled and rod.Parent == char do
+                                pcall(function()
+                                    resetEvent:FireServer()
+                                end)
 
+                                -- สำหรับโหมด Legit เท่านั้น
+                                if reelMethod == "Legit(Safe to Use)" then
                                     local bar = reel:FindFirstChild("bar")
                                     local fish = bar and bar:FindFirstChild("fish")
                                     local playerbar = bar and bar:FindFirstChild("playerbar")
 
-                                    if reelMethod == "Legit(Safe to Use)" then
-                                        if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
-                                            playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
-                                        end
+                                    if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
+                                        playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
                                     end
-
-                                    task.wait()
                                 end
+
+                                task.wait(0.01) -- ลด delay เพื่อ responsiveness ที่ดีขึ้น
                             end
                         end
                     end
                 end
             end
-            task.wait()
+            task.wait(0.1)
         end
-
         autoreel_running = false
     end)
 end
@@ -596,17 +600,24 @@ FischSection:AddToggle({
 	end
 })
 
-FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callback=function(state)
-	autoreel = state
-	Settings.AutoReel = state
-	SaveSettings()
-	if state then 
-        HookAutoReel()
-        StartAutoReel() 
-    else
-        UnhookAutoReel()
+FischSection:AddToggle({
+    Name="Auto Reel",
+    Flag="AutoReel",
+    Default=autoreel,
+    Callback=function(state)
+        autoreel = state
+        Settings.AutoReel = state
+        SaveSettings()
+        if state then 
+            -- รอสักครู่ก่อนเริ่มทำงาน
+            task.wait(0.5)
+            HookAutoReel()
+            StartAutoReel() 
+        else
+            UnhookAutoReel()
+        end
     end
-end})
+})
 
 FischSection:AddToggle({
     Name = "Auto Equip Rod",
@@ -660,9 +671,13 @@ SettingSection:AddDropdown({
 
         if autoreel then
             autoreel_running = false
+            task.wait(0.1)
             UnhookAutoReel()
-            HookAutoReel()
-            StartAutoReel()
+            task.wait(0.1)
+            if autoreel then
+                HookAutoReel()
+                StartAutoReel()
+            end
         end
     end
 })
@@ -1262,8 +1277,11 @@ if autocast then
 end
 
 if autoreel then
-    HookAutoReel()
-    StartAutoReel()
+    task.spawn(function()
+        task.wait(2)
+        HookAutoReel()
+        StartAutoReel()
+    end)
 end
 
 if autoshake then
