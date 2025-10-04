@@ -847,6 +847,53 @@ plTab:AddToggle({
         infinityJumpEnabled = state
     end
 })
+local fullbrightEnabled = false
+local function EnableFullbright()
+    local Lighting = game:GetService("Lighting")
+
+    local originalSettings = {
+        Brightness = Lighting.Brightness,
+        ClockTime = Lighting.ClockTime,
+        FogEnd = Lighting.FogEnd,
+        GlobalShadows = Lighting.GlobalShadows,
+        OutdoorAmbient = Lighting.OutdoorAmbient
+    }
+
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = false
+    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+    
+    return originalSettings
+end
+
+local function DisableFullbright(originalSettings)
+    local Lighting = game:GetService("Lighting")
+
+    if originalSettings then
+        Lighting.Brightness = originalSettings.Brightness
+        Lighting.ClockTime = originalSettings.ClockTime
+        Lighting.FogEnd = originalSettings.FogEnd
+        Lighting.GlobalShadows = originalSettings.GlobalShadows
+        Lighting.OutdoorAmbient = originalSettings.OutdoorAmbient
+    end
+end
+
+local originalLightingSettings = nil
+
+plTab:AddToggle({
+    Name = "Fullbright",
+    Default = false,
+    Callback = function(state)
+        fullbrightEnabled = state
+        if state then
+            originalLightingSettings = EnableFullbright()
+        else
+            DisableFullbright(originalLightingSettings)
+        end
+    end
+})
 
 local mobileFlyConnection1, mobileFlyConnection2
 local FLYING = false
