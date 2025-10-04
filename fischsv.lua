@@ -428,15 +428,9 @@ local function StartAutoSell()
 	autosell_running = true
 	task.spawn(function()
 		while autosell do
-			local npcFolder = workspace:WaitForChild("world"):WaitForChild("npcs")
-			local targetNpc = nil
-			for _, npc in ipairs(npcFolder:GetChildren()) do
-				if string.find(npc.Name,"Merchant") then targetNpc = npc break end
-			end
-			if targetNpc then
-				local args = {{voice = 12,npc = targetNpc,idle = targetNpc:WaitForChild("description"):WaitForChild("idle")}}
-				pcall(function() ReplicatedStorage:WaitForChild("events"):WaitForChild("SellAll"):InvokeServer(unpack(args)) end)
-			end
+			pcall(function() 
+				game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+			end)
 			task.wait(1)
 		end
 		autosell_running = false
