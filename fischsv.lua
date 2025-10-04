@@ -226,70 +226,7 @@ local function StartAutoCastThrow()
     end)
 end
 
-local autocast_running = false
-local function StartAutoCastThrow()
-    if autocast_running then return end
-    autocast_running = true
-    task.spawn(function()
-        while autocast do
-            local char = player.Character
-            if not char then
-                task.wait(0.1)
-                continue
-            end
-            
-            local humanoid = char:FindFirstChild("Humanoid")
-            if not humanoid then
-                task.wait(0.1)
-                continue
-            end
-            
-            local rod = nil
-            for _, tool in ipairs(char:GetChildren()) do
-                if tool:IsA("Tool") and table.find(rodNames, tool.Name) then 
-                    rod = tool 
-                    break 
-                end
-            end
-            
-            if rod then
-                local bobber = rod:FindFirstChild("bobber")
-                if bobber then
-                    task.wait(0.3)
-                    continue
-                end
-
-                local castholdTrack = humanoid:LoadAnimation(castholdAnim)
-                castholdTrack:Play()
-
-                task.wait(0.1)
-
-                local throwTrack = humanoid:LoadAnimation(throwAnim)
-                throwTrack:Play()
-
-                local castAsync = rod:FindFirstChild("events") and rod.events:FindFirstChild("castAsync")
-                if castAsync then 
-                    local args = {100, 1}
-                    pcall(function() 
-                        castAsync:InvokeServer(unpack(args)) 
-                    end) 
-                end
-
-                castholdTrack:Stop()
-                
-                task.wait(0.5)
-
-                local waitingTrack = humanoid:LoadAnimation(waitingAnim)
-                waitingTrack:Play()
-            end
-            task.wait(.3)
-        end
-        autocast_running = false
-    end)
-end
-
 local autoreel_running = false
-
 local function GetProgressBarScale()
     local ok, result = pcall(function()
         local gui = player:FindFirstChild("PlayerGui")
