@@ -1,4 +1,8 @@
+local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local spearfishingWater = Workspace["Spearfishing Water"]
+local spearRemote = ReplicatedStorage:WaitForChild("packages"):WaitForChild("Net"):WaitForChild("RE/SpearFishing/Minigame")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
@@ -485,6 +489,32 @@ local function StartInstantBobber()
         end
     end)
 end
+local autoSpearEnabled = false
+local autoSpearConnection
+
+local function autoSpearLoop()
+    while autoSpearEnabled do
+        for _, waterPart in pairs(spearfishingWater:GetChildren()) do
+            if waterPart.Name == "WaterPart" and waterPart:FindFirstChild("ZoneFish") then
+                local zoneFish = waterPart.ZoneFish
+
+                for _, fishModel in pairs(zoneFish:GetChildren()) do
+                    if fishModel:IsA("Model") then
+                        local fishUID = fishModel:GetAttribute("UID")
+                        
+                        if fishUID and autoSpearEnabled then
+                            spearRemote:FireServer(fishUID)
+                            wait(.3)
+                            spearRemote:FireServer(fishUID, true)
+                            wait(.1)
+                        end
+                    end
+                end
+            end
+        end
+        wait(1)
+    end
+end
 
 -- ================== Compkiller UI ==================
 local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/CompKiller/refs/heads/main/src/source.luau"))();
@@ -577,6 +607,19 @@ FischSection:AddToggle({
 			StartAutoCastTeleport()
 		end
 	end
+})
+FischSection:AddToggle({
+    Name = "Auto Spear",
+    Flag = "AutoSpear",
+    Default = autospear,
+    Callback = function(state)
+        autoSpearEnabled = state
+        
+        if autoSpearEnabled then
+            autoSpearThread = task.spawn(autoSpearLoop)
+        else
+        end
+    end
 })
 
 FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callback=function(state)
