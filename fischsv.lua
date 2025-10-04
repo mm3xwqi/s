@@ -15,7 +15,8 @@ local extraTPs = {
     {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
     {Name = "Castaway Cliffs", Position = Vector3.new (655, 179, -1793)},
 	{Name = "Luminescent Cavern", Position = Vector3.new (-1016, -337, -4071)},
-	{Name = "Crimson Cavern", Position = Vector3.new (-1013, -340, -4891)}
+	{Name = "Crimson Cavern", Position = Vector3.new (-1013, -340, -4891)},
+    {Name = "Oscar's Locker", Position = Vector3.new (266, -387, 3407)}
 }
 
 local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
