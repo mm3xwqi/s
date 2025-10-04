@@ -21,7 +21,8 @@ local extraTPs = {
 	{Name = "Luminescent Cavern", Position = Vector3.new (-1016, -337, -4071)},
 	{Name = "Crimson Cavern", Position = Vector3.new (-1013, -340, -4891)},
     {Name = "Oscar's Locker", Position = Vector3.new (266, -387, 3407)},
-	{Name = "The Boom Ball", Position = Vector3.new (-1296, -900, -3479)}
+	{Name = "The Boom Ball", Position = Vector3.new (-1296, -900, -3479)},
+    {Name = "Lost Jungle", Position = Vector3.new (-2690, 149, -2051)}
 }
 
 local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
@@ -504,15 +505,15 @@ local function autoSpearLoop()
                         
                         if fishUID and autoSpearEnabled then
                             spearRemote:FireServer(fishUID)
-                            wait(.3)
+                            task.wait(.1)
                             spearRemote:FireServer(fishUID, true)
-                            wait(.1)
+                            task.wait(.1)
                         end
                     end
                 end
             end
         end
-        wait(1)
+        task.wait(.001)
     end
 end
 
@@ -831,6 +832,19 @@ plTab:AddToggle({
     Default = false,
     Callback = function(state)
         noclipEnabled = state
+    end
+})
+local function clearResourceStream()
+    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+    if playerGui:FindFirstChild("resourceStream") then
+        playerGui.resourceStream:ClearAllChildren()
+    end
+end
+
+plTab:AddButton({
+    Name = "Clear Notifications",
+    Callback = function()
+        clearResourceStream()
     end
 })
 
