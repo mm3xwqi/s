@@ -256,9 +256,12 @@ local function StartAutoCastThrow()
                 local throwTrack = humanoid:LoadAnimation(throwAnim)
                 throwTrack:Play()
 
-                local cast = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
-                if cast then 
-                    pcall(function() cast:FireServer(100, true) end) 
+                local castAsync = rod:FindFirstChild("events") and rod.events:FindFirstChild("castAsync")
+                if castAsync then 
+                    local args = {100, 1}
+                    pcall(function() 
+                        castAsync:InvokeServer(unpack(args)) 
+                    end) 
                 end
 
                 castholdTrack:Stop()
