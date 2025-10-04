@@ -189,17 +189,28 @@ local function StartAutoCastThrow()
             end
             
             if rod then
+                local bobber = rod:FindFirstChild("bobber")
+                if bobber then
+                    task.wait(0.3)
+                    continue
+                end
+
                 local castholdTrack = humanoid:LoadAnimation(castholdAnim)
                 castholdTrack:Play()
 
-                task.wait(0.7)
+                task.wait(0.1)
 
                 local throwTrack = humanoid:LoadAnimation(throwAnim)
                 throwTrack:Play()
 
-                local cast = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
-                if cast then 
-                    pcall(function() cast:FireServer(100, true) end) 
+                local randomValue = math.random(10, 55)
+                local args = {randomValue, true}
+                
+                local castAsync = rod:FindFirstChild("events") and rod.events:FindFirstChild("castAsync")
+                if castAsync then 
+                    pcall(function() 
+                        castAsync:InvokeServer(unpack(args)) 
+                    end) 
                 end
 
                 castholdTrack:Stop()
