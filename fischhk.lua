@@ -1,70 +1,12 @@
--- Fischsv Hook Edition - Complete Stealth Script
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 
--- Stealth Initialization
-local randomDelay = math.random(3, 8)
-task.wait(randomDelay)
-
--- Settings Management
-local SETTINGS_FILE = "Fischsv_Hook.json"
-
-local DefaultSettings = {
-    AutoCast = false,
-    AutoReel = false,
-    AutoEquipRod = false,
-    AutoShake = false,
-    AutoSell = false,
-    TpToIsland = false,
-    SelectedIsland = nil,
-    SavedPosition = nil,
-    CatchMethod = "Perfect",
-    ReelMethod = "Legit(Safe to Use)",
-    ShakeMethod = "Shake Normal",
-    WalkOnWater = false,
-    WalkSpeed = 16,
-    JumpPower = 50,
-    Noclip = false,
-    InfinityJump = false,
-    Fly = false,
-    Fullbright = false,
-    AntiAFK = true,
-    InstantBobberV1 = false,
-    InstantBobberV2 = false
-}
-
-local Settings = table.clone(DefaultSettings)
-
--- Stealth Settings Load
-if pcall(function() return readfile(SETTINGS_FILE) end) then
-    local success, data = pcall(function()
-        return HttpService:JSONDecode(readfile(SETTINGS_FILE))
-    end)
-    if success and data then
-        for k, v in pairs(data) do
-            if DefaultSettings[k] ~= nil then
-                Settings[k] = v
-            end
-        end
-    end
-end
-
-local function SaveSettings()
-    pcall(function()
-        writefile(SETTINGS_FILE, HttpService:JSONEncode(Settings))
-    end)
-end
-
--- Game Data
 local rodNames = {}
 local rodsFolder = ReplicatedStorage:WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods")
 for _, rod in ipairs(rodsFolder:GetChildren()) do
-    table.insert(rodNames, rod.Name)
+	table.insert(rodNames, rod.Name)
 end
 
 local extraTPs = {
@@ -72,15 +14,15 @@ local extraTPs = {
     {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
     {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
     {Name = "Castaway Cliffs", Position = Vector3.new (655, 179, -1793)},
-    {Name = "Luminescent Cavern", Position = Vector3.new (-1016, -337, -4071)},
-    {Name = "Crimson Cavern", Position = Vector3.new (-1013, -340, -4891)},
+	{Name = "Luminescent Cavern", Position = Vector3.new (-1016, -337, -4071)},
+	{Name = "Crimson Cavern", Position = Vector3.new (-1013, -340, -4891)},
     {Name = "Oscar's Locker", Position = Vector3.new (266, -387, 3407)},
-    {Name = "The Boom Ball", Position = Vector3.new (-1296, -900, -3479)}
+	{Name = "The Boom Ball", Position = Vector3.new (-1296, -900, -3479)}
 }
 
 local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
-local tpNames = {}
 
+local tpNames = {}
 for _, spot in ipairs(tpFolder:GetChildren()) do
     table.insert(tpNames, spot.Name)
 end
@@ -89,278 +31,101 @@ for _, tp in ipairs(extraTPs) do
     table.insert(tpNames, tp.Name)
 end
 
-table.sort(tpNames, function(a, b) return a:lower() < b:lower() end)
+table.sort(tpNames,function(a,b) return a:lower() < b:lower() end)
 
--- Master Hook System
-local MasterHookSystem = {
-    _hooks = {},
-    _original = {},
-    _enabled = true
+local SETTINGS_FILE = "Fischsv.json"
+
+local Settings = {
+	AutoCast = false,
+	AutoReel = false,
+	ShakeMethod = "Shake Normal",
+	AutoSell = false,
+	TpToIsland = false,
+	SelectedIsland = nil,
+	SavedPosition = nil,
+	CatchMethod = "Perfect",
+	ReelMethod = "Legit(Safe to Use)",
+	WalkOnWater = false
 }
 
-function MasterHookSystem:HookMethod(obj, methodName, callback)
-    if not self._enabled then return end
-    
-    local key = tostring(obj) .. ":" .. methodName
-    if self._hooks[key] then return end
+if pcall(function() return readfile(SETTINGS_FILE) end) then
+	local success, data = pcall(function()
+		return HttpService:JSONDecode(readfile(SETTINGS_FILE))
+	end)
+	if success and data then
+		for k,v in pairs(data) do Settings[k] = v end
+	end
+end
 
-    local oldMethod = obj[methodName]
-    self._original[key] = oldMethod
+local savedPosition = nil
+if Settings.SavedPosition then
+	local sp = Settings.SavedPosition
+	if sp.X and sp.Y and sp.Z and sp.Yaw then
+		local pos = Vector3.new(sp.X, sp.Y, sp.Z)
+		local yawRad = math.rad(sp.Yaw)
+		savedPosition = CFrame.new(pos) * CFrame.Angles(0, yawRad, 0)
+	end
+end
 
-    obj[methodName] = function(self, ...)
-        local args = {...}
-        local shouldCallOriginal = callback(args, self)
-        
-        if shouldCallOriginal ~= false then
-            return oldMethod(self, unpack(args))
+local function SaveSettings()
+    pcall(function()
+        local dataToSave = {}
+        for k,v in pairs(Settings) do
+            dataToSave[k] = v
         end
-    end
-
-    self._hooks[key] = true
-end
-
-function MasterHookSystem:HookRemoteEvent(remote, callback)
-    self:HookMethod(remote, "FireServer", callback)
-end
-
-function MasterHookSystem:HookRemoteFunction(func, callback)
-    self:HookMethod(func, "InvokeServer", callback)
-end
-
-function MasterHookSystem:RestoreAll()
-    for key, oldMethod in pairs(self._original) do
-        local parts = string.split(key, ":")
-        local obj = loadstring("return " .. parts[1])()
-        local methodName = parts[2]
-        
-        if obj and methodName then
-            obj[methodName] = oldMethod
+        if savedPosition then
+            local pos = savedPosition.Position
+            local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
+            dataToSave.SavedPosition = {
+                X = pos.X,
+                Y = pos.Y,
+                Z = pos.Z,
+                Yaw = math.deg(yRot)
+            }
+        else
+            dataToSave.SavedPosition = nil
         end
-    end
-    self._hooks = {}
-    self._original = {}
-end
-
--- Main Hook Manager
-local HookManager = {
-    _initialized = false,
-    _connections = {},
-    _activeHooks = {}
-}
-
-function HookManager:Initialize()
-    if self._initialized then return end
-    
-    self:SetupFishingHooks()
-    self:SetupPlayerHooks()
-    self:SetupMovementHooks()
-    self:SetupUIHooks()
-    self:SetupAntiDetection()
-    
-    self._initialized = true
-end
-
--- Fishing Hooks
-function HookManager:SetupFishingHooks()
-    -- Hook Cast Events
-    for _, rod in pairs(rodsFolder:GetChildren()) do
-        local events = rod:FindFirstChild("events")
-        if events then
-            local castEvent = events:FindFirstChild("cast")
-            if castEvent then
-                MasterHookSystem:HookRemoteEvent(castEvent, function(args, self)
-                    if Settings.AutoCast then
-                        self:ScheduleNextCast()
-                    end
-                    return true
-                end)
-            end
-        end
-    end
-
-    -- Hook Reel Finished
-    local reelFinished = ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished")
-    if reelFinished then
-        MasterHookSystem:HookRemoteEvent(reelFinished, function(args, self)
-            if Settings.AutoReel then
-                self:HandleReelFinished(args)
-            end
-            return true
-        end)
-    end
-
-    -- Hook Sell System
-    local sellAll = ReplicatedStorage:WaitForChild("events"):WaitForChild("SellAll")
-    if sellAll then
-        MasterHookSystem:HookRemoteFunction(sellAll, function(args, self)
-            if Settings.AutoSell then
-                self:ScheduleAutoSell()
-            end
-            return true
-        end)
-    end
-
-    -- Bobber Monitoring
-    self._connections.characterAdded = player.CharacterAdded:Connect(function(char)
-        task.wait(1)
-        self:MonitorBobbers(char)
-    end)
-    
-    if player.Character then
-        self:MonitorBobbers(player.Character)
-    end
-end
-
-function HookManager:ScheduleNextCast()
-    task.spawn(function()
-        local delay = 2.0 + math.random(0.5, 1.5)
-        task.wait(delay)
-        
-        if not Settings.AutoCast then return end
-        
-        local char = player.Character
-        if not char then return end
-        
-        -- Check for equipped rod without bobber
-        for _, rodName in ipairs(rodNames) do
-            local rod = char:FindFirstChild(rodName)
-            if rod and not rod:FindFirstChild("bobber") then
-                -- Auto equip if needed
-                if Settings.AutoEquipRod then
-                    self:EquipBestRod()
-                end
-                
-                -- Cast with random delay
-                task.wait(0.5 + math.random(0, 0.3))
-                local castEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
-                if castEvent then
-                    local power = 95 + math.random(0, 10)
-                    castEvent:FireServer(power, true)
-                end
-                break
-            end
-        end
+        writefile(SETTINGS_FILE, HttpService:JSONEncode(dataToSave))
     end)
 end
 
-function HookManager:HandleReelFinished(args)
-    if Settings.ReelMethod == "Instant(Risk Ban)" then
-        local isPerfect = Settings.CatchMethod == "Perfect" or 
-                         (Settings.CatchMethod == "Random" and math.random(0, 1) == 1)
-        ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
-    end
-end
+local autocast = Settings.AutoCast
+local autoreel = Settings.AutoReel
+local autoEquipRodEnabled = Settings.AutoEquipRod
+local CatchMethod = Settings.CatchMethod
+local shakeMethod = Settings.ShakeMethod or "Shake Normal"
+local autosell = Settings.AutoSell
+local teleporting = Settings.TpToIsland
+local selectedIsland = Settings.SelectedIsland
+local reelMethod = Settings.ReelMethod
+local walkOnWaterEnabled = Settings.WalkOnWater
+local walkspeedValue = 16
+local jumppowerValue = 50
+local noclipEnabled = false
+local infinityJumpEnabled = false
+local changePlayerEnabled = false
+local selectedPlayer = nil
+local tpToPlayerEnabled = false
+local autoEquipRod_running = false
 
-function HookManager:ScheduleAutoSell()
-    task.spawn(function()
-        local delay = 45 + math.random(0, 30)
-        task.wait(delay)
-        
-        if Settings.AutoSell then
-            ReplicatedStorage:WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-        end
-    end)
-end
+local waitingAnim = ReplicatedStorage.resources.animations.fishing.waiting
+local throwAnim = ReplicatedStorage.resources.animations.fishing.throw
+local castholdAnim = ReplicatedStorage.resources.animations.fishing.casthold
 
-function HookManager:MonitorBobbers(char)
-    for _, rodName in ipairs(rodNames) do
-        local rod = char:FindFirstChild(rodName)
-        if rod then
-            -- Monitor bobber addition
-            self._connections["bobberAdded_" .. rodName] = rod.DescendantAdded:Connect(function(descendant)
-                if descendant.Name == "bobber" then
-                    self:HandleBobberAdded(rod)
-                end
-            end)
-            
-            -- Monitor bobber removal
-            self._connections["bobberRemoved_" .. rodName] = rod.DescendantRemoving:Connect(function(descendant)
-                if descendant.Name == "bobber" then
-                    self:HandleBobberRemoved()
-                end
-            end)
-        end
-    end
-end
-
-function HookManager:HandleBobberAdded(rod)
-    -- Start shake if enabled
-    if Settings.AutoShake then
-        self:StartAutoShake()
-    end
-    
-    -- Instant bobber positioning
-    if Settings.InstantBobberV1 or Settings.InstantBobberV2 then
-        task.spawn(function()
-            while rod and rod:FindFirstChild("bobber") and (Settings.InstantBobberV1 or Settings.InstantBobberV2) do
-                local bobber = rod:FindFirstChild("bobber")
-                local char = player.Character
-                if bobber and char then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        local targetPos = hrp.Position + Vector3.new(0, -3, 0)
-                        bobber.CFrame = CFrame.new(targetPos)
-                    end
-                end
-                task.wait(0.1)
-            end
-        end)
-    end
-end
-
-function HookManager:HandleBobberRemoved()
-    -- Schedule next cast if auto cast is enabled
-    if Settings.AutoCast then
-        task.delay(1.0 + math.random(0.5, 1.0), function()
-            self:ScheduleNextCast()
-        end)
-    end
-end
-
-function HookManager:StartAutoShake()
-    task.spawn(function()
-        local PlayerGUI = player:WaitForChild("PlayerGui")
-        local shakeUI = PlayerGUI:WaitForChild("shakeui")
-        
-        while shakeUI and shakeUI.Enabled and Settings.AutoShake do
-            if Settings.ShakeMethod == "Shake Normal" then
-                local safezone = shakeUI:FindFirstChild("safezone")
-                local button = safezone and safezone:FindFirstChild("button")
-                local shake = button and button:FindFirstChild("shake")
-                
-                if shake then
-                    task.wait(0.15 + math.random(0, 0.1))
-                    shake:FireServer()
-                end
-            elseif Settings.ShakeMethod == "Shake Fast(Not Safe)" then
-                local safezone = shakeUI:FindFirstChild("safezone")
-                local button = safezone and safezone:FindFirstChild("button")
-                local shake = button and button:FindFirstChild("shake")
-                
-                if shake then
-                    shake:FireServer()
-                    task.wait(0.05)
-                end
-            end
-            task.wait(0.1)
-        end
-    end)
-end
-
-function HookManager:EquipBestRod()
-    local char = player.Character
+local function EquipRods()
+    local char = player.Character or player.CharacterAdded:Wait()
     local backpack = player:WaitForChild("Backpack")
-    
-    if not char then return end
-    
-    -- Check if already has rod equipped
-    for _, rodName in ipairs(rodNames) do
-        if char:FindFirstChild(rodName) then
-            return
+
+    local hasRodInHand = false
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") and table.find(rodNames, tool.Name) then
+            hasRodInHand = true
+            break
         end
     end
-    
-    -- Equip best available rod
+
+    if hasRodInHand then return end
+
     for _, rodName in ipairs(rodNames) do
         for _, tool in ipairs(backpack:GetChildren()) do
             if tool:IsA("Tool") and tool.Name == rodName then
@@ -371,242 +136,382 @@ function HookManager:EquipBestRod()
     end
 end
 
--- Player Hooks
-function HookManager:SetupPlayerHooks()
-    -- Character monitoring
-    self._connections.playerCharacter = player.CharacterAdded:Connect(function(char)
-        task.wait(1)
-        self:ApplyPlayerModifications(char)
-    end)
-    
-    if player.Character then
-        self:ApplyPlayerModifications(player.Character)
-    end
-    
-    -- Humanoid property hooks
-    self._connections.heartbeat = RunService.Heartbeat:Connect(function()
-        self:UpdatePlayerProperties()
-    end)
+local function GetPlayerNames()
+	local names = {}
+	for _, plr in ipairs(Players:GetPlayers()) do
+		table.insert(names, plr.Name)
+	end
+	table.sort(names, function(a,b) return a:lower() < b:lower() end)
+	return names
 end
 
-function HookManager:ApplyPlayerModifications(char)
-    -- Walk on water
-    if Settings.WalkOnWater then
-        task.spawn(function()
-            local fishingZone = workspace:WaitForChild("zones"):WaitForChild("fishing")
-            for _, part in ipairs(fishingZone:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end)
-    end
-    
-    -- Fullbright
-    if Settings.Fullbright then
-        self:ToggleFullbright(true)
-    end
+local function GetHumanoidRootPart()
+	local char = player.Character or player.CharacterAdded:Wait()
+	return char:WaitForChild("HumanoidRootPart")
 end
 
-function HookManager:UpdatePlayerProperties()
-    local char = player.Character
-    if not char then return end
-    
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    local rootPart = char:FindFirstChild("HumanoidRootPart")
-    
-    if humanoid then
-        -- WalkSpeed and JumpPower
-        humanoid.WalkSpeed = Settings.WalkSpeed
-        humanoid.JumpPower = Settings.JumpPower
-        
-        -- Noclip
-        if Settings.Noclip then
-            for _, part in ipairs(char:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
+local function StartAutoEquipRod()
+    if autoEquipRod_running then return end
+    autoEquipRod_running = true
+    task.spawn(function()
+        while autoEquipRodEnabled do
+            EquipRods()
+            task.wait(.1)
         end
-        
-        -- Fly system
-        if Settings.Fly then
-            self:UpdateFlySystem(humanoid, rootPart)
-        end
-    end
+        autoEquipRod_running = false
+    end)
 end
 
-function HookManager:UpdateFlySystem(humanoid, rootPart)
-    if not rootPart then return end
-    
-    humanoid.PlatformStand = true
-    
-    local camera = workspace.CurrentCamera
-    local controlModule = require(player.PlayerScripts:WaitForChild("PlayerModule"):WaitForChild("ControlModule"))
-    local direction = controlModule:GetMoveVector()
-    
-    local speed = 100 * 50
-    local vel = Vector3.new()
-    vel = vel + camera.CFrame.RightVector * direction.X * speed
-    vel = vel - camera.CFrame.LookVector * direction.Z * speed
-    
-    rootPart.Velocity = vel
-end
-
-function HookManager:ToggleFullbright(enabled)
-    local Lighting = game:GetService("Lighting")
-    
-    if enabled then
-        Lighting.Brightness = 2
-        Lighting.ClockTime = 14
-        Lighting.FogEnd = 100000
-        Lighting.GlobalShadows = false
-        Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-    else
-        Lighting.Brightness = 1
-        Lighting.ClockTime = 14
-        Lighting.FogEnd = 100000
-        Lighting.GlobalShadows = true
-        Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-    end
-end
-
--- Movement Hooks
-function HookManager:SetupMovementHooks()
-    -- Infinity Jump
-    self._connections.jumpRequest = UserInputService.JumpRequest:Connect(function()
-        if Settings.InfinityJump then
+local autocast_running = false
+local function StartAutoCastThrow()
+    if autocast_running then return end
+    autocast_running = true
+    task.spawn(function()
+        while autocast do
             local char = player.Character
-            if char then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            if not char then
+                task.wait(0.1)
+                continue
+            end
+            
+            local humanoid = char:FindFirstChild("Humanoid")
+            if not humanoid then
+                task.wait(0.1)
+                continue
+            end
+            
+            local rod = nil
+            for _, tool in ipairs(char:GetChildren()) do
+                if tool:IsA("Tool") and table.find(rodNames, tool.Name) then 
+                    rod = tool 
+                    break 
+                end
+            end
+            
+            if rod then
+                local bobber = rod:FindFirstChild("bobber")
+                if bobber then
+                    task.wait(0.3)
+                    continue
+                end
+
+                local castholdTrack = humanoid:LoadAnimation(castholdAnim)
+                castholdTrack:Play()
+
+                task.wait(0.1)
+
+                local throwTrack = humanoid:LoadAnimation(throwAnim)
+                throwTrack:Play()
+
+                local cast = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
+                if cast then 
+                    pcall(function() cast:FireServer(100, true) end) 
+                end
+
+                castholdTrack:Stop()
+                
+                task.wait(0.5)
+
+                local waitingTrack = humanoid:LoadAnimation(waitingAnim)
+                waitingTrack:Play()
+            end
+            task.wait(.3)
+        end
+        autocast_running = false
+    end)
+end
+
+-- ================== HOOKED AUTO REEL ==================
+local autoreel_running = false
+local originalReelFinished = nil
+local hookedReelFinished = nil
+
+local function GetProgressBarScale()
+    local ok, result = pcall(function()
+        local gui = player:FindFirstChild("PlayerGui")
+        if not gui then return nil end
+        local reel = gui:FindFirstChild("reel")
+        if not reel then return nil end
+        local bar = reel:FindFirstChild("bar")
+        if not bar then return nil end
+        local progress = bar:FindFirstChild("progress")
+        if not progress then return nil end
+        local inner = progress:FindFirstChild("bar")
+        if not inner then return nil end
+        if inner.Size and inner.Size.X and type(inner.Size.X.Scale) == "number" then
+            return inner.Size.X.Scale
+        end
+        return nil
+    end)
+    if ok then
+        return result
+    else
+        return nil
+    end
+end
+
+local function HookAutoReel()
+    if hookedReelFinished then return end
+    
+    local reelEvent = ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished")
+    originalReelFinished = reelEvent.FireServer
+    
+    hookedReelFinished = function(self, ...)
+        local args = {...}
+        
+        if autoreel and reelMethod ~= "Legit(Safe to Use)" then
+            local isPerfect
+            if CatchMethod == "Perfect" then
+                isPerfect = true
+            elseif CatchMethod == "Random" then
+                isPerfect = (math.random(0, 1) == 1)
+            else
+                isPerfect = true
+            end
+            
+            if reelMethod == "Instant(Risk Ban)" then
+                args = {100, isPerfect}
+            elseif reelMethod == "80% legit" then
+                local prog = GetProgressBarScale()
+                if prog and prog >= 0.80 then
+                    args = {100, isPerfect}
                 end
             end
         end
-    end)
-    
-    -- Teleport System
-    self._connections.teleport = RunService.Heartbeat:Connect(function()
-        if Settings.TpToIsland and Settings.SelectedIsland then
-            self:HandleTeleport()
-        end
-    end)
-end
-
-function HookManager:HandleTeleport()
-    local char = player.Character
-    if not char then return end
-    
-    local rootPart = char:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
-    
-    local spot = tpFolder:FindFirstChild(Settings.SelectedIsland)
-    if not spot then
-        for _, tp in ipairs(extraTPs) do
-            if tp.Name == Settings.SelectedIsland then
-                spot = {CFrame = CFrame.new(tp.Position)}
-                break
-            end
-        end
-    end
-    
-    if spot then
-        rootPart.CFrame = spot.CFrame + Vector3.new(0, 5, 0)
-    end
-end
-
--- UI Hooks
-function HookManager:SetupUIHooks()
-    -- Reel UI Monitoring
-    self._connections.guiChildAdded = player.PlayerGui.ChildAdded:Connect(function(child)
-        if child.Name == "reel" then
-            self:MonitorReelUI(child)
-        end
-    end)
-    
-    for _, child in pairs(player.PlayerGui:GetChildren()) do
-        if child.Name == "reel" then
-            self:MonitorReelUI(child)
-        end
-    end
-end
-
-function HookManager:MonitorReelUI(reelUI)
-    task.spawn(function()
-        while reelUI and reelUI.Parent do
-            if Settings.AutoReel then
-                self:HandleReelUI(reelUI)
-            end
-            task.wait(0.1)
-        end
-    end)
-end
-
-function HookManager:HandleReelUI(reelUI)
-    local bar = reelUI:FindFirstChild("bar")
-    if not bar then return end
-    
-    local fish = bar:FindFirstChild("fish")
-    local playerbar = bar:FindFirstChild("playerbar")
-    local progress = bar:FindFirstChild("progress")
-    local innerBar = progress and progress:FindFirstChild("bar")
-    
-    if Settings.ReelMethod == "Legit(Safe to Use)" then
-        if fish and playerbar then
-            playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
-        end
-    elseif Settings.ReelMethod == "80% legit" then
-        if fish and playerbar then
-            playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
-        end
         
-        if innerBar and innerBar.Size.X.Scale >= 0.8 then
-            ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, true)
+        return originalReelFinished(self, unpack(args))
+    end
+    
+    reelEvent.FireServer = hookedReelFinished
+end
+
+local function UnhookAutoReel()
+    if hookedReelFinished and originalReelFinished then
+        local reelEvent = ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished")
+        reelEvent.FireServer = originalReelFinished
+        hookedReelFinished = nil
+        originalReelFinished = nil
+    end
+end
+
+local function StartAutoReel()
+    if autoreel_running then return end
+    autoreel_running = true
+
+    task.spawn(function()
+        while autoreel do
+            local gui = player:FindFirstChild("PlayerGui")
+            local reel = gui and gui:FindFirstChild("reel")
+
+            while autoreel and gui and not reel do
+                reel = gui:FindFirstChild("reel")
+                task.wait(0.1)
+            end
+
+            if reel then
+                local char = player.Character
+                if char then
+                    for _, rodName in ipairs(rodNames) do
+                        local rod = char:FindFirstChild(rodName)
+                        if rod then
+                            local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
+                            if resetEvent then
+                                while autoreel and reel and reel.Parent and rod.Parent == char do
+                                    pcall(function()
+                                        resetEvent:FireServer()
+                                    end)
+
+                                    local bar = reel:FindFirstChild("bar")
+                                    local fish = bar and bar:FindFirstChild("fish")
+                                    local playerbar = bar and bar:FindFirstChild("playerbar")
+
+                                    if reelMethod == "Legit(Safe to Use)" then
+                                        if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
+                                            playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
+                                        end
+                                    end
+
+                                    task.wait()
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait()
+        end
+
+        autoreel_running = false
+    end)
+end
+
+local autoshake_running = false
+local function StartAutoShake()
+	if autoshake_running then return end
+	autoshake_running = true
+	task.spawn(function()
+		while autoshake do
+			if shakeMethod == "Shake Fast(Not Safe)" then
+				local shakeButton = player.PlayerGui:FindFirstChild("shakeui")
+				shakeButton = shakeButton and shakeButton:FindFirstChild("safezone")
+				shakeButton = shakeButton and shakeButton:FindFirstChild("button")
+				shakeButton = shakeButton and shakeButton:FindFirstChild("shake")
+				if shakeButton then pcall(function() shakeButton:FireServer() end) end
+				
+			elseif shakeMethod == "Shake Normal" then
+				local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+				local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+				if shakeUI and shakeUI.Enabled then
+					local safezone = shakeUI:FindFirstChild("safezone")
+					if safezone then
+						local button = safezone:FindFirstChild("button")
+						if button and button:IsA("ImageButton") and button.Visible then
+							local GuiService = game:GetService("GuiService")
+							local VirtualInputManager = game:GetService("VirtualInputManager")
+
+							GuiService.SelectedObject = button
+							task.wait(0.05)
+							VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+							task.wait(0.05)
+							VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+						end
+					end
+				end
+			end
+			task.wait(0.2)
+		end
+		autoshake_running = false
+	end)
+end
+
+local autosell_running = false
+local function StartAutoSell()
+	if autosell_running then return end
+	autosell_running = true
+	task.spawn(function()
+		while autosell do
+			pcall(function() 
+				game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
+			end)
+			task.wait(1)
+		end
+		autosell_running = false
+	end)
+end
+
+local teleport_running = false
+local function StartAutoCastTeleport()
+    if teleport_running then return end
+    teleport_running = true
+
+    task.spawn(function()
+        while autocast do
+            local hrp = GetHumanoidRootPart()
+            if hrp and savedPosition then
+                pcall(function()
+                    hrp.CFrame = savedPosition
+                end)
+            end
+            task.wait()
+        end
+        teleport_running = false
+    end)
+end
+
+local function SetWalkOnWater(state)
+    walkOnWaterEnabled = state
+    Settings.WalkOnWater = state
+    SaveSettings()
+
+    local fishingZone = workspace:WaitForChild("zones"):WaitForChild("fishing")
+    for _, part in ipairs(fishingZone:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = walkOnWaterEnabled
         end
     end
 end
 
--- Anti-Detection System
-function HookManager:SetupAntiDetection()
-    -- Random behavior patterns
+local teleport_running = false
+local function StartTeleport()
+    if teleport_running then return end
+    teleport_running = true
     task.spawn(function()
-        while true do
-            if math.random(1, 500) == 1 then
-                -- Occasional break
-                local breakTime = math.random(3, 10)
-                task.wait(breakTime)
+        while teleporting do
+            local hrp = GetHumanoidRootPart()
+            local spot = tpFolder:FindFirstChild(selectedIsland)
+
+            if not spot then
+                for _, tp in ipairs(extraTPs) do
+                    if tp.Name == selectedIsland then
+                        spot = {CFrame = CFrame.new(tp.Position)}
+                        break
+                    end
+                end
             end
-            task.wait(1)
+
+            if hrp and spot then
+                pcall(function() hrp.CFrame = spot.CFrame + Vector3.new(0,5,0) end)
+            end
+            task.wait()
+        end
+        teleport_running = false
+    end)
+end
+
+local instantBobberConnection = nil
+
+local function StartInstantBobber()
+    local player = game.Players.LocalPlayer
+    local RunService = game:GetService("RunService")
+
+    if instantBobberConnection then
+        instantBobberConnection:Disconnect()
+        instantBobberConnection = nil
+    end
+
+    local hasTeleported = false
+
+    instantBobberConnection = RunService.Heartbeat:Connect(function()
+        local char = player.Character
+        if not char then return end
+
+        local rod
+        for _, rodName in ipairs(rodNames) do
+            rod = char:FindFirstChild(rodName)
+            if rod then break end
+        end
+        if not rod then
+            hasTeleported = false
+            return
+        end
+
+        local bobber = rod:FindFirstChild("bobber", true)
+        if bobber and bobber:IsA("BasePart") and not hasTeleported then
+            hasTeleported = true
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local targetPos = hrp.CFrame.Position + (hrp.CFrame.LookVector * 5) - Vector3.new(0, 10, 0)
+                task.spawn(function()
+                    pcall(function()
+                        bobber.CFrame = CFrame.new(targetPos)
+                    end)
+                end)
+            end
+        elseif not bobber then
+            hasTeleported = false
         end
     end)
-    
-    -- Anti-AFK
-    if Settings.AntiAFK then
-        self._connections.antiAFK = game:GetService("Players").LocalPlayer.Idled:Connect(function()
-            local VirtualUser = game:GetService("VirtualUser")
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new(0, 0))
-        end)
-    end
 end
 
--- Initialize Hook System
-task.spawn(function()
-    task.wait(2)
-    HookManager:Initialize()
-end)
-
--- UI Library (Compkiller)
+-- ================== Compkiller UI ==================
 local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/CompKiller/refs/heads/main/src/source.luau"))();
 local Notifier = Compkiller.newNotify();
 local ConfigManager = Compkiller:ConfigManager({
-    Directory = "Compkiller-UI",
-    Config = "Fisch-Hook"
+	Directory = "Compkiller-UI",
+	Config = "Example-Configs"
 });
-
-Compkiller:Loader("rbxassetid://74493757521216", 2.5).yield();
-
+Compkiller:Loader("rbxassetid://74493757521216" , 2.5).yield();
+local ConfigManager = Compkiller:ConfigManager({Directory="Compkiller-UI",Config="Fisch-Configs"})
 local userId1 = player.UserId
 local thumbType1 = Enum.ThumbnailType.HeadShot
 local thumbSize1 = Enum.ThumbnailSize.Size420x420
@@ -614,17 +519,24 @@ local content1, isReady1 = Players:GetUserThumbnailAsync(userId1, thumbType1, th
 
 local Window = Compkiller.new({
     Name = "Cxsmic",
-    Keybind = "RightControl",
+    Keybind = "LeftAlt",
     Logo = content1,
     Scale = Compkiller.Scale.Window,
     TextSize = 10
 })
 
 Notifier.new({
-    Title = "Cxsmic",
-    Content = "Script Loaded Successfully!",
-    Duration = 5,
-    Icon = "rbxassetid://74493757521216"
+	Title = "Notification",
+	Content = "Thank you for use this script!",
+	Duration = 25,
+	Icon = "rbxassetid://74493757521216"
+});
+
+Notifier.new({
+	Title = "Bypass",
+	Content = "BYPASS ANTI CHEAT FISCH",
+	Duration = 10,
+	Icon = "rbxassetid://74493757521216"
 });
 
 local Watermark = Window:Watermark()
@@ -640,352 +552,762 @@ Watermark:AddText({
 })
 
 Watermark:AddText({
-    Icon = "server",
-    Text = "Bypass",
+	Icon = "server",
+	Text = Compkiller.Version,
 });
 
-local MainTab = Window:DrawTab({Name = "Fishing", Icon = "fishing-pole", EnableScrolling = true})
+Notifier.new({Title="Fisch UI",Content="Loaded!",Duration=5,Icon="rbxassetid://120245531583106"})
 
-local FishingSection = MainTab:DrawSection({Name = "Fishing Features", Position = "left"})
+local MainTab = Window:DrawTab({Name="Main",Icon="apple",EnableScrolling=true})
 
-FishingSection:AddToggle({
-    Name = "Auto Cast",
-    Default = Settings.AutoCast,
-    Callback = function(state)
-        Settings.AutoCast = state
-        SaveSettings()
-    end
+local FischSection = MainTab:DrawSection({Name="Fisch Features",Position="left"})
+
+local tab2 = Window:DrawTab({
+	Name = "Local Player",
+	Icon = "user",
+	Type = "Single"
+});
+
+local plTab = tab2:DrawSection({Name="Local Player",Position="left"})
+
+local tab3 = Window:DrawTab({
+	Name = "Islands & Player",
+	Icon = "home",
+	EnableScrolling=true
+});
+
+local tpTab = tab3:DrawSection({Name="Island",Position="left"})
+
+local tpTabRight = tab3:DrawSection({Name="Player",Position="right"})
+
+
+FischSection:AddToggle({
+	Name="Auto Cast",
+	Flag="AutoCast",
+	Default=autocast,
+	Callback=function(state)
+		autocast = state
+		Settings.AutoCast = state
+		SaveSettings()
+		if state then
+			StartAutoCastThrow()
+			StartAutoCastTeleport()
+		end
+	end
 })
 
-FishingSection:AddToggle({
-    Name = "Auto Reel",
-    Default = Settings.AutoReel,
-    Callback = function(state)
-        Settings.AutoReel = state
-        SaveSettings()
+FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callback=function(state)
+	autoreel = state
+	Settings.AutoReel = state
+	SaveSettings()
+	if state then 
+        HookAutoReel()
+        StartAutoReel() 
+    else
+        UnhookAutoReel()
     end
-})
+end})
 
-FishingSection:AddToggle({
+FischSection:AddToggle({
     Name = "Auto Equip Rod",
-    Default = Settings.AutoEquipRod,
+    Default = autoEquipRodEnabled,
     Callback = function(state)
+        autoEquipRodEnabled = state
         Settings.AutoEquipRod = state
         SaveSettings()
+        if state then
+            StartAutoEquipRod()
+        end
     end
 })
 
-FishingSection:AddToggle({
-    Name = "Auto Shake",
-    Default = Settings.AutoShake,
-    Callback = function(state)
-        Settings.AutoShake = state
-        SaveSettings()
-    end
-})
+FischSection:AddToggle({Name="Auto Shake",Flag="AutoShake",Default=autoshake,Callback=function(state)
+	autoshake = state
+	Settings.AutoShake = state
+	SaveSettings()
+	if state then StartAutoShake() end
+end})
 
-FishingSection:AddToggle({
-    Name = "Auto Sell",
-    Default = Settings.AutoSell,
-    Callback = function(state)
-        Settings.AutoSell = state
-        SaveSettings()
-    end
-})
+FischSection:AddToggle({Name="Auto Sell",Flag="AutoSell",Default=autosell,Callback=function(state)
+	autosell = state
+	Settings.AutoSell = state
+	SaveSettings()
+	if state then StartAutoSell() end
+end})
 
-local SettingsSection = MainTab:DrawSection({Name = "Fishing Settings", Position = "right"})
 
-SettingsSection:AddDropdown({
+local SettingSection = MainTab:DrawSection({Name="Setting Farm",Position="right"})
+
+SettingSection:AddDropdown({
     Name = "Catch Method",
-    Values = {"Perfect", "Random"},
-    Default = Settings.CatchMethod,
+    Values = {"Perfect", "Random(Does work with legit)"},
+    Default = CatchMethod or "Perfect",
     Callback = function(choice)
+        CatchMethod = choice
         Settings.CatchMethod = choice
         SaveSettings()
     end
 })
 
-SettingsSection:AddDropdown({
+SettingSection:AddDropdown({
     Name = "Reel Method",
-    Values = {"Legit(Safe to Use)", "80% legit", "Instant(Risk Ban)"},
-    Default = Settings.ReelMethod,
+    Values = {"Legit(Safe to Use)", "Instant(Risk Ban)", "80% legit"},
+    Default = reelMethod or "Legit(Safe to Use)",
     Callback = function(choice)
+        reelMethod = choice
         Settings.ReelMethod = choice
         SaveSettings()
+
+        if autoreel then
+            autoreel_running = false
+            UnhookAutoReel()
+            HookAutoReel()
+            StartAutoReel()
+        end
     end
 })
 
-SettingsSection:AddDropdown({
+SettingSection:AddDropdown({
     Name = "Shake Method",
     Values = {"Shake Normal", "Shake Fast(Not Safe)"},
-    Default = Settings.ShakeMethod,
+    Default = shakeMethod or "Shake Normal",
     Callback = function(choice)
+        shakeMethod = choice
         Settings.ShakeMethod = choice
         SaveSettings()
+
+        if autoshake then
+            autoshake_running = false
+            task.wait(0.1)
+            StartAutoShake()
+        end
     end
 })
 
-SettingsSection:AddToggle({
+SettingSection:AddToggle({
     Name = "Instant Bobber V1",
-    Default = Settings.InstantBobberV1,
+    Default = Settings.InstantBobberV1 or false,
     Callback = function(state)
         Settings.InstantBobberV1 = state
         SaveSettings()
-    end
-})
 
-SettingsSection:AddToggle({
-    Name = "Instant Bobber V2",
-    Default = Settings.InstantBobberV2,
-    Callback = function(state)
-        Settings.InstantBobberV2 = state
-        SaveSettings()
-    end
-})
-
-SettingsSection:AddButton({
-    Name = "Save Current Position",
-    Callback = function()
-        local char = player.Character
-        if char then
-            local rootPart = char:FindFirstChild("HumanoidRootPart")
-            if rootPart then
-                Settings.SavedPosition = {
-                    X = rootPart.Position.X,
-                    Y = rootPart.Position.Y,
-                    Z = rootPart.Position.Z
-                }
-                SaveSettings()
-                Notifier.new({
-                    Title = "Position Saved",
-                    Content = "Current position has been saved!",
-                    Duration = 3,
-                    Icon = "rbxassetid://74493757521216"
-                })
+        if state then
+            StartInstantBobber()
+        else
+            if instantBobberConnection then
+                instantBobberConnection:Disconnect()
+                instantBobberConnection = nil
             end
         end
     end
 })
 
--- Player Tab
-local PlayerTab = Window:DrawTab({Name = "Player", Icon = "user", Type = "Single"})
-
-local PlayerSection = PlayerTab:DrawSection({Name = "Player Modifications", Position = "left"})
-
-PlayerSection:AddSlider({
-    Name = "Walk Speed",
-    Min = 16,
-    Max = 200,
-    Default = Settings.WalkSpeed,
-    Round = 0,
-    Callback = function(value)
-        Settings.WalkSpeed = value
-        SaveSettings()
-    end
-})
-
-PlayerSection:AddSlider({
-    Name = "Jump Power",
-    Min = 50,
-    Max = 200,
-    Default = Settings.JumpPower,
-    Round = 0,
-    Callback = function(value)
-        Settings.JumpPower = value
-        SaveSettings()
-    end
-})
-
-PlayerSection:AddToggle({
-    Name = "Noclip",
-    Default = Settings.Noclip,
+SettingSection:AddToggle({
+    Name = "Instant Bobber V2",
+    Default = Settings.InstantBobberV2 or false,
     Callback = function(state)
-        Settings.Noclip = state
-        SaveSettings()
-    end
-})
+        local player = game.Players.LocalPlayer
+        local RunService = game:GetService("RunService")
 
-PlayerSection:AddToggle({
-    Name = "Infinity Jump",
-    Default = Settings.InfinityJump,
-    Callback = function(state)
-        Settings.InfinityJump = state
-        SaveSettings()
-    end
-})
+        if instantBobberConnection then
+            instantBobberConnection:Disconnect()
+            instantBobberConnection = nil
+        end
 
-PlayerSection:AddToggle({
-    Name = "Fly",
-    Default = Settings.Fly,
-    Callback = function(state)
-        Settings.Fly = state
+        Settings.InstantBobberV2 = state
         SaveSettings()
-    end
-})
 
-PlayerSection:AddToggle({
-    Name = "Walk on Water",
-    Default = Settings.WalkOnWater,
-    Callback = function(state)
-        Settings.WalkOnWater = state
-        SaveSettings()
-        HookManager:ApplyPlayerModifications(player.Character)
-    end
-})
+        if state then
+            instantBobberConnection = RunService.RenderStepped:Connect(function()
+                local char = player.Character
+                if not char then return end
 
-PlayerSection:AddToggle({
-    Name = "Fullbright",
-    Default = Settings.Fullbright,
-    Callback = function(state)
-        Settings.Fullbright = state
-        SaveSettings()
-        HookManager:ToggleFullbright(state)
-    end
-})
+                local rod = nil
+                for _, rodName in ipairs(rodNames) do
+                    rod = char:FindFirstChild(rodName)
+                    if rod then break end
+                end
+                if not rod then return end
 
-PlayerSection:AddToggle({
-    Name = "Anti-AFK",
-    Default = Settings.AntiAFK,
-    Callback = function(state)
-        Settings.AntiAFK = state
-        SaveSettings()
-        
-        if state and not HookManager._connections.antiAFK then
-            HookManager._connections.antiAFK = game:GetService("Players").LocalPlayer.Idled:Connect(function()
-                local VirtualUser = game:GetService("VirtualUser")
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new(0, 0))
+                local bobber = rod:FindFirstChild("bobber")
+                if not bobber then return end
+
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+
+                local targetPos = hrp.Position + Vector3.new(0, -3, 0)
+                pcall(function()
+                    bobber.CFrame = CFrame.new(targetPos)
+                end)
             end)
-        elseif not state and HookManager._connections.antiAFK then
-            HookManager._connections.antiAFK:Disconnect()
-            HookManager._connections.antiAFK = nil
         end
     end
 })
 
--- Teleport Tab
-local TeleportTab = Window:DrawTab({Name = "Teleport", Icon = "map-pin", EnableScrolling = true})
+SettingSection:AddButton({Name="Save Position",Callback=function()
+	local hrp = GetHumanoidRootPart()
+	if hrp then
+		savedPosition = hrp.CFrame
+		local pos = savedPosition.Position
+		local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
+		Settings.SavedPosition = {
+			X = pos.X,
+			Y = pos.Y,
+			Z = pos.Z,
+			Yaw = math.deg(yRot)
+		}
+		SaveSettings()
+	end
+end})
 
-local IslandSection = TeleportTab:DrawSection({Name = "Island Teleport", Position = "left"})
+plTab:AddSlider({
+    Name = "Walkspeed",
+    Min = 50,
+    Max = 500,
+    Default = 100,
+    Round = 0,
+    Flag = "Walk_power",
+    Callback = function(value)
+        walkspeedValue = value
+    end
+});
 
-IslandSection:AddDropdown({
-    Name = "Select Island",
+plTab:AddSlider({
+    Name = "Jumppower",
+    Min = 50,
+    Max = 500,
+    Default = 50,
+    Round = 0,
+    Flag = "Jump_power",
+    Callback = function(value)
+        jumppowerValue = value
+    end
+});
+
+local changePlayerEnabled = false
+plTab:AddToggle({
+    Name = "Change Player",
+    Default = false,
+    Callback = function(state)
+        changePlayerEnabled = state
+    end
+})
+
+task.spawn(function()
+    local toggle = plTab:GetToggle("Anti-AFK")
+    if toggle then
+        toggle.Callback(true)
+    end
+end)
+
+plTab:AddToggle({
+    Name = "Noclip",
+    Default = false,
+    Callback = function(state)
+        noclipEnabled = state
+    end
+})
+
+plTab:AddToggle({
+    Name = "Infinity Jump",
+    Default = false,
+    Callback = function(state)
+        infinityJumpEnabled = state
+    end
+})
+local fullbrightEnabled = false
+local function EnableFullbright()
+    local Lighting = game:GetService("Lighting")
+
+    local originalSettings = {
+        Brightness = Lighting.Brightness,
+        ClockTime = Lighting.ClockTime,
+        FogEnd = Lighting.FogEnd,
+        GlobalShadows = Lighting.GlobalShadows,
+        OutdoorAmbient = Lighting.OutdoorAmbient
+    }
+
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = false
+    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+    
+    return originalSettings
+end
+
+local function DisableFullbright(originalSettings)
+    local Lighting = game:GetService("Lighting")
+
+    if originalSettings then
+        Lighting.Brightness = originalSettings.Brightness
+        Lighting.ClockTime = originalSettings.ClockTime
+        Lighting.FogEnd = originalSettings.FogEnd
+        Lighting.GlobalShadows = originalSettings.GlobalShadows
+        Lighting.OutdoorAmbient = originalSettings.OutdoorAmbient
+    end
+end
+
+local originalLightingSettings = nil
+
+plTab:AddToggle({
+    Name = "Fullbright",
+    Default = false,
+    Callback = function(state)
+        fullbrightEnabled = state
+        if state then
+            originalLightingSettings = EnableFullbright()
+        else
+            DisableFullbright(originalLightingSettings)
+        end
+    end
+})
+
+local mobileFlyConnection1, mobileFlyConnection2
+local FLYING = false
+local iyflyspeed = 3
+local vehicleflyspeed = 3
+local velocityHandlerName = "FlyVelocity"
+local gyroHandlerName = "FlyGyro"
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local function getRoot(char)
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+end
+
+local function stopMobileFly(speaker)
+    FLYING = false
+    if mobileFlyConnection1 then mobileFlyConnection1:Disconnect() mobileFlyConnection1 = nil end
+    if mobileFlyConnection2 then mobileFlyConnection2:Disconnect() mobileFlyConnection2 = nil end
+
+    local char = speaker.Character
+    if char then
+        local root = getRoot(char)
+        if root then
+            local bv = root:FindFirstChild(velocityHandlerName)
+            local bg = root:FindFirstChild(gyroHandlerName)
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+        end
+        local humanoid = char:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+    end
+end
+
+local function mobilefly(speaker, vfly)
+    stopMobileFly(speaker)
+    FLYING = true
+
+    local char = speaker.Character or speaker.CharacterAdded:Wait()
+    local root = getRoot(char)
+    local camera = workspace.CurrentCamera
+    local v3none = Vector3.new()
+    local v3inf = Vector3.new(9e9, 9e9, 9e9)
+
+    local controlModule = require(speaker.PlayerScripts:WaitForChild("PlayerModule"):WaitForChild("ControlModule"))
+
+    local bv = Instance.new("BodyVelocity")
+    bv.Name = velocityHandlerName
+    bv.Parent = root
+    bv.MaxForce = Vector3.new()
+    bv.Velocity = v3none
+
+    local bg = Instance.new("BodyGyro")
+    bg.Name = gyroHandlerName
+    bg.Parent = root
+    bg.MaxTorque = v3inf
+    bg.P = 1000
+    bg.D = 50
+
+    mobileFlyConnection1 = char:WaitForChild("HumanoidRootPart").AncestryChanged:Connect(function()
+        if not char:IsDescendantOf(game) then
+            stopMobileFly(speaker)
+        end
+    end)
+
+    mobileFlyConnection2 = RunService.RenderStepped:Connect(function()
+        root = getRoot(speaker.Character)
+        camera = workspace.CurrentCamera
+        if not root then return end
+
+        local humanoid = speaker.Character:FindFirstChildWhichIsA("Humanoid")
+        if not humanoid then return end
+
+        local VelocityHandler = root:FindFirstChild(velocityHandlerName)
+        local GyroHandler = root:FindFirstChild(gyroHandlerName)
+        if not VelocityHandler or not GyroHandler then return end
+
+        if not vfly then humanoid.PlatformStand = true end
+        GyroHandler.CFrame = camera.CoordinateFrame
+        VelocityHandler.MaxForce = v3inf
+
+        local direction = controlModule:GetMoveVector()
+        local speed = (vfly and vehicleflyspeed or iyflyspeed) * 50
+        local vel = Vector3.new()
+        vel = vel + camera.CFrame.RightVector * direction.X * speed
+        vel = vel - camera.CFrame.LookVector * direction.Z * speed
+        VelocityHandler.Velocity = vel
+    end)
+end
+
+plTab:AddToggle({
+    Name = "Fly",
+    Default = false,
+    Callback = function(state)
+        local player = Players.LocalPlayer
+        if state then
+            mobilefly(player, false)
+        else
+            stopMobileFly(player)
+        end
+    end
+})
+
+local walkOnWaterEnabled = true
+
+plTab:AddToggle({
+    Name = "Walk on Water",
+    Default = walkOnWaterEnabled,
+    Callback = function(state)
+        SetWalkOnWater(state)
+    end
+})
+
+tpTab:AddDropdown({
+    Name = "Select Islands",
     Values = tpNames,
-    Default = Settings.SelectedIsland or tpNames[1],
+    Default = selectedIsland or tpNames[1],
     Callback = function(choice)
+        selectedIsland = choice
         Settings.SelectedIsland = choice
         SaveSettings()
     end
 })
 
-IslandSection:AddToggle({
-    Name = "Teleport to Island",
-    Default = Settings.TpToIsland,
+local antiAFKEnabled = false
+local antiAFKConnection = nil
+
+local function StartAntiAFK()
+    if antiAFKConnection then return end
+    
+    antiAFKConnection = game:GetService("Players").LocalPlayer.Idled:Connect(function()
+        local VirtualUser = game:GetService("VirtualUser")
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0, 0))
+    end)
+end
+
+local function StopAntiAFK()
+    if antiAFKConnection then
+        antiAFKConnection:Disconnect()
+        antiAFKConnection = nil
+    end
+end
+
+plTab:AddToggle({
+    Name = "Anti-AFK",
+    Default = true,
     Callback = function(state)
+        antiAFKEnabled = state
+        if state then
+            StartAntiAFK()
+        else
+            StopAntiAFK()
+        end
+    end
+})
+
+tpTab:AddToggle({
+    Name = "Tp to Island",
+    Default = teleporting,
+    Callback = function(state)
+        teleporting = state
         Settings.TpToIsland = state
         SaveSettings()
+        if teleporting then StartTeleport() end
     end
-})
-
-IslandSection:AddButton({
-    Name = "Teleport to Saved Position",
-    Callback = function()
-        if Settings.SavedPosition then
-            local char = player.Character
-            if char then
-                local rootPart = char:FindFirstChild("HumanoidRootPart")
-                if rootPart then
-                    rootPart.CFrame = CFrame.new(
-                        Settings.SavedPosition.X,
-                        Settings.SavedPosition.Y,
-                        Settings.SavedPosition.Z
-                    )
-                end
-            end
-        end
-    end
-})
-
--- Settings Tab
-local SettingsTab = Window:DrawTab({Name = "Settings", Icon = "settings", Type = "Single"})
-
-local UISection = SettingsTab:DrawSection({Name = "UI Settings"})
-
-UISection:AddButton({
-    Name = "Save Configuration",
-    Callback = function()
-        SaveSettings()
-        Notifier.new({
-            Title = "Settings Saved",
-            Content = "All settings have been saved!",
-            Duration = 3,
-            Icon = "rbxassetid://74493757521216"
-        })
-    end
-})
-
-UISection:AddButton({
-    Name = "Load Configuration",
-    Callback = function()
-        if pcall(function() return readfile(SETTINGS_FILE) end) then
-            local success, data = pcall(function()
-                return HttpService:JSONDecode(readfile(SETTINGS_FILE))
-            end)
-            if success and data then
-                for k, v in pairs(data) do
-                    if DefaultSettings[k] ~= nil then
-                        Settings[k] = v
-                    end
-                end
-                Notifier.new({
-                    Title = "Settings Loaded",
-                    Content = "Configuration loaded successfully!",
-                    Duration = 3,
-                    Icon = "rbxassetid://74493757521216"
-                })
-            end
-        end
-    end
-})
-
-UISection:AddButton({
-    Name = "Reset to Default",
-    Callback = function()
-        Settings = table.clone(DefaultSettings)
-        SaveSettings()
-        Notifier.new({
-            Title = "Settings Reset",
-            Content = "All settings reset to default!",
-            Duration = 3,
-            Icon = "rbxassetid://74493757521216"
-        })
-    end
-})
-
-game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
-    if leavingPlayer == player then
-        MasterHookSystem:RestoreAll()
-
-        for _, conn in pairs(HookManager._connections) do
-            conn:Disconnect()
-        end
-
-        HookManager:ToggleFullbright(false)
-    end
-end)
-
-Notifier.new({
-    Title = "Bypass AntiCheat",
-    Content = "Bypass AntiCheat!",
-    Duration = 5,
-    Icon = "rbxassetid://74493757521216"
 })
 
 task.spawn(function()
     while true do
-        if math.random(1, 100) > 85 then
-            task.wait(math.random(0.1, 0.3))
+        task.wait(0.1)
+        local char = player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if changePlayerEnabled then
+                    humanoid.WalkSpeed = Tpwalk
+                    humanoid.JumpPower = jumppowerValue
+                end
+            end
+
+            if noclipEnabled then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
         end
-        task.wait(0.5)
+    end
+end)
+
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infinityJumpEnabled then
+        local char = player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
+
+Window:DrawCategory({
+	Name = "Misc"
+});
+
+local SettingTab = Window:DrawTab({
+	Icon = "settings-3",
+	Name = "Settings",
+	Type = "Single",
+	EnableScrolling = true
+});
+
+local ThemeTab = Window:DrawTab({
+	Icon = "paintbrush",
+	Name = "Themes",
+	Type = "Single"
+});
+
+local Settings = SettingTab:DrawSection({
+	Name = "UI Settings",
+});
+
+Settings:AddToggle({
+	Name = "Alway Show Frame",
+	Default = false,
+	Callback = function(v)
+		Window.AlwayShowTab = v;
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Highlight",
+	Default = Compkiller.Colors.Highlight,
+	Callback = function(v)
+		Compkiller.Colors.Highlight = v;
+		Compkiller:RefreshCurrentColor();
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Toggle Color",
+	Default = Compkiller.Colors.Toggle,
+	Callback = function(v)
+		Compkiller.Colors.Toggle = v;
+		
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Drop Color",
+	Default = Compkiller.Colors.DropColor,
+	Callback = function(v)
+		Compkiller.Colors.DropColor = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Risky",
+	Default = Compkiller.Colors.Risky,
+	Callback = function(v)
+		Compkiller.Colors.Risky = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Mouse Enter",
+	Default = Compkiller.Colors.MouseEnter,
+	Callback = function(v)
+		Compkiller.Colors.MouseEnter = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Block Color",
+	Default = Compkiller.Colors.BlockColor,
+	Callback = function(v)
+		Compkiller.Colors.BlockColor = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Background Color",
+	Default = Compkiller.Colors.BGDBColor,
+	Callback = function(v)
+		Compkiller.Colors.BGDBColor = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Block Background Color",
+	Default = Compkiller.Colors.BlockBackground,
+	Callback = function(v)
+		Compkiller.Colors.BlockBackground = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Stroke Color",
+	Default = Compkiller.Colors.StrokeColor,
+	Callback = function(v)
+		Compkiller.Colors.StrokeColor = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "High Stroke Color",
+	Default = Compkiller.Colors.HighStrokeColor,
+	Callback = function(v)
+		Compkiller.Colors.HighStrokeColor = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Switch Color",
+	Default = Compkiller.Colors.SwitchColor,
+	Callback = function(v)
+		Compkiller.Colors.SwitchColor = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddColorPicker({
+	Name = "Line Color",
+	Default = Compkiller.Colors.LineColor,
+	Callback = function(v)
+		Compkiller.Colors.LineColor = v;
+
+		Compkiller:RefreshCurrentColor(v);
+	end,
+});
+
+Settings:AddButton({
+	Name = "Get Theme",
+	Callback = function()
+		print(Compkiller:GetTheme())
+		
+		Notifier.new({
+			Title = "Notification",
+			Content = "Copied Them Color to your clipboard",
+			Duration = 5,
+			Icon = "rbxassetid://120245531583106"
+		});
+	end,
+});
+
+ThemeTab:DrawSection({
+	Name = "UI Themes"
+}):AddDropdown({
+	Name = "Select Theme",
+	Default = "Default",
+	Values = {
+		"Default",
+		"Dark Green",
+		"Dark Blue",
+		"Purple Rose",
+		"Skeet"
+	},
+	Callback = function(v)
+		Compkiller:SetTheme(v)
+	end,
+})
+
+-- Creating Config Tab --
+local ConfigUI = Window:DrawConfig({
+	Name = "Config",
+	Icon = "folder",
+	Config = ConfigManager
+});
+
+ConfigUI:Init();
+
+if autocast then
+    StartAutoCastThrow()
+    StartAutoCastTeleport()
+end
+
+if autoreel then
+    HookAutoReel()
+    StartAutoReel()
+end
+
+if autoshake then
+    StartAutoShake()
+end
+
+if autosell then
+    StartAutoSell()
+end
+
+if teleporting then
+    StartTeleport()
+end
+
+if walkOnWaterEnabled then
+    SetWalkOnWater(true)
+end
+
+if Settings.InstantBobber then
+    task.spawn(function()
+        local player = game.Players.LocalPlayer
+        while true do
+            task.wait(0.1)
+            local char = player.Character
+            if not char then continue end
+
+            local rod
+            for _, rodName in ipairs(rodNames) do
+                rod = char:FindFirstChild(rodName)
+                if rod then break end
+            end
+            if rod and rod:FindFirstChild("bobber", true) then
+                StartInstantBobber()
+                break
+            end
+        end
+    end)
+end
+
+if autoEquipRodEnabled then StartAutoEquipRod() end
+
+-- Cleanup on script termination
+game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        UnhookAutoReel()
     end
 end)
