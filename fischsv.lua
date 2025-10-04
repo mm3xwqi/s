@@ -36,7 +36,7 @@ local SETTINGS_FILE = "Fischsv.json"
 local Settings = {
 	AutoCast = false,
 	AutoReel = false,
-	AutoShake = false,
+	ShakeMethod = "Shake Normal",
 	AutoSell = false,
 	TpToIsland = false,
 	SelectedIsland = nil,
@@ -91,7 +91,7 @@ local autocast = Settings.AutoCast
 local autoreel = Settings.AutoReel
 local autoEquipRodEnabled = Settings.AutoEquipRod
 local CatchMethod = Settings.CatchMethod
-local autoshake = Settings.AutoShake
+local shakeMethod = Settings.ShakeMethod or "Shake Normal"
 local autosell = Settings.AutoSell
 local teleporting = Settings.TpToIsland
 local selectedIsland = Settings.SelectedIsland
@@ -105,6 +105,11 @@ local changePlayerEnabled = false
 local selectedPlayer = nil
 local tpToPlayerEnabled = false
 local autoEquipRod_running = false
+
+-- โหลดอนิเมชั่น
+local waitingAnim = ReplicatedStorage.resources.animations.fishing.waiting
+local throwAnim = ReplicatedStorage.resources.animations.fishing.throw
+local castholdAnim = ReplicatedStorage.resources.animations.fishing.casthold
 
 local function EquipRods()
     local char = player.Character or player.CharacterAdded:Wait()
@@ -163,6 +168,17 @@ local function StartAutoCastThrow()
     task.spawn(function()
         while autocast do
             local char = player.Character
+            if not char then
+                task.wait(0.1)
+                continue
+            end
+            
+            local humanoid = char:FindFirstChild("Humanoid")
+            if not humanoid then
+                task.wait(0.1)
+                continue
+            end
+            
             local rod = nil
             for _, tool in ipairs(char:GetChildren()) do
                 if tool:IsA("Tool") and table.find(rodNames, tool.Name) then 
@@ -170,11 +186,32 @@ local function StartAutoCastThrow()
                     break 
                 end
             end
+            
             if rod then
+                -- เล่นอนิเมชั่น casthold ก่อน
+                local castholdTrack = humanoid:LoadAnimation(castholdAnim)
+                castholdTrack:Play()
+
+                task.wait(0.7)
+                
+                -- เล่นอนิเมชั่นขว้าง
+                local throwTrack = humanoid:LoadAnimation(throwAnim)
+                throwTrack:Play()
+
+                -- ส่งรีโมท
                 local cast = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
                 if cast then 
-                    pcall(function() cast:FireServer(100,true) end) 
+                    pcall(function() cast:FireServer(100, true) end) 
                 end
+
+                -- หยุดอนิเมชั่น casthold
+                castholdTrack:Stop()
+                
+                task.wait(0.5)
+                
+                -- เล่นอนิเมชั่นรอ
+                local waitingTrack = humanoid:LoadAnimation(waitingAnim)
+                waitingTrack:Play()
             end
             task.wait(.3)
         end
@@ -182,44 +219,63 @@ local function StartAutoCastThrow()
     end)
 end
 
-local teleport_running = false
-local function StartAutoCastTeleport()
-	if teleport_running then return end
-	teleport_running = true
-	task.spawn(function()
-		while autocast or fishingZoneEnabled do
-			local hrp = GetHumanoidRootPart()
-			if hrp then
-				local zoneTarget = nil
+local autocast_running = false
+local function StartAutoCastThrow()
+    if autocast_running then return end
+    autocast_running = true
+    task.spawn(function()
+        while autocast do
+            local char = player.Character
+            if not char then
+                task.wait(0.1)
+                continue
+            end
+            
+            local humanoid = char:FindFirstChild("Humanoid")
+            if not humanoid then
+                task.wait(0.1)
+                continue
+            end
+            
+            local rod = nil
+            for _, tool in ipairs(char:GetChildren()) do
+                if tool:IsA("Tool") and table.find(rodNames, tool.Name) then 
+                    rod = tool 
+                    break 
+                end
+            end
+            
+            if rod then
+                local bobber = rod:FindFirstChild("bobber")
+                if bobber then
+                    task.wait(0.3)
+                    continue
+                end
 
-				if fishingZoneEnabled then
-					local selectedZone = Settings.SelectedFishingZone
-					if type(selectedZone) == "table" then
-						selectedZone = selectedZone[1]
-					end
+                local castholdTrack = humanoid:LoadAnimation(castholdAnim)
+                castholdTrack:Play()
 
-					if selectedZone and selectedZone ~= "None" then
-						local zonePart = fishingZoneFolder:FindFirstChild(selectedZone)
-						if zonePart and zonePart:IsA("BasePart") then
-							zoneTarget = zonePart
-						end
-					end
-				end
+                task.wait(0.1)
 
-				if zoneTarget then
-					pcall(function()
-						hrp.CFrame = zoneTarget.CFrame + Vector3.new(0,5,0)
-					end)
-				elseif autocast and savedPosition then
-					pcall(function()
-						hrp.CFrame = savedPosition
-					end)
-				end
-			end
-			task.wait(0.5)
-		end
-		teleport_running = false
-	end)
+                local throwTrack = humanoid:LoadAnimation(throwAnim)
+                throwTrack:Play()
+
+                local cast = rod:FindFirstChild("events") and rod.events:FindFirstChild("cast")
+                if cast then 
+                    pcall(function() cast:FireServer(100, true) end) 
+                end
+
+                castholdTrack:Stop()
+                
+                task.wait(0.5)
+
+                local waitingTrack = humanoid:LoadAnimation(waitingAnim)
+                waitingTrack:Play()
+            end
+            task.wait(.3)
+        end
+        autocast_running = false
+    end)
 end
 
 local autoreel_running = false
@@ -331,11 +387,33 @@ local function StartAutoShake()
 	autoshake_running = true
 	task.spawn(function()
 		while autoshake do
-			local shakeButton = player.PlayerGui:FindFirstChild("shakeui")
-			shakeButton = shakeButton and shakeButton:FindFirstChild("safezone")
-			shakeButton = shakeButton and shakeButton:FindFirstChild("button")
-			shakeButton = shakeButton and shakeButton:FindFirstChild("shake")
-			if shakeButton then pcall(function() shakeButton:FireServer() end) end
+			if shakeMethod == "Shake Fast(Not Safe)" then
+				local shakeButton = player.PlayerGui:FindFirstChild("shakeui")
+				shakeButton = shakeButton and shakeButton:FindFirstChild("safezone")
+				shakeButton = shakeButton and shakeButton:FindFirstChild("button")
+				shakeButton = shakeButton and shakeButton:FindFirstChild("shake")
+				if shakeButton then pcall(function() shakeButton:FireServer() end) end
+				
+			elseif shakeMethod == "Shake Normal" then
+				local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+				local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+				if shakeUI and shakeUI.Enabled then
+					local safezone = shakeUI:FindFirstChild("safezone")
+					if safezone then
+						local button = safezone:FindFirstChild("button")
+						if button and button:IsA("ImageButton") and button.Visible then
+							local GuiService = game:GetService("GuiService")
+							local VirtualInputManager = game:GetService("VirtualInputManager")
+
+							GuiService.SelectedObject = button
+							task.wait(0.05)
+							VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+							task.wait(0.05)
+							VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+						end
+					end
+				end
+			end
 			task.wait(0.2)
 		end
 		autoshake_running = false
@@ -482,7 +560,7 @@ local thumbSize1 = Enum.ThumbnailSize.Size420x420
 local content1, isReady1 = Players:GetUserThumbnailAsync(userId1, thumbType1, thumbSize1)
 
 local Window = Compkiller.new({
-    Name = "Cxsmic-RiskBAN",
+    Name = "Cxsmic",
     Keybind = "LeftAlt",
     Logo = content1,
     Scale = Compkiller.Scale.Window,
@@ -631,6 +709,22 @@ SettingSection:AddDropdown({
     end
 })
 
+SettingSection:AddDropdown({
+    Name = "Shake Method",
+    Values = {"Shake Normal", "Shake Fast(Not Safe)"},
+    Default = shakeMethod or "Shake Normal",
+    Callback = function(choice)
+        shakeMethod = choice
+        Settings.ShakeMethod = choice
+        SaveSettings()
+
+        if autoshake then
+            autoshake_running = false
+            task.wait(0.1)
+            StartAutoShake()
+        end
+    end
+})
 
 SettingSection:AddToggle({
     Name = "Instant Bobber V1",
