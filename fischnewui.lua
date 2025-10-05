@@ -910,6 +910,7 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     end
 })
 
+--Show
 local function GetSimpleUsableRods()
     local lines = {}
     local usableCount = 0
