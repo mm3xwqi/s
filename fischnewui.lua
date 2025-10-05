@@ -870,17 +870,14 @@ local function InitializeInstantReelHooks()
     end)
 end
 
--- FIXED: GetUsableRodLures function
 local function GetUsableRodLures()
-    local lines = {"=== USABLE RODS ===", ""}
+    local lines = {"=== Lure Value ===", ""}
     local usableCount = 0
-    
-    -- ตรวจสอบว่า testchtfisch มีอยู่ใน workspace หรือไม่
-    local testFolder = workspace:FindFirstChild("testchtfisch")
-    
-    if testFolder then
+
+    local playerFolder = workspace:FindFirstChild(player.Name)
+    if playerFolder then
         for _, rodName in ipairs(rodNames) do
-            local rodFolder = testFolder:FindFirstChild(rodName)
+            local rodFolder = playerFolder:FindFirstChild(rodName)
             if rodFolder and rodFolder:FindFirstChild("values") and rodFolder.values:FindFirstChild("lure") then
                 local lureValue = rodFolder.values.lure.Value
                 if lureValue ~= 100 then
@@ -890,12 +887,12 @@ local function GetUsableRodLures()
             end
         end
     else
-        table.insert(lines, "❌ testchtfisch folder not found")
+        table.insert(lines, "❌ Player folder not found: " .. player.Name)
     end
     
     if usableCount == 0 then
-        table.insert(lines, "❌ No usable rods found")
-        table.insert(lines, "All rods have lure value: 100")
+        table.insert(lines, "❌ No rods found")
+        table.insert(lines, "lure value: 100")
     else
         table.insert(lines, "")
         table.insert(lines, "📊 Total usable: " .. usableCount .. "/" .. #rodNames)
