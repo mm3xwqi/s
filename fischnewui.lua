@@ -873,269 +873,260 @@ task.spawn(function()
     HookReelFunction()
 end)
 
--- ================== New UI Library ==================
-local library = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ShaddowScripts/Main/main/Library"))()
+-- Load UI Library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
 
-local Main = library:CreateWindow("Fisch Script","Crimson")
-
-local tab = Main:CreateTab("Cheats")
-local tab2 = Main:CreateTab("Misc")
-
--- Cheats Tab
-tab:CreateToggle("Auto Cast", function(state)
-    autocast = state
-    Settings.AutoCast = state
-    SaveSettings()
-    if state then
-        StartAutoCastThrow()
-        StartAutoCastTeleport()
-    end
-end)
-
-tab:CreateToggle("Auto Spear (BANNABLE)", function(state)
-    autoSpearEnabled = state
-    if state then
-        autoSpearThread = task.spawn(AutoSpearLoop)
-    elseif autoSpearThread then
-        task.cancel(autoSpearThread)
-        autoSpearThread = nil
-    end
-end)
-
-tab:CreateToggle("Auto Reel", function(state)
-    autoreel = state
-    Settings.AutoReel = state
-    SaveSettings()
-    if state then 
-        StartAutoReel() 
-    end
-end)
-
-tab:CreateToggle("Instant Reel", function(state)
-    instantReelEnabled = state
-    if state then
-        StartInstantReelWithHook()
-    end
-end)
-
-tab:CreateToggle("Auto Equip Rod", function(state)
-    autoEquipRodEnabled = state
-    Settings.AutoEquipRod = state
-    SaveSettings()
-    if state then
-        StartAutoEquipRod()
-    end
-end)
-
-tab:CreateToggle("Auto Shake", function(state)
-    autoshake = state
-    Settings.AutoShake = state
-    SaveSettings()
-    if state then 
-        StartAutoShake() 
-    end
-end)
-
-tab:CreateToggle("Auto Sell", function(state)
-    autosell = state
-    Settings.AutoSell = state
-    SaveSettings()
-    if state then 
-        StartAutoSell() 
-    end
-end)
-
-tab:CreateDropdown("Catch Method", {"Perfect", "Random(Does work with legit)"}, function(choice)
-    CatchMethod = choice
-    Settings.CatchMethod = choice
-    SaveSettings()
-end)
-
-tab:CreateDropdown("Reel Method", {"Legit(Safe to Use)", "Instant(Risk Ban)", "80% legit"}, function(choice)
-    reelMethod = choice
-    Settings.ReelMethod = choice
-    SaveSettings()
-
-    if autoreel then
-        autoreel_running = false
-        StartAutoReel()
-    end
-end)
-
-tab:CreateDropdown("Shake Method", {"Shake Normal", "Shake Fast(Not Safe)"}, function(choice)
-    shakeMethod = choice
-    Settings.ShakeMethod = choice
-    SaveSettings()
-
-    if autoshake then
-        autoshake_running = false
-        task.wait(0.1)
-        StartAutoShake()
-    end
-end)
-
-tab:CreateButton("Save Position", function()
-    local hrp = GetHumanoidRootPart()
-    if hrp then
-        savedPosition = hrp.CFrame
-        local pos = savedPosition.Position
-        local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
-        Settings.SavedPosition = {
-            X = pos.X,
-            Y = pos.Y,
-            Z = pos.Z,
-            Yaw = math.deg(yRot)
-        }
-        SaveSettings()
-    end
-end)
-
--- Misc Tab
-tab2:CreateSlider("Walkspeed", 50, 500, function(value)
-    walkspeedValue = value
-end)
-
-tab2:CreateSlider("Jumppower", 50, 500, function(value)
-    jumppowerValue = value
-end)
-
-tab2:CreateToggle("Change Player", function(state)
-    changePlayerEnabled = state
-end)
-
-tab2:CreateToggle("Noclip", function(state)
-    noclipEnabled = state
-end)
-
-tab2:CreateToggle("Infinity Jump", function(state)
-    infinityJumpEnabled = state
-end)
-
-tab2:CreateToggle("Walk on Water", function(state)
-    SetWalkOnWater(state)
-end)
-
-tab2:CreateToggle("Disable Notifications", function(state)
-    disableNotifications = state
-    if state then
-        task.spawn(function()
-            while disableNotifications do
-                local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-                local hud = playerGui:FindFirstChild("hud")
-                if hud then
-                    local safezone = hud:FindFirstChild("safezone")
-                    if safezone then
-                        local announcements = safezone:FindFirstChild("announcements")
-                        if announcements then
-                            announcements.Visible = false
-                        end
-                    end
-                end
-                task.wait(0.5)
-            end
-
-            local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-            local hud = playerGui:FindFirstChild("hud")
-            if hud then
-                local safezone = hud:FindFirstChild("safezone")
-                if safezone then
-                    local announcements = safezone:FindFirstChild("announcements")
-                    if announcements then
-                        announcements.Visible = true
-                    end
-                end
-            end
-        end)
-    end
-end)
-
-tab2:CreateDropdown("Select Islands", tpNames, function(choice)
-    selectedIsland = choice
-    Settings.SelectedIsland = choice
-    SaveSettings()
-end)
-
-tab2:CreateToggle("Tp to Island", function(state)
-    teleporting = state
-    Settings.TpToIsland = state
-    SaveSettings()
-    if teleporting then 
-        StartTeleport() 
-    end
-end)
-
-local fullbrightEnabled = false
-local originalLightingSettings = nil
-local connections = {}
-
-local function EnableFullbright()
-    local Lighting = game:GetService("Lighting")
-    originalLightingSettings = {
-        Brightness = Lighting.Brightness,
-        ClockTime = Lighting.ClockTime,
-        FogEnd = Lighting.FogEnd,
-        GlobalShadows = Lighting.GlobalShadows,
-        OutdoorAmbient = Lighting.OutdoorAmbient
+-- Create Main Window
+local Window = Library:Window({
+    Title = "Cxsmic",
+    Desc = "Fisch Script by Cxsmic",
+    Icon = 105059922903197,
+    Theme = "Dark",
+    Config = {
+        Keybind = Enum.KeyCode.LeftControl,
+        Size = UDim2.new(0, 500, 0, 400)
+    },
+    CloseUIButton = {
+        Enabled = true,
+        Text = "Cxsmic"
     }
+})
 
-    Lighting.Brightness = 2
-    Lighting.ClockTime = 14
-    Lighting.FogEnd = 100000
-    Lighting.GlobalShadows = false
-    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-
-    local propertiesToWatch = {"Brightness", "ClockTime", "FogEnd", "GlobalShadows", "OutdoorAmbient"}
+-- Main Tab
+local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
+    -- Fishing Features Section
+    MainTab:Section({Title = "Fishing Features"})
     
-    for _, property in ipairs(propertiesToWatch) do
-        if connections[property] then
-            connections[property]:Disconnect()
-        end
-        
-        connections[property] = Lighting:GetPropertyChangedSignal(property):Connect(function()
-            if fullbrightEnabled then
-                if property == "Brightness" then
-                    Lighting.Brightness = 2
-                elseif property == "ClockTime" then
-                    Lighting.ClockTime = 14
-                elseif property == "FogEnd" then
-                    Lighting.FogEnd = 100000
-                elseif property == "GlobalShadows" then
-                    Lighting.GlobalShadows = false
-                elseif property == "OutdoorAmbient" then
-                    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-                end
+    MainTab:Toggle({
+        Title = "Auto Cast",
+        Desc = "Automatically cast fishing rod",
+        Value = autocast,
+        Callback = function(state)
+            autocast = state
+            Settings.AutoCast = state
+            SaveSettings()
+            if state then
+                StartAutoCastThrow()
+                StartAutoCastTeleport()
             end
-        end)
-    end
-end
+        end
+    })
+    
+    MainTab:Toggle({
+        Title = "Auto Spear (BANNABLE)",
+        Desc = "Automatically spear fish",
+        Value = autoSpearEnabled,
+        Callback = function(state)
+            autoSpearEnabled = state
+            if state then
+                autoSpearThread = task.spawn(AutoSpearLoop)
+            elseif autoSpearThread then
+                task.cancel(autoSpearThread)
+                autoSpearThread = nil
+            end
+        end
+    })
+    
+    MainTab:Toggle({
+        Title = "Auto Reel",
+        Desc = "Automatically reel fish",
+        Value = autoreel,
+        Callback = function(state)
+            autoreel = state
+            Settings.AutoReel = state
+            SaveSettings()
+            if state then 
+                StartAutoReel() 
+            end
+        end
+    })
+    
+    MainTab:Toggle({
+        Title = "Instant Reel",
+        Desc = "Instant reel fish",
+        Value = false,
+        Callback = function(state)
+            instantReelEnabled = state
+            if state then
+                StartInstantReelWithHook()
+            end
+        end
+    })
+    
+    MainTab:Toggle({
+        Title = "Auto Equip Rod",
+        Desc = "Automatically equip fishing rod",
+        Value = autoEquipRodEnabled,
+        Callback = function(state)
+            autoEquipRodEnabled = state
+            Settings.AutoEquipRod = state
+            SaveSettings()
+            if state then
+                StartAutoEquipRod()
+            end
+        end
+    })
+    
+    MainTab:Toggle({
+        Title = "Auto Shake",
+        Desc = "Automatically shake fish",
+        Value = autoshake,
+        Callback = function(state)
+            autoshake = state
+            Settings.AutoShake = state
+            SaveSettings()
+            if state then StartAutoShake() end
+        end
+    })
+    
+    MainTab:Toggle({
+        Title = "Auto Sell",
+        Desc = "Automatically sell fish",
+        Value = autosell,
+        Callback = function(state)
+            autosell = state
+            Settings.AutoSell = state
+            SaveSettings()
+            if state then StartAutoSell() end
+        end
+    })
+    
+    -- Settings Section
+    MainTab:Section({Title = "Farm Settings"})
+    
+    MainTab:Dropdown({
+        Title = "Catch Method",
+        Desc = "Select catch method",
+        List = {"Perfect", "Random(Does work with legit)"},
+        Value = CatchMethod or "Perfect",
+        Callback = function(choice)
+            CatchMethod = choice
+            Settings.CatchMethod = choice
+            SaveSettings()
+        end
+    })
+    
+    MainTab:Dropdown({
+        Title = "Reel Method",
+        Desc = "Select reel method",
+        List = {"Legit(Safe to Use)", "Instant(Risk Ban)", "80% legit"},
+        Value = reelMethod or "Legit(Safe to Use)",
+        Callback = function(choice)
+            reelMethod = choice
+            Settings.ReelMethod = choice
+            SaveSettings()
 
-local function DisableFullbright()
-    local Lighting = game:GetService("Lighting")
+            if autoreel then
+                autoreel_running = false
+                StartAutoReel()
+            end
+        end
+    })
+    
+    MainTab:Dropdown({
+        Title = "Shake Method",
+        Desc = "Select shake method",
+        List = {"Shake Normal", "Shake Fast(Not Safe)"},
+        Value = shakeMethod or "Shake Normal",
+        Callback = function(choice)
+            shakeMethod = choice
+            Settings.ShakeMethod = choice
+            SaveSettings()
 
-    for property, connection in pairs(connections) do
-        if connection then
-            connection:Disconnect()
-            connections[property] = nil
+            if autoshake then
+                autoshake_running = false
+                task.wait(0.1)
+                StartAutoShake()
+            end
+        end
+    })
+    
+    MainTab:Button({
+    Title = "Save Position",
+    Desc = "Save current position",
+    Callback = function()
+        local hrp = GetHumanoidRootPart()
+        if hrp then
+            savedPosition = hrp.CFrame
+            local pos = savedPosition.Position
+            local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
+            Settings.SavedPosition = {
+                X = pos.X,
+                Y = pos.Y,
+                Z = pos.Z,
+                Yaw = math.deg(yRot)
+            }
+            SaveSettings()
+            Window:Notify({
+                Title = "Position Saved",
+                Desc = "Save Position successfully!",
+                Time = 3
+            })
         end
     end
+})
 
-    if originalLightingSettings then
-        Lighting.Brightness = originalLightingSettings.Brightness
-        Lighting.ClockTime = originalLightingSettings.ClockTime
-        Lighting.FogEnd = originalLightingSettings.FogEnd
-        Lighting.GlobalShadows = originalLightingSettings.GlobalShadows
-        Lighting.OutdoorAmbient = originalLightingSettings.OutdoorAmbient
+MainTab:Button({
+    Title = "Reset Saved Position",
+    Desc = "Reset saved position data",
+    Callback = function()
+        savedPosition = nil
+        Settings.SavedPosition = nil
+        SaveSettings()
+        Window:Notify({
+            Title = "Position Reset",
+            Desc = "Reset successfully!",
+            Time = 3
+        })
     end
-end
+})
 
-tab2:CreateToggle("Fullbright", function(state)
-    fullbrightEnabled = state
-    if state then
-        EnableFullbright()
-    else
-        DisableFullbright()
-    end
-end)
+-- Player Tab
+Window:Line()
+local PlayerTab = Window:Tab({Title = "Player", Icon = "user"}) do
+    PlayerTab:Section({Title = "Player Settings"})
+    
+    PlayerTab:Slider({
+        Title = "WalkSpeed",
+        Desc = "Set player walk speed",
+        Min = 50,
+        Max = 500,
+        Rounding = 0,
+        Value = 100,
+        Callback = function(val)
+            walkspeedValue = val
+        end
+    })
+    
+    PlayerTab:Slider({
+        Title = "JumpPower",
+        Desc = "Set player jump power",
+        Min = 50,
+        Max = 500,
+        Rounding = 0,
+        Value = 50,
+        Callback = function(val)
+            jumppowerValue = val
+        end
+    })
+    
+    PlayerTab:Toggle({
+        Title = "Change Player Stats",
+        Desc = "Enable to change walk speed and jump power",
+        Value = changePlayerEnabled,
+        Callback = function(state)
+            changePlayerEnabled = state
+        end
+    })
+    
+    PlayerTab:Toggle({
+        Title = "Noclip",
+        Desc = "Walk through walls",
+        Value = noclipEnabled,
+        Callback = function(state)
+            noclipEnabled = state
+        end
+    })
 
 local mobileFlyConnection1, mobileFlyConnection2
 local FLYING = false
@@ -1143,6 +1134,9 @@ local iyflyspeed = 3
 local vehicleflyspeed = 3
 local velocityHandlerName = "FlyVelocity"
 local gyroHandlerName = "FlyGyro"
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local function getRoot(char)
     return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
@@ -1225,284 +1219,367 @@ local function mobilefly(speaker, vfly)
     end)
 end
 
-tab2:CreateToggle("Fly", function(state)
-    local player = Players.LocalPlayer
-    if state then
-        mobilefly(player, false)
-    else
-        stopMobileFly(player)
+    PlayerTab:Toggle({
+    Title = "Fly",
+    Desc = "Enable flying mode",
+    Value = false,
+    Callback = function(state)
+        local player = Players.LocalPlayer
+        if state then
+            mobilefly(player, false)
+        else
+            stopMobileFly(player)
+        end
+    end
+})
+    
+    PlayerTab:Toggle({
+        Title = "Infinity Jump",
+        Desc = "Jump infinitely",
+        Value = infinityJumpEnabled,
+        Callback = function(state)
+            infinityJumpEnabled = state
+        end
+    })
+    
+    PlayerTab:Toggle({
+        Title = "Walk on Water",
+        Desc = "Walk on water surfaces",
+        Value = walkOnWaterEnabled,
+        Callback = function(state)
+            SetWalkOnWater(state)
+        end
+    })
+    
+    PlayerTab:Toggle({
+        Title = "Disable Notifications",
+        Desc = "Hide game notifications",
+        Value = false,
+        Callback = function(state)
+            disableNotifications = state
+            if state then
+                task.spawn(function()
+                    while disableNotifications do
+                        local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+                        local hud = playerGui:FindFirstChild("hud")
+                        if hud then
+                            local safezone = hud:FindFirstChild("safezone")
+                            if safezone then
+                                local announcements = safezone:FindFirstChild("announcements")
+                                if announcements then
+                                    announcements.Visible = false
+                                end
+                            end
+                        end
+                        task.wait(0.5)
+                    end
+
+                    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+                    local hud = playerGui:FindFirstChild("hud")
+                    if hud then
+                        local safezone = hud:FindFirstChild("safezone")
+                        if safezone then
+                            local announcements = safezone:FindFirstChild("announcements")
+                            if announcements then
+                                announcements.Visible = true
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    })
+    
+    PlayerTab:Button({
+        Title = "Vip Server",
+        Desc = "Join VIP server",
+        Callback = function()
+            -- VIP Server code here
+            local md5 = {}
+            local hmac = {}
+            local base64 = {}
+
+            do
+                do
+                    local T = {
+                        0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
+                        0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be, 0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
+                        0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa, 0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
+                        0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed, 0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
+                        0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c, 0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
+                        0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05, 0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
+                        0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039, 0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
+                        0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1, 0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391,
+                    }
+
+                    local function add(a, b)
+                        local lsw = bit32.band(a, 0xFFFF) + bit32.band(b, 0xFFFF)
+                        local msw = bit32.rshift(a, 16) + bit32.rshift(b, 16) + bit32.rshift(lsw, 16)
+                        return bit32.bor(bit32.lshift(msw, 16), bit32.band(lsw, 0xFFFF))
+                    end
+
+                    local function rol(x, n)
+                        return bit32.bor(bit32.lshift(x, n), bit32.rshift(x, 32 - n))
+                    end
+
+                    local function F(x, y, z)
+                        return bit32.bor(bit32.band(x, y), bit32.band(bit32.bnot(x), z))
+                    end
+                    local function G(x, y, z)
+                        return bit32.bor(bit32.band(x, z), bit32.band(y, bit32.bnot(z)))
+                    end
+                    local function H(x, y, z)
+                        return bit32.bxor(x, bit32.bxor(y, z))
+                    end
+                    local function I(x, y, z)
+                        return bit32.bxor(y, bit32.bor(x, bit32.bnot(z)))
+                    end
+
+                    function md5.sum(message)
+                        local a, b, c, d = 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476
+
+                        local message_len = #message
+                        local padded_message = message .. "\128"
+                        while #padded_message % 64 ~= 56 do
+                            padded_message = padded_message .. "\0"
+                        end
+
+                        local len_bytes = ""
+                        local len_bits = message_len * 8
+                        for i = 0, 7 do
+                            len_bytes = len_bytes .. string.char(bit32.band(bit32.rshift(len_bits, i * 8), 0xFF))
+                        end
+                        padded_message = padded_message .. len_bytes
+
+                        for i = 1, #padded_message, 64 do
+                            local chunk = padded_message:sub(i, i + 63)
+                            local X = {}
+                            for j = 0, 15 do
+                                local b1, b2, b3, b4 = chunk:byte(j * 4 + 1, j * 4 + 4)
+                                X[j] = bit32.bor(b1, bit32.lshift(b2, 8), bit32.lshift(b3, 16), bit32.lshift(b4, 24))
+                            end
+
+                            local aa, bb, cc, dd = a, b, c, d
+
+                            local s = { 7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21 }
+
+                            for j = 0, 63 do
+                                local f, k, shift_index
+                                if j < 16 then
+                                    f = F(b, c, d)
+                                    k = j
+                                    shift_index = j % 4
+                                elseif j < 32 then
+                                    f = G(b, c, d)
+                                    k = (1 + 5 * j) % 16
+                                    shift_index = 4 + (j % 4)
+                                elseif j < 48 then
+                                    f = H(b, c, d)
+                                    k = (5 + 3 * j) % 16
+                                    shift_index = 8 + (j % 4)
+                                else
+                                    f = I(b, c, d)
+                                    k = (7 * j) % 16
+                                    shift_index = 12 + (j % 4)
+                                end
+
+                                local temp = add(a, f)
+                                temp = add(temp, X[k])
+                                temp = add(temp, T[j + 1])
+                                temp = rol(temp, s[shift_index + 1])
+
+                                local new_b = add(b, temp)
+                                a, b, c, d = d, new_b, b, c
+                            end
+
+                            a = add(a, aa)
+                            b = add(b, bb)
+                            c = add(c, cc)
+                            d = add(d, dd)
+                        end
+
+                        local function to_le_hex(n)
+                            local s = ""
+                            for i = 0, 3 do
+                                s = s .. string.char(bit32.band(bit32.rshift(n, i * 8), 0xFF))
+                            end
+                            return s
+                        end
+
+                        return to_le_hex(a) .. to_le_hex(b) .. to_le_hex(c) .. to_le_hex(d)
+                    end
+                end
+
+                do
+                    function hmac.new(key, msg, hash_func)
+                        if #key > 64 then
+                            key = hash_func(key)
+                        end
+
+                        local o_key_pad = ""
+                        local i_key_pad = ""
+                        for i = 1, 64 do
+                            local byte = (i <= #key and string.byte(key, i)) or 0
+                            o_key_pad = o_key_pad .. string.char(bit32.bxor(byte, 0x5C))
+                            i_key_pad = i_key_pad .. string.char(bit32.bxor(byte, 0x36))
+                        end
+
+                        return hash_func(o_key_pad .. hash_func(i_key_pad .. msg))
+                    end
+                end
+
+                do
+                    local b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+                    function base64.encode(data)
+                        return (
+                            (data:gsub(".", function(x)
+                                local r, b_val = "", x:byte()
+                                for i = 8, 1, -1 do
+                                    r = r .. (b_val % 2 ^ i - b_val % 2 ^ (i - 1) > 0 and "1" or "0")
+                                end
+                                return r
+                            end) .. "0000"):gsub("%d%d%d?%d?%d?%d?", function(x)
+                                if #x < 6 then
+                                    return ""
+                                end
+                                local c = 0
+                                for i = 1, 6 do
+                                    c = c + (x:sub(i, i) == "1" and 2 ^ (6 - i) or 0)
+                                end
+                                return b:sub(c + 1, c + 1)
+                            end) .. ({ "", "==", "=" })[#data % 3 + 1]
+                        )
+                    end
+                end
+            end
+
+            local function GenerateReservedServerCode(placeId)
+                local uuid = {}
+                for i = 1, 16 do
+                    uuid[i] = math.random(0, 255)
+                end
+
+                uuid[7] = bit32.bor(bit32.band(uuid[7], 0x0F), 0x40) -- v4
+                uuid[9] = bit32.bor(bit32.band(uuid[9], 0x3F), 0x80) -- RFC 4122
+
+                local firstBytes = ""
+                for i = 1, 16 do
+                    firstBytes = firstBytes .. string.char(uuid[i])
+                end
+
+                local gameCode =
+                    string.format("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", table.unpack(uuid))
+
+                local placeIdBytes = ""
+                local pIdRec = placeId
+                for _ = 1, 8 do
+                    placeIdBytes = placeIdBytes .. string.char(pIdRec % 256)
+                    pIdRec = math.floor(pIdRec / 256)
+                end
+
+                local content = firstBytes .. placeIdBytes
+
+                local SUPERDUPERSECRETROBLOXKEYTHATTHEYDIDNTCHANGEEVERSINCEFOREVER = "e4Yn8ckbCJtw2sv7qmbg" -- legacy leaked key from ages ago that still works due to roblox being roblox.
+                local signature = hmac.new(SUPERDUPERSECRETROBLOXKEYTHATTHEYDIDNTCHANGEEVERSINCEFOREVER, content, md5.sum)
+
+                local accessCodeBytes = signature .. content
+
+                local accessCode = base64.encode(accessCodeBytes)
+                accessCode = accessCode:gsub("+", "-"):gsub("/", "_")
+
+                local pdding = 0
+                accessCode, _ = accessCode:gsub("=", function()
+                    pdding = pdding + 1
+                    return ""
+                end)
+
+                accessCode = accessCode .. tostring(pdding)
+
+                return accessCode, gameCode
+            end
+
+            local accessCode, _ = GenerateReservedServerCode(game.PlaceId)
+            game.RobloxReplicatedStorage.ContactListIrisInviteTeleport:FireServer(game.PlaceId, "", accessCode)
+        end
+    })
+end
+
+-- Islands Tab
+Window:Line()
+local IslandsTab = Window:Tab({Title = "Islands", Icon = "home"}) do
+    IslandsTab:Section({Title = "Teleport Settings"})
+    
+    IslandsTab:Dropdown({
+        Title = "Select Island",
+        Desc = "Choose island to teleport to",
+        List = tpNames,
+        Value = selectedIsland or tpNames[1],
+        Callback = function(choice)
+            selectedIsland = choice
+            Settings.SelectedIsland = choice
+            SaveSettings()
+        end
+    })
+    
+    IslandsTab:Toggle({
+        Title = "Teleport to Island",
+        Desc = "Automatically teleport to selected island",
+        Value = teleporting,
+        Callback = function(state)
+            teleporting = state
+            Settings.TpToIsland = state
+            SaveSettings()
+            if teleporting then StartTeleport() end
+        end
+    })
+end
+
+-- Final Notification
+Window:Notify({
+    Title = "Fisch Script",
+    Desc = "Script loaded successfully! Enjoy fishing!",
+    Time = 4
+})
+
+-- Background loops
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        local char = player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if changePlayerEnabled then
+                    humanoid.WalkSpeed = walkspeedValue
+                    humanoid.JumpPower = jumppowerValue
+                end
+            end
+
+            if noclipEnabled then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
     end
 end)
 
-tab2:CreateButton("Vip Server", function()
-    local md5 = {}
-    local hmac = {}
-    local base64 = {}
-
-    do
-        do
-            local T = {
-                0xd76aa478,
-                0xe8c7b756,
-                0x242070db,
-                0xc1bdceee,
-                0xf57c0faf,
-                0x4787c62a,
-                0xa8304613,
-                0xfd469501,
-                0x698098d8,
-                0x8b44f7af,
-                0xffff5bb1,
-                0x895cd7be,
-                0x6b901122,
-                0xfd987193,
-                0xa679438e,
-                0x49b40821,
-                0xf61e2562,
-                0xc040b340,
-                0x265e5a51,
-                0xe9b6c7aa,
-                0xd62f105d,
-                0x02441453,
-                0xd8a1e681,
-                0xe7d3fbc8,
-                0x21e1cde6,
-                0xc33707d6,
-                0xf4d50d87,
-                0x455a14ed,
-                0xa9e3e905,
-                0xfcefa3f8,
-                0x676f02d9,
-                0x8d2a4c8a,
-                0xfffa3942,
-                0x8771f681,
-                0x6d9d6122,
-                0xfde5380c,
-                0xa4beea44,
-                0x4bdecfa9,
-                0xf6bb4b60,
-                0xbebfbc70,
-                0x289b7ec6,
-                0xeaa127fa,
-                0xd4ef3085,
-                0x04881d05,
-                0xd9d4d039,
-                0xe6db99e5,
-                0x1fa27cf8,
-                0xc4ac5665,
-                0xf4292244,
-                0x432aff97,
-                0xab9423a7,
-                0xfc93a039,
-                0x655b59c3,
-                0x8f0ccc92,
-                0xffeff47d,
-                0x85845dd1,
-                0x6fa87e4f,
-                0xfe2ce6e0,
-                0xa3014314,
-                0x4e0811a1,
-                0xf7537e82,
-                0xbd3af235,
-                0x2ad7d2bb,
-                0xeb86d391,
-            }
-
-            local function add(a, b)
-                local lsw = bit32.band(a, 0xFFFF) + bit32.band(b, 0xFFFF)
-                local msw = bit32.rshift(a, 16) + bit32.rshift(b, 16) + bit32.rshift(lsw, 16)
-                return bit32.bor(bit32.lshift(msw, 16), bit32.band(lsw, 0xFFFF))
-            end
-
-            local function rol(x, n)
-                return bit32.bor(bit32.lshift(x, n), bit32.rshift(x, 32 - n))
-            end
-
-            local function F(x, y, z)
-                return bit32.bor(bit32.band(x, y), bit32.band(bit32.bnot(x), z))
-            end
-            local function G(x, y, z)
-                return bit32.bor(bit32.band(x, z), bit32.band(y, bit32.bnot(z)))
-            end
-            local function H(x, y, z)
-                return bit32.bxor(x, bit32.bxor(y, z))
-            end
-            local function I(x, y, z)
-                return bit32.bxor(y, bit32.bor(x, bit32.bnot(z)))
-            end
-
-            function md5.sum(message)
-                local a, b, c, d = 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476
-
-                local message_len = #message
-                local padded_message = message .. "\128"
-                while #padded_message % 64 ~= 56 do
-                    padded_message = padded_message .. "\0"
-                end
-
-                local len_bytes = ""
-                local len_bits = message_len * 8
-                for i = 0, 7 do
-                    len_bytes = len_bytes .. string.char(bit32.band(bit32.rshift(len_bits, i * 8), 0xFF))
-                end
-                padded_message = padded_message .. len_bytes
-
-                for i = 1, #padded_message, 64 do
-                    local chunk = padded_message:sub(i, i + 63)
-                    local X = {}
-                    for j = 0, 15 do
-                        local b1, b2, b3, b4 = chunk:byte(j * 4 + 1, j * 4 + 4)
-                        X[j] = bit32.bor(b1, bit32.lshift(b2, 8), bit32.lshift(b3, 16), bit32.lshift(b4, 24))
-                    end
-
-                    local aa, bb, cc, dd = a, b, c, d
-
-                    local s = { 7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21 }
-
-                    for j = 0, 63 do
-                        local f, k, shift_index
-                        if j < 16 then
-                            f = F(b, c, d)
-                            k = j
-                            shift_index = j % 4
-                        elseif j < 32 then
-                            f = G(b, c, d)
-                            k = (1 + 5 * j) % 16
-                            shift_index = 4 + (j % 4)
-                        elseif j < 48 then
-                            f = H(b, c, d)
-                            k = (5 + 3 * j) % 16
-                            shift_index = 8 + (j % 4)
-                        else
-                            f = I(b, c, d)
-                            k = (7 * j) % 16
-                            shift_index = 12 + (j % 4)
-                        end
-
-                        local temp = add(a, f)
-                        temp = add(temp, X[k])
-                        temp = add(temp, T[j + 1])
-                        temp = rol(temp, s[shift_index + 1])
-
-                        local new_b = add(b, temp)
-                        a, b, c, d = d, new_b, b, c
-                    end
-
-                    a = add(a, aa)
-                    b = add(b, bb)
-                    c = add(c, cc)
-                    d = add(d, dd)
-                end
-
-                local function to_le_hex(n)
-                    local s = ""
-                    for i = 0, 3 do
-                        s = s .. string.char(bit32.band(bit32.rshift(n, i * 8), 0xFF))
-                    end
-                    return s
-                end
-
-                return to_le_hex(a) .. to_le_hex(b) .. to_le_hex(c) .. to_le_hex(d)
-            end
-        end
-
-        do
-            function hmac.new(key, msg, hash_func)
-                if #key > 64 then
-                    key = hash_func(key)
-                end
-
-                local o_key_pad = ""
-                local i_key_pad = ""
-                for i = 1, 64 do
-                    local byte = (i <= #key and string.byte(key, i)) or 0
-                    o_key_pad = o_key_pad .. string.char(bit32.bxor(byte, 0x5C))
-                    i_key_pad = i_key_pad .. string.char(bit32.bxor(byte, 0x36))
-                end
-
-                return hash_func(o_key_pad .. hash_func(i_key_pad .. msg))
-            end
-        end
-
-        do
-            local b = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-
-            function base64.encode(data)
-                return (
-                    (data:gsub(".", function(x)
-                        local r, b_val = "", x:byte()
-                        for i = 8, 1, -1 do
-                            r = r .. (b_val % 2 ^ i - b_val % 2 ^ (i - 1) > 0 and "1" or "0")
-                        end
-                        return r
-                    end) .. "0000"):gsub("%d%d%d?%d?%d?%d?", function(x)
-                        if #x < 6 then
-                            return ""
-                        end
-                        local c = 0
-                        for i = 1, 6 do
-                            c = c + (x:sub(i, i) == "1" and 2 ^ (6 - i) or 0)
-                        end
-                        return b:sub(c + 1, c + 1)
-                    end) .. ({ "", "==", "=" })[#data % 3 + 1]
-                )
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infinityJumpEnabled then
+        local char = player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
             end
         end
     end
-
-    local function GenerateReservedServerCode(placeId)
-        local uuid = {}
-        for i = 1, 16 do
-            uuid[i] = math.random(0, 255)
-        end
-
-        uuid[7] = bit32.bor(bit32.band(uuid[7], 0x0F), 0x40) -- v4
-        uuid[9] = bit32.bor(bit32.band(uuid[9], 0x3F), 0x80) -- RFC 4122
-
-        local firstBytes = ""
-        for i = 1, 16 do
-            firstBytes = firstBytes .. string.char(uuid[i])
-        end
-
-        local gameCode =
-            string.format("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", table.unpack(uuid))
-
-        local placeIdBytes = ""
-        local pIdRec = placeId
-        for _ = 1, 8 do
-            placeIdBytes = placeIdBytes .. string.char(pIdRec % 256)
-            pIdRec = math.floor(pIdRec / 256)
-        end
-
-        local content = firstBytes .. placeIdBytes
-
-        local SUPERDUPERSECRETROBLOXKEYTHATTHEYDIDNTCHANGEEVERSINCEFOREVER = "e4Yn8ckbCJtw2sv7qmbg" -- legacy leaked key from ages ago that still works due to roblox being roblox.
-        local signature = hmac.new(SUPERDUPERSECRETROBLOXKEYTHATTHEYDIDNTCHANGEEVERSINCEFOREVER, content, md5.sum)
-
-        local accessCodeBytes = signature .. content
-
-        local accessCode = base64.encode(accessCodeBytes)
-        accessCode = accessCode:gsub("+", "-"):gsub("/", "_")
-
-        local pdding = 0
-        accessCode, _ = accessCode:gsub("=", function()
-            pdding = pdding + 1
-            return ""
-        end)
-
-        accessCode = accessCode .. tostring(pdding)
-
-        return accessCode, gameCode
-    end
-
-    local accessCode, _ = GenerateReservedServerCode(game.PlaceId)
-    game.RobloxReplicatedStorage.ContactListIrisInviteTeleport:FireServer(game.PlaceId, "", accessCode)
 end)
 
--- Show the UI
-tab:Show()
-
--- Initialize settings
+-- Initialize features based on saved settings
 if autocast then
     StartAutoCastThrow()
     StartAutoCastTeleport()
@@ -1532,45 +1609,6 @@ if autoEquipRodEnabled then
     StartAutoEquipRod() 
 end
 
--- Character loop
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        local char = player.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                if changePlayerEnabled then
-                    humanoid.WalkSpeed = walkspeedValue
-                    humanoid.JumpPower = jumppowerValue
-                end
-            end
-
-            if noclipEnabled then
-                for _, part in ipairs(char:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Infinity jump
-game:GetService("UserInputService").JumpRequest:Connect(function()
-    if infinityJumpEnabled then
-        local char = player.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end
-end)
-
--- Cleanup on player leaving
 game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
     if leavingPlayer == player then
         for obj, funcs in pairs(originalFunctions) do
@@ -1581,6 +1619,12 @@ game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
             end
         end
 
+        if instantBobberConnection then
+            instantBobberConnection:Disconnect()
+        end
+        if antiAFKConnection then
+            antiAFKConnection:Disconnect()
+        end
         if mobileFlyConnection1 then
             mobileFlyConnection1:Disconnect()
         end
@@ -1589,3 +1633,4 @@ game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
         end
     end
 end)
+end
