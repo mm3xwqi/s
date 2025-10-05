@@ -873,19 +873,16 @@ task.spawn(function()
     HookReelFunction()
 end)
 
--- ================== Vanis UI ==================
-local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/MewXD/s/refs/heads/main/VanisUI.lua"))()
+-- ================== New UI Library ==================
+local library = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/ShaddowScripts/Main/main/Library"))()
 
-local Window = library:CreateWindow("Fisch Script", "v1.0", 10044538000)
+local Main = library:CreateWindow("Fisch Script","Crimson")
 
-local MainTab = Window:CreateTab("Main")
-local PlayerTab = Window:CreateTab("Player")
-local IslandsTab = Window:CreateTab("Islands")
+local tab = Main:CreateTab("Cheats")
+local tab2 = Main:CreateTab("Misc")
 
--- Main Tab
-local FishingFrame = MainTab:CreateFrame("Fishing Features")
-
-FishingFrame:CreateToggle("Auto Cast", "Automatically cast fishing rod", function(state)
+-- Cheats Tab
+tab:CreateToggle("Auto Cast", function(state)
     autocast = state
     Settings.AutoCast = state
     SaveSettings()
@@ -895,7 +892,7 @@ FishingFrame:CreateToggle("Auto Cast", "Automatically cast fishing rod", functio
     end
 end)
 
-FishingFrame:CreateToggle("Auto Spear", "Automatically spear fish (RISKY)", function(state)
+tab:CreateToggle("Auto Spear (BANNABLE)", function(state)
     autoSpearEnabled = state
     if state then
         autoSpearThread = task.spawn(AutoSpearLoop)
@@ -905,7 +902,7 @@ FishingFrame:CreateToggle("Auto Spear", "Automatically spear fish (RISKY)", func
     end
 end)
 
-FishingFrame:CreateToggle("Auto Reel", "Automatically reel fish", function(state)
+tab:CreateToggle("Auto Reel", function(state)
     autoreel = state
     Settings.AutoReel = state
     SaveSettings()
@@ -914,14 +911,14 @@ FishingFrame:CreateToggle("Auto Reel", "Automatically reel fish", function(state
     end
 end)
 
-FishingFrame:CreateToggle("Instant Reel", "Instant reel fish", function(state)
+tab:CreateToggle("Instant Reel", function(state)
     instantReelEnabled = state
     if state then
         StartInstantReelWithHook()
     end
 end)
 
-FishingFrame:CreateToggle("Auto Equip Rod", "Automatically equip fishing rod", function(state)
+tab:CreateToggle("Auto Equip Rod", function(state)
     autoEquipRodEnabled = state
     Settings.AutoEquipRod = state
     SaveSettings()
@@ -930,29 +927,31 @@ FishingFrame:CreateToggle("Auto Equip Rod", "Automatically equip fishing rod", f
     end
 end)
 
-FishingFrame:CreateToggle("Auto Shake", "Automatically shake fish", function(state)
+tab:CreateToggle("Auto Shake", function(state)
     autoshake = state
     Settings.AutoShake = state
     SaveSettings()
-    if state then StartAutoShake() end
+    if state then 
+        StartAutoShake() 
+    end
 end)
 
-FishingFrame:CreateToggle("Auto Sell", "Automatically sell fish", function(state)
+tab:CreateToggle("Auto Sell", function(state)
     autosell = state
     Settings.AutoSell = state
     SaveSettings()
-    if state then StartAutoSell() end
+    if state then 
+        StartAutoSell() 
+    end
 end)
 
-local SettingsFrame = MainTab:CreateFrame("Settings")
-
-SettingsFrame:CreateDropdown("Catch Method", {"Perfect", "Random(Does work with legit)"}, CatchMethod or "Perfect", function(choice)
+tab:CreateDropdown("Catch Method", {"Perfect", "Random(Does work with legit)"}, function(choice)
     CatchMethod = choice
     Settings.CatchMethod = choice
     SaveSettings()
 end)
 
-SettingsFrame:CreateDropdown("Reel Method", {"Legit(Safe to Use)", "Instant(Risk Ban)", "80% legit"}, reelMethod or "Legit(Safe to Use)", function(choice)
+tab:CreateDropdown("Reel Method", {"Legit(Safe to Use)", "Instant(Risk Ban)", "80% legit"}, function(choice)
     reelMethod = choice
     Settings.ReelMethod = choice
     SaveSettings()
@@ -963,7 +962,7 @@ SettingsFrame:CreateDropdown("Reel Method", {"Legit(Safe to Use)", "Instant(Risk
     end
 end)
 
-SettingsFrame:CreateDropdown("Shake Method", {"Shake Normal", "Shake Fast(Not Safe)"}, shakeMethod or "Shake Normal", function(choice)
+tab:CreateDropdown("Shake Method", {"Shake Normal", "Shake Fast(Not Safe)"}, function(choice)
     shakeMethod = choice
     Settings.ShakeMethod = choice
     SaveSettings()
@@ -975,7 +974,7 @@ SettingsFrame:CreateDropdown("Shake Method", {"Shake Normal", "Shake Fast(Not Sa
     end
 end)
 
-SettingsFrame:CreateButton("Save Position", "Save current position for auto cast", function()
+tab:CreateButton("Save Position", function()
     local hrp = GetHumanoidRootPart()
     if hrp then
         savedPosition = hrp.CFrame
@@ -988,56 +987,35 @@ SettingsFrame:CreateButton("Save Position", "Save current position for auto cast
             Yaw = math.deg(yRot)
         }
         SaveSettings()
-        CreateNotification("Position Saved", "Current position has been saved", function() end)
     end
 end)
 
--- Player Tab
-local PlayerFrame = PlayerTab:CreateFrame("Player Settings")
-
-PlayerFrame:CreateSlider("WalkSpeed", 16, 500, 100, function(value)
+-- Misc Tab
+tab2:CreateSlider("Walkspeed", 50, 500, function(value)
     walkspeedValue = value
 end)
 
-PlayerFrame:CreateSlider("JumpPower", 50, 500, 50, function(value)
+tab2:CreateSlider("Jumppower", 50, 500, function(value)
     jumppowerValue = value
 end)
 
-PlayerFrame:CreateToggle("Change Player Stats", "Enable custom walkspeed/jumppower", function(state)
+tab2:CreateToggle("Change Player", function(state)
     changePlayerEnabled = state
 end)
 
-PlayerFrame:CreateToggle("Noclip", "Walk through walls", function(state)
+tab2:CreateToggle("Noclip", function(state)
     noclipEnabled = state
 end)
 
-PlayerFrame:CreateToggle("Infinity Jump", "Jump infinitely", function(state)
+tab2:CreateToggle("Infinity Jump", function(state)
     infinityJumpEnabled = state
 end)
 
-PlayerFrame:CreateToggle("Fly", "Enable flying", function(state)
-    local player = Players.LocalPlayer
-    if state then
-        mobilefly(player, false)
-    else
-        stopMobileFly(player)
-    end
-end)
-
-PlayerFrame:CreateToggle("Walk on Water", "Walk on water surfaces", function(state)
+tab2:CreateToggle("Walk on Water", function(state)
     SetWalkOnWater(state)
 end)
 
-PlayerFrame:CreateToggle("Fullbright", "Enable fullbright", function(state)
-    fullbrightEnabled = state
-    if state then
-        EnableFullbright()
-    else
-        DisableFullbright()
-    end
-end)
-
-PlayerFrame:CreateToggle("Disable Notifications", "Hide game notifications", function(state)
+tab2:CreateToggle("Disable Notifications", function(state)
     disableNotifications = state
     if state then
         task.spawn(function()
@@ -1071,22 +1049,263 @@ PlayerFrame:CreateToggle("Disable Notifications", "Hide game notifications", fun
     end
 end)
 
-PlayerFrame:CreateButton("Vip Server", "Join VIP server", function()
+tab2:CreateDropdown("Select Islands", tpNames, function(choice)
+    selectedIsland = choice
+    Settings.SelectedIsland = choice
+    SaveSettings()
+end)
+
+tab2:CreateToggle("Tp to Island", function(state)
+    teleporting = state
+    Settings.TpToIsland = state
+    SaveSettings()
+    if teleporting then 
+        StartTeleport() 
+    end
+end)
+
+local fullbrightEnabled = false
+local originalLightingSettings = nil
+local connections = {}
+
+local function EnableFullbright()
+    local Lighting = game:GetService("Lighting")
+    originalLightingSettings = {
+        Brightness = Lighting.Brightness,
+        ClockTime = Lighting.ClockTime,
+        FogEnd = Lighting.FogEnd,
+        GlobalShadows = Lighting.GlobalShadows,
+        OutdoorAmbient = Lighting.OutdoorAmbient
+    }
+
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = false
+    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+
+    local propertiesToWatch = {"Brightness", "ClockTime", "FogEnd", "GlobalShadows", "OutdoorAmbient"}
+    
+    for _, property in ipairs(propertiesToWatch) do
+        if connections[property] then
+            connections[property]:Disconnect()
+        end
+        
+        connections[property] = Lighting:GetPropertyChangedSignal(property):Connect(function()
+            if fullbrightEnabled then
+                if property == "Brightness" then
+                    Lighting.Brightness = 2
+                elseif property == "ClockTime" then
+                    Lighting.ClockTime = 14
+                elseif property == "FogEnd" then
+                    Lighting.FogEnd = 100000
+                elseif property == "GlobalShadows" then
+                    Lighting.GlobalShadows = false
+                elseif property == "OutdoorAmbient" then
+                    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+                end
+            end
+        end)
+    end
+end
+
+local function DisableFullbright()
+    local Lighting = game:GetService("Lighting")
+
+    for property, connection in pairs(connections) do
+        if connection then
+            connection:Disconnect()
+            connections[property] = nil
+        end
+    end
+
+    if originalLightingSettings then
+        Lighting.Brightness = originalLightingSettings.Brightness
+        Lighting.ClockTime = originalLightingSettings.ClockTime
+        Lighting.FogEnd = originalLightingSettings.FogEnd
+        Lighting.GlobalShadows = originalLightingSettings.GlobalShadows
+        Lighting.OutdoorAmbient = originalLightingSettings.OutdoorAmbient
+    end
+end
+
+tab2:CreateToggle("Fullbright", function(state)
+    fullbrightEnabled = state
+    if state then
+        EnableFullbright()
+    else
+        DisableFullbright()
+    end
+end)
+
+local mobileFlyConnection1, mobileFlyConnection2
+local FLYING = false
+local iyflyspeed = 3
+local vehicleflyspeed = 3
+local velocityHandlerName = "FlyVelocity"
+local gyroHandlerName = "FlyGyro"
+
+local function getRoot(char)
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+end
+
+local function stopMobileFly(speaker)
+    FLYING = false
+    if mobileFlyConnection1 then mobileFlyConnection1:Disconnect() mobileFlyConnection1 = nil end
+    if mobileFlyConnection2 then mobileFlyConnection2:Disconnect() mobileFlyConnection2 = nil end
+
+    local char = speaker.Character
+    if char then
+        local root = getRoot(char)
+        if root then
+            local bv = root:FindFirstChild(velocityHandlerName)
+            local bg = root:FindFirstChild(gyroHandlerName)
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+        end
+        local humanoid = char:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+    end
+end
+
+local function mobilefly(speaker, vfly)
+    stopMobileFly(speaker)
+    FLYING = true
+
+    local char = speaker.Character or speaker.CharacterAdded:Wait()
+    local root = getRoot(char)
+    local camera = workspace.CurrentCamera
+    local v3none = Vector3.new()
+    local v3inf = Vector3.new(9e9, 9e9, 9e9)
+
+    local controlModule = require(speaker.PlayerScripts:WaitForChild("PlayerModule"):WaitForChild("ControlModule"))
+
+    local bv = Instance.new("BodyVelocity")
+    bv.Name = velocityHandlerName
+    bv.Parent = root
+    bv.MaxForce = Vector3.new()
+    bv.Velocity = v3none
+
+    local bg = Instance.new("BodyGyro")
+    bg.Name = gyroHandlerName
+    bg.Parent = root
+    bg.MaxTorque = v3inf
+    bg.P = 1000
+    bg.D = 50
+
+    mobileFlyConnection1 = char:WaitForChild("HumanoidRootPart").AncestryChanged:Connect(function()
+        if not char:IsDescendantOf(game) then
+            stopMobileFly(speaker)
+        end
+    end)
+
+    mobileFlyConnection2 = RunService.RenderStepped:Connect(function()
+        root = getRoot(speaker.Character)
+        camera = workspace.CurrentCamera
+        if not root then return end
+
+        local humanoid = speaker.Character:FindFirstChildWhichIsA("Humanoid")
+        if not humanoid then return end
+
+        local VelocityHandler = root:FindFirstChild(velocityHandlerName)
+        local GyroHandler = root:FindFirstChild(gyroHandlerName)
+        if not VelocityHandler or not GyroHandler then return end
+
+        if not vfly then humanoid.PlatformStand = true end
+        GyroHandler.CFrame = camera.CoordinateFrame
+        VelocityHandler.MaxForce = v3inf
+
+        local direction = controlModule:GetMoveVector()
+        local speed = (vfly and vehicleflyspeed or iyflyspeed) * 50
+        local vel = Vector3.new()
+        vel = vel + camera.CFrame.RightVector * direction.X * speed
+        vel = vel - camera.CFrame.LookVector * direction.Z * speed
+        VelocityHandler.Velocity = vel
+    end)
+end
+
+tab2:CreateToggle("Fly", function(state)
+    local player = Players.LocalPlayer
+    if state then
+        mobilefly(player, false)
+    else
+        stopMobileFly(player)
+    end
+end)
+
+tab2:CreateButton("Vip Server", function()
     local md5 = {}
     local hmac = {}
     local base64 = {}
-    
+
     do
         do
             local T = {
-                0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
-                0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be, 0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
-                0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa, 0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
-                0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed, 0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
-                0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c, 0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
-                0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05, 0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
-                0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039, 0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
-                0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1, 0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391,
+                0xd76aa478,
+                0xe8c7b756,
+                0x242070db,
+                0xc1bdceee,
+                0xf57c0faf,
+                0x4787c62a,
+                0xa8304613,
+                0xfd469501,
+                0x698098d8,
+                0x8b44f7af,
+                0xffff5bb1,
+                0x895cd7be,
+                0x6b901122,
+                0xfd987193,
+                0xa679438e,
+                0x49b40821,
+                0xf61e2562,
+                0xc040b340,
+                0x265e5a51,
+                0xe9b6c7aa,
+                0xd62f105d,
+                0x02441453,
+                0xd8a1e681,
+                0xe7d3fbc8,
+                0x21e1cde6,
+                0xc33707d6,
+                0xf4d50d87,
+                0x455a14ed,
+                0xa9e3e905,
+                0xfcefa3f8,
+                0x676f02d9,
+                0x8d2a4c8a,
+                0xfffa3942,
+                0x8771f681,
+                0x6d9d6122,
+                0xfde5380c,
+                0xa4beea44,
+                0x4bdecfa9,
+                0xf6bb4b60,
+                0xbebfbc70,
+                0x289b7ec6,
+                0xeaa127fa,
+                0xd4ef3085,
+                0x04881d05,
+                0xd9d4d039,
+                0xe6db99e5,
+                0x1fa27cf8,
+                0xc4ac5665,
+                0xf4292244,
+                0x432aff97,
+                0xab9423a7,
+                0xfc93a039,
+                0x655b59c3,
+                0x8f0ccc92,
+                0xffeff47d,
+                0x85845dd1,
+                0x6fa87e4f,
+                0xfe2ce6e0,
+                0xa3014314,
+                0x4e0811a1,
+                0xf7537e82,
+                0xbd3af235,
+                0x2ad7d2bb,
+                0xeb86d391,
             }
 
             local function add(a, b)
@@ -1280,60 +1499,10 @@ PlayerFrame:CreateButton("Vip Server", "Join VIP server", function()
     game.RobloxReplicatedStorage.ContactListIrisInviteTeleport:FireServer(game.PlaceId, "", accessCode)
 end)
 
--- Islands Tab
-local IslandsFrame = IslandsTab:CreateFrame("Island Teleport")
+-- Show the UI
+tab:Show()
 
-IslandsFrame:CreateDropdown("Select Island", tpNames, selectedIsland or tpNames[1], function(choice)
-    selectedIsland = choice
-    Settings.SelectedIsland = choice
-    SaveSettings()
-end)
-
-IslandsFrame:CreateToggle("Teleport to Island", "Automatically teleport to selected island", function(state)
-    teleporting = state
-    Settings.TpToIsland = state
-    SaveSettings()
-    if teleporting then StartTeleport() end
-end)
-
--- Runtime loops
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        local char = player.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                if changePlayerEnabled then
-                    humanoid.WalkSpeed = walkspeedValue
-                    humanoid.JumpPower = jumppowerValue
-                end
-            end
-
-            if noclipEnabled then
-                for _, part in ipairs(char:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end
-    end
-end)
-
-game:GetService("UserInputService").JumpRequest:Connect(function()
-    if infinityJumpEnabled then
-        local char = player.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end
-end)
-
--- Initialize features if enabled
+-- Initialize settings
 if autocast then
     StartAutoCastThrow()
     StartAutoCastTeleport()
@@ -1363,6 +1532,44 @@ if autoEquipRodEnabled then
     StartAutoEquipRod() 
 end
 
+-- Character loop
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        local char = player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if changePlayerEnabled then
+                    humanoid.WalkSpeed = walkspeedValue
+                    humanoid.JumpPower = jumppowerValue
+                end
+            end
+
+            if noclipEnabled then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Infinity jump
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infinityJumpEnabled then
+        local char = player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
+
 -- Cleanup on player leaving
 game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
     if leavingPlayer == player then
@@ -1374,12 +1581,6 @@ game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
             end
         end
 
-        if instantBobberConnection then
-            instantBobberConnection:Disconnect()
-        end
-        if antiAFKConnection then
-            antiAFKConnection:Disconnect()
-        end
         if mobileFlyConnection1 then
             mobileFlyConnection1:Disconnect()
         end
