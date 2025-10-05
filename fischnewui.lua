@@ -874,7 +874,7 @@ task.spawn(function()
 end)
 
 -- ================== Vanis UI ==================
-local library = loadstring(game:HttpGet('https://raw.githubusercontent.com/cypherdh/VanisUILIB/main/.gitignore'))()
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/MewXD/s/refs/heads/main/VanisUI.lua"))()
 
 local Window = library:CreateWindow("Fisch Script", "v1.0", 10044538000)
 
