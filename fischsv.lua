@@ -796,7 +796,7 @@ local function StartInstantReelWithHook()
             if playerGui then
                 local reel = playerGui:FindFirstChild("reel")
                 if reel then
-                    task.wait(0.2)
+                    task.wait(0.15)
 
                     pcall(function()
                         reel:Destroy()
