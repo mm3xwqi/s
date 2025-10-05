@@ -910,21 +910,55 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     end
 })
 
---Show
+--Show lure
 local function GetSimpleUsableRods()
     local lines = {}
     local usableCount = 0
     
+    print("=== DEBUG: Checking rods ===")
+    
     for _, rodName in ipairs(rodNames) do
+        print("Checking rod:", rodName)
+        
+        -- ลองหาใน path ต่างๆ
         local rodFolder = workspace.testchtfisch:FindFirstChild(rodName)
-        if rodFolder and rodFolder:FindFirstChild("values") and rodFolder.values:FindFirstChild("lure") then
-            local lureValue = rodFolder.values.lure.Value
-            if lureValue ~= 100 then
-                table.insert(lines, string.format("🎣 %s: %s", rodName, tostring(lureValue)))
-                usableCount = usableCount + 1
-            end
+        
+        if not rodFolder then
+            -- ลองหาใน workspace โดยตรง
+            rodFolder = workspace:FindFirstChild(rodName)
+            print("Not found in testchtfisch, checking workspace...")
         end
+        
+        if rodFolder then
+            print("Found rod folder:", rodFolder:GetFullName())
+            
+            -- เช็ค values และ lure
+            local values = rodFolder:FindFirstChild("values")
+            if values then
+                print("Found values folder")
+                local lure = values:FindFirstChild("lure")
+                if lure then
+                    local lureValue = lure.Value
+                    print("Lure value for " .. rodName .. ": " .. tostring(lureValue))
+                    
+                    if lureValue ~= 100 then
+                        table.insert(lines, string.format("🎣 %s: %s", rodName, tostring(lureValue)))
+                        usableCount = usableCount + 1
+                    end
+                else
+                    print("No lure found in values")
+                end
+            else
+                print("No values folder found")
+            end
+        else
+            print("Rod not found anywhere:", rodName)
+        end
+        print("---")
     end
+    
+    print("Total usable rods:", usableCount)
+    print("========================")
     
     if usableCount == 0 then
         table.insert(lines, "❌ No equip rods")
@@ -945,8 +979,14 @@ local simpleDisplay = MainTab:Code({
 
 task.spawn(function()
     while true do
-        task.wait(0.1)
-        simpleDisplay:SetCode(GetSimpleUsableRods())
+        task.wait(.1)
+        local success, errorMsg = pcall(function()
+            simpleDisplay:SetCode(GetSimpleUsableRods())
+        end)
+        
+        if not success then
+            print("Error updating lure display:", errorMsg)
+        end
     end
 end)
     
