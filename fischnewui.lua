@@ -892,9 +892,7 @@ local Window = Library:Window({
     }
 })
 
--- Main Tab
 local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
-    -- Fishing Features Section
     MainTab:Section({Title = "Fishing Features"})
     
     MainTab:Toggle({
@@ -1504,6 +1502,84 @@ end
         end
     })
 end
+
+local fullbrightEnabled = false
+local originalLightingSettings = nil
+local connections = {}
+
+local function EnableFullbright()
+    local Lighting = game:GetService("Lighting")
+    originalLightingSettings = {
+        Brightness = Lighting.Brightness,
+        ClockTime = Lighting.ClockTime,
+        FogEnd = Lighting.FogEnd,
+        GlobalShadows = Lighting.GlobalShadows,
+        OutdoorAmbient = Lighting.OutdoorAmbient
+    }
+
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = false
+    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+
+    local propertiesToWatch = {"Brightness", "ClockTime", "FogEnd", "GlobalShadows", "OutdoorAmbient"}
+    
+    for _, property in ipairs(propertiesToWatch) do
+        if connections[property] then
+            connections[property]:Disconnect()
+        end
+        
+        connections[property] = Lighting:GetPropertyChangedSignal(property):Connect(function()
+            if fullbrightEnabled then
+                if property == "Brightness" then
+                    Lighting.Brightness = 2
+                elseif property == "ClockTime" then
+                    Lighting.ClockTime = 14
+                elseif property == "FogEnd" then
+                    Lighting.FogEnd = 100000
+                elseif property == "GlobalShadows" then
+                    Lighting.GlobalShadows = false
+                elseif property == "OutdoorAmbient" then
+                    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+                end
+            end
+        end)
+    end
+end
+
+local function DisableFullbright()
+    local Lighting = game:GetService("Lighting")
+
+    for property, connection in pairs(connections) do
+        if connection then
+            connection:Disconnect()
+            connections[property] = nil
+        end
+    end
+
+    if originalLightingSettings then
+        Lighting.Brightness = originalLightingSettings.Brightness
+        Lighting.ClockTime = originalLightingSettings.ClockTime
+        Lighting.FogEnd = originalLightingSettings.FogEnd
+        Lighting.GlobalShadows = originalLightingSettings.GlobalShadows
+        Lighting.OutdoorAmbient = originalLightingSettings.OutdoorAmbient
+    end
+end
+
+PlayerTab:Toggle({
+    Title = "Fullbright",
+    Desc = "",
+    Default = false,
+    Callback = function(state)
+        fullbrightEnabled = state
+        if state then
+            EnableFullbright()
+        else
+            DisableFullbright()
+        end
+    end
+})
 
 -- Islands Tab
 Window:Line()
