@@ -894,7 +894,7 @@ local function GetUsableRodLures()
         table.insert(lines, "lure value: 100")
     else
         table.insert(lines, "")
-        table.insert(lines, "📊 Total usable: " .. usableCount .. "/" .. #rodNames)
+        table.insert(lines, "📊 Total: " .. usableCount .. "/" .. #rodNames)
     end
     
     table.insert(lines, "")
