@@ -10,7 +10,7 @@ local player = Players.LocalPlayer
 local rodNames = {}
 local rodsFolder = ReplicatedStorage:WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods")
 for _, rod in ipairs(rodsFolder:GetChildren()) do
-	table.insert(rodNames, rod.Name)
+    table.insert(rodNames, rod.Name)
 end
 
 local extraTPs = {
@@ -18,10 +18,10 @@ local extraTPs = {
     {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
     {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
     {Name = "Castaway Cliffs", Position = Vector3.new (655, 179, -1793)},
-	{Name = "Luminescent Cavern", Position = Vector3.new (-1016, -337, -4071)},
-	{Name = "Crimson Cavern", Position = Vector3.new (-1013, -340, -4891)},
+    {Name = "Luminescent Cavern", Position = Vector3.new (-1016, -337, -4071)},
+    {Name = "Crimson Cavern", Position = Vector3.new (-1013, -340, -4891)},
     {Name = "Oscar's Locker", Position = Vector3.new (266, -387, 3407)},
-	{Name = "The Boom Ball", Position = Vector3.new (-1296, -900, -3479)},
+    {Name = "The Boom Ball", Position = Vector3.new (-1296, -900, -3479)},
     {Name = "Lost Jungle", Position = Vector3.new (-2690, 149, -2051)}
 }
 
@@ -41,35 +41,37 @@ table.sort(tpNames,function(a,b) return a:lower() < b:lower() end)
 local SETTINGS_FILE = "Fischsv.json"
 
 local Settings = {
-	AutoCast = false,
-	AutoReel = false,
-	AutoShake = false,
-	AutoSell = false,
-	TpToIsland = false,
-	SelectedIsland = nil,
-	SavedPosition = nil,
-	CatchMethod = "Perfect",
-	ReelMethod = "Legit(Safe to Use)",
-	WalkOnWater = false
+    AutoCast = false,
+    AutoReel = false,
+    AutoShake = false,
+    AutoSell = false,
+    TpToIsland = false,
+    SelectedIsland = nil,
+    SavedPosition = nil,
+    CatchMethod = "Perfect",
+    ReelMethod = "Legit(Safe to Use)",
+    WalkOnWater = false,
+    AutoEquipRod = false,
+    ShakeMethod = "Shake Normal"
 }
 
 if pcall(function() return readfile(SETTINGS_FILE) end) then
-	local success, data = pcall(function()
-		return HttpService:JSONDecode(readfile(SETTINGS_FILE))
-	end)
-	if success and data then
-		for k,v in pairs(data) do Settings[k] = v end
-	end
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(readfile(SETTINGS_FILE))
+    end)
+    if success and data then
+        for k,v in pairs(data) do Settings[k] = v end
+    end
 end
 
 local savedPosition = nil
 if Settings.SavedPosition then
-	local sp = Settings.SavedPosition
-	if sp.X and sp.Y and sp.Z and sp.Yaw then
-		local pos = Vector3.new(sp.X, sp.Y, sp.Z)
-		local yawRad = math.rad(sp.Yaw)
-		savedPosition = CFrame.new(pos) * CFrame.Angles(0, yawRad, 0)
-	end
+    local sp = Settings.SavedPosition
+    if sp.X and sp.Y and sp.Z and sp.Yaw then
+        local pos = Vector3.new(sp.X, sp.Y, sp.Z)
+        local yawRad = math.rad(sp.Yaw)
+        savedPosition = CFrame.new(pos) * CFrame.Angles(0, yawRad, 0)
+    end
 end
 
 local function SaveSettings()
@@ -112,6 +114,9 @@ local changePlayerEnabled = false
 local selectedPlayer = nil
 local tpToPlayerEnabled = false
 local autoEquipRod_running = false
+local autoshake = Settings.AutoShake
+local autoSpearEnabled = false
+local instantReelEnabled = false
 
 local waitingAnim = ReplicatedStorage.resources.animations.fishing.waiting
 local throwAnim = ReplicatedStorage.resources.animations.fishing.throw
@@ -162,17 +167,17 @@ local function EquipRods()
 end
 
 local function GetPlayerNames()
-	local names = {}
-	for _, plr in ipairs(Players:GetPlayers()) do
-		table.insert(names, plr.Name)
-	end
-	table.sort(names, function(a,b) return a:lower() < b:lower() end)
-	return names
+    local names = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        table.insert(names, plr.Name)
+    end
+    table.sort(names, function(a,b) return a:lower() < b:lower() end)
+    return names
 end
 
 local function GetHumanoidRootPart()
-	local char = player.Character or player.CharacterAdded:Wait()
-	return char:WaitForChild("HumanoidRootPart")
+    local char = player.Character or player.CharacterAdded:Wait()
+    return char:WaitForChild("HumanoidRootPart")
 end
 
 local function StartAutoEquipRod()
@@ -544,41 +549,41 @@ end
 
 local autoshake_running = false
 local function StartAutoShake()
-	if autoshake_running then return end
-	autoshake_running = true
-	task.spawn(function()
-		while autoshake do
-			if shakeMethod == "Shake Fast(Not Safe)" then
-				local shakeButton = player.PlayerGui:FindFirstChild("shakeui")
-				shakeButton = shakeButton and shakeButton:FindFirstChild("safezone")
-				shakeButton = shakeButton and shakeButton:FindFirstChild("button")
-				shakeButton = shakeButton and shakeButton:FindFirstChild("shake")
-				if shakeButton then pcall(function() shakeButton:FireServer() end) end
-				
-			elseif shakeMethod == "Shake Normal" then
-				local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-				local shakeUI = PlayerGUI:FindFirstChild("shakeui")
-				if shakeUI and shakeUI.Enabled then
-					local safezone = shakeUI:FindFirstChild("safezone")
-					if safezone then
-						local button = safezone:FindFirstChild("button")
-						if button and button:IsA("ImageButton") and button.Visible then
-							local GuiService = game:GetService("GuiService")
-							local VirtualInputManager = game:GetService("VirtualInputManager")
+    if autoshake_running then return end
+    autoshake_running = true
+    task.spawn(function()
+        while autoshake do
+            if shakeMethod == "Shake Fast(Not Safe)" then
+                local shakeButton = player.PlayerGui:FindFirstChild("shakeui")
+                shakeButton = shakeButton and shakeButton:FindFirstChild("safezone")
+                shakeButton = shakeButton and shakeButton:FindFirstChild("button")
+                shakeButton = shakeButton and shakeButton:FindFirstChild("shake")
+                if shakeButton then pcall(function() shakeButton:FireServer() end) end
+                
+            elseif shakeMethod == "Shake Normal" then
+                local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+                local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+                if shakeUI and shakeUI.Enabled then
+                    local safezone = shakeUI:FindFirstChild("safezone")
+                    if safezone then
+                        local button = safezone:FindFirstChild("button")
+                        if button and button:IsA("ImageButton") and button.Visible then
+                            local GuiService = game:GetService("GuiService")
+                            local VirtualInputManager = game:GetService("VirtualInputManager")
 
-							GuiService.SelectedObject = button
-							task.wait()
-							VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-							task.wait()
-							VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-						end
-					end
-				end
-			end
-			task.wait(.001)
-		end
-		autoshake_running = false
-	end)
+                            GuiService.SelectedObject = button
+                            task.wait()
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                            task.wait()
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                        end
+                    end
+                end
+            end
+            task.wait(.001)
+        end
+        autoshake_running = false
+    end)
 end
 
 local autosell_running = false
@@ -700,7 +705,6 @@ local function HookSpearFunction()
     end
 end
 
-local autoSpearEnabled = false
 local autoSpearThread = nil
 
 local function AutoSpearLoop()
@@ -728,7 +732,6 @@ local function AutoSpearLoop()
 end
 
 local instantReel_running = false
-local instantReelEnabled = false
 
 local function HookUIDestruction()
     if hookfunction then
@@ -849,7 +852,11 @@ local function InitializeHooks()
     end)
     
     if not success then
-        InitializeFallbackHooks()
+        -- Fallback hooks if hookfunction is not available
+        pcall(HookReelFunction)
+        pcall(HookResetFunction)
+        pcall(HookShakeFunction)
+        pcall(HookSpearFunction)
     end
 end
 
@@ -863,15 +870,42 @@ local function InitializeInstantReelHooks()
     end)
 end
 
-task.spawn(function()
-    task.wait(3)
-    InitializeInstantReelHooks()
-end)
-
-task.spawn(function()
-    task.wait(3)
-    HookReelFunction()
-end)
+-- FIXED: GetUsableRodLures function
+local function GetUsableRodLures()
+    local lines = {"=== USABLE RODS ===", ""}
+    local usableCount = 0
+    
+    -- ตรวจสอบว่า testchtfisch มีอยู่ใน workspace หรือไม่
+    local testFolder = workspace:FindFirstChild("testchtfisch")
+    
+    if testFolder then
+        for _, rodName in ipairs(rodNames) do
+            local rodFolder = testFolder:FindFirstChild(rodName)
+            if rodFolder and rodFolder:FindFirstChild("values") and rodFolder.values:FindFirstChild("lure") then
+                local lureValue = rodFolder.values.lure.Value
+                if lureValue ~= 100 then
+                    table.insert(lines, string.format("🎣 %-20s: %s", rodName, tostring(lureValue)))
+                    usableCount = usableCount + 1
+                end
+            end
+        end
+    else
+        table.insert(lines, "❌ testchtfisch folder not found")
+    end
+    
+    if usableCount == 0 then
+        table.insert(lines, "❌ No usable rods found")
+        table.insert(lines, "All rods have lure value: 100")
+    else
+        table.insert(lines, "")
+        table.insert(lines, "📊 Total usable: " .. usableCount .. "/" .. #rodNames)
+    end
+    
+    table.insert(lines, "")
+    table.insert(lines, "🕐 " .. os.date("%H:%M:%S"))
+    
+    return table.concat(lines, "\n")
+end
 
 -- Load UI Library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
@@ -896,60 +930,32 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     MainTab:Section({Title = "Fishing Features"})
     
     MainTab:Toggle({
-    Title = "Auto Cast",
-    Desc = "Automatically cast fishing rod",
-    Value = autocast,
-    Callback = function(state)
-        autocast = state
-        Settings.AutoCast = state
-        SaveSettings()
-        if state then
-            StartAutoCastThrow()
-            StartAutoCastTeleport()
-        end
-    end
-})
-
-local function GetUsableRodLures()
-    local lines = {"=== USABLE RODS ===", ""}
-    local usableCount = 0
-    
-    for _, rodName in ipairs(rodNames) do
-        local rodFolder = workspace.testchtfisch:FindFirstChild(rodName)
-        if rodFolder and rodFolder:FindFirstChild("values") and rodFolder.values:FindFirstChild("lure") then
-            local lureValue = rodFolder.values.lure.Value
-            if lureValue ~= 100 then
-                table.insert(lines, string.format("🎣 %-20s: %s", rodName, tostring(lureValue)))
-                usableCount = usableCount + 1
+        Title = "Auto Cast",
+        Desc = "Automatically cast fishing rod",
+        Value = autocast,
+        Callback = function(state)
+            autocast = state
+            Settings.AutoCast = state
+            SaveSettings()
+            if state then
+                StartAutoCastThrow()
+                StartAutoCastTeleport()
             end
         end
-    end
-    
-    if usableCount == 0 then
-        table.insert(lines, "❌ No usable rods found")
-        table.insert(lines, "All rods have lure value: 100")
-    else
-        table.insert(lines, "")
-        table.insert(lines, "📊 Total usable: " .. usableCount .. "/" .. #rodNames)
-    end
-    
-    table.insert(lines, "")
-    table.insert(lines, "🕐 " .. os.date("%H:%M:%S"))
-    
-    return table.concat(lines, "\n")
-end
+    })
 
-local usableRodsDisplay = MainTab:Code({
-    Title = "🎣 Usable Rods",
-    Code = GetUsableRodLures()
-})
+    -- FIXED: Usable Rods Display
+    local usableRodsDisplay = MainTab:Code({
+        Title = "🎣 Usable Rods",
+        Code = GetUsableRodLures()
+    })
 
-task.spawn(function()
-    while true do
-        task.wait(.3)
-        usableRodsDisplay:SetCode(GetUsableRodLures())
-    end
-end)
+    task.spawn(function()
+        while true do
+            task.wait(3) -- เปลี่ยนจาก 0.3 เป็น 3 วินาทีเพื่อลดภาระ
+            usableRodsDisplay:SetCode(GetUsableRodLures())
+        end
+    end)
     
     MainTab:Toggle({
         Title = "Auto Spear (BANNABLE)",
@@ -1081,46 +1087,46 @@ end)
     })
     
     MainTab:Button({
-    Title = "Save Position",
-    Desc = "Save current position",
-    Callback = function()
-        local hrp = GetHumanoidRootPart()
-        if hrp then
-            savedPosition = hrp.CFrame
-            local pos = savedPosition.Position
-            local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
-            Settings.SavedPosition = {
-                X = pos.X,
-                Y = pos.Y,
-                Z = pos.Z,
-                Yaw = math.deg(yRot)
-            }
+        Title = "Save Position",
+        Desc = "Save current position",
+        Callback = function()
+            local hrp = GetHumanoidRootPart()
+            if hrp then
+                savedPosition = hrp.CFrame
+                local pos = savedPosition.Position
+                local _, yRot, _ = savedPosition:ToEulerAnglesXYZ()
+                Settings.SavedPosition = {
+                    X = pos.X,
+                    Y = pos.Y,
+                    Z = pos.Z,
+                    Yaw = math.deg(yRot)
+                }
+                SaveSettings()
+                Window:Notify({
+                    Title = "Position Saved",
+                    Desc = "Save Position successfully!",
+                    Time = 3
+                })
+            end
+        end
+    })
+
+    MainTab:Button({
+        Title = "Reset Saved Position",
+        Desc = "Reset saved position data",
+        Callback = function()
+            savedPosition = nil
+            Settings.SavedPosition = nil
             SaveSettings()
             Window:Notify({
-                Title = "Position Saved",
-                Desc = "Save Position successfully!",
+                Title = "Position Reset",
+                Desc = "Reset successfully!",
                 Time = 3
             })
         end
-    end
-})
+    })
+end
 
-MainTab:Button({
-    Title = "Reset Saved Position",
-    Desc = "Reset saved position data",
-    Callback = function()
-        savedPosition = nil
-        Settings.SavedPosition = nil
-        SaveSettings()
-        Window:Notify({
-            Title = "Position Reset",
-            Desc = "Reset successfully!",
-            Time = 3
-        })
-    end
-})
-
--- Player Tab
 Window:Line()
 local PlayerTab = Window:Tab({Title = "Player", Icon = "user"}) do
     PlayerTab:Section({Title = "Player Settings"})
@@ -1696,7 +1702,6 @@ game:GetService("UserInputService").JumpRequest:Connect(function()
     end
 end)
 
--- Initialize features based on saved settings
 if autocast then
     StartAutoCastThrow()
     StartAutoCastTeleport()
@@ -1750,4 +1755,10 @@ game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
         end
     end
 end)
-end
+task.spawn(function()
+    task.wait(3)
+    InitializeHooks()
+    InitializeInstantReelHooks()
+end)
+
+print("Fisch Script loaded successfully!")
