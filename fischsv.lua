@@ -251,10 +251,6 @@ local function StartAutoCastThrow()
                     continue
                 end
 
-                local castholdTrack = humanoid:LoadAnimation(castholdAnim)
-                castholdTrack:Play()
-                task.wait(.1)
-
                 local throwTrack = humanoid:LoadAnimation(throwAnim)
                 throwTrack:Play()
 
@@ -271,13 +267,10 @@ local function StartAutoCastThrow()
                     end
                 end
 
-                castholdTrack:Stop()
-                task.wait(.1)
-
                 local waitingTrack = humanoid:LoadAnimation(waitingAnim)
                 waitingTrack:Play()
             end
-            task.wait(.2)
+            task.wait()
         end
         autocast_running = false
     end)
@@ -796,8 +789,26 @@ local function StartInstantReelWithHook()
             if playerGui then
                 local reel = playerGui:FindFirstChild("reel")
                 if reel then
-                    task.wait(0.15)
+                    task.wait(.3)
 
+                    pcall(function()
+                        local char = player.Character
+                        if char then
+                            for _, rodName in ipairs(rodNames) do
+                                local rod = char:FindFirstChild(rodName)
+                                if rod then
+                                    local resetEvent = rod:FindFirstChild("events"):FindFirstChild("reset")
+                                    if resetEvent then
+                                        resetEvent:FireServer()
+                                    end
+                                    break
+                                end
+                            end
+                        end
+                    end)
+                    
+                    task.wait(.3)
+                    
                     pcall(function()
                         reel:Destroy()
                     end)
@@ -810,22 +821,14 @@ local function StartInstantReelWithHook()
                                 pcall(function()
                                     rod.Parent = player.Backpack
                                 end)
-
-                                pcall(function()
-                                    local resetEvent = rod:FindFirstChild("events"):FindFirstChild("reset")
-                                    if resetEvent then
-                                        resetEvent:FireServer()
-                                    end
-                                end)
                                 break
                             end
                         end
                     end
-
-                    task.wait(0.4)
                 end
             end
-            task.wait(0.1)
+            
+            task.wait(.3)
         end
         instantReel_running = false
     end)
@@ -984,7 +987,7 @@ FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callba
 end})
 
 FischSection:AddToggle({
-    Name = "Instant Reel(not good if ping is high)",
+    Name = "Instant Reel",
     Default = false,
     Callback = function(state)
         instantReelEnabled = state
