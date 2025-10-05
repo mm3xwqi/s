@@ -910,19 +910,22 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     end
 })
 
--- ฟังก์ชันดึงค่าจากทุกเบ็ด
 local function GetSimpleUsableRods()
     local lines = {}
     local usableCount = 0
-    
+
     for _, rodName in ipairs(rodNames) do
-        local rodFolder = workspace.testchtfisch:FindFirstChild(rodName)
-        if rodFolder and rodFolder:FindFirstChild("values") and rodFolder.values:FindFirstChild("lure") then
-            local lureValue = rodFolder.values.lure.Value
-            if lureValue ~= 100 then
-                table.insert(lines, string.format("🎣 %s: %s", rodName, tostring(lureValue)))
-                usableCount = usableCount + 1
+        local success, lureValue = pcall(function()
+            local rodFolder = workspace.testchtfisch:FindFirstChild(rodName)
+            if rodFolder and rodFolder:FindFirstChild("values") and rodFolder.values:FindFirstChild("lure") then
+                return rodFolder.values.lure.Value
             end
+            return nil
+        end)
+        
+        if success and lureValue and lureValue ~= 100 then
+            table.insert(lines, string.format("🎣 %s: %s", rodName, tostring(lureValue)))
+            usableCount = usableCount + 1
         end
     end
     
@@ -945,8 +948,10 @@ local simpleDisplay = MainTab:Code({
 
 task.spawn(function()
     while true do
-        task.wait(.001)
-        simpleDisplay:SetCode(GetSimpleUsableRods())
+        task.wait(.1)
+        pcall(function()
+            simpleDisplay:SetCode(GetSimpleUsableRods())
+        end)
     end
 end)
     
