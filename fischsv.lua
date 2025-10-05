@@ -961,7 +961,7 @@ FischSection:AddToggle({
 	end
 })
 FischSection:AddToggle({
-    Name = "Auto Spear",
+    Name = "Auto Spear (BANNABLE)",
     Default = autoSpearEnabled,
     Callback = function(state)
         autoSpearEnabled = state
@@ -984,7 +984,7 @@ FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callba
 end})
 
 FischSection:AddToggle({
-    Name = "Instant Reel",
+    Name = "Instant Reel(not good if ping is high)",
     Default = false,
     Callback = function(state)
         instantReelEnabled = state
@@ -1448,10 +1448,12 @@ plTab:AddToggle({
 })
 
 local fullbrightEnabled = false
+local originalLightingSettings = nil
+local connections = {}
+
 local function EnableFullbright()
     local Lighting = game:GetService("Lighting")
-
-    local originalSettings = {
+    originalLightingSettings = {
         Brightness = Lighting.Brightness,
         ClockTime = Lighting.ClockTime,
         FogEnd = Lighting.FogEnd,
@@ -1464,23 +1466,50 @@ local function EnableFullbright()
     Lighting.FogEnd = 100000
     Lighting.GlobalShadows = false
     Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+
+    local propertiesToWatch = {"Brightness", "ClockTime", "FogEnd", "GlobalShadows", "OutdoorAmbient"}
     
-    return originalSettings
-end
-
-local function DisableFullbright(originalSettings)
-    local Lighting = game:GetService("Lighting")
-
-    if originalSettings then
-        Lighting.Brightness = originalSettings.Brightness
-        Lighting.ClockTime = originalSettings.ClockTime
-        Lighting.FogEnd = originalSettings.FogEnd
-        Lighting.GlobalShadows = originalSettings.GlobalShadows
-        Lighting.OutdoorAmbient = originalSettings.OutdoorAmbient
+    for _, property in ipairs(propertiesToWatch) do
+        if connections[property] then
+            connections[property]:Disconnect()
+        end
+        
+        connections[property] = Lighting:GetPropertyChangedSignal(property):Connect(function()
+            if fullbrightEnabled then
+                if property == "Brightness" then
+                    Lighting.Brightness = 2
+                elseif property == "ClockTime" then
+                    Lighting.ClockTime = 14
+                elseif property == "FogEnd" then
+                    Lighting.FogEnd = 100000
+                elseif property == "GlobalShadows" then
+                    Lighting.GlobalShadows = false
+                elseif property == "OutdoorAmbient" then
+                    Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+                end
+            end
+        end)
     end
 end
 
-local originalLightingSettings = nil
+local function DisableFullbright()
+    local Lighting = game:GetService("Lighting")
+
+    for property, connection in pairs(connections) do
+        if connection then
+            connection:Disconnect()
+            connections[property] = nil
+        end
+    end
+
+    if originalLightingSettings then
+        Lighting.Brightness = originalLightingSettings.Brightness
+        Lighting.ClockTime = originalLightingSettings.ClockTime
+        Lighting.FogEnd = originalLightingSettings.FogEnd
+        Lighting.GlobalShadows = originalLightingSettings.GlobalShadows
+        Lighting.OutdoorAmbient = originalLightingSettings.OutdoorAmbient
+    end
+end
 
 plTab:AddToggle({
     Name = "Fullbright",
@@ -1488,9 +1517,9 @@ plTab:AddToggle({
     Callback = function(state)
         fullbrightEnabled = state
         if state then
-            originalLightingSettings = EnableFullbright()
+            EnableFullbright()
         else
-            DisableFullbright(originalLightingSettings)
+            DisableFullbright()
         end
     end
 })
