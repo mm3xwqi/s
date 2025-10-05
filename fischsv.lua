@@ -332,7 +332,6 @@ local function HookReelFunction()
                             end
                         end
                     elseif reelMethod == "80% legit" or reelMethod == "Legit(Safe to Use)" then
-                        -- สำหรับ 80% legit และ Legit ให้ตั้งค่า perfect
                         if #args >= 2 then
                             if CatchMethod == "Perfect" then
                                 args[2] = true
@@ -346,7 +345,6 @@ local function HookReelFunction()
                 return oldFireServer(self, unpack(args))
             end)
         else
-            -- Fallback ถ้าไม่มี hookfunction
             local oldFireServer = reelfinished.FireServer
             reelfinished.FireServer = function(self, ...)
                 local args = {...}
@@ -396,7 +394,6 @@ local function StartPlayerBarTracking()
                         local playerbar = bar:FindFirstChild("playerbar")
                         
                         if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
-                            -- ทำให้ playerbar ติดตาม fish ไปเรื่อยๆ
                             pcall(function()
                                 playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
                             end)
@@ -410,7 +407,6 @@ local function StartPlayerBarTracking()
 end
 
 local function HookResetFunction()
-    -- Hook ฟังก์ชัน reset ของเบ็ดเพื่อควบคุม playerbar
     for _, rodName in ipairs(rodNames) do
         local rod = rodsFolder:FindFirstChild(rodName)
         if rod then
@@ -421,10 +417,8 @@ local function HookResetFunction()
                     if hookfunction then
                         local oldResetFireServer = reset.FireServer
                         hookfunction(reset.FireServer, function(self, ...)
-                            -- เรียกฟังก์ชันเดิมก่อน
                             local result = oldResetFireServer(self, ...)
-                            
-                            -- จากนั้นควบคุม playerbar
+
                             if autoreel and (reelMethod == "Legit(Safe to Use)" or reelMethod == "80% legit") then
                                 task.spawn(function()
                                     local gui = player:FindFirstChild("PlayerGui")
@@ -435,7 +429,6 @@ local function HookResetFunction()
                                         local playerbar = bar and bar:FindFirstChild("playerbar")
                                         
                                         if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
-                                            -- ทำให้ playerbar ติดตาม fish
                                             while autoreel and reel and reel.Parent do
                                                 pcall(function()
                                                     playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
@@ -476,8 +469,7 @@ local function StartAutoReel()
                         local rod = char:FindFirstChild(rodName)
                         if rod then
                             while autoreel and reel and reel.Parent and rod.Parent == char do
-                                
-                                -- สำหรับโหมด Legit และ 80% legit ให้ playerbar ติดตาม fish
+
                                 if reelMethod == "Legit(Safe to Use)" or reelMethod == "80% legit" then
                                     local bar = reel:FindFirstChild("bar")
                                     if bar then
@@ -486,14 +478,12 @@ local function StartAutoReel()
                                         
                                         if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
                                             pcall(function()
-                                                -- ทำให้ playerbar ติดตาม fish ไปเรื่อยๆ
                                                 playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
                                             end)
                                         end
                                     end
                                 end
-                                
-                                -- สำหรับ 80% legit เท่านั้น ให้ดึงอัตโนมัติเมื่อถึง 80%
+
                                 if reelMethod == "80% legit" then
                                     local prog = GetProgressBarScale()
                                     if prog and prog >= 0.80 then
@@ -509,8 +499,7 @@ local function StartAutoReel()
                                             ReplicatedStorage.events.reelfinished:FireServer(100, isPerfect)
                                         end)
                                     end
-                                    
-                                -- สำหรับ Instant ให้ดึงทันที
+
                                 elseif reelMethod == "Instant(Risk Ban)" then
                                     local isPerfect
                                     if CatchMethod == "Perfect" then
