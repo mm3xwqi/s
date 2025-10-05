@@ -253,7 +253,7 @@ local function StartAutoCastThrow()
 
                 local castholdTrack = humanoid:LoadAnimation(castholdAnim)
                 castholdTrack:Play()
-                task.wait()
+                task.wait(.1)
 
                 local throwTrack = humanoid:LoadAnimation(throwAnim)
                 throwTrack:Play()
@@ -272,12 +272,12 @@ local function StartAutoCastThrow()
                 end
 
                 castholdTrack:Stop()
-                task.wait()
+                task.wait(.1)
 
                 local waitingTrack = humanoid:LoadAnimation(waitingAnim)
                 waitingTrack:Play()
             end
-            task.wait()
+            task.wait(.2)
         end
         autocast_running = false
     end)
