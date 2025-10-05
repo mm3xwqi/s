@@ -314,25 +314,144 @@ local function HookReelFunction()
     local reelfinished = events:WaitForChild("reelfinished")
     
     if reelfinished and reelfinished:IsA("RemoteEvent") then
-        local oldFireServer = reelfinished.FireServer
+        if hookfunction then
+            local oldFireServer = reelfinished.FireServer
+            hookfunction(reelfinished.FireServer, function(self, ...)
+                local args = {...}
+                
+                if autoreel then
+                    if reelMethod == "Instant(Risk Ban)" then
+                        if #args >= 2 then
+                            args[1] = 100
+                            if CatchMethod == "Perfect" then
+                                args[2] = true
+                            elseif CatchMethod == "Random" then
+                                args[2] = (math.random(0, 1) == 1)
+                            else
+                                args[2] = true
+                            end
+                        end
+                    elseif reelMethod == "80% legit" or reelMethod == "Legit(Safe to Use)" then
+                        -- สำหรับ 80% legit และ Legit ให้ตั้งค่า perfect
+                        if #args >= 2 then
+                            if CatchMethod == "Perfect" then
+                                args[2] = true
+                            elseif CatchMethod == "Random" then
+                                args[2] = (math.random(0, 1) == 1)
+                            end
+                        end
+                    end
+                end
+                
+                return oldFireServer(self, unpack(args))
+            end)
+        else
+            -- Fallback ถ้าไม่มี hookfunction
+            local oldFireServer = reelfinished.FireServer
+            reelfinished.FireServer = function(self, ...)
+                local args = {...}
+                
+                if autoreel then
+                    if reelMethod == "Instant(Risk Ban)" then
+                        if #args >= 2 then
+                            args[1] = 100
+                            if CatchMethod == "Perfect" then
+                                args[2] = true
+                            elseif CatchMethod == "Random" then
+                                args[2] = (math.random(0, 1) == 1)
+                            else
+                                args[2] = true
+                            end
+                        end
+                    elseif reelMethod == "80% legit" or reelMethod == "Legit(Safe to Use)" then
+                        if #args >= 2 then
+                            if CatchMethod == "Perfect" then
+                                args[2] = true
+                            elseif CatchMethod == "Random" then
+                                args[2] = (math.random(0, 1) == 1)
+                            end
+                        end
+                    end
+                end
+                
+                return oldFireServer(self, unpack(args))
+            end
+        end
+        print("HookReelFunction: Successfully hooked reelfinished with hookfunction")
+    else
+        warn("HookReelFunction: reelfinished not found or not a RemoteEvent")
+    end
+end
 
-        reelfinished.FireServer = function(self, ...)
-            local args = {...}
-            
-            if autoreel and reelMethod == "Instant(Risk Ban)" then
-                if #args >= 2 then
-                    args[1] = 100
-                    if CatchMethod == "Perfect" then
-                        args[2] = true
-                    elseif CatchMethod == "Random" then
-                        args[2] = (math.random(0, 1) == 1)
-                    else
-                        args[2] = true
+local function StartPlayerBarTracking()
+    task.spawn(function()
+        while autoreel and (reelMethod == "Legit(Safe to Use)" or reelMethod == "80% legit") do
+            local playerGui = player:FindFirstChild("PlayerGui")
+            if playerGui then
+                local reel = playerGui:FindFirstChild("reel")
+                if reel then
+                    local bar = reel:FindFirstChild("bar")
+                    if bar then
+                        local fish = bar:FindFirstChild("fish")
+                        local playerbar = bar:FindFirstChild("playerbar")
+                        
+                        if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
+                            -- ทำให้ playerbar ติดตาม fish ไปเรื่อยๆ
+                            pcall(function()
+                                playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
+                            end)
+                        end
                     end
                 end
             end
-            
-            return oldFireServer(self, unpack(args))
+            task.wait()
+        end
+    end)
+end
+
+local function HookResetFunction()
+    -- Hook ฟังก์ชัน reset ของเบ็ดเพื่อควบคุม playerbar
+    for _, rodName in ipairs(rodNames) do
+        local rod = rodsFolder:FindFirstChild(rodName)
+        if rod then
+            local events = rod:FindFirstChild("events")
+            if events then
+                local reset = events:FindFirstChild("reset")
+                if reset and reset:IsA("RemoteEvent") then
+                    if hookfunction then
+                        local oldResetFireServer = reset.FireServer
+                        hookfunction(reset.FireServer, function(self, ...)
+                            -- เรียกฟังก์ชันเดิมก่อน
+                            local result = oldResetFireServer(self, ...)
+                            
+                            -- จากนั้นควบคุม playerbar
+                            if autoreel and (reelMethod == "Legit(Safe to Use)" or reelMethod == "80% legit") then
+                                task.spawn(function()
+                                    local gui = player:FindFirstChild("PlayerGui")
+                                    local reel = gui and gui:FindFirstChild("reel")
+                                    if reel then
+                                        local bar = reel:FindFirstChild("bar")
+                                        local fish = bar and bar:FindFirstChild("fish")
+                                        local playerbar = bar and bar:FindFirstChild("playerbar")
+                                        
+                                        if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
+                                            -- ทำให้ playerbar ติดตาม fish
+                                            while autoreel and reel and reel.Parent do
+                                                pcall(function()
+                                                    playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
+                                                end)
+                                                task.wait()
+                                            end
+                                        end
+                                    end
+                                end)
+                            end
+                            
+                            return result
+                        end)
+                    end
+                end
+            end
         end
     end
 end
@@ -358,7 +477,41 @@ local function StartAutoReel()
                         if rod then
                             while autoreel and reel and reel.Parent and rod.Parent == char do
                                 
-                                if reelMethod == "Instant(Risk Ban)" then
+                                -- สำหรับโหมด Legit และ 80% legit ให้ playerbar ติดตาม fish
+                                if reelMethod == "Legit(Safe to Use)" or reelMethod == "80% legit" then
+                                    local bar = reel:FindFirstChild("bar")
+                                    if bar then
+                                        local fish = bar:FindFirstChild("fish")
+                                        local playerbar = bar:FindFirstChild("playerbar")
+                                        
+                                        if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
+                                            pcall(function()
+                                                -- ทำให้ playerbar ติดตาม fish ไปเรื่อยๆ
+                                                playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
+                                            end)
+                                        end
+                                    end
+                                end
+                                
+                                -- สำหรับ 80% legit เท่านั้น ให้ดึงอัตโนมัติเมื่อถึง 80%
+                                if reelMethod == "80% legit" then
+                                    local prog = GetProgressBarScale()
+                                    if prog and prog >= 0.80 then
+                                        local isPerfect
+                                        if CatchMethod == "Perfect" then
+                                            isPerfect = true
+                                        elseif CatchMethod == "Random" then
+                                            isPerfect = (math.random(0, 1) == 1)
+                                        else
+                                            isPerfect = true
+                                        end
+                                        pcall(function()
+                                            ReplicatedStorage.events.reelfinished:FireServer(100, isPerfect)
+                                        end)
+                                    end
+                                    
+                                -- สำหรับ Instant ให้ดึงทันที
+                                elseif reelMethod == "Instant(Risk Ban)" then
                                     local isPerfect
                                     if CatchMethod == "Perfect" then
                                         isPerfect = true
@@ -367,13 +520,12 @@ local function StartAutoReel()
                                     else
                                         isPerfect = true
                                     end
-                                    
                                     pcall(function()
-                                        ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
+                                        ReplicatedStorage.events.reelfinished:FireServer(100, isPerfect)
                                     end)
                                 end
-
-                                task.wait(0.5)
+                                
+                                task.wait()
                             end
                         end
                     end
@@ -435,15 +587,15 @@ local function StartAutoShake()
 							local VirtualInputManager = game:GetService("VirtualInputManager")
 
 							GuiService.SelectedObject = button
-							task.wait(0.05)
+							task.wait()
 							VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-							task.wait(0.05)
+							task.wait()
 							VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
 						end
 					end
 				end
 			end
-			task.wait(0.2)
+			task.wait(.001)
 		end
 		autoshake_running = false
 	end)
@@ -601,34 +753,13 @@ local function InitializeHooks()
         end
         
         HookReelFunction()
+        HookResetFunction()
         HookShakeFunction() 
         HookSpearFunction()
     end)
     
     if not success then
         InitializeFallbackHooks()
-    end
-end
-
-local function InitializeFallbackHooks()
-    local events = ReplicatedStorage:WaitForChild("events")
-    local reelfinished = events:WaitForChild("reelfinished")
-    
-    if reelfinished and reelfinished:IsA("RemoteEvent") then
-        local oldFireServer = reelfinished.FireServer
-        reelfinished.FireServer = function(self, progress, isPerfect, ...)
-            if autoreel and reelMethod == "Instant(Risk Ban)" then
-                progress = 100
-                if CatchMethod == "Perfect" then
-                    isPerfect = true
-                elseif CatchMethod == "Random" then
-                    isPerfect = (math.random(0, 1) == 1)
-                else
-                    isPerfect = true
-                end
-            end
-            return oldFireServer(self, progress, isPerfect, ...)
-        end
     end
 end
 
