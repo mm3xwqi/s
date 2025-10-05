@@ -43,7 +43,7 @@ local SETTINGS_FILE = "Fischsv.json"
 local Settings = {
 	AutoCast = false,
 	AutoReel = false,
-	ShakeMethod = "Shake Normal",
+	AutoShake = false,
 	AutoSell = false,
 	TpToIsland = false,
 	SelectedIsland = nil,
@@ -117,6 +117,26 @@ local waitingAnim = ReplicatedStorage.resources.animations.fishing.waiting
 local throwAnim = ReplicatedStorage.resources.animations.fishing.throw
 local castholdAnim = ReplicatedStorage.resources.animations.fishing.casthold
 
+local originalFunctions = {}
+
+local function HookFunction(object, functionName, newFunction)
+    if object and typeof(object) == "Instance" and object[functionName] then
+        originalFunctions[object] = originalFunctions[object] or {}
+        originalFunctions[object][functionName] = object[functionName]
+        
+        object[functionName] = function(...)
+            return newFunction(object, ...)
+        end
+    end
+end
+
+local function RestoreFunction(object, functionName)
+    if originalFunctions[object] and originalFunctions[object][functionName] then
+        object[functionName] = originalFunctions[object][functionName]
+        originalFunctions[object][functionName] = nil
+    end
+end
+
 local function EquipRods()
     local char = player.Character or player.CharacterAdded:Wait()
     local backpack = player:WaitForChild("Backpack")
@@ -168,20 +188,51 @@ local function StartAutoEquipRod()
 end
 
 local autocast_running = false
+local originalCastAsync = {}
+
+local function HookCastFunctions()
+    for _, rodName in ipairs(rodNames) do
+        local rod = rodsFolder:FindFirstChild(rodName)
+        if rod then
+            local events = rod:FindFirstChild("events")
+            if events then
+                local castAsync = events:FindFirstChild("castAsync")
+                if castAsync and castAsync:IsA("RemoteFunction") then
+                    originalCastAsync[rodName] = castAsync.InvokeServer
+                    
+                    castAsync.InvokeServer = function(self, ...)
+                        local args = {...}
+
+                        if autocast then
+                            if #args >= 2 then
+                                args[1] = math.random(10, 55)
+                                args[2] = true
+                            end
+                        end
+                        
+                        return originalCastAsync[rodName](self, unpack(args))
+                    end
+                end
+            end
+        end
+    end
+end
+
 local function StartAutoCastThrow()
     if autocast_running then return end
     autocast_running = true
+    
     task.spawn(function()
         while autocast do
             local char = player.Character
             if not char then
-                task.wait(0.1)
+                task.wait()
                 continue
             end
             
             local humanoid = char:FindFirstChild("Humanoid")
             if not humanoid then
-                task.wait(0.1)
+                task.wait()
                 continue
             end
             
@@ -196,40 +247,42 @@ local function StartAutoCastThrow()
             if rod then
                 local bobber = rod:FindFirstChild("bobber")
                 if bobber then
-                    task.wait(0.3)
+                    task.wait()
                     continue
                 end
 
                 local castholdTrack = humanoid:LoadAnimation(castholdAnim)
                 castholdTrack:Play()
-
-                task.wait(0.1)
+                task.wait()
 
                 local throwTrack = humanoid:LoadAnimation(throwAnim)
                 throwTrack:Play()
 
-                local randomValue = math.random(10, 55)
-                local args = {randomValue, true}
-                
-                local castAsync = rod:FindFirstChild("events") and rod.events:FindFirstChild("castAsync")
-                if castAsync then 
+                if originalCastAsync[rod.Name] then
                     pcall(function() 
-                        castAsync:InvokeServer(unpack(args)) 
-                    end) 
+                        originalCastAsync[rod.Name](rod.events.castAsync, math.random(10, 55), true)
+                    end)
+                else
+                    local castAsync = rod:FindFirstChild("events") and rod.events:FindFirstChild("castAsync")
+                    if castAsync then 
+                        pcall(function() 
+                            castAsync:InvokeServer(math.random(10, 55), true)
+                        end) 
+                    end
                 end
 
                 castholdTrack:Stop()
-                
-                task.wait(0.5)
+                task.wait()
 
                 local waitingTrack = humanoid:LoadAnimation(waitingAnim)
                 waitingTrack:Play()
             end
-            task.wait(.3)
+            task.wait()
         end
         autocast_running = false
     end)
 end
+
 
 local autoreel_running = false
 local function GetProgressBarScale()
@@ -256,6 +309,33 @@ local function GetProgressBarScale()
     end
 end
 
+local function HookReelFunction()
+    local events = ReplicatedStorage:WaitForChild("events")
+    local reelfinished = events:WaitForChild("reelfinished")
+    
+    if reelfinished and reelfinished:IsA("RemoteEvent") then
+        local oldFireServer = reelfinished.FireServer
+
+        reelfinished.FireServer = function(self, ...)
+            local args = {...}
+            
+            if autoreel and reelMethod == "Instant(Risk Ban)" then
+                if #args >= 2 then
+                    args[1] = 100
+                    if CatchMethod == "Perfect" then
+                        args[2] = true
+                    elseif CatchMethod == "Random" then
+                        args[2] = (math.random(0, 1) == 1)
+                    else
+                        args[2] = true
+                    end
+                end
+            end
+            
+            return oldFireServer(self, unpack(args))
+        end
+    end
+end
 local function StartAutoReel()
     if autoreel_running then return end
     autoreel_running = true
@@ -276,51 +356,24 @@ local function StartAutoReel()
                     for _, rodName in ipairs(rodNames) do
                         local rod = char:FindFirstChild(rodName)
                         if rod then
-                            local resetEvent = rod:FindFirstChild("events") and rod.events:FindFirstChild("reset")
-                            if resetEvent then
-                                while autoreel and reel and reel.Parent and rod.Parent == char do
+                            while autoreel and reel and reel.Parent and rod.Parent == char do
+                                
+                                if reelMethod == "Instant(Risk Ban)" then
+                                    local isPerfect
+                                    if CatchMethod == "Perfect" then
+                                        isPerfect = true
+                                    elseif CatchMethod == "Random" then
+                                        isPerfect = (math.random(0, 1) == 1)
+                                    else
+                                        isPerfect = true
+                                    end
+                                    
                                     pcall(function()
-                                        resetEvent:FireServer()
+                                        ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
                                     end)
-
-                                    local bar = reel:FindFirstChild("bar")
-                                    local fish = bar and bar:FindFirstChild("fish")
-                                    local playerbar = bar and bar:FindFirstChild("playerbar")
-
-                                    pcall(function()
-                                        if reelMethod == "Legit(Safe to Use)" then
-                                            if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
-                                                playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
-                                            end
-
-                                        elseif reelMethod == "80% legit" then
-                                            if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
-                                                playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
-                                            end
-                                            local prog = GetProgressBarScale()
-                                            if prog and prog >= 0.80 then
-                                                pcall(function()
-                                                    ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, true)
-                                                end)
-                                            end
-
-                                        elseif reelMethod == "Instant(Risk Ban)" then
-                                            local isPerfect
-                                            if CatchMethod == "Perfect" then
-                                                isPerfect = true
-                                            elseif CatchMethod == "Random" then
-                                                isPerfect = (math.random(0, 1) == 1)
-                                            else
-                                                isPerfect = true
-                                            end
-                                            pcall(function()
-                                                ReplicatedStorage:WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
-                                            end)
-                                        end
-                                    end)
-
-                                    task.wait()
                                 end
+
+                                task.wait(0.5)
                             end
                         end
                     end
@@ -328,9 +381,33 @@ local function StartAutoReel()
             end
             task.wait()
         end
-
         autoreel_running = false
     end)
+end
+local function HookShakeFunction()
+    local PlayerGUI = player:WaitForChild("PlayerGui")
+    local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+    
+    if shakeUI then
+        local safezone = shakeUI:FindFirstChild("safezone")
+        if safezone then
+            local button = safezone:FindFirstChild("button")
+            if button then
+                local shake = button:FindFirstChild("shake")
+                if shake and shake:IsA("RemoteEvent") then
+                    HookFunction(shake, "FireServer", function(self, ...)
+                        if autoshake and shakeMethod == "Shake Fast(Not Safe)" then
+                            for i = 1, 3 do
+                                originalFunctions[shake].FireServer(self, ...)
+                            end
+                            return
+                        end
+                        return originalFunctions[shake].FireServer(self, ...)
+                    end)
+                end
+            end
+        end
+    end
 end
 
 local autoshake_running = false
@@ -373,18 +450,41 @@ local function StartAutoShake()
 end
 
 local autosell_running = false
+local originalSellAll = nil
+
+local function HookSellFunction()
+    local events = ReplicatedStorage:WaitForChild("events")
+    local sellAll = events:WaitForChild("SellAll")
+    
+    if sellAll and sellAll:IsA("RemoteFunction") then
+        originalSellAll = sellAll.InvokeServer
+        
+        sellAll.InvokeServer = function(self, ...)
+            if autosell then
+                return true
+            end
+            return originalSellAll(self, ...)
+        end
+    end
+end
+
 local function StartAutoSell()
-	if autosell_running then return end
-	autosell_running = true
-	task.spawn(function()
-		while autosell do
-			pcall(function() 
-				game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("SellAll"):InvokeServer()
-			end)
-			task.wait(1)
-		end
-		autosell_running = false
-	end)
+    if autosell_running then return end
+    autosell_running = true
+    
+    task.spawn(function()
+        while autosell do
+            pcall(function() 
+                if originalSellAll then
+                    originalSellAll(ReplicatedStorage.events.SellAll)
+                else
+                    ReplicatedStorage.events.SellAll:InvokeServer()
+                end
+            end)
+            task.wait(1)
+        end
+        autosell_running = false
+    end)
 end
 
 local teleport_running = false
@@ -445,77 +545,97 @@ local function StartTeleport()
         teleport_running = false
     end)
 end
-
-local instantBobberConnection = nil
-
-local function StartInstantBobber()
-    local player = game.Players.LocalPlayer
-    local RunService = game:GetService("RunService")
-
-    if instantBobberConnection then
-        instantBobberConnection:Disconnect()
-        instantBobberConnection = nil
-    end
-
-    local hasTeleported = false
-
-    instantBobberConnection = RunService.Heartbeat:Connect(function()
-        local char = player.Character
-        if not char then return end
-
-        local rod
-        for _, rodName in ipairs(rodNames) do
-            rod = char:FindFirstChild(rodName)
-            if rod then break end
-        end
-        if not rod then
-            hasTeleported = false
-            return
-        end
-
-        local bobber = rod:FindFirstChild("bobber", true)
-        if bobber and bobber:IsA("BasePart") and not hasTeleported then
-            hasTeleported = true
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local targetPos = hrp.CFrame.Position + (hrp.CFrame.LookVector * 5) - Vector3.new(0, 10, 0)
-                task.spawn(function()
-                    pcall(function()
-                        bobber.CFrame = CFrame.new(targetPos)
-                    end)
-                end)
+local function HookSpearFunction()
+    if spearRemote and spearRemote:IsA("RemoteEvent") then
+        local oldFireServer = spearRemote.FireServer
+        
+        if hookfunction then
+            hookfunction(spearRemote.FireServer, function(self, fishUID, isSecondCall, ...)
+                if autoSpearEnabled and isSecondCall then
+                    task.wait(0.1)
+                end
+                return oldFireServer(self, fishUID, isSecondCall, ...)
+            end)
+        else
+            spearRemote.FireServer = function(self, fishUID, isSecondCall, ...)
+                if autoSpearEnabled and isSecondCall then
+                    task.wait(0.1)
+                end
+                return oldFireServer(self, fishUID, isSecondCall, ...)
             end
-        elseif not bobber then
-            hasTeleported = false
         end
-    end)
+    end
 end
+
 local autoSpearEnabled = false
-local autoSpearConnection
+local autoSpearThread = nil
 
-local function autoSpearLoop()
+local function AutoSpearLoop()
     while autoSpearEnabled do
-        for _, waterPart in pairs(spearfishingWater:GetChildren()) do
-            if waterPart.Name == "WaterPart" and waterPart:FindFirstChild("ZoneFish") then
-                local zoneFish = waterPart.ZoneFish
-
-                for _, fishModel in pairs(zoneFish:GetChildren()) do
-                    if fishModel:IsA("Model") then
-                        local fishUID = fishModel:GetAttribute("UID")
-                        
-                        if fishUID and autoSpearEnabled then
-                            spearRemote:FireServer(fishUID)
-                            task.wait(.1)
-                            spearRemote:FireServer(fishUID, true)
-                            task.wait(.1)
+        pcall(function()
+            for _, waterPart in pairs(spearfishingWater:GetChildren()) do
+                if waterPart.Name == "WaterPart" and waterPart:FindFirstChild("ZoneFish") then
+                    local zoneFish = waterPart.ZoneFish
+                    for _, fishModel in pairs(zoneFish:GetChildren()) do
+                        if fishModel:IsA("Model") and autoSpearEnabled then
+                            local fishUID = fishModel:GetAttribute("UID")
+                            if fishUID then
+                                spearRemote:FireServer(fishUID)
+                                task.wait(0.15)
+                                spearRemote:FireServer(fishUID, true)
+                                task.wait(0.1)
+                            end
                         end
                     end
                 end
             end
-        end
-        task.wait(.001)
+        end)
+        task.wait(0.5)
     end
 end
+
+local function InitializeHooks()
+    local success, err = pcall(function()
+        if not hookfunction then
+            error("hookfunction not available")
+        end
+        
+        HookReelFunction()
+        HookShakeFunction() 
+        HookSpearFunction()
+    end)
+    
+    if not success then
+        InitializeFallbackHooks()
+    end
+end
+
+local function InitializeFallbackHooks()
+    local events = ReplicatedStorage:WaitForChild("events")
+    local reelfinished = events:WaitForChild("reelfinished")
+    
+    if reelfinished and reelfinished:IsA("RemoteEvent") then
+        local oldFireServer = reelfinished.FireServer
+        reelfinished.FireServer = function(self, progress, isPerfect, ...)
+            if autoreel and reelMethod == "Instant(Risk Ban)" then
+                progress = 100
+                if CatchMethod == "Perfect" then
+                    isPerfect = true
+                elseif CatchMethod == "Random" then
+                    isPerfect = (math.random(0, 1) == 1)
+                else
+                    isPerfect = true
+                end
+            end
+            return oldFireServer(self, progress, isPerfect, ...)
+        end
+    end
+end
+
+task.spawn(function()
+    task.wait(3)
+    HookReelFunction()
+end)
 
 -- ================== Compkiller UI ==================
 local Compkiller = loadstring(game:HttpGet("https://raw.githubusercontent.com/4lpaca-pin/CompKiller/refs/heads/main/src/source.luau"))();
@@ -611,23 +731,25 @@ FischSection:AddToggle({
 })
 FischSection:AddToggle({
     Name = "Auto Spear",
-    Flag = "AutoSpear",
-    Default = autospear,
+    Default = autoSpearEnabled,
     Callback = function(state)
         autoSpearEnabled = state
-        
-        if autoSpearEnabled then
-            autoSpearThread = task.spawn(autoSpearLoop)
-        else
+        if state then
+            autoSpearThread = task.spawn(AutoSpearLoop)
+        elseif autoSpearThread then
+            task.cancel(autoSpearThread)
+            autoSpearThread = nil
         end
     end
 })
 
 FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callback=function(state)
-	autoreel = state
-	Settings.AutoReel = state
-	SaveSettings()
-	if state then StartAutoReel() end
+    autoreel = state
+    Settings.AutoReel = state
+    SaveSettings()
+    if state then 
+        StartAutoReel() 
+    end
 end})
 
 FischSection:AddToggle({
@@ -684,13 +806,6 @@ SettingSection:AddDropdown({
             autoreel_running = false
             StartAutoReel()
         end
-
-        if reelMethod == "Instant" then
-            local isPerfect = (reelMethod == "Perfect") or (reelMethod == "Random" and math.random(0,1) == 1)
-            pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("events"):WaitForChild("reelfinished"):FireServer(100, isPerfect)
-            end)
-        end
     end
 })
 
@@ -707,66 +822,6 @@ SettingSection:AddDropdown({
             autoshake_running = false
             task.wait(0.1)
             StartAutoShake()
-        end
-    end
-})
-
-SettingSection:AddToggle({
-    Name = "Instant Bobber V1",
-    Default = Settings.InstantBobberV1 or false,
-    Callback = function(state)
-        Settings.InstantBobberV1 = state
-        SaveSettings()
-
-        if state then
-            StartInstantBobber()
-        else
-            if instantBobberConnection then
-                instantBobberConnection:Disconnect()
-                instantBobberConnection = nil
-            end
-        end
-    end
-})
-
-SettingSection:AddToggle({
-    Name = "Instant Bobber V2",
-    Default = Settings.InstantBobberV2 or false,
-    Callback = function(state)
-        local player = game.Players.LocalPlayer
-        local RunService = game:GetService("RunService")
-
-        if instantBobberConnection then
-            instantBobberConnection:Disconnect()
-            instantBobberConnection = nil
-        end
-
-        Settings.InstantBobberV2 = state
-        SaveSettings()
-
-        if state then
-            instantBobberConnection = RunService.RenderStepped:Connect(function()
-                local char = player.Character
-                if not char then return end
-
-                local rod = nil
-                for _, rodName in ipairs(rodNames) do
-                    rod = char:FindFirstChild(rodName)
-                    if rod then break end
-                end
-                if not rod then return end
-
-                local bobber = rod:FindFirstChild("bobber")
-                if not bobber then return end
-
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if not hrp then return end
-
-                local targetPos = hrp.Position + Vector3.new(0, -3, 0)
-                pcall(function()
-                    bobber.CFrame = CFrame.new(targetPos)
-                end)
-            end)
         end
     end
 })
@@ -820,13 +875,6 @@ plTab:AddToggle({
     end
 })
 
-task.spawn(function()
-    local toggle = plTab:GetToggle("Anti-AFK")
-    if toggle then
-        toggle.Callback(true)
-    end
-end)
-
 plTab:AddToggle({
     Name = "Noclip",
     Default = false,
@@ -841,10 +889,43 @@ local function clearResourceStream()
     end
 end
 
-plTab:AddButton({
-    Name = "Clear Notifications",
-    Callback = function()
-        clearResourceStream()
+local disableNotifications = false
+
+plTab:AddToggle({
+    Name = "Disable Notifications",
+    Default = false,
+    Callback = function(state)
+        disableNotifications = state
+        if state then
+            task.spawn(function()
+                while disableNotifications do
+                    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+                    local hud = playerGui:FindFirstChild("hud")
+                    if hud then
+                        local safezone = hud:FindFirstChild("safezone")
+                        if safezone then
+                            local announcements = safezone:FindFirstChild("announcements")
+                            if announcements then
+                                announcements.Visible = false
+                            end
+                        end
+                    end
+                    task.wait(0.5)
+                end
+
+                local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+                local hud = playerGui:FindFirstChild("hud")
+                if hud then
+                    local safezone = hud:FindFirstChild("safezone")
+                    if safezone then
+                        local announcements = safezone:FindFirstChild("announcements")
+                        if announcements then
+                            announcements.Visible = true
+                        end
+                    end
+                end
+            end)
+        end
     end
 })
 
@@ -1123,6 +1204,7 @@ plTab:AddToggle({
         infinityJumpEnabled = state
     end
 })
+
 local fullbrightEnabled = false
 local function EnableFullbright()
     local Lighting = game:GetService("Lighting")
@@ -1296,39 +1378,6 @@ tpTab:AddDropdown({
     end
 })
 
-local antiAFKEnabled = false
-local antiAFKConnection = nil
-
-local function StartAntiAFK()
-    if antiAFKConnection then return end
-    
-    antiAFKConnection = game:GetService("Players").LocalPlayer.Idled:Connect(function()
-        local VirtualUser = game:GetService("VirtualUser")
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new(0, 0))
-    end)
-end
-
-local function StopAntiAFK()
-    if antiAFKConnection then
-        antiAFKConnection:Disconnect()
-        antiAFKConnection = nil
-    end
-end
-
-plTab:AddToggle({
-    Name = "Anti-AFK",
-    Default = true,
-    Callback = function(state)
-        antiAFKEnabled = state
-        if state then
-            StartAntiAFK()
-        else
-            StopAntiAFK()
-        end
-    end
-})
-
 tpTab:AddToggle({
     Name = "Tp to Island",
     Default = teleporting,
@@ -1348,7 +1397,7 @@ task.spawn(function()
             local humanoid = char:FindFirstChildOfClass("Humanoid")
             if humanoid then
                 if changePlayerEnabled then
-                    humanoid.WalkSpeed = Tpwalk
+                    humanoid.WalkSpeed = walkspeedValue
                     humanoid.JumpPower = jumppowerValue
                 end
             end
@@ -1400,27 +1449,29 @@ end
 if walkOnWaterEnabled then
     SetWalkOnWater(true)
 end
+if autoEquipRodEnabled then StartAutoEquipRod() end
 
-if Settings.InstantBobber then
-    task.spawn(function()
-        local player = game.Players.LocalPlayer
-        while true do
-            task.wait(0.1)
-            local char = player.Character
-            if not char then continue end
-
-            local rod
-            for _, rodName in ipairs(rodNames) do
-                rod = char:FindFirstChild(rodName)
-                if rod then break end
-            end
-            if rod and rod:FindFirstChild("bobber", true) then
-                StartInstantBobber()
-                break
+game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        for obj, funcs in pairs(originalFunctions) do
+            for funcName, originalFunc in pairs(funcs) do
+                if obj and obj[funcName] then
+                    obj[funcName] = originalFunc
+                end
             end
         end
-    end)
-end
 
-if autoEquipRodEnabled then StartAutoEquipRod() end
-if instantReelEnabled then StartInstantReel() end
+        if instantBobberConnection then
+            instantBobberConnection:Disconnect()
+        end
+        if antiAFKConnection then
+            antiAFKConnection:Disconnect()
+        end
+        if mobileFlyConnection1 then
+            mobileFlyConnection1:Disconnect()
+        end
+        if mobileFlyConnection2 then
+            mobileFlyConnection2:Disconnect()
+        end
+    end
+end)
