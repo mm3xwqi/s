@@ -375,9 +375,6 @@ local function HookReelFunction()
                 return oldFireServer(self, unpack(args))
             end
         end
-        print("HookReelFunction: Successfully hooked reelfinished with hookfunction")
-    else
-        warn("HookReelFunction: reelfinished not found or not a RemoteEvent")
     end
 end
 
@@ -735,6 +732,105 @@ local function AutoSpearLoop()
     end
 end
 
+local instantReel_running = false
+local instantReelEnabled = false
+
+local function HookUIDestruction()
+    if hookfunction then
+        local originalDestroy = nil
+        originalDestroy = hookfunction(Instance.new("Part").Destroy, function(self, ...)
+            if instantReelEnabled and self:IsA("GuiObject") and self.Name == "reel" then
+                if self:FindFirstAncestorWhichIsA("ScreenGui") then
+                    self.Visible = false
+                    self.Enabled = false
+                    return
+                end
+            end
+            return originalDestroy(self, ...)
+        end)
+    end
+end
+
+local function HookRodParent()
+    if hookfunction then
+        local originalSetParent = nil
+        originalSetParent = hookfunction(Instance.new("Tool").SetParent, function(self, newParent, ...)
+            if instantReelEnabled and table.find(rodNames, self.Name) then
+                return originalSetParent(self, newParent, ...)
+            end
+            return originalSetParent(self, newParent, ...)
+        end)
+    end
+end
+
+local function HookResetEvents()
+    for _, rodName in ipairs(rodNames) do
+        local rod = rodsFolder:FindFirstChild(rodName)
+        if rod then
+            local events = rod:FindFirstChild("events")
+            if events then
+                local reset = events:FindFirstChild("reset")
+                if reset and reset:IsA("RemoteEvent") then
+                    if hookfunction then
+                        local oldReset = reset.FireServer
+                        hookfunction(reset.FireServer, function(self, ...)
+                            if instantReelEnabled then
+                                task.wait(0.1)
+                            end
+                            return oldReset(self, ...)
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function StartInstantReelWithHook()
+    if instantReel_running then return end
+    instantReel_running = true
+    
+    task.spawn(function()
+        while instantReelEnabled do
+            local playerGui = player:FindFirstChild("PlayerGui")
+            if playerGui then
+                local reel = playerGui:FindFirstChild("reel")
+                if reel then
+                    task.wait(0.2)
+
+                    pcall(function()
+                        reel:Destroy()
+                    end)
+
+                    local char = player.Character
+                    if char then
+                        for _, rodName in ipairs(rodNames) do
+                            local rod = char:FindFirstChild(rodName)
+                            if rod then
+                                pcall(function()
+                                    rod.Parent = player.Backpack
+                                end)
+
+                                pcall(function()
+                                    local resetEvent = rod:FindFirstChild("events"):FindFirstChild("reset")
+                                    if resetEvent then
+                                        resetEvent:FireServer()
+                                    end
+                                end)
+                                break
+                            end
+                        end
+                    end
+
+                    task.wait(0.4)
+                end
+            end
+            task.wait(0.1)
+        end
+        instantReel_running = false
+    end)
+end
+
 local function InitializeHooks()
     local success, err = pcall(function()
         if not hookfunction then
@@ -751,6 +847,21 @@ local function InitializeHooks()
         InitializeFallbackHooks()
     end
 end
+
+local function InitializeInstantReelHooks()
+    pcall(function()
+        if hookfunction then
+            HookUIDestruction()
+            HookRodParent()
+            HookResetEvents()
+        end
+    end)
+end
+
+task.spawn(function()
+    task.wait(3)
+    InitializeInstantReelHooks()
+end)
 
 task.spawn(function()
     task.wait(3)
@@ -871,6 +982,17 @@ FischSection:AddToggle({Name="Auto Reel",Flag="AutoReel",Default=autoreel,Callba
         StartAutoReel() 
     end
 end})
+
+FischSection:AddToggle({
+    Name = "Instant Reel",
+    Default = false,
+    Callback = function(state)
+        instantReelEnabled = state
+        if state then
+            StartInstantReelWithHook()
+        end
+    end
+})
 
 FischSection:AddToggle({
     Name = "Auto Equip Rod",
