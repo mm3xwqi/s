@@ -852,7 +852,6 @@ local function InitializeHooks()
     end)
     
     if not success then
-        -- Fallback hooks if hookfunction is not available
         pcall(HookReelFunction)
         pcall(HookResetFunction)
         pcall(HookShakeFunction)
@@ -941,15 +940,14 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
         end
     })
 
-    -- FIXED: Usable Rods Display
     local usableRodsDisplay = MainTab:Code({
-        Title = "🎣 Usable Rods",
+        Title = "🎣 Fishing Lure",
         Code = GetUsableRodLures()
     })
 
     task.spawn(function()
         while true do
-            task.wait(3) -- เปลี่ยนจาก 0.3 เป็น 3 วินาทีเพื่อลดภาระ
+            task.wait(0.1)
             usableRodsDisplay:SetCode(GetUsableRodLures())
         end
     end)
