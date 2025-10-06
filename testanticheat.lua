@@ -34,6 +34,10 @@ local isAutoShake = false
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 
+-- Save Position Variables
+local savedPosition = nil
+local savedLookVector = nil
+
 -- Hookmetamethod หลักสำหรับ Auto Fishing
 local originalNamecall
 originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
@@ -43,6 +47,23 @@ originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     -- Hook สำหรับ castAsync (Auto Fishing)
     if isFishing and method == "InvokeServer" and tostring(self) == "castAsync" then
         print("🎣 Auto fishing sequence started")
+
+        -- วาปไปยังตำแหน่งที่บันทึกไว้ (ถ้ามี) รัวๆ
+        if savedPosition then
+            task.spawn(function()
+                local character = player.Character
+                if character then
+                    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                    if humanoidRootPart then
+                        -- วาปรัวๆตลอดเวลา
+                        while isFishing and savedPosition do
+                            humanoidRootPart.CFrame = CFrame.new(savedPosition, savedPosition + savedLookVector)
+                            task.wait(0.1) -- วาปทุก 0.1 วินาที
+                        end
+                    end
+                end
+            end)
+        end
 
         -- เรียก cast ด้วยค่า max
         local result = originalNamecall(self, 100, 1)
@@ -135,6 +156,30 @@ originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
 
     return originalNamecall(self, ...)
 end)
+
+-- Save Position Function
+local function savePosition()
+    local character = player.Character
+    if character then
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            -- ลบตำแหน่งเก่าทิ้ง
+            savedPosition = nil
+            savedLookVector = nil
+            
+            -- บันทึกตำแหน่งใหม่
+            savedPosition = humanoidRootPart.Position
+            savedLookVector = humanoidRootPart.CFrame.LookVector
+            
+            Window:Notify({
+                Title = "Position Saved",
+                Desc = "ตำแหน่งปัจจุบันถูกบันทึกแล้ว! (ลบตำแหน่งเก่าทิ้ง)",
+                Time = 3
+            })
+            print("📍 New position saved:", savedPosition)
+        end
+    end
+end
 
 -- Auto Shake Function with Hookmetamethod
 local function startAutoShake()
@@ -278,6 +323,13 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
                 stopAutoShake()
             end
         end
+    })
+
+    -- Save Position Button
+    Tab:Button({
+        Title = "Save Position",
+        Desc = "บันทึกตำแหน่งปัจจุบัน (ลบตำแหน่งเก่าทิ้ง)",
+        Callback = savePosition
     })
 
 -- Final Notification
