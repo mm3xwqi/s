@@ -509,13 +509,13 @@ local function StartAutoReel()
                                     end)
                                 end
                                 
-                                task.wait()
+                                task.wait(1)
                             end
                         end
                     end
                 end
             end
-            task.wait()
+            task.wait(1)
         end
         autoreel_running = false
     end)
