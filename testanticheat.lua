@@ -29,7 +29,7 @@ SidebarLine.Parent = game:GetService("CoreGui")
 
 -- Auto Fishing Variables
 local player = game:GetService("Players").LocalPlayer
-local isFishing = false
+local isAutoCast = false
 local isAutoShake = false
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
@@ -38,124 +38,142 @@ local GuiService = game:GetService("GuiService")
 local savedPosition = nil
 local savedLookVector = nil
 
--- Hookmetamethod หลักสำหรับ Auto Fishing
+-- Fishing Rod Management
+local currentRod = nil
+local castCooldown = 2
+local castThread = nil
+
+-- Reel Remote Storage
+local reelRemote = nil
 local originalNamecall
-originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
+local isAutoReelEnabled = true
 
-    -- Hook สำหรับ castAsync (Auto Fishing)
-    if isFishing and method == "InvokeServer" and tostring(self) == "castAsync" then
-        print("🎣 Auto fishing sequence started")
+-- Function to find and store reel remote
+local function findReelRemote()
+    local eventsFolder = game:GetService("ReplicatedStorage"):FindFirstChild("events")
+    if eventsFolder then
+        reelRemote = eventsFolder:FindFirstChild("reelfinished")
+    end
+    return reelRemote
+end
 
-        -- วาปไปยังตำแหน่งที่บันทึกไว้ (ถ้ามี) รัวๆ
-        if savedPosition then
-            task.spawn(function()
-                local character = player.Character
-                if character then
-                    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                    if humanoidRootPart then
-                        -- วาปรัวๆตลอดเวลา
-                        while isFishing and savedPosition do
-                            humanoidRootPart.CFrame = CFrame.new(savedPosition, savedPosition + savedLookVector)
-                            task.wait(0.1) -- วาปทุก 0.1 วินาที
-                        end
-                    end
-                end
-            end)
+-- Hookmetamethod สำหรับดึงปลาทันที
+local function enableInstantReelHook()
+    if originalNamecall then return end
+    
+    originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        if not checkcaller() then
+            local method = getnamecallmethod()
+            local args = {...}
+
+            if method == "FireServer" and self == reelRemote and isAutoReelEnabled then
+                return originalNamecall(self, 100, true)
+            end
+        end
+        return originalNamecall(self, ...)
+    end)
+end
+
+local function disableInstantReelHook()
+    if originalNamecall then
+        unhookmetamethod(game, "__namecall", originalNamecall)
+        originalNamecall = nil
+    end
+end
+
+-- Function to manually trigger reel (เรียกใช้ตรงๆ)
+local function triggerInstantReel()
+    if reelRemote and isAutoReelEnabled then
+        reelRemote:FireServer(100, true)
+    end
+end
+
+-- Function to find fishing rod
+local function findFishingRod()
+    for _, tool in ipairs(player.Character:GetChildren()) do
+        if tool:IsA("Tool") and tool:FindFirstChild("events") then
+            local castEvent = tool.events:FindFirstChild("castAsync")
+            if castEvent then
+                return {tool = tool, castEvent = castEvent}
+            end
+        end
+    end
+
+    for _, tool in ipairs(player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") and tool:FindFirstChild("events") then
+            local castEvent = tool.events:FindFirstChild("castAsync")
+            if castEvent then
+                return {tool = tool, castEvent = castEvent}
+            end
+        end
+    end
+    return nil
+end
+
+-- Function to equip fishing rod
+local function equipFishingRod(rodData)
+    if rodData and not player.Character:FindFirstChild(rodData.tool.Name) then
+        player.Character.Humanoid:EquipTool(rodData.tool)
+        task.wait(0.5)
+    end
+    return rodData
+end
+
+-- Function to cast fishing rod continuously
+local function continuousCast()
+    while isAutoCast do
+        local currentCooldown = castCooldown
+        
+        if not currentRod then
+            currentRod = findFishingRod()
+            if currentRod then
+                currentRod = equipFishingRod(currentRod)
+            else
+                task.wait(3)
+                continue
+            end
         end
 
-        -- เรียก cast ด้วยค่า max
-        local result = originalNamecall(self, 100, 1)
+        if savedPosition then
+            local character = player.Character
+            if character then
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart then
+                    humanoidRootPart.CFrame = CFrame.new(savedPosition, savedPosition + savedLookVector)
+                end
+            end
+        end
+
+        local success, result = pcall(function()
+            return currentRod.castEvent:InvokeServer(100, 1)
+        end)
+
+        if not success then
+            currentRod = nil
+            task.wait(1)
+            continue
+        end
 
         task.spawn(function()
-            if not isFishing then return end
-
-            -- รอ reel GUI ด้วยการตรวจสอบอย่างต่อเนื่อง
             local startTime = tick()
-            local reelGuiFound = false
-            
-            while (tick() - startTime) < 15 and isFishing do
+            while tick() - startTime < 10 and isAutoCast do
                 local reelGui = player.PlayerGui:FindFirstChild("reel")
-                if reelGui then
-                    reelGuiFound = true
-                    print("🎯 Reel detected, waiting 1 second...")
-                    
-                    -- รอ 1 วินาที
-                    task.wait(1)
-                    
-                    if isFishing then
-                        -- เรียก reelfinished
-                        local reelEvent = game:GetService("ReplicatedStorage"):FindFirstChild("events"):FindFirstChild("reelfinished")
-                        if reelEvent then
-                            reelEvent:FireServer(100, true)
-                            print("✅ Auto reel completed")
-                        end
-                        
-                        -- รอจนกว่า reel GUI จะหายไป หรือ timeout 5 วินาที
-                        local reelEndTime = tick()
-                        while player.PlayerGui:FindFirstChild("reel") and (tick() - reelEndTime) < 5 and isFishing do
-                            task.wait(0.1)
-                        end
-                        
-                        break
-                    end
+                if reelGui and reelGui.Enabled then
+                    triggerInstantReel()
+                    break
                 end
                 task.wait(0.1)
             end
-            
-            if not reelGuiFound and isFishing then
-                print("⏰ No reel GUI found within 15 seconds, recasting...")
-            end
-            
-            -- รอ 2 วินาทีแล้วเริ่มกระบวนการใหม่
-            if isFishing then
-                task.wait(2)
-                
-                -- หาเบ็ดในมือหรือใน backpack
-                local foundRod = nil
-                for _, tool in ipairs(player.Character:GetChildren()) do
-                    if tool:IsA("Tool") and tool:FindFirstChild("events") then
-                        local castEvent = tool.events:FindFirstChild("castAsync")
-                        if castEvent then
-                            foundRod = {tool = tool, castEvent = castEvent}
-                            break
-                        end
-                    end
-                end
-                
-                -- ถ้าไม่มีเบ็ดในมือ ให้หาใน backpack
-                if not foundRod then
-                    for _, tool in ipairs(player.Backpack:GetChildren()) do
-                        if tool:IsA("Tool") and tool:FindFirstChild("events") then
-                            local castEvent = tool.events:FindFirstChild("castAsync")
-                            if castEvent then
-                                foundRod = {tool = tool, castEvent = castEvent}
-                                break
-                            end
-                        end
-                    end
-                    
-                    -- ถือเบ็ดถ้ายังไม่ได้ถือ
-                    if foundRod and not player.Character:FindFirstChild(foundRod.tool.Name) then
-                        player.Character.Humanoid:EquipTool(foundRod.tool)
-                        task.wait(.1)
-                    end
-                end
-                
-                -- เรียก cast ใหม่
-                if foundRod and isFishing then
-                    print("🔄 Recasting with:", foundRod.tool.Name)
-                    foundRod.castEvent:InvokeServer(100, 1)
-                end
-            end
         end)
-        
-        return result
-    end
 
-    return originalNamecall(self, ...)
-end)
+        if isAutoCast then
+            local waitStart = tick()
+            while (tick() - waitStart) < currentCooldown and isAutoCast do
+                task.wait(0.1)
+            end
+        end
+    end
+end
 
 -- Save Position Function
 local function savePosition()
@@ -163,25 +181,22 @@ local function savePosition()
     if character then
         local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
         if humanoidRootPart then
-            -- ลบตำแหน่งเก่าทิ้ง
             savedPosition = nil
             savedLookVector = nil
             
-            -- บันทึกตำแหน่งใหม่
             savedPosition = humanoidRootPart.Position
             savedLookVector = humanoidRootPart.CFrame.LookVector
             
             Window:Notify({
                 Title = "Position Saved",
-                Desc = "ตำแหน่งปัจจุบันถูกบันทึกแล้ว! (ลบตำแหน่งเก่าทิ้ง)",
+                Desc = "ตำแหน่งปัจจุบันถูกบันทึกแล้ว!",
                 Time = 3
             })
-            print("📍 New position saved:", savedPosition)
         end
     end
 end
 
--- Auto Shake Function with Hookmetamethod
+-- Auto Shake Function
 local function startAutoShake()
     if isAutoShake then return end
     isAutoShake = true
@@ -198,11 +213,9 @@ local function startAutoShake()
                 if safezone then
                     local button = safezone:FindFirstChild("button")
                     if button and button:IsA("ImageButton") and button.Visible then
-                        -- ใช้ hookmetamethod สำหรับการกดปุ่ม
                         GuiService.SelectedObject = button
                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
                         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-                        print("🔄 Auto shake activated")
                     end
                 end
             end
@@ -225,96 +238,70 @@ local function stopAutoShake()
     })
 end
 
--- Auto Fishing Function
-local function startAutoFishing()
-    if isFishing then return end
-    isFishing = true
+-- Auto Cast Function
+local function startAutoCast()
+    if isAutoCast then return end
+    isAutoCast = true
     
-    -- เริ่ม cast ครั้งแรก
-    task.spawn(function()
-        task.wait(0.1)
-        if not isFishing then return end
-        
-        local foundRod = nil
-
-        -- ตรวจสอบเบ็ดในมือก่อน
-        for _, tool in ipairs(player.Character:GetChildren()) do
-            if tool:IsA("Tool") and tool:FindFirstChild("events") then
-                local castEvent = tool.events:FindFirstChild("castAsync")
-                if castEvent then
-                    foundRod = {tool = tool, castEvent = castEvent}
-                    break
-                end
-            end
-        end
-
-        -- ถ้าไม่มีเบ็ดในมือ ให้หาใน backpack
-        if not foundRod then
-            for _, tool in ipairs(player.Backpack:GetChildren()) do
-                if tool:IsA("Tool") and tool:FindFirstChild("events") then
-                    local castEvent = tool.events:FindFirstChild("castAsync")
-                    if castEvent then
-                        foundRod = {tool = tool, castEvent = castEvent}
-                        break
-                    end
-                end
-            end
-
-            -- ถือเบ็ดถ้ายังไม่ได้ถือ
-            if foundRod and not player.Character:FindFirstChild(foundRod.tool.Name) then
-                player.Character.Humanoid:EquipTool(foundRod.tool)
-                task.wait(.1)
-            end
-        end
-
-        -- เริ่ม cast ครั้งแรก
-        if foundRod and isFishing then
-            print("🚀 Starting first cast with:", foundRod.tool.Name)
-            foundRod.castEvent:InvokeServer(100, 1)
-        else
-            print("❌ No fishing rod found")
-        end
+    castThread = task.spawn(function()
+        continuousCast()
     end)
     
     Window:Notify({
-        Title = "Auto Fishing",
-        Desc = "Auto fishing started successfully!",
+        Title = "Auto Cast",
+        Desc = "Auto cast started successfully!",
         Time = 3
     })
 end
 
-local function stopAutoFishing()
-    isFishing = false
+local function stopAutoCast()
+    isAutoCast = false
+    currentRod = nil
+    
+    if castThread then
+        task.cancel(castThread)
+        castThread = nil
+    end
     Window:Notify({
-        Title = "Auto Fishing",
-        Desc = "Auto fishing stopped!",
+        Title = "Auto Cast",
+        Desc = "Auto cast stopped!",
         Time = 3
     })
 end
+
+-- Function to restart cast with new cooldown
+local function restartCastWithNewCooldown()
+    if isAutoCast then
+        stopAutoCast()
+        task.wait(0.5)
+        startAutoCast()
+    end
+end
+
+-- ค้นหาและเก็บ reel remote ทันทีเมื่อโหลดสคริปต์
+findReelRemote()
+enableInstantReelHook()
 
 -- Tab
 local Tab = Window:Tab({Title = "Main", Icon = "star"}) 
-    -- Section
     Tab:Section({Title = "Fishing Features"})
 
-    -- Auto Fishing Toggle
     Tab:Toggle({
-        Title = "Auto Fishing",
-        Desc = "",
+        Title = "Auto Cast",
+        Desc = "Cast เบ็ดอัตโนมัติเรื่อยๆ",
         Value = false,
         Callback = function(v)
             if v then
-                startAutoFishing()
+                startAutoCast()
             else
-                stopAutoFishing()
+                stopAutoCast()
             end
         end
     })
 
-    -- Auto Shake Toggle
     Tab:Toggle({
         Title = "Auto Shake",
-        Desc = "",
+        Desc = "Auto shake เมื่อมีปลากินเบ็ด",
         Value = false,
         Callback = function(v)
             if v then
@@ -325,18 +312,50 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
         end
     })
 
-    -- Save Position Button
+    Tab:Toggle({
+        Title = "Instant Auto Reel",
+        Desc = "",
+        Value = true,
+        Callback = function(v)
+            isAutoReelEnabled = v
+            if v then
+                enableInstantReelHook()
+                Window:Notify({
+                    Title = "Instant Auto Reel",
+                    Desc = "",
+                    Time = 3
+                })
+            else
+                disableInstantReelHook()
+                Window:Notify({
+                    Title = "Instant Auto Reel", 
+                    Desc = "",
+                    Time = 3
+                })
+            end
+        end
+    })
+
     Tab:Button({
         Title = "Save Position",
-        Desc = "บันทึกตำแหน่งปัจจุบัน (ลบตำแหน่งเก่าทิ้ง)",
+        Desc = "",
         Callback = savePosition
     })
 
--- Final Notification
+    Tab:Slider({
+        Title = "Cast Cooldown",
+        Desc = "",
+        Value = 2,
+        Min = 0,
+        Max = 10,
+        Callback = function(v)
+            castCooldown = v
+            restartCastWithNewCooldown()
+        end
+    })
+
 Window:Notify({
     Title = "x2zu Fishing",
-    Desc = "Auto fishing & shake loaded with hookmetamethod!",
+    Desc = "Instant Auto Reel with direct remote call activated!",
     Time = 4
 })
-
-print("🎣 x2zu Auto Fishing & Shake with hookmetamethod loaded!")
