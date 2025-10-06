@@ -31,6 +31,7 @@ SidebarLine.Parent = game:GetService("CoreGui")
 local player = game:GetService("Players").LocalPlayer
 local isAutoCast = false
 local isAutoShake = false
+local isAutoSell = false
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
 
@@ -42,9 +43,11 @@ local savedLookVector = nil
 local currentRod = nil
 local castCooldown = 2
 local castThread = nil
+local sellThread = nil
 
 -- Reel Remote Storage
 local reelRemote = nil
+local sellRemote = nil
 local originalNamecall
 local isAutoReelEnabled = true
 
@@ -53,6 +56,7 @@ local function findReelRemote()
     local eventsFolder = game:GetService("ReplicatedStorage"):FindFirstChild("events")
     if eventsFolder then
         reelRemote = eventsFolder:FindFirstChild("reelfinished")
+        sellRemote = eventsFolder:FindFirstChild("SellAll")
     end
     return reelRemote
 end
@@ -88,6 +92,45 @@ local function triggerInstantReel()
     end
 end
 
+-- Function to sell all fish
+local function sellAllFish()
+    if sellRemote then
+        sellRemote:InvokeServer()
+    end
+end
+
+-- Auto Sell Function
+local function startAutoSell()
+    if isAutoSell then return end
+    isAutoSell = true
+    
+    sellThread = task.spawn(function()
+        while isAutoSell do
+            sellAllFish()
+            task.wait(1)
+        end
+    end)
+    
+    Window:Notify({
+        Title = "Auto Sell",
+        Desc = "Auto sell started successfully!",
+        Time = 3
+    })
+end
+
+local function stopAutoSell()
+    isAutoSell = false
+    if sellThread then
+        task.cancel(sellThread)
+        sellThread = nil
+    end
+    Window:Notify({
+        Title = "Auto Sell",
+        Desc = "Auto sell stopped!",
+        Time = 3
+    })
+end
+
 -- Function to find fishing rod
 local function findFishingRod()
     for _, tool in ipairs(player.Character:GetChildren()) do
@@ -117,6 +160,22 @@ local function equipFishingRod(rodData)
         task.wait(0.5)
     end
     return rodData
+end
+
+local function monitorReelGUI()
+    while isAutoCast do
+        task.wait(0.1)
+        
+        local reelGui = player.PlayerGui:FindFirstChild("reel")
+        if reelGui and reelGui:IsA("ScreenGui") and reelGui.Enabled then
+            task.wait(2)
+            triggerInstantReel()
+
+            while player.PlayerGui:FindFirstChild("reel") and isAutoCast do
+                task.wait(0.1)
+            end
+        end
+    end
 end
 
 -- Function to cast fishing rod continuously
@@ -154,18 +213,6 @@ local function continuousCast()
             continue
         end
 
-        task.spawn(function()
-            local startTime = tick()
-            while tick() - startTime < 10 and isAutoCast do
-                local reelGui = player.PlayerGui:FindFirstChild("reel")
-                if reelGui and reelGui.Enabled then
-                    triggerInstantReel()
-                    break
-                end
-                task.wait(0.1)
-            end
-        end)
-
         if isAutoCast then
             local waitStart = tick()
             while (tick() - waitStart) < currentCooldown and isAutoCast do
@@ -174,6 +221,7 @@ local function continuousCast()
         end
     end
 end
+
 
 -- Save Position Function
 local function savePosition()
@@ -238,10 +286,13 @@ local function stopAutoShake()
     })
 end
 
--- Auto Cast Function
 local function startAutoCast()
     if isAutoCast then return end
     isAutoCast = true
+
+    task.spawn(function()
+        monitorReelGUI()
+    end)
     
     castThread = task.spawn(function()
         continuousCast()
@@ -249,7 +300,7 @@ local function startAutoCast()
     
     Window:Notify({
         Title = "Auto Cast",
-        Desc = "Auto cast started successfully!",
+        Desc = "Auto cast started!",
         Time = 3
     })
 end
@@ -269,7 +320,6 @@ local function stopAutoCast()
     })
 end
 
--- Function to restart cast with new cooldown
 local function restartCastWithNewCooldown()
     if isAutoCast then
         stopAutoCast()
@@ -278,7 +328,6 @@ local function restartCastWithNewCooldown()
     end
 end
 
--- ค้นหาและเก็บ reel remote ทันทีเมื่อโหลดสคริปต์
 findReelRemote()
 enableInstantReelHook()
 
@@ -288,7 +337,7 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
 
     Tab:Toggle({
         Title = "Auto Cast",
-        Desc = "Cast เบ็ดอัตโนมัติเรื่อยๆ",
+        Desc = "",
         Value = false,
         Callback = function(v)
             if v then
@@ -301,7 +350,7 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
 
     Tab:Toggle({
         Title = "Auto Shake",
-        Desc = "Auto shake เมื่อมีปลากินเบ็ด",
+        Desc = "",
         Value = false,
         Callback = function(v)
             if v then
@@ -314,24 +363,22 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
 
     Tab:Toggle({
         Title = "Instant Auto Reel",
-        Desc = "",
+        Desc = "Do not turn off the toggle if auto cast is enabled!",
         Value = true,
         Callback = function(v)
             isAutoReelEnabled = v
+            end
+    })
+
+    Tab:Toggle({
+        Title = "Auto Sell",
+        Desc = "Sell all fish",
+        Value = false,
+        Callback = function(v)
             if v then
-                enableInstantReelHook()
-                Window:Notify({
-                    Title = "Instant Auto Reel",
-                    Desc = "",
-                    Time = 3
-                })
+                startAutoSell()
             else
-                disableInstantReelHook()
-                Window:Notify({
-                    Title = "Instant Auto Reel", 
-                    Desc = "",
-                    Time = 3
-                })
+                stopAutoSell()
             end
         end
     })
@@ -345,7 +392,7 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
     Tab:Slider({
         Title = "Cast Cooldown",
         Desc = "",
-        Value = 2,
+        Value = 1,
         Min = 0,
         Max = 10,
         Callback = function(v)
@@ -356,6 +403,6 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
 
 Window:Notify({
     Title = "x2zu Fishing",
-    Desc = "Instant Auto Reel with direct remote call activated!",
-    Time = 4
+    Desc = "Script loaded Successfully!",
+    Time = 10
 })
