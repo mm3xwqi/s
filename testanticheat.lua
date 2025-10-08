@@ -17,333 +17,327 @@ local Window = Library:Window({
     }
 })
 
--- Sidebar Vertical Separator
-local SidebarLine = Instance.new("Frame")
-SidebarLine.Size = UDim2.new(0, 1, 1, 0)
-SidebarLine.Position = UDim2.new(0, 140, 0, 0)
-SidebarLine.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-SidebarLine.BorderSizePixel = 0
-SidebarLine.ZIndex = 5
-SidebarLine.Name = "SidebarLine"
-SidebarLine.Parent = game:GetService("CoreGui")
+-- Variables
+local AR = false
+local AC = false
+local AS = false -- Auto Shake
+local TP = false -- Teleport to saved position
+local LCT = 0
+local LRT = 0
+local LST = 0 -- เวลา Shake ล่าสุด
+local CI = 2
+local RI = 2
+local SI = 0.5 -- Shake ทุกๆ 0.5 วินาที
+local casting = false
+local reeling = false
+local shaking = false
+local teleporting = false
 
--- Auto Fishing Variables
-local player = game:GetService("Players").LocalPlayer
-local isAutoCast = false
-local isAutoShake = false
-local isAutoSell = false
-local VirtualInputManager = game:GetService("VirtualInputManager")
+-- Saved Position (ใช้ CFrame)
+local savedCFrame = nil
+
+-- Services
 local GuiService = game:GetService("GuiService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local PlayerGUI = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local Animations = game:GetService("ReplicatedStorage").resources.animations.fishing
 
--- Save Position Variables
-local savedPosition = nil
-local savedLookVector = nil
-
--- Fishing Rod Management
-local currentRod = nil
-local castCooldown = 2
-local castThread = nil
-local sellThread = nil
-
--- Reel Remote Storage
-local reelRemote = nil
-local sellRemote = nil
-local originalNamecall
-local isAutoReelEnabled = true
-
--- Function to find and store reel remote
-local function findReelRemote()
-    local eventsFolder = game:GetService("ReplicatedStorage"):FindFirstChild("events")
-    if eventsFolder then
-        reelRemote = eventsFolder:FindFirstChild("reelfinished")
-        sellRemote = eventsFolder:FindFirstChild("SellAll")
-    end
-    return reelRemote
+-- Get all rod names
+local rodNames = {}
+local rodsFolder = game:GetService("ReplicatedStorage"):WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods")
+for _, rod in ipairs(rodsFolder:GetChildren()) do
+    table.insert(rodNames, rod.Name)
 end
 
--- Hookmetamethod สำหรับดึงปลาทันที
-local function enableInstantReelHook()
-    if originalNamecall then return end
+-- Setup Anti-Cheat Bypass
+local mt = getrawmetatable(game)
+local onc = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local m = getnamecallmethod()
     
-    originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        if not checkcaller() then
-            local method = getnamecallmethod()
-            local args = {...}
-
-            if method == "FireServer" and self == reelRemote and isAutoReelEnabled then
-                return originalNamecall(self, 100, true)
-            end
-        end
-        return originalNamecall(self, ...)
-    end)
-end
-
-local function disableInstantReelHook()
-    if originalNamecall then
-        unhookmetamethod(game, "__namecall", originalNamecall)
-        originalNamecall = nil
+    -- Hook for reel
+    if AR and m == "FireServer" and self.Name == "reelfinished" then
+        return onc(self, 100, true)
     end
-end
-
--- Function to manually trigger reel (เรียกใช้ตรงๆ)
-local function triggerInstantReel()
-    if reelRemote and isAutoReelEnabled then
-        reelRemote:FireServer(100, true)
-    end
-end
-
--- Function to sell all fish
-local function sellAllFish()
-    if sellRemote then
-        sellRemote:InvokeServer()
-    end
-end
-
--- Auto Sell Function
-local function startAutoSell()
-    if isAutoSell then return end
-    isAutoSell = true
     
-    sellThread = task.spawn(function()
-        while isAutoSell do
-            sellAllFish()
-            task.wait(1)
-        end
-    end)
-    
-    Window:Notify({
-        Title = "Auto Sell",
-        Desc = "Auto sell started successfully!",
-        Time = 3
-    })
-end
-
-local function stopAutoSell()
-    isAutoSell = false
-    if sellThread then
-        task.cancel(sellThread)
-        sellThread = nil
+    -- Hook for cast
+    if AC and m == "InvokeServer" and self.Name == "castAsync" then
+        return onc(self, 100, true)
     end
-    Window:Notify({
-        Title = "Auto Sell",
-        Desc = "Auto sell stopped!",
-        Time = 3
-    })
+    
+    return onc(self, ...)
+end)
+setreadonly(mt, true)
+
+-- Check functions
+local function IRV()
+    local RG = game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("reel")
+    return RG and RG.Enabled
 end
 
--- Function to find fishing rod
-local function findFishingRod()
-    for _, tool in ipairs(player.Character:GetChildren()) do
-        if tool:IsA("Tool") and tool:FindFirstChild("events") then
-            local castEvent = tool.events:FindFirstChild("castAsync")
-            if castEvent then
-                return {tool = tool, castEvent = castEvent}
-            end
+-- Check if shake UI exists
+local function ISV()
+    local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+    if shakeUI and shakeUI.Enabled then
+        local safezone = shakeUI:FindFirstChild("safezone")
+        if safezone then
+            local button = safezone:FindFirstChild("button")
+            return button and button:IsA("ImageButton") and button.Visible
         end
     end
+    return false
+end
 
-    for _, tool in ipairs(player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool:FindFirstChild("events") then
-            local castEvent = tool.events:FindFirstChild("castAsync")
-            if castEvent then
-                return {tool = tool, castEvent = castEvent}
-            end
+-- Check if player has any fishing rod
+local function HR()
+    local C = game:GetService("Players").LocalPlayer.Character
+    if not C then return false end
+    
+    for _, rodName in ipairs(rodNames) do
+        if C:FindFirstChild(rodName) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Get current equipped rod
+local function GR()
+    local C = game:GetService("Players").LocalPlayer.Character
+    if not C then return nil end
+    
+    for _, rodName in ipairs(rodNames) do
+        local rod = C:FindFirstChild(rodName)
+        if rod then
+            return rod
         end
     end
     return nil
 end
 
--- Function to equip fishing rod
-local function equipFishingRod(rodData)
-    if rodData and not player.Character:FindFirstChild(rodData.tool.Name) then
-        player.Character.Humanoid:EquipTool(rodData.tool)
-        task.wait(0.5)
-    end
-    return rodData
-end
-
-local function monitorReelGUI()
-    while isAutoCast do
-        task.wait(0.1)
-        
-        local reelGui = player.PlayerGui:FindFirstChild("reel")
-        if reelGui and reelGui:IsA("ScreenGui") and reelGui.Enabled then
-            task.wait(2)
-            triggerInstantReel()
-
-            while player.PlayerGui:FindFirstChild("reel") and isAutoCast do
-                task.wait(0.1)
+-- Check if bobber exists
+local function HB()
+    local PN = game:GetService("Players").LocalPlayer.Name
+    local RW = workspace:FindFirstChild(PN)
+    if RW then
+        for _, rodName in ipairs(rodNames) do
+            local rod = RW:FindFirstChild(rodName)
+            if rod and rod:FindFirstChild("bobber") then
+                return true
             end
         end
     end
+    return false
 end
 
--- Function to cast fishing rod continuously
-local function continuousCast()
-    while isAutoCast do
-        local currentCooldown = castCooldown
-        
-        if not currentRod then
-            currentRod = findFishingRod()
-            if currentRod then
-                currentRod = equipFishingRod(currentRod)
-            else
-                task.wait(3)
-                continue
-            end
-        end
-
-        if savedPosition then
-            local character = player.Character
-            if character then
-                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                if humanoidRootPart then
-                    humanoidRootPart.CFrame = CFrame.new(savedPosition, savedPosition + savedLookVector)
-                end
-            end
-        end
-
-        local success, result = pcall(function()
-            return currentRod.castEvent:InvokeServer(100, 1)
-        end)
-
-        if not success then
-            currentRod = nil
-            task.wait(1)
-            continue
-        end
-
-        if isAutoCast then
-            local waitStart = tick()
-            while (tick() - waitStart) < currentCooldown and isAutoCast do
-                task.wait(0.1)
-            end
+-- Play throw animation
+local function PTA()
+    local humanoid = game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid and Animations:FindFirstChild("throw") then
+        local throwAnimation = humanoid:LoadAnimation(Animations.throw)
+        if throwAnimation then
+            throwAnimation:Play()
         end
     end
 end
 
+-- Play waiting animation
+local function PWA()
+    local humanoid = game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid and Animations:FindFirstChild("waiting") then
+        local waitingAnimation = humanoid:LoadAnimation(Animations.waiting)
+        if waitingAnimation then
+            waitingAnimation:Play()
+        end
+    end
+end
 
--- Save Position Function
-local function savePosition()
-    local character = player.Character
-    if character then
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart then
-            savedPosition = nil
-            savedLookVector = nil
-            
-            savedPosition = humanoidRootPart.Position
-            savedLookVector = humanoidRootPart.CFrame.LookVector
-            
+-- Save current position (ใช้ CFrame)
+local function SavePosition()
+    local character = game:GetService("Players").LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        savedCFrame = character.HumanoidRootPart.CFrame
+        Window:Notify({
+            Title = "Position Saved",
+            Desc = "ตำแหน่งถูกบันทึกแล้ว! (CFrame)",
+            Time = 3
+        })
+        print("ตำแหน่งถูกบันทึก (CFrame): " .. tostring(savedCFrame))
+    end
+end
+
+-- Teleport to saved position (ใช้ CFrame)
+local function TeleportToSavedPosition()
+    if savedCFrame then
+        local character = game:GetService("Players").LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            character.HumanoidRootPart.CFrame = savedCFrame
             Window:Notify({
-                Title = "Position Saved",
-                Desc = "ตำแหน่งปัจจุบันถูกบันทึกแล้ว!",
+                Title = "Teleported",
+                Desc = "วาปไปยังตำแหน่งที่บันทึกแล้ว!",
                 Time = 3
             })
         end
+    else
+        Window:Notify({
+            Title = "Error",
+            Desc = "ยังไม่ได้บันทึกตำแหน่ง!",
+            Time = 3
+        })
     end
 end
 
--- Auto Shake Function
-local function startAutoShake()
-    if isAutoShake then return end
-    isAutoShake = true
+-- Auto Reel Loop
+local reelConn
+local function SAR()
+    if reelConn then return end
     
-    task.spawn(function()
-        while isAutoShake do
-            task.wait(0.01)
+    reelConn = game:GetService("RunService").Heartbeat:Connect(function()
+        local CT = tick()
+        
+        if AR and IRV() and not reeling and (CT - LRT) >= RI then
+            reeling = true
             
-            local PlayerGUI = player:WaitForChild("PlayerGui")
+            local RR = game:GetService("ReplicatedStorage").events.reelfinished
+            RR:FireServer(100, true)
+            
+            LRT = CT
+            
+            task.delay(RI, function()
+                reeling = false
+            end)
+        end
+    end)
+end
+
+-- Auto Cast Loop
+local CAC
+local function SAC()
+    if CAC then return end
+    
+    CAC = game:GetService("RunService").Heartbeat:Connect(function()
+        local CT = tick()
+        
+        if AC and HR() and not HB() and not casting and (CT - LCT) >= CI then
+            casting = true
+            
+            local currentRod = GR()
+            if currentRod and currentRod:FindFirstChild("events") then
+                -- โยนเบ็ดก่อน
+                local CR = currentRod.events.castAsync
+                CR:InvokeServer(100, true)
+                
+                -- รอ 1 วินาทีแล้วค่อยเล่น animation
+                task.wait()
+                
+                -- เล่น throw animation
+                PTA()
+                
+                -- เล่น waiting animation หลังจาก throw
+                PWA()
+                
+                LCT = CT
+                
+                task.delay(CI, function()
+                    casting = false
+                end)
+            end
+        end
+    end)
+end
+
+-- Auto Shake Loop
+local shakeConn
+local function SAS()
+    if shakeConn then return end
+    
+    shakeConn = game:GetService("RunService").Heartbeat:Connect(function()
+        local CT = tick()
+        
+        if AS and not shaking and (CT - LST) >= SI then
+            shaking = true
+            
             local shakeUI = PlayerGUI:FindFirstChild("shakeui")
-            
             if shakeUI and shakeUI.Enabled then
                 local safezone = shakeUI:FindFirstChild("safezone")
                 if safezone then
                     local button = safezone:FindFirstChild("button")
                     if button and button:IsA("ImageButton") and button.Visible then
                         GuiService.SelectedObject = button
+                        task.wait()
                         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                        task.wait()
                         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
                     end
                 end
             end
+            
+            LST = CT
+            
+            task.delay(SI, function()
+                shaking = false
+            end)
         end
     end)
+end
+
+-- Auto Teleport Loop
+local teleportConn
+local function SAT()
+    if teleportConn then return end
     
-    Window:Notify({
-        Title = "Auto Shake",
-        Desc = "Auto shake started successfully!",
-        Time = 3
-    })
-end
-
-local function stopAutoShake()
-    isAutoShake = false
-    Window:Notify({
-        Title = "Auto Shake",
-        Desc = "Auto shake stopped!",
-        Time = 3
-    })
-end
-
-local function startAutoCast()
-    if isAutoCast then return end
-    isAutoCast = true
-
-    task.spawn(function()
-        monitorReelGUI()
+    teleportConn = game:GetService("RunService").Heartbeat:Connect(function()
+        if TP and savedCFrame and not teleporting then
+            teleporting = true
+            
+            TeleportToSavedPosition()
+            
+            task.delay(1, function()
+                teleporting = false
+            end)
+        end
     end)
-    
-    castThread = task.spawn(function()
-        continuousCast()
-    end)
-    
-    Window:Notify({
-        Title = "Auto Cast",
-        Desc = "Auto cast started!",
-        Time = 3
-    })
 end
-
-local function stopAutoCast()
-    isAutoCast = false
-    currentRod = nil
-    
-    if castThread then
-        task.cancel(castThread)
-        castThread = nil
-    end
-    Window:Notify({
-        Title = "Auto Cast",
-        Desc = "Auto cast stopped!",
-        Time = 3
-    })
-end
-
-local function restartCastWithNewCooldown()
-    if isAutoCast then
-        stopAutoCast()
-        task.wait(0.5)
-        startAutoCast()
-    end
-end
-
-findReelRemote()
-enableInstantReelHook()
 
 -- Tab
-local Tab = Window:Tab({Title = "Main", Icon = "star"}) 
-    Tab:Section({Title = "Fishing Features"})
+local Tab = Window:Tab({Title = "Main", Icon = "star"}) do
+    Tab:Section({Title = "Fishing"})
+
+    Tab:Toggle({
+        Title = "Auto Reel",
+        Desc = "",
+        Value = false,
+        Callback = function(v)
+            AR = v
+            if v then
+                SAR()
+                LRT = tick()
+            else
+                if reelConn then
+                    reelConn:Disconnect()
+                    reelConn = nil
+                end
+                reeling = false
+            end
+        end
+    })
 
     Tab:Toggle({
         Title = "Auto Cast",
         Desc = "",
         Value = false,
         Callback = function(v)
+            AC = v
             if v then
-                startAutoCast()
+                SAC()
+                LCT = tick()
             else
-                stopAutoCast()
+                if CAC then
+                    CAC:Disconnect()
+                    CAC = nil
+                end
+                casting = false
             end
         end
     })
@@ -353,56 +347,65 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
         Desc = "",
         Value = false,
         Callback = function(v)
+            AS = v
             if v then
-                startAutoShake()
+                SAS()
+                LST = tick()
             else
-                stopAutoShake()
+                if shakeConn then
+                    shakeConn:Disconnect()
+                    shakeConn = nil
+                end
+                shaking = false
             end
         end
     })
 
-    Tab:Toggle({
-        Title = "Instant Auto Reel",
-        Desc = "Do not turn off the toggle if auto cast is enabled!",
-        Value = true,
-        Callback = function(v)
-            isAutoReelEnabled = v
-            end
-    })
-
-    Tab:Toggle({
-        Title = "Auto Sell",
-        Desc = "Sell all fish",
-        Value = false,
-        Callback = function(v)
-            if v then
-                startAutoSell()
-            else
-                stopAutoSell()
-            end
-        end
-    })
+    Tab:Section({Title = "Teleport"})
 
     Tab:Button({
         Title = "Save Position",
         Desc = "",
-        Callback = savePosition
-    })
-
-    Tab:Slider({
-        Title = "Cast Cooldown",
-        Desc = "",
-        Value = 1,
-        Min = 0,
-        Max = 10,
-        Callback = function(v)
-            castCooldown = v
-            restartCastWithNewCooldown()
+        Callback = function()
+            SavePosition()
         end
     })
 
+    Tab:Toggle({
+        Title = "Tp to saveposition",
+        Desc = "",
+        Value = false,
+        Callback = function(v)
+            TP = v
+            if v then
+                if savedCFrame then
+                    SAT()
+                    Window:Notify({
+                        Title = "Auto Teleport",
+                        Desc = "เปิดใช้งานการวาปอัตโนมัติ!",
+                        Time = 3
+                    })
+                else
+                    Window:Notify({
+                        Title = "Error",
+                        Desc = "กรุณาบันทึกตำแหน่งก่อน!",
+                        Time = 3
+                    })
+                    TP = false
+                end
+            else
+                if teleportConn then
+                    teleportConn:Disconnect()
+                    teleportConn = nil
+                end
+                teleporting = false
+            end
+        end
+    })
+end
+
 Window:Notify({
-    Title = "x2zu Fishing",
-    Desc = "Script loaded Successfully!",
-    Time = 10
+    Title = "x2zu",
+    Desc = "UI loaded!",
+    Time = 3
 })
