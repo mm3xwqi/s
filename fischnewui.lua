@@ -794,7 +794,7 @@ local function StartInstantReelWithHook()
             if playerGui then
                 local reel = playerGui:FindFirstChild("reel")
                 if reel then
-                    task.wait(.5)
+                    task.wait(.3)
 
                     pcall(function()
                         local char = player.Character
