@@ -812,7 +812,7 @@ local function StartInstantReelWithHook()
                         end
                     end)
                     
-                    task.wait(.3)
+                    task.wait(.5)
                     
                     pcall(function()
                         reel:Destroy()
