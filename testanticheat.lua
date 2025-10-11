@@ -25,8 +25,8 @@ local TP = false
 local LCT = 0
 local LRT = 0
 local LST = 0
-local CI = 1.5
-local RI = 1.5
+local CI = 0.5
+local RI = 2
 local SI = 0.1
 local casting = false
 local reeling = false
@@ -49,26 +49,102 @@ for _, rod in ipairs(rodsFolder:GetChildren()) do
     table.insert(rodNames, rod.Name)
 end
 
--- Setup Anti-Cheat Bypass
+-- Setup Anti-Cheat Bypass using getrawmetatable and hookfunction
 local mt = getrawmetatable(game)
-local onc = mt.__namecall
-setreadonly(mt, false)
-mt.__namecall = newcclosure(function(self, ...)
-    local m = getnamecallmethod()
-    
-    -- Hook for reel
-    if AR and m == "FireServer" and self.Name == "reelfinished" then
-        return onc(self, 100, true)
+local originalNamecall
+local hookedRemotes = {}
+
+-- Hook __namecall method
+if mt and not originalNamecall then
+    local isReadOnly = isreadonly and isreadonly(mt) or false
+    if isReadOnly then
+        setreadonly(mt, false)
     end
     
-    -- Hook for cast
-    if AC and m == "InvokeServer" and self.Name == "castAsync" then
-        return onc(self, 100, true)
+    originalNamecall = mt.__namecall
+    
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        
+        -- Auto Reel hook
+        if AR and method == "FireServer" and self.Name == "reelfinished" then
+            return originalNamecall(self, 100, true)
+        end
+        
+        -- Auto Cast hook  
+        if AC and method == "InvokeServer" and self.Name == "castAsync" then
+            return originalNamecall(self, 100, true)
+        end
+        
+        return originalNamecall(self, ...)
+    end)
+    
+    if isReadOnly then
+        setreadonly(mt, true)
+    end
+end
+
+-- Additional hookfunction for extra protection
+local originalFireServer
+local originalInvokeServer
+
+local function setupHookFunction()
+    if not originalFireServer then
+        originalFireServer = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
+            local args = {...}
+            
+            if AR and self.Name == "reelfinished" then
+                return originalFireServer(self, 100, true)
+            end
+            
+            return originalFireServer(self, ...)
+        end)
+    end
+
+    if not originalInvokeServer then
+        originalInvokeServer = hookfunction(Instance.new("RemoteFunction").InvokeServer, function(self, ...)
+            local args = {...}
+            
+            if AC and self.Name == "castAsync" then
+                return originalInvokeServer(self, 100, true)
+            end
+            
+            return originalInvokeServer(self, ...)
+        end)
+    end
+end
+
+-- Setup both hooks
+setupHookFunction()
+
+-- Restore original functions
+local function restoreHooks()
+    
+    if originalNamecall and mt then
+        local isReadOnly = isreadonly and isreadonly(mt) or false
+        if isReadOnly then
+            setreadonly(mt, false)
+        end
+        
+        mt.__namecall = originalNamecall
+        
+        if isReadOnly then
+            setreadonly(mt, true)
+        end
+        originalNamecall = nil
+    end
+
+    if originalFireServer then
+        hookfunction(Instance.new("RemoteEvent").FireServer, originalFireServer)
+        originalFireServer = nil
     end
     
-    return onc(self, ...)
-end)
-setreadonly(mt, true)
+    if originalInvokeServer then
+        hookfunction(Instance.new("RemoteFunction").InvokeServer, originalInvokeServer)
+        originalInvokeServer = nil
+    end
+end
 
 -- Check functions
 local function IRV()
@@ -153,7 +229,7 @@ local function PWA()
     end
 end
 
--- Save current position (ใช้ CFrame)
+-- Save current position
 local function SavePosition()
     local character = game:GetService("Players").LocalPlayer.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
@@ -167,7 +243,7 @@ local function SavePosition()
     end
 end
 
--- Teleport to saved position (ใช้ CFrame)
+-- Teleport to saved position
 local function TeleportToSavedPosition()
     if savedCFrame then
         local character = game:GetService("Players").LocalPlayer.Character
@@ -188,7 +264,7 @@ local function TeleportToSavedPosition()
     end
 end
 
--- Auto Reel Loop
+-- Auto Reel
 local reelConn
 local function SAR()
     if reelConn then return end
@@ -211,7 +287,7 @@ local function SAR()
     end)
 end
 
--- Auto Cast Loop
+-- Auto Cast
 local CAC
 local function SAC()
     if CAC then return end
@@ -224,17 +300,13 @@ local function SAC()
             
             local currentRod = GR()
             if currentRod and currentRod:FindFirstChild("events") then
-                -- โยนเบ็ดก่อน
                 local CR = currentRod.events.castAsync
                 CR:InvokeServer(100, true)
-                
-                -- รอ 1 วินาทีแล้วค่อยเล่น animation
+
                 task.wait()
-                
-                -- เล่น throw animation
+
                 PTA()
-                
-                -- เล่น waiting animation หลังจาก throw
+
                 PWA()
                 
                 LCT = CT
@@ -247,7 +319,6 @@ local function SAC()
     end)
 end
 
--- Auto Shake Loop
 local shakeConn
 local function SAS()
     if shakeConn then return end
@@ -282,7 +353,6 @@ local function SAS()
     end)
 end
 
--- Auto Teleport Loop
 local teleportConn
 local function SAT()
     if teleportConn then return end
@@ -313,6 +383,11 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"}) do
             if v then
                 SAR()
                 LRT = tick()
+                Window:Notify({
+                    Title = "Auto Reel",
+                    Desc = "เปิดใช้งาน Auto Reel แล้ว!",
+                    Time = 3
+                })
             else
                 if reelConn then
                     reelConn:Disconnect()
@@ -332,6 +407,11 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"}) do
             if v then
                 SAC()
                 LCT = tick()
+                Window:Notify({
+                    Title = "Auto Cast",
+                    Desc = "เปิดใช้งาน Auto Cast แล้ว!",
+                    Time = 3
+                })
             else
                 if CAC then
                     CAC:Disconnect()
@@ -351,6 +431,11 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"}) do
             if v then
                 SAS()
                 LST = tick()
+                Window:Notify({
+                    Title = "Auto Shake",
+                    Desc = "เปิดใช้งาน Auto Shake แล้ว!",
+                    Time = 3
+                })
             else
                 if shakeConn then
                     shakeConn:Disconnect()
@@ -404,8 +489,37 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"}) do
     })
 end
 
+local function cleanup()
+    restoreHooks()
+    
+    if reelConn then
+        reelConn:Disconnect()
+    end
+    if CAC then
+        CAC:Disconnect()
+    end
+    if shakeConn then
+        shakeConn:Disconnect()
+    end
+    if teleportConn then
+        teleportConn:Disconnect()
+    end
+end
+
+game:GetService("Players").LocalPlayer.PlayerGui.ChildRemoved:Connect(function(child)
+    if child.Name == "x2zu" then
+        cleanup()
+    end
+end)
+
+game:GetService("Players").LocalPlayer.PlayerGui.DescendantRemoving:Connect(function(descendant)
+    if descendant.Name == "x2zu" then
+        cleanup()
+    end
+end)
+
 Window:Notify({
     Title = "x2zu",
-    Desc = "UI loaded!",
+    Desc = "UI loaded with advanced hook protection!",
     Time = 3
 })
