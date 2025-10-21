@@ -83,6 +83,18 @@ local function EquipRods()
     end
 end
 
+local function StartAutoEquipRod()
+    if autoEquipRod_running then return end
+    autoEquipRod_running = true
+    task.spawn(function()
+        while autoEquipRodEnabled do
+            EquipRods()
+            task.wait(.1)
+        end
+        autoEquipRod_running = false
+    end)
+end
+
 -- Simple Anti-Cheat Bypass
 local hookEnabled = true
 local originalFireServer
