@@ -516,23 +516,23 @@ Tab:Slider({
 Tab:Section({Title = "Anti-Cheat System"})
 
 Tab:Toggle({
-    Title = "Hook Protection",
-    Desc = "เปิด/ปิดระบบป้องกัน Anti-Cheat",
+    Title = "Bypass anti-Cheat (DONT CLOSE)",
+    Desc = "",
     Value = true,
     Callback = function(value)
         hookEnabled = value
         if value then
             setupHooks()
             Window:Notify({
-                Title = "Hook Protection",
-                Desc = "เปิดใช้งานระบบป้องกัน Anti-Cheat แล้ว!",
+                Title = "Bypass anti-Cheat",
+                Desc = "",
                 Time = 3
             })
         else
             restoreHooks()
             Window:Notify({
-                Title = "Hook Protection",
-                Desc = "ปิดใช้งานระบบป้องกัน Anti-Cheat แล้ว!",
+                Title = "Bypass anti-Cheat (CLOSE RISK BAN)",
+                Desc = "",
                 Time = 3
             })
         end
