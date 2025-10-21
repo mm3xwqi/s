@@ -9,7 +9,7 @@ end
 
 -- Create Main Window
 local Window = Library:Window({
-    Title = "Cxsmic",
+    Title = "_mm3",
     Desc = "",
     Icon = 105059922903197,
     Theme = "Dark",
@@ -19,7 +19,7 @@ local Window = Library:Window({
     },
     CloseUIButton = {
         Enabled = true,
-        Text = "Cxsmic"
+        Text = "_mm3"
     }
 })
 
@@ -362,7 +362,7 @@ Tab:Toggle({
             SAR()
             LRT = tick()
             Window:Notify({
-                Title = "Auto Reel",
+                Title = "Auto Reeled",
                 Desc = "",
                 Time = 3
             })
@@ -386,7 +386,7 @@ Tab:Toggle({
             SAC()
             LCT = tick()
             Window:Notify({
-                Title = "Auto Cast [HOOKED]",
+                Title = "Auto Casted",
                 Desc = "",
                 Time = 3
             })
@@ -409,7 +409,7 @@ Tab:Toggle({
         if value then
             StartAutoShake()
             Window:Notify({
-                Title = "Auto Shake",
+                Title = "Auto Shaked",
                 Desc = "",
                 Time = 3
             })
@@ -428,7 +428,7 @@ Tab:Toggle({
         if state then
             StartAutoEquipRod()
             Window:Notify({
-                Title = "Auto Equip Rod",
+                Title = "Auto Equip Roded",
                 Desc = "",
                 Time = 3
             })
