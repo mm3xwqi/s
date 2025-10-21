@@ -238,9 +238,9 @@ local function SAS()
                 if ISV() then
                     GuiService.SelectedObject = nil
                     task.wait()
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
                     task.wait()
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
                 end
             end)
             
