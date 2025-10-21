@@ -1,4 +1,3 @@
--- Load UI Library แบบปลอดภัย
 local Library
 local success, errorMsg = pcall(function()
     Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
@@ -10,8 +9,8 @@ end
 
 -- Create Main Window
 local Window = Library:Window({
-    Title = "x2zu [ Stellar ]",
-    Desc = "x2zu on top - Advanced Anti-Cheat Bypass",
+    Title = "Cxsmic",
+    Desc = "",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -20,7 +19,7 @@ local Window = Library:Window({
     },
     CloseUIButton = {
         Enabled = true,
-        Text = "x2zu"
+        Text = "Cxsmic"
     }
 })
 
@@ -38,6 +37,9 @@ local casting = false
 local reeling = false
 local teleporting = false
 local autoshake_running = false
+local autoEquipRodEnabled = false
+local autoEquipRod_running = false
+local player = game.Players.LocalPlayer
 
 -- Saved Position
 local savedCFrame = nil
@@ -60,8 +62,11 @@ for _, rod in ipairs(rodsFolder:GetChildren()) do
 end
 
 local function EquipRods()
-    local char = player.Character or player.CharacterAdded:Wait()
-    local backpack = player:WaitForChild("Backpack")
+    local char = player.Character
+    if not char then return end
+    
+    local backpack = player:FindFirstChild("Backpack")
+    if not backpack then return end
 
     local hasRodInHand = false
     for _, tool in ipairs(char:GetChildren()) do
@@ -348,8 +353,8 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
 Tab:Section({Title = "Fishing - Anti-Cheat Bypass"})
 
 Tab:Toggle({
-    Title = "Auto Reel [HOOKED]",
-    Desc = "รีดอัตโนมัติ + Anti-Cheat Bypass",
+    Title = "Auto Reel",
+    Desc = "",
     Value = false,
     Callback = function(value)
         AR = value
@@ -357,8 +362,8 @@ Tab:Toggle({
             SAR()
             LRT = tick()
             Window:Notify({
-                Title = "Auto Reel [HOOKED]",
-                Desc = "เปิดใช้งาน Auto Reel ด้วย Hook Protection!",
+                Title = "Auto Reel",
+                Desc = "",
                 Time = 3
             })
         else
@@ -372,8 +377,8 @@ Tab:Toggle({
 })
 
 Tab:Toggle({
-    Title = "Auto Cast [HOOKED]",
-    Desc = "เหวี่ยงเบ็ดอัตโนมัติ + Anti-Cheat Bypass",
+    Title = "Auto Cast",
+    Desc = "",
     Value = false,
     Callback = function(value)
         AC = value
@@ -382,7 +387,7 @@ Tab:Toggle({
             LCT = tick()
             Window:Notify({
                 Title = "Auto Cast [HOOKED]",
-                Desc = "เปิดใช้งาน Auto Cast ด้วย Hook Protection!",
+                Desc = "",
                 Time = 3
             })
         else
@@ -397,7 +402,7 @@ Tab:Toggle({
 
 Tab:Toggle({
     Title = "Auto Shake",
-    Desc = "สะบัดเบ็ดอัตโนมัติ",
+    Desc = "",
     Value = false,
     Callback = function(value)
         AS = value
@@ -405,7 +410,7 @@ Tab:Toggle({
             StartAutoShake()
             Window:Notify({
                 Title = "Auto Shake",
-                Desc = "เปิดใช้งาน Auto Shake แล้ว!",
+                Desc = "",
                 Time = 3
             })
         else
@@ -414,17 +419,36 @@ Tab:Toggle({
     end
 })
 
+Tab:Toggle({
+    Title = "Auto Equip Rod",
+    Desc = "",
+    Value = false,
+    Callback = function(state)
+        autoEquipRodEnabled = state
+        if state then
+            StartAutoEquipRod()
+            Window:Notify({
+                Title = "Auto Equip Rod",
+                Desc = "",
+                Time = 3
+            })
+        else
+            autoEquipRod_running = false
+        end
+    end
+})
+
 Tab:Section({Title = "Teleport"})
 
 Tab:Button({
     Title = "Save Position",
-    Desc = "บันทึกตำแหน่งปัจจุบัน",
+    Desc = "",
     Callback = SavePosition
 })
 
 Tab:Toggle({
     Title = "Auto Teleport",
-    Desc = "วาปไปยังตำแหน่งที่บันทึกอัตโนมัติ",
+    Desc = "",
     Value = false,
     Callback = function(value)
         TP = value
@@ -457,8 +481,8 @@ Tab:Toggle({
 Tab:Section({Title = "Settings"})
 
 Tab:Slider({
-    Title = "Cast Interval",
-    Desc = "ความเร็วในการเหวี่ยงเบ็ด",
+    Title = "Cast Delay",
+    Desc = "",
     Value = 0.5,
     Min = 0.1,
     Max = 5,
@@ -468,9 +492,9 @@ Tab:Slider({
 })
 
 Tab:Slider({
-    Title = "Reel Interval",
-    Desc = "ความเร็วในการรีดเบ็ด",
-    Value = 2,
+    Title = "Reel Delay",
+    Desc = "",
+    Value = 1,
     Min = 0.1,
     Max = 5,
     Callback = function(value)
@@ -479,8 +503,8 @@ Tab:Slider({
 })
 
 Tab:Slider({
-    Title = "Shake Interval",
-    Desc = "ความเร็วในการสะบัดเบ็ด",
+    Title = "Shake Delay",
+    Desc = "",
     Value = 0.1,
     Min = 0.1,
     Max = 1,
@@ -523,6 +547,7 @@ local function cleanup()
     if castConn then castConn:Disconnect() end
     if teleportConn then teleportConn:Disconnect() end
     autoshake_running = false
+    autoEquipRod_running = false
 end
 
 -- Auto cleanup when GUI is closed
@@ -530,9 +555,8 @@ Window:OnClose(cleanup)
 
 -- Notify when loaded
 Window:Notify({
-    Title = "x2zu Stellar Loaded",
-    Desc = "Fixed Version - No Lag!",
+    Title = "Script Loaded",
+    Desc = "Bypass anti-Cheat!",
     Time = 5
 })
 
-print("x2zu Stellar Script Fixed Version Loaded Successfully!")
