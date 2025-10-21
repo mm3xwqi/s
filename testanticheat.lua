@@ -252,7 +252,7 @@ local function SAR()
                 if events then
                     local reelfinished = events:FindFirstChild("reelfinished")
                     if reelfinished then
-                        reelfinished:FireServer(50, false)
+                        reelfinished:FireServer(100, true)
                         print("Auto Reel: Fired")
                     end
                 end
