@@ -11,7 +11,7 @@ end
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "x2zu on top - Anti-Cheat Bypass",
+    Desc = "x2zu on top - Advanced Anti-Cheat Bypass",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -31,14 +31,13 @@ local AS = false
 local TP = false
 local LCT = 0
 local LRT = 0
-local LST = 0
 local CI = 0.5
 local RI = 2
 local SI = 0.1
 local casting = false
 local reeling = false
-local shaking = false
 local teleporting = false
+local autoshake_running = false
 
 -- Saved Position
 local savedCFrame = nil
@@ -60,22 +59,18 @@ for _, rod in ipairs(rodsFolder:GetChildren()) do
     table.insert(rodNames, rod.Name)
 end
 
--- Simple Anti-Cheat Bypass (แบบเบาๆ ไม่ทำให้ค้าง)
+-- Simple Anti-Cheat Bypass
 local hookEnabled = true
-
--- ใช้เฉพาะ hookfunction เฉพาะที่จำเป็น
 local originalFireServer
 local originalInvokeServer
 
 local function setupHooks()
     if not hookEnabled then return end
     
-    -- Hook FireServer สำหรับ Auto Reel
     if not originalFireServer then
         originalFireServer = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
             local args = {...}
             
-            -- Auto Reel hook
             if AR and self.Name == "reelfinished" then
                 if #args >= 2 then
                     return originalFireServer(self, 100, true)
@@ -86,12 +81,10 @@ local function setupHooks()
         end)
     end
     
-    -- Hook InvokeServer สำหรับ Auto Cast
     if not originalInvokeServer then
         originalInvokeServer = hookfunction(Instance.new("RemoteFunction").InvokeServer, function(self, ...)
             local args = {...}
             
-            -- Auto Cast hook
             if AC and self.Name == "castAsync" then
                 if #args >= 2 then
                     return originalInvokeServer(self, 100, true)
@@ -115,7 +108,6 @@ local function restoreHooks()
     end
 end
 
--- Initialize hooks
 setupHooks()
 
 -- Check functions
@@ -124,34 +116,6 @@ local function IRV()
     return RG and RG.Enabled
 end
 
--- Check if shake UI exists (แบบใหม่)
-local function ISV()
-    local shakeUI = PlayerGUI:FindFirstChild("shakeui")
-    if shakeUI and shakeUI.Enabled then
-        local safezone = shakeUI:FindFirstChild("safezone")
-        if safezone then
-            local button = safezone:FindFirstChild("button")
-            if button and button:IsA("ImageButton") then
-                return button.Visible
-            end
-        end
-    end
-    return false
-end
-
--- Get shake button position (สำหรับ debug)
-local function GetShakeButton()
-    local shakeUI = PlayerGUI:FindFirstChild("shakeui")
-    if shakeUI and shakeUI.Enabled then
-        local safezone = shakeUI:FindFirstChild("safezone")
-        if safezone then
-            return safezone:FindFirstChild("button")
-        end
-    end
-    return nil
-end
-
--- Check if player has any fishing rod
 local function HR()
     local character = LocalPlayer.Character
     if not character then return false end
@@ -164,7 +128,6 @@ local function HR()
     return false
 end
 
--- Get current equipped rod
 local function GR()
     local character = LocalPlayer.Character
     if not character then return nil end
@@ -178,7 +141,6 @@ local function GR()
     return nil
 end
 
--- Check if bobber exists
 local function HB()
     local playerName = LocalPlayer.Name
     local playerWorkspace = workspace:FindFirstChild(playerName)
@@ -203,7 +165,6 @@ local function SavePosition()
             Desc = "ตำแหน่งถูกบันทึกแล้ว!",
             Time = 3
         })
-        print("Saved position:", savedCFrame)
     else
         Window:Notify({
             Title = "Error",
@@ -234,6 +195,32 @@ local function TeleportToSavedPosition()
     end
 end
 
+-- Auto Shake แบบใหม่
+local function StartAutoShake()
+    if autoshake_running then return end
+    autoshake_running = true
+    task.spawn(function()
+        while AS do
+            local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+            if shakeUI and shakeUI.Enabled then
+                local safezone = shakeUI:FindFirstChild("safezone")
+                if safezone then
+                    local button = safezone:FindFirstChild("button")
+                    if button and button:IsA("ImageButton") and button.Visible then
+                        GuiService.SelectedObject = button
+                        task.wait()
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                        task.wait()
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                    end
+                end
+            end
+            task.wait(SI)
+        end
+        autoshake_running = false
+    end)
+end
+
 -- Auto Reel
 local reelConn
 local function SAR()
@@ -252,8 +239,7 @@ local function SAR()
                 if events then
                     local reelfinished = events:FindFirstChild("reelfinished")
                     if reelfinished then
-                        reelfinished:FireServer(100, true)
-                        print("Auto Reel: Fired")
+                        reelfinished:FireServer(100, false)
                     end
                 end
             end)
@@ -286,7 +272,6 @@ local function SAC()
                     local castAsync = currentRod.events:FindFirstChild("castAsync")
                     if castAsync then
                         castAsync:InvokeServer(50, false)
-                        print("Auto Cast: Invoked")
                     end
                 end
             end)
@@ -295,39 +280,6 @@ local function SAC()
             
             task.delay(0.1, function()
                 casting = false
-            end)
-        end
-    end)
-end
-
--- Auto Shake (ใช้ Return แทน Space)
-local shakeConn
-local function SAS()
-    if shakeConn then shakeConn:Disconnect() end
-    
-    shakeConn = RunService.Heartbeat:Connect(function()
-        if not AS then return end
-        
-        local currentTime = tick()
-        
-        if not shaking and (currentTime - LST) >= SI then
-            shaking = true
-            
-            pcall(function()
-                local button = GetShakeButton()
-                if button and button.Visible then
-                    -- กดปุ่ม Return แทน Space
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-                    task.wait(0.05)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-                    print("Auto Shake: Pressed Return")
-                end
-            end)
-            
-            LST = currentTime
-            
-            task.delay(0.1, function()
-                shaking = false
             end)
         end
     end)
@@ -408,25 +360,20 @@ Tab:Toggle({
 })
 
 Tab:Toggle({
-    Title = "Auto Shake [RETURN]",
-    Desc = "สะบัดเบ็ดอัตโนมัติ (กดปุ่ม Return)",
+    Title = "Auto Shake",
+    Desc = "สะบัดเบ็ดอัตโนมัติ",
     Value = false,
     Callback = function(value)
         AS = value
         if value then
-            SAS()
-            LST = tick()
+            StartAutoShake()
             Window:Notify({
-                Title = "Auto Shake [RETURN]",
-                Desc = "เปิดใช้งาน Auto Shake (กด Return)!",
+                Title = "Auto Shake",
+                Desc = "เปิดใช้งาน Auto Shake แล้ว!",
                 Time = 3
             })
         else
-            if shakeConn then
-                shakeConn:Disconnect()
-                shakeConn = nil
-            end
-            shaking = false
+            autoshake_running = false
         end
     end
 })
@@ -532,50 +479,18 @@ Tab:Toggle({
     end
 })
 
-Tab:Button({
-    Title = "Debug Shake UI",
-    Desc = "ตรวจสอบ Shake UI",
-    Callback = function()
-        local button = GetShakeButton()
-        if button then
-            Window:Notify({
-                Title = "Debug Shake UI",
-                Desc = "พบปุ่ม Shake: " .. tostring(button.Visible),
-                Time = 5
-            })
-            print("Shake button found:", button, "Visible:", button.Visible)
-        else
-            Window:Notify({
-                Title = "Debug Shake UI",
-                Desc = "ไม่พบปุ่ม Shake!",
-                Time = 5
-            })
-            print("Shake button not found")
-        end
-    end
-})
-
 -- Cleanup function
 local function cleanup()
     restoreHooks()
     
     if reelConn then reelConn:Disconnect() end
     if castConn then castConn:Disconnect() end
-    if shakeConn then shakeConn:Disconnect() end
     if teleportConn then teleportConn:Disconnect() end
+    autoshake_running = false
 end
 
 -- Auto cleanup when GUI is closed
 Window:OnClose(cleanup)
-
--- Player leaving cleanup
-game:GetService("UserInputService").WindowFocused:Connect(function()
-    -- รีเฟรช connections เมื่อกลับมาเล่น
-    if AR and not reelConn then SAR() end
-    if AC and not castConn then SAC() end
-    if AS and not shakeConn then SAS() end
-    if TP and not teleportConn then SAT() end
-end)
 
 -- Notify when loaded
 Window:Notify({
