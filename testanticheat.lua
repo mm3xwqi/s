@@ -400,9 +400,9 @@ local function SAS()
             
             pcall(function()
                 if ISV() then
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
                     task.wait(0.05)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
                 end
             end)
             
