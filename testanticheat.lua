@@ -5,14 +5,13 @@ local success, errorMsg = pcall(function()
 end)
 
 if not success or not Library then
-    -- ถ้าโหลดไม่สำเร็จ ให้ใช้ UI อื่นแทน
     Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
 end
 
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "x2zu on top - Advanced Anti-Cheat Bypass",
+    Desc = "x2zu on top - Anti-Cheat Bypass",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -61,161 +60,58 @@ for _, rod in ipairs(rodsFolder:GetChildren()) do
     table.insert(rodNames, rod.Name)
 end
 
--- Advanced Anti-Cheat Bypass System
+-- Simple Anti-Cheat Bypass (แบบเบาๆ ไม่ทำให้ค้าง)
 local hookEnabled = true
-local originalFunctions = {}
 
--- Hook __namecall method
-local function setupNamecallHook()
+-- ใช้เฉพาะ hookfunction เฉพาะที่จำเป็น
+local originalFireServer
+local originalInvokeServer
+
+local function setupHooks()
     if not hookEnabled then return end
     
-    local mt = getrawmetatable(game)
-    if mt then
-        local isReadOnly = make_writeable(mt) or (isreadonly and setreadonly(mt, false))
-        
-        originalFunctions.namecall = mt.__namecall
-        mt.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
+    -- Hook FireServer สำหรับ Auto Reel
+    if not originalFireServer then
+        originalFireServer = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
             local args = {...}
             
-            -- Auto Reel bypass
-            if AR and method == "FireServer" and tostring(self) == "reelfinished" then
-                return nil
+            -- Auto Reel hook
+            if AR and self.Name == "reelfinished" then
+                if #args >= 2 then
+                    return originalFireServer(self, 100, true)
+                end
             end
             
-            -- Auto Cast bypass
-            if AC and method == "InvokeServer" and tostring(self) == "castAsync" then
-                return nil
-            end
-            
-            -- Anti-detection: Block certain checks
-            if method == "FindFirstChild" and args[1] and tostring(args[1]):lower():find("script") then
-                return nil
-            end
-            
-            return originalFunctions.namecall(self, ...)
+            return originalFireServer(self, ...)
         end)
-        
-        if isReadOnly then
-            setreadonly(mt, true)
-        end
+    end
+    
+    -- Hook InvokeServer สำหรับ Auto Cast
+    if not originalInvokeServer then
+        originalInvokeServer = hookfunction(Instance.new("RemoteFunction").InvokeServer, function(self, ...)
+            local args = {...}
+            
+            -- Auto Cast hook
+            if AC and self.Name == "castAsync" then
+                if #args >= 2 then
+                    return originalInvokeServer(self, 100, true)
+                end
+            end
+            
+            return originalInvokeServer(self, ...)
+        end)
     end
 end
 
--- Hook FireServer
-local function setupFireServerHook()
-    if not hookEnabled then return end
-    
-    originalFunctions.fireServer = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
-        local args = {...}
-        
-        -- Auto Reel hook
-        if AR and self.Name == "reelfinished" then
-            if args[1] == 100 and args[2] == true then
-                return originalFunctions.fireServer(self, ...)
-            else
-                return originalFunctions.fireServer(self, 100, true)
-            end
-        end
-        
-        -- Anti-cheat detection bypass
-        if self.Name:lower():find("check") or self.Name:lower():find("detect") then
-            return nil
-        end
-        
-        return originalFunctions.fireServer(self, ...)
-    end)
-end
-
--- Hook InvokeServer
-local function setupInvokeServerHook()
-    if not hookEnabled then return end
-    
-    originalFunctions.invokeServer = hookfunction(Instance.new("RemoteFunction").InvokeServer, function(self, ...)
-        local args = {...}
-        
-        -- Auto Cast hook
-        if AC and self.Name == "castAsync" then
-            if args[1] == 100 and args[2] == true then
-                return originalFunctions.invokeServer(self, ...)
-            else
-                return originalFunctions.invokeServer(self, 100, true)
-            end
-        end
-        
-        -- Anti-cheat detection bypass
-        if self.Name:lower():find("check") or self.Name:lower():find("detect") then
-            return nil
-        end
-        
-        return originalFunctions.invokeServer(self, ...)
-    end)
-end
-
--- Hook Index for property protection
-local function setupIndexHook()
-    if not hookEnabled then return end
-    
-    local mt = getrawmetatable(game)
-    if mt then
-        local isReadOnly = make_writeable(mt) or (isreadonly and setreadonly(mt, false))
-        
-        originalFunctions.index = mt.__index
-        mt.__index = newcclosure(function(self, key)
-            -- Hide certain properties from anti-cheat
-            if tostring(key):lower():find("script") or tostring(key):lower():find("hook") then
-                return nil
-            end
-            
-            return originalFunctions.index(self, key)
-        end)
-        
-        if isReadOnly then
-            setreadonly(mt, true)
-        end
-    end
-end
-
--- Setup all hooks
-local function setupHooks()
-    pcall(setupNamecallHook)
-    pcall(setupFireServerHook)
-    pcall(setupInvokeServerHook)
-    pcall(setupIndexHook)
-end
-
--- Restore all hooks
 local function restoreHooks()
-    hookEnabled = false
-    
-    -- Restore namecall
-    if originalFunctions.namecall then
-        local mt = getrawmetatable(game)
-        if mt then
-            local isReadOnly = make_writeable(mt) or (isreadonly and setreadonly(mt, false))
-            mt.__namecall = originalFunctions.namecall
-            if isReadOnly then setreadonly(mt, true) end
-        end
+    if originalFireServer then
+        hookfunction(Instance.new("RemoteEvent").FireServer, originalFireServer)
+        originalFireServer = nil
     end
     
-    -- Restore FireServer
-    if originalFunctions.fireServer then
-        hookfunction(Instance.new("RemoteEvent").FireServer, originalFunctions.fireServer)
-    end
-    
-    -- Restore InvokeServer
-    if originalFunctions.invokeServer then
-        hookfunction(Instance.new("RemoteFunction").InvokeServer, originalFunctions.invokeServer)
-    end
-    
-    -- Restore Index
-    if originalFunctions.index then
-        local mt = getrawmetatable(game)
-        if mt then
-            local isReadOnly = make_writeable(mt) or (isreadonly and setreadonly(mt, false))
-            mt.__index = originalFunctions.index
-            if isReadOnly then setreadonly(mt, true) end
-        end
+    if originalInvokeServer then
+        hookfunction(Instance.new("RemoteFunction").InvokeServer, originalInvokeServer)
+        originalInvokeServer = nil
     end
 end
 
@@ -228,17 +124,31 @@ local function IRV()
     return RG and RG.Enabled
 end
 
--- Check if shake UI exists
+-- Check if shake UI exists (แบบใหม่)
 local function ISV()
     local shakeUI = PlayerGUI:FindFirstChild("shakeui")
     if shakeUI and shakeUI.Enabled then
         local safezone = shakeUI:FindFirstChild("safezone")
         if safezone then
             local button = safezone:FindFirstChild("button")
-            return button and button:IsA("ImageButton") and button.Visible
+            if button and button:IsA("ImageButton") then
+                return button.Visible
+            end
         end
     end
     return false
+end
+
+-- Get shake button position (สำหรับ debug)
+local function GetShakeButton()
+    local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+    if shakeUI and shakeUI.Enabled then
+        local safezone = shakeUI:FindFirstChild("safezone")
+        if safezone then
+            return safezone:FindFirstChild("button")
+        end
+    end
+    return nil
 end
 
 -- Check if player has any fishing rod
@@ -293,6 +203,7 @@ local function SavePosition()
             Desc = "ตำแหน่งถูกบันทึกแล้ว!",
             Time = 3
         })
+        print("Saved position:", savedCFrame)
     else
         Window:Notify({
             Title = "Error",
@@ -307,7 +218,6 @@ local function TeleportToSavedPosition()
     if savedCFrame then
         local character = LocalPlayer.Character
         if character and character:FindFirstChild("HumanoidRootPart") then
-            -- Use CFrame for smooth teleport
             character.HumanoidRootPart.CFrame = savedCFrame
             Window:Notify({
                 Title = "Teleported",
@@ -324,47 +234,50 @@ local function TeleportToSavedPosition()
     end
 end
 
--- Auto Reel with hook protection
+-- Auto Reel
 local reelConn
 local function SAR()
-    if reelConn then return end
+    if reelConn then reelConn:Disconnect() end
     
     reelConn = RunService.Heartbeat:Connect(function()
+        if not AR then return end
+        
         local currentTime = tick()
         
-        if AR and IRV() and not reeling and (currentTime - LRT) >= RI then
+        if IRV() and not reeling and (currentTime - LRT) >= RI then
             reeling = true
             
-            -- ใช้ hook เพื่อส่งค่า 100, true อัตโนมัติ
             pcall(function()
-                local reelEvent = ReplicatedStorage:FindFirstChild("events")
-                if reelEvent then
-                    local reelfinished = reelEvent:FindFirstChild("reelfinished")
+                local events = ReplicatedStorage:FindFirstChild("events")
+                if events then
+                    local reelfinished = events:FindFirstChild("reelfinished")
                     if reelfinished then
-                        -- ส่งค่าใดๆ ก็ได้ เพราะ hook จะจัดการให้เป็น 100, true
                         reelfinished:FireServer(50, false)
+                        print("Auto Reel: Fired")
                     end
                 end
             end)
             
             LRT = currentTime
             
-            task.delay(RI, function()
+            task.delay(0.1, function()
                 reeling = false
             end)
         end
     end)
 end
 
--- Auto Cast with hook protection
+-- Auto Cast
 local castConn
 local function SAC()
-    if castConn then return end
+    if castConn then castConn:Disconnect() end
     
     castConn = RunService.Heartbeat:Connect(function()
+        if not AC then return end
+        
         local currentTime = tick()
         
-        if AC and HR() and not HB() and not casting and (currentTime - LCT) >= CI then
+        if HR() and not HB() and not casting and (currentTime - LCT) >= CI then
             casting = true
             
             pcall(function()
@@ -372,43 +285,48 @@ local function SAC()
                 if currentRod and currentRod:FindFirstChild("events") then
                     local castAsync = currentRod.events:FindFirstChild("castAsync")
                     if castAsync then
-                        -- ส่งค่าใดๆ ก็ได้ เพราะ hook จะจัดการให้เป็น 100, true
                         castAsync:InvokeServer(50, false)
+                        print("Auto Cast: Invoked")
                     end
                 end
             end)
             
             LCT = currentTime
             
-            task.delay(CI, function()
+            task.delay(0.1, function()
                 casting = false
             end)
         end
     end)
 end
 
--- Auto Shake
+-- Auto Shake (ใช้ Return แทน Space)
 local shakeConn
 local function SAS()
-    if shakeConn then return end
+    if shakeConn then shakeConn:Disconnect() end
     
     shakeConn = RunService.Heartbeat:Connect(function()
+        if not AS then return end
+        
         local currentTime = tick()
         
-        if AS and not shaking and (currentTime - LST) >= SI then
+        if not shaking and (currentTime - LST) >= SI then
             shaking = true
             
             pcall(function()
-                if ISV() then
+                local button = GetShakeButton()
+                if button and button.Visible then
+                    -- กดปุ่ม Return แทน Space
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
                     task.wait(0.05)
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                    print("Auto Shake: Pressed Return")
                 end
             end)
             
             LST = currentTime
             
-            task.delay(SI, function()
+            task.delay(0.1, function()
                 shaking = false
             end)
         end
@@ -418,20 +336,21 @@ end
 -- Auto Teleport
 local teleportConn
 local function SAT()
-    if teleportConn then return end
+    if teleportConn then teleportConn:Disconnect() end
     
     teleportConn = RunService.Heartbeat:Connect(function()
-        if TP and savedCFrame and not teleporting then
-            teleporting = true
-            
-            pcall(function()
-                TeleportToSavedPosition()
-            end)
-            
-            task.delay(1, function()
-                teleporting = false
-            end)
-        end
+        if not TP then return end
+        if not savedCFrame or teleporting then return end
+        
+        teleporting = true
+        
+        pcall(function()
+            TeleportToSavedPosition()
+        end)
+        
+        task.delay(1, function()
+            teleporting = false
+        end)
     end)
 end
 
@@ -489,8 +408,8 @@ Tab:Toggle({
 })
 
 Tab:Toggle({
-    Title = "Auto Shake",
-    Desc = "สะบัดเบ็ดอัตโนมัติ",
+    Title = "Auto Shake [RETURN]",
+    Desc = "สะบัดเบ็ดอัตโนมัติ (กดปุ่ม Return)",
     Value = false,
     Callback = function(value)
         AS = value
@@ -498,8 +417,8 @@ Tab:Toggle({
             SAS()
             LST = tick()
             Window:Notify({
-                Title = "Auto Shake",
-                Desc = "เปิดใช้งาน Auto Shake แล้ว!",
+                Title = "Auto Shake [RETURN]",
+                Desc = "เปิดใช้งาน Auto Shake (กด Return)!",
                 Time = 3
             })
         else
@@ -614,17 +533,25 @@ Tab:Toggle({
 })
 
 Tab:Button({
-    Title = "Refresh Hooks",
-    Desc = "รีเฟรชระบบ Hook ใหม่",
+    Title = "Debug Shake UI",
+    Desc = "ตรวจสอบ Shake UI",
     Callback = function()
-        restoreHooks()
-        task.wait(0.5)
-        setupHooks()
-        Window:Notify({
-            Title = "Hooks Refreshed",
-            Desc = "รีเฟรชระบบ Hook เรียบร้อยแล้ว!",
-            Time = 3
-        })
+        local button = GetShakeButton()
+        if button then
+            Window:Notify({
+                Title = "Debug Shake UI",
+                Desc = "พบปุ่ม Shake: " .. tostring(button.Visible),
+                Time = 5
+            })
+            print("Shake button found:", button, "Visible:", button.Visible)
+        else
+            Window:Notify({
+                Title = "Debug Shake UI",
+                Desc = "ไม่พบปุ่ม Shake!",
+                Time = 5
+            })
+            print("Shake button not found")
+        end
     end
 })
 
@@ -642,17 +569,19 @@ end
 Window:OnClose(cleanup)
 
 -- Player leaving cleanup
-LocalPlayer.PlayerGui.ChildRemoved:Connect(function(child)
-    if child.Name == "x2zu" then
-        cleanup()
-    end
+game:GetService("UserInputService").WindowFocused:Connect(function()
+    -- รีเฟรช connections เมื่อกลับมาเล่น
+    if AR and not reelConn then SAR() end
+    if AC and not castConn then SAC() end
+    if AS and not shakeConn then SAS() end
+    if TP and not teleportConn then SAT() end
 end)
 
 -- Notify when loaded
 Window:Notify({
     Title = "x2zu Stellar Loaded",
-    Desc = "Advanced Anti-Cheat Bypass Activated!",
+    Desc = "Fixed Version - No Lag!",
     Time = 5
 })
 
-print("x2zu Stellar Script with Anti-Cheat Bypass Loaded Successfully!")
+print("x2zu Stellar Script Fixed Version Loaded Successfully!")
