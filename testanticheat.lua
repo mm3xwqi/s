@@ -59,6 +59,30 @@ for _, rod in ipairs(rodsFolder:GetChildren()) do
     table.insert(rodNames, rod.Name)
 end
 
+local function EquipRods()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local backpack = player:WaitForChild("Backpack")
+
+    local hasRodInHand = false
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") and table.find(rodNames, tool.Name) then
+            hasRodInHand = true
+            break
+        end
+    end
+
+    if hasRodInHand then return end
+
+    for _, rodName in ipairs(rodNames) do
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == rodName then
+                tool.Parent = char
+                return
+            end
+        end
+    end
+end
+
 -- Simple Anti-Cheat Bypass
 local hookEnabled = true
 local originalFireServer
