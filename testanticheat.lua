@@ -219,6 +219,11 @@ local function setupHooks()
             
             if AR and self.Name == "reelfinished" then
                 if #args >= 2 then
+                    Window:Notify({
+                        Title = "Bypass Anti-Cheat!",
+                        Desc = "Auto Reel Bypass ทำงานแล้ว!",
+                        Time = 3
+                    })
                     return originalFireServer(self, 100, true)
                 end
             end
@@ -233,6 +238,11 @@ local function setupHooks()
             
             if AC and self.Name == "castAsync" then
                 if #args >= 2 then
+                    Window:Notify({
+                        Title = "Bypass Anti-Cheat!",
+                        Desc = "Auto Cast Bypass ทำงานแล้ว!",
+                        Time = 3
+                    })
                     return originalInvokeServer(self, 100, true)
                 end
             end
@@ -240,6 +250,12 @@ local function setupHooks()
             return originalInvokeServer(self, ...)
         end)
     end
+    
+    Window:Notify({
+        Title = "Anti-Cheat Bypass ทำงานแล้ว!",
+        Desc = "ระบบป้องกันถูกเปิดใช้งานสำเร็จ",
+        Time = 5
+    })
 end
 
 local function restoreHooks()
@@ -468,7 +484,7 @@ local function SAC()
             
             task.delay(0.1, function()
                 casting = false
-            end
+            end)
         end
     end)
 end
@@ -507,7 +523,7 @@ Tab:Toggle({
             StartAutoReel()
             Window:Notify({
                 Title = "Auto Reel [80% LEGIT]",
-                Desc = "",
+                Desc = "Bypass Anti-Cheat",
                 Time = 3
             })
         else
@@ -527,7 +543,7 @@ Tab:Toggle({
             LCT = tick()
             Window:Notify({
                 Title = "Auto Casted",
-                Desc = "",
+                Desc = "Bypass Anti-Cheat",
                 Time = 3
             })
         else
@@ -679,10 +695,3 @@ end
 
 -- Auto cleanup when GUI is closed
 Window:OnClose(cleanup)
-
--- Notify when loaded
-Window:Notify({
-    Title = "Script Loaded!",
-    Desc = "Bypass anti-Cheat!",
-    Time = 5
-})
