@@ -1,3 +1,4 @@
+
 local Library
 local success, errorMsg = pcall(function()
     Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
@@ -7,10 +8,9 @@ if not success or not Library then
     Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
 end
 
--- Create Main Window
 local Window = Library:Window({
     Title = "_mm3",
-    Desc = "",
+    Desc = "mm3 hub",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -28,18 +28,17 @@ local AR = false
 local AC = false
 local AS = false
 local TP = false
+local autoEquipRodEnabled = false
 local LCT = 0
 local LRT = 0
 local CI = 0.5
 local RI = 2
 local SI = 0.1
 local casting = false
-local reeling = false
 local teleporting = false
 local autoshake_running = false
-local autoEquipRodEnabled = false
 local autoEquipRod_running = false
-local player = game.Players.LocalPlayer
+local autoreel_running = false
 
 -- Saved Position
 local savedCFrame = nil
@@ -51,8 +50,9 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local LocalPlayer = Players.LocalPlayer
-local PlayerGUI = LocalPlayer:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
+local LocalPlayer = player
+local PlayerGUI = player:WaitForChild("PlayerGui")
 
 -- Get all rod names
 local rodNames = {}
@@ -61,6 +61,7 @@ for _, rod in ipairs(rodsFolder:GetChildren()) do
     table.insert(rodNames, rod.Name)
 end
 
+-- Auto Equip Rod Functions
 local function EquipRods()
     local char = player.Character
     if not char then return end
@@ -100,7 +101,108 @@ local function StartAutoEquipRod()
     end)
 end
 
--- Simple Anti-Cheat Bypass
+local selectedIsland = ""
+local teleportingToIsland = false
+local extraTPs = {
+    {Name = "Carrot Garden", Position = Vector3.new(3744, -1116, -1108)},
+    {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
+    {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
+    {Name = "Castaway Cliffs", Position = Vector3.new(655, 179, -1793)},
+    {Name = "Luminescent Cavern", Position = Vector3.new(-1016, -337, -4071)},
+    {Name = "Crimson Cavern", Position = Vector3.new(-1013, -340, -4891)},
+    {Name = "Oscar's Locker", Position = Vector3.new(266, -387, 3407)},
+    {Name = "The Boom Ball", Position = Vector3.new(-1296, -900, -3479)},
+    {Name = "Lost Jungle", Position = Vector3.new(-2690, 149, -2051)}
+}
+
+local function TeleportToIsland()
+    if not selectedIsland or selectedIsland == "" then
+        Window:Notify({
+            Title = "Error",
+            Desc = "กรุณาเลือกเกาะก่อน!",
+            Time = 3
+        })
+        return
+    end
+
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        Window:Notify({
+            Title = "Error",
+            Desc = "ไม่พบตัวละคร!",
+            Time = 3
+        })
+        return
+    end
+
+    local targetPosition = nil
+    for _, tp in ipairs(extraTPs) do
+        if tp.Name == selectedIsland then
+            targetPosition = tp.Position
+            break
+        end
+    end
+
+    if not targetPosition then
+        local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
+        local spot = tpFolder:FindFirstChild(selectedIsland)
+        if spot and spot:IsA("Part") then
+            targetPosition = spot.Position
+        end
+    end
+
+    if targetPosition then
+        character.HumanoidRootPart.CFrame = CFrame.new(targetPosition)
+        Window:Notify({
+            Title = "Teleported",
+            Desc = "วาปไปยัง " .. selectedIsland .. " แล้ว!",
+            Time = 3
+        })
+    else
+        Window:Notify({
+            Title = "Error",
+            Desc = "ไม่พบตำแหน่งเกาะ: " .. selectedIsland,
+            Time = 3
+        })
+    end
+end
+
+local function StartIslandTeleport()
+    if teleportingToIsland then return end
+    teleportingToIsland = true
+    
+    task.spawn(function()
+        while teleportingToIsland do
+            TeleportToIsland()
+            task.wait(2)
+        end
+    end)
+end
+
+local function LoadIslandList()
+    local tpNames = {}
+
+    local success, tpFolder = pcall(function()
+        return workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
+    end)
+    
+    if success and tpFolder then
+        for _, spot in ipairs(tpFolder:GetChildren()) do
+            table.insert(tpNames, spot.Name)
+        end
+    end
+
+    for _, tp in ipairs(extraTPs) do
+        table.insert(tpNames, tp.Name)
+    end
+
+    table.sort(tpNames, function(a, b) 
+        return a:lower() < b:lower() 
+    end)
+    
+    return tpNames
+end
+
 local hookEnabled = true
 local originalFireServer
 local originalInvokeServer
@@ -151,12 +253,6 @@ end
 
 setupHooks()
 
--- Check functions
-local function IRV()
-    local RG = PlayerGUI:FindFirstChild("reel")
-    return RG and RG.Enabled
-end
-
 local function HR()
     local character = LocalPlayer.Character
     if not character then return false end
@@ -194,6 +290,81 @@ local function HB()
         end
     end
     return false
+end
+
+local function GetProgressBarScale()
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if playerGui then
+        local reel = playerGui:FindFirstChild("reel")
+        if reel then
+            local bar = reel:FindFirstChild("bar")
+            if bar then
+                local fish = bar:FindFirstChild("fish")
+                if fish and fish:IsA("GuiObject") then
+                    return fish.Position.X.Scale
+                end
+            end
+        end
+    end
+    return 0
+end
+
+local function StartAutoReel()
+    if autoreel_running then return end
+    autoreel_running = true
+
+    task.spawn(function()
+        while AR do
+            local gui = player:FindFirstChild("PlayerGui")
+            local reel = gui and gui:FindFirstChild("reel")
+
+            while AR and gui and not reel do
+                reel = gui:FindFirstChild("reel")
+                task.wait(0.1)
+            end
+
+            if reel then
+                local char = player.Character
+                if char then
+                    for _, rodName in ipairs(rodNames) do
+                        local rod = char:FindFirstChild(rodName)
+                        if rod then
+                            while AR and reel and reel.Parent and rod.Parent == char do
+                                local bar = reel:FindFirstChild("bar")
+                                if bar then
+                                    local fish = bar:FindFirstChild("fish")
+                                    local playerbar = bar:FindFirstChild("playerbar")
+                                    
+                                    if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
+                                        pcall(function()
+                                            playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
+                                        end)
+                                    end
+                                end
+
+                                local prog = GetProgressBarScale()
+                                if prog and prog >= 0.80 then
+                                    pcall(function()
+                                        local events = ReplicatedStorage:FindFirstChild("events")
+                                        if events then
+                                            local reelfinished = events:FindFirstChild("reelfinished")
+                                            if reelfinished then
+                                                reelfinished:FireServer(100, false)
+                                            end
+                                        end
+                                    end)
+                                end
+                                
+                                task.wait()
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait()
+        end
+        autoreel_running = false
+    end)
 end
 
 -- Save current position
@@ -236,7 +407,7 @@ local function TeleportToSavedPosition()
     end
 end
 
--- Auto Shake แบบใหม่
+-- Auto Shake
 local function StartAutoShake()
     if autoshake_running then return end
     autoshake_running = true
@@ -262,39 +433,6 @@ local function StartAutoShake()
     end)
 end
 
--- Auto Reel
-local reelConn
-local function SAR()
-    if reelConn then reelConn:Disconnect() end
-    
-    reelConn = RunService.Heartbeat:Connect(function()
-        if not AR then return end
-        
-        local currentTime = tick()
-        
-        if IRV() and not reeling and (currentTime - LRT) >= RI then
-            reeling = true
-            
-            pcall(function()
-                local events = ReplicatedStorage:FindFirstChild("events")
-                if events then
-                    local reelfinished = events:FindFirstChild("reelfinished")
-                    if reelfinished then
-                        reelfinished:FireServer(100, false)
-                    end
-                end
-            end)
-            
-            LRT = currentTime
-            
-            task.delay(0.1, function()
-                reeling = false
-            end)
-        end
-    end)
-end
-
--- Auto Cast
 local castConn
 local function SAC()
     if castConn then castConn:Disconnect() end
@@ -326,7 +464,6 @@ local function SAC()
     end)
 end
 
--- Auto Teleport
 local teleportConn
 local function SAT()
     if teleportConn then teleportConn:Disconnect() end
@@ -347,10 +484,9 @@ local function SAT()
     end)
 end
 
--- Create UI
 local Tab = Window:Tab({Title = "Main", Icon = "star"})
 
-Tab:Section({Title = "Fishing - Anti-Cheat Bypass"})
+Tab:Section({Title = "Fishing"})
 
 Tab:Toggle({
     Title = "Auto Reel",
@@ -359,19 +495,14 @@ Tab:Toggle({
     Callback = function(value)
         AR = value
         if value then
-            SAR()
-            LRT = tick()
+            StartAutoReel()
             Window:Notify({
-                Title = "Auto Reeled",
+                Title = "Auto Reel [80% LEGIT]",
                 Desc = "",
                 Time = 3
             })
         else
-            if reelConn then
-                reelConn:Disconnect()
-                reelConn = nil
-            end
-            reeling = false
+            autoreel_running = false
         end
     end
 })
@@ -421,7 +552,7 @@ Tab:Toggle({
 
 Tab:Toggle({
     Title = "Auto Equip Rod",
-    Desc = "",
+    Desc = "Automatically equip fishing rod",
     Value = false,
     Callback = function(state)
         autoEquipRodEnabled = state
@@ -456,14 +587,14 @@ Tab:Toggle({
             if savedCFrame then
                 SAT()
                 Window:Notify({
-                    Title = "Auto Teleport",
-                    Desc = "เปิดใช้งานการวาปอัตโนมัติ!",
+                    Title = "Auto Teleported!",
+                    Desc = "",
                     Time = 3
                 })
             else
                 Window:Notify({
                     Title = "Error",
-                    Desc = "กรุณาบันทึกตำแหน่งก่อน!",
+                    Desc = "",
                     Time = 3
                 })
                 TP = false
@@ -492,17 +623,6 @@ Tab:Slider({
 })
 
 Tab:Slider({
-    Title = "Reel Delay",
-    Desc = "",
-    Value = 1,
-    Min = 0.1,
-    Max = 5,
-    Callback = function(value)
-        RI = value
-    end
-})
-
-Tab:Slider({
     Title = "Shake Delay",
     Desc = "",
     Value = 0.1,
@@ -513,28 +633,93 @@ Tab:Slider({
     end
 })
 
-Tab:Section({Title = "Anti-Cheat System"})
+local TPTab = Window:Tab({Title = "Teleport", Icon = "map-pin"})
 
-Tab:Toggle({
-    Title = "Bypass anti-Cheat (DONT CLOSE)",
-    Desc = "",
-    Value = true,
+TPTab:Section({Title = "Island Teleport"})
+
+local islandList = LoadIslandList()
+TPTab:Dropdown({
+    Title = "Select Island",
+    Desc = "เลือกเกาะที่ต้องการวาป",
+    List = islandList,
+    Value = islandList[1] or "",
     Callback = function(value)
-        hookEnabled = value
+        selectedIsland = value
+    end
+})
+
+TPTab:Button({
+    Title = "Teleport to Island",
+    Desc = "วาปไปยังเกาะที่เลือก",
+    Callback = function()
+        TeleportToIsland()
+    end
+})
+
+TPTab:Toggle({
+    Title = "Auto Teleport to Island",
+    Desc = "วาปไปเกาะอัตโนมัติทุก 2 วินาที",
+    Value = false,
+    Callback = function(value)
+        teleportingToIsland = value
         if value then
-            setupHooks()
-            Window:Notify({
-                Title = "Bypass anti-Cheat",
-                Desc = "",
-                Time = 3
-            })
+            if selectedIsland and selectedIsland ~= "" then
+                StartIslandTeleport()
+                Window:Notify({
+                    Title = "Auto Island Teleport",
+                    Desc = "เปิดใช้งานวาปไป " .. selectedIsland .. " อัตโนมัติ!",
+                    Time = 3
+                })
+            else
+                Window:Notify({
+                    Title = "Error",
+                    Desc = "กรุณาเลือกเกาะก่อน!",
+                    Time = 3
+                })
+                teleportingToIsland = false
+            end
         else
-            restoreHooks()
-            Window:Notify({
-                Title = "Bypass anti-Cheat (CLOSE RISK BAN)",
-                Desc = "",
-                Time = 3
-            })
+            teleportingToIsland = false
+        end
+    end
+})
+
+TPTab:Section({Title = "Position Teleport"})
+
+TPTab:Button({
+    Title = "Save Position",
+    Desc = "",
+    Callback = SavePosition
+})
+
+TPTab:Toggle({
+    Title = "Auto Teleport to Saved Position",
+    Desc = "",
+    Value = false,
+    Callback = function(value)
+        TP = value
+        if value then
+            if savedCFrame then
+                SAT()
+                Window:Notify({
+                    Title = "Auto Teleport",
+                    Desc = "",
+                    Time = 3
+                })
+            else
+                Window:Notify({
+                    Title = "Error",
+                    Desc = "กรุณาบันทึกตำแหน่งก่อน!",
+                    Time = 3
+                })
+                TP = false
+            end
+        else
+            if teleportConn then
+                teleportConn:Disconnect()
+                teleportConn = nil
+            end
+            teleporting = false
         end
     end
 })
@@ -543,11 +728,12 @@ Tab:Toggle({
 local function cleanup()
     restoreHooks()
     
-    if reelConn then reelConn:Disconnect() end
     if castConn then castConn:Disconnect() end
     if teleportConn then teleportConn:Disconnect() end
     autoshake_running = false
     autoEquipRod_running = false
+    autoreel_running = false
+    teleportingToIsland = false
 end
 
 -- Auto cleanup when GUI is closed
@@ -555,8 +741,7 @@ Window:OnClose(cleanup)
 
 -- Notify when loaded
 Window:Notify({
-    Title = "Script Loaded",
+    Title = "Script Loaded!",
     Desc = "Bypass anti-Cheat!",
     Time = 5
 })
-
