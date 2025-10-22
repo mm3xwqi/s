@@ -1,12 +1,672 @@
---[[
- .____                  ________ ___.    _____                           __                
- |    |    __ _______   \_____  \\_ |___/ ____\_ __  ______ ____ _____ _/  |_  ___________ 
- |    |   |  |  \__  \   /   |   \| __ \   __\  |  \/  ___// ___\\__  \\   __\/  _ \_  __ \
- |    |___|  |  // __ \_/    |    \ \_\ \  | |  |  /\___ \\  \___ / __ \|  | (  <_> )  | \/
- |_______ \____/(____  /\_______  /___  /__| |____//____  >\___  >____  /__|  \____/|__|   
-         \/          \/         \/    \/                \/     \/     \/                   
-          \_Welcome to LuaObfuscator.com   (Alpha 0.10.9) ~  Much Love, Ferib 
+local Library
+local success, errorMsg = pcall(function()
+    Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+end)
 
-]]--
+if not success or not Library then
+    Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
+end
 
-local v0=game:GetService("Workspace");local v1=game:GetService("ReplicatedStorage");local v2=v0["Spearfishing Water"];local v3=v1:WaitForChild("packages"):WaitForChild("Net"):WaitForChild("RE/SpearFishing/Minigame");local v4=game:GetService("Players");local v5=game:GetService("HttpService");local v6=v4.LocalPlayer;local v7={};local v8=v1:WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods");for v89,v90 in ipairs(v8:GetChildren()) do table.insert(v7,v90.Name);end local v9={{Name="Carrot Garden",Position=Vector3.new(8455 -4711 , -(268 + 848), -1108)},{Name="Crystal Cove",Position=Vector3.new(1901 -537 , -(67 + 545),3578 -1106 )},{Name="Underground Music Venue",Position=Vector3.new(2849 -(118 + 688) , -(693 -(25 + 23)),479 + 1992 )},{Name="Castaway Cliffs",Position=Vector3.new(2541 -(927 + 959) ,179, -1793)},{Name="Luminescent Cavern",Position=Vector3.new( -(1748 -(16 + 716)), -(650 -313), -4071)},{Name="Crimson Cavern",Position=Vector3.new( -(2470 -1457), -340, -(5176 -(175 + 110)))},{Name="Oscar's Locker",Position=Vector3.new(671 -405 , -(1908 -1521),3407)},{Name="The Boom Ball",Position=Vector3.new( -1296, -(2513 -1613), -(2516 + 963))},{Name="Lost Jungle",Position=Vector3.new( -2690,104 + 45 , -(630 + 1421))}};local v10=workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots");local v11={};for v91,v92 in ipairs(v10:GetChildren()) do table.insert(v11,v92.Name);end for v93,v94 in ipairs(v9) do table.insert(v11,v94.Name);end table.sort(v11,function(v95,v96) return v95:lower()<v96:lower() ;end);local v12="Fischsv.json";local v13={AutoCast=false,AutoReel=false,AutoShake=false,AutoSell=false,TpToIsland=false,SelectedIsland=nil,SavedPosition=nil,CatchMethod="Perfect",ReelMethod="Legit(Safe to Use)",WalkOnWater=false,AutoEquipRod=false,ShakeMethod="Shake Normal"};if pcall(function() return readfile(v12);end) then local v159=0;local v160;local v161;while true do if (v159==(0 + 0)) then v160,v161=pcall(function() return v5:JSONDecode(readfile(v12));end);if (v160 and v161) then for v476,v477 in pairs(v161) do v13[v476]=v477;end end break;end end end local v14=nil;if v13.SavedPosition then local v162=533 -(43 + 490) ;local v163;while true do if (v162==0) then v163=v13.SavedPosition;if (v163.X and v163.Y and v163.Z and v163.Yaw) then local v417=733 -(711 + 22) ;local v418;local v419;while true do if (v417==(0 -0)) then v418=Vector3.new(v163.X,v163.Y,v163.Z);v419=math.rad(v163.Yaw);v417=1;end if (v417==(860 -(240 + 619))) then v14=CFrame.new(v418) * CFrame.Angles(0 + 0 ,v419,0) ;break;end end end break;end end end local function v15() pcall(function() local v164=0 -0 ;local v165;while true do if (v164==0) then v165={};for v384,v385 in pairs(v13) do v165[v384]=v385;end v164=1;end if ((1 + 0)==v164) then if v14 then local v420=1744 -(1344 + 400) ;local v421;local v422;local v423;while true do if (v420==(405 -(255 + 150))) then v421=v14.Position;v422,v423,v422=v14:ToEulerAnglesXYZ();v420=1;end if (v420==(1 + 0)) then v165.SavedPosition={X=v421.X,Y=v421.Y,Z=v421.Z,Yaw=math.deg(v423)};break;end end else v165.SavedPosition=nil;end writefile(v12,v5:JSONEncode(v165));break;end end end);end local v16=v13.AutoCast;local v17=v13.AutoReel;local v18=v13.AutoEquipRod;local v19=v13.CatchMethod;local v20=v13.ShakeMethod or "Shake Normal" ;local v21=v13.AutoSell;local v22=v13.TpToIsland;local v23=v13.SelectedIsland;local v24=v13.ReelMethod;local v25=v13.WalkOnWater;local v26=9 + 7 ;local v27=213 -163 ;local v28=false;local v29=false;local v30=false;local v31=nil;local v32=false;local v33=false;local v34=v13.AutoShake;local v35=false;local v36=false;local v37=v1.resources.animations.fishing.waiting;local v38=v1.resources.animations.fishing.throw;local v39=v1.resources.animations.fishing.casthold;local v40={};local function v41(v97,v98,v99) if (v97 and (typeof(v97)=="Instance") and v97[v98]) then local v228=0 -0 ;while true do if (v228==0) then v40[v97]=v40[v97] or {} ;v40[v97][v98]=v97[v98];v228=1740 -(404 + 1335) ;end if (v228==(407 -(183 + 223))) then v97[v98]=function(...) return v99(v97,...);end;break;end end end end local function v42(v100,v101) if (v40[v100] and v40[v100][v101]) then v100[v101]=v40[v100][v101];v40[v100][v101]=nil;end end local function v43() local v102=v6.Character or v6.CharacterAdded:Wait() ;local v103=v6:WaitForChild("Backpack");local v104=false;for v166,v167 in ipairs(v102:GetChildren()) do if (v167:IsA("Tool") and table.find(v7,v167.Name)) then v104=true;break;end end if v104 then return;end for v168,v169 in ipairs(v7) do for v231,v232 in ipairs(v103:GetChildren()) do if (v232:IsA("Tool") and (v232.Name==v169)) then local v300=0 -0 ;while true do if (v300==(0 + 0)) then v232.Parent=v102;return;end end end end end end local function v44() local v105=0 + 0 ;local v106;while true do if (v105==(337 -(10 + 327))) then v106={};for v301,v302 in ipairs(v4:GetPlayers()) do table.insert(v106,v302.Name);end v105=1 + 0 ;end if (v105==(339 -(118 + 220))) then table.sort(v106,function(v303,v304) return v303:lower()<v304:lower() ;end);return v106;end end end local function v45() local v107=0 + 0 ;local v108;while true do if (v107==(449 -(108 + 341))) then v108=v6.Character or v6.CharacterAdded:Wait() ;return v108:WaitForChild("HumanoidRootPart");end end end local function v46() local v109=0;while true do if (v109==0) then if v33 then return;end v33=true;v109=1 + 0 ;end if ((4 -3)==v109) then task.spawn(function() local v305=1493 -(711 + 782) ;while true do if (v305==(0 -0)) then while v18 do v43();task.wait(0.1);end v33=false;break;end end end);break;end end end local v47=false;local v48={};local function v49() for v170,v171 in ipairs(v7) do local v172=v8:FindFirstChild(v171);if v172 then local v278=469 -(270 + 199) ;local v279;while true do if (0==v278) then v279=v172:FindFirstChild("events");if v279 then local v506=0;local v507;while true do if (v506==(0 + 0)) then v507=v279:FindFirstChild("castAsync");if (v507 and v507:IsA("RemoteFunction")) then local v595=0;while true do if (v595==0) then v48[v171]=v507.InvokeServer;v507.InvokeServer=function(v627,...) local v628=1819 -(580 + 1239) ;local v629;while true do if (v628==0) then v629={...};if v16 then if ( #v629>=2) then local v676=0 + 0 ;while true do if ((0 + 0)==v676) then v629[1]=math.random(5 + 5 ,143 -88 );v629[2]=true;break;end end end end v628=1;end if ((1 + 0)==v628) then return v48[v171](v627,unpack(v629));end end end;break;end end end break;end end end break;end end end end end local function v50() local v110=0;while true do if (v110==(1167 -(645 + 522))) then if v47 then return;end v47=true;v110=1791 -(1010 + 780) ;end if (v110==(1 + 0)) then task.spawn(function() local v306=0 -0 ;while true do if (v306==(0 -0)) then while v16 do local v508=0;local v509;local v510;local v511;while true do if (v508==1) then v510=v509:FindFirstChild("Humanoid");if  not v510 then task.wait();continue;end v508=1838 -(1045 + 791) ;end if ((0 -0)==v508) then v509=v6.Character;if  not v509 then local v596=0 -0 ;while true do if (v596==(505 -(351 + 154))) then task.wait();continue;break;end end end v508=1;end if ((1576 -(1281 + 293))==v508) then v511=nil;for v578,v579 in ipairs(v509:GetChildren()) do if (v579:IsA("Tool") and table.find(v7,v579.Name)) then v511=v579;break;end end v508=3;end if ((269 -(28 + 238))==v508) then if v511 then local v597=0 -0 ;local v598;local v599;local v600;while true do if (v597==2) then if v48[v511.Name] then pcall(function() v48[v511.Name](v511.events.castAsync,math.random(1569 -(1381 + 178) ,52 + 3 ),true);end);else local v641=0;local v642;while true do if (v641==(0 + 0)) then v642=v511:FindFirstChild("events") and v511.events:FindFirstChild("castAsync") ;if v642 then pcall(function() v642:InvokeServer(math.random(5 + 5 ,189 -134 ),true);end);end break;end end end v600=v510:LoadAnimation(v37);v597=2 + 1 ;end if (v597==(470 -(381 + 89))) then v598=v511:FindFirstChild("bobber");if v598 then local v643=0 + 0 ;while true do if (v643==0) then task.wait();continue;break;end end end v597=1 + 0 ;end if (v597==(4 -1)) then v600:Play();break;end if (v597==(1157 -(1074 + 82))) then v599=v510:LoadAnimation(v38);v599:Play();v597=3 -1 ;end end end task.wait();break;end end end v47=false;break;end end end);break;end end end local v51=false;local function v52() local v111=1784 -(214 + 1570) ;local v112;local v113;while true do if (v111==(1455 -(990 + 465))) then v112,v113=pcall(function() local v307=0 + 0 ;local v308;local v309;local v310;local v311;local v312;while true do if (v307==1) then if  not v309 then return nil;end v310=v309:FindFirstChild("bar");if  not v310 then return nil;end v307=1 + 1 ;end if (v307==3) then if  not v312 then return nil;end if (v312.Size and v312.Size.X and (type(v312.Size.X.Scale)=="number")) then return v312.Size.X.Scale;end return nil;end if (v307==(0 + 0)) then v308=v6:FindFirstChild("PlayerGui");if  not v308 then return nil;end v309=v308:FindFirstChild("reel");v307=1;end if (v307==(7 -5)) then v311=v310:FindFirstChild("progress");if  not v311 then return nil;end v312=v311:FindFirstChild("bar");v307=1729 -(1668 + 58) ;end end end);if v112 then return v113;else return nil;end break;end end end local function v53() local v114=626 -(512 + 114) ;local v115;local v116;while true do if (v114==(2 -1)) then if (v116 and v116:IsA("RemoteEvent")) then if hookfunction then local v480=0 -0 ;local v481;while true do if (v480==(0 -0)) then v481=v116.FireServer;hookfunction(v116.FireServer,function(v553,...) local v554=0 + 0 ;local v555;while true do if (v554==(0 + 0)) then v555={...};if v17 then if (v24=="Instant(Risk Ban)") then if ( #v555>=2) then local v655=0 -0 ;while true do if (v655==0) then v555[1995 -(109 + 1885) ]=100;if (v19=="Perfect") then v555[1471 -(1269 + 200) ]=true;elseif (v19=="Random") then v555[2]=math.random(0 -0 ,1)==1 ;else v555[817 -(98 + 717) ]=true;end break;end end end elseif ((v24=="80% legit") or (v24=="Legit(Safe to Use)")) then if ( #v555>=(828 -(802 + 24))) then if (v19=="Perfect") then v555[2 -0 ]=true;elseif (v19=="Random") then v555[2 -0 ]=math.random(0 + 0 ,1 + 0 )==(1 + 0) ;end end end end v554=1;end if ((1 + 0)==v554) then return v481(v553,unpack(v555));end end end);break;end end else local v482=0;local v483;while true do if (v482==0) then v483=v116.FireServer;v116.FireServer=function(v556,...) local v557=0;local v558;while true do if (v557==(2 -1)) then return v483(v556,unpack(v558));end if (v557==(0 -0)) then v558={...};if v17 then if (v24=="Instant(Risk Ban)") then if ( #v558>=(1 + 1)) then local v656=0;while true do if (v656==(0 + 0)) then v558[1 + 0 ]=47 + 53 ;if (v19=="Perfect") then v558[1435 -(797 + 636) ]=true;elseif (v19=="Random") then v558[9 -7 ]=math.random(0,1620 -(1427 + 192) )==1 ;else v558[1 + 1 ]=true;end break;end end end elseif ((v24=="80% legit") or (v24=="Legit(Safe to Use)")) then if ( #v558>=(4 -2)) then if (v19=="Perfect") then v558[2 + 0 ]=true;elseif (v19=="Random") then v558[1 + 1 ]=math.random(326 -(192 + 134) ,1)==(1277 -(316 + 960)) ;end end end end v557=1 + 0 ;end end end;break;end end end end break;end if (v114==0) then v115=v1:WaitForChild("events");v116=v115:WaitForChild("reelfinished");v114=1 + 0 ;end end end local function v54() task.spawn(function() while v17 and ((v24=="Legit(Safe to Use)") or (v24=="80% legit"))  do local v233=0 + 0 ;local v234;while true do if (v233==(3 -2)) then task.wait();break;end if (v233==0) then v234=v6:FindFirstChild("PlayerGui");if v234 then local v484=551 -(83 + 468) ;local v485;while true do if (v484==0) then v485=v234:FindFirstChild("reel");if v485 then local v580=0;local v581;while true do if (v580==(1806 -(1202 + 604))) then v581=v485:FindFirstChild("bar");if v581 then local v630=0;local v631;local v632;while true do if (v630==0) then v631=v581:FindFirstChild("fish");v632=v581:FindFirstChild("playerbar");v630=4 -3 ;end if (v630==1) then if (v631 and v632 and v631:IsA("GuiObject") and v632:IsA("GuiObject")) then pcall(function() v632.Position=UDim2.new(v631.Position.X.Scale,0 -0 ,v632.Position.Y.Scale,0);end);end break;end end end break;end end end break;end end end v233=2 -1 ;end end end end);end local function v55() for v173,v174 in ipairs(v7) do local v175=325 -(45 + 280) ;local v176;while true do if (v175==0) then v176=v8:FindFirstChild(v174);if v176 then local v425=0;local v426;while true do if (v425==(0 + 0)) then v426=v176:FindFirstChild("events");if v426 then local v559=0;local v560;while true do if (v559==(0 + 0)) then v560=v426:FindFirstChild("reset");if (v560 and v560:IsA("RemoteEvent")) then if hookfunction then local v644=0;local v645;while true do if (v644==0) then v645=v560.FireServer;hookfunction(v560.FireServer,function(v666,...) local v667=v645(v666,...);if (v17 and ((v24=="Legit(Safe to Use)") or (v24=="80% legit"))) then task.spawn(function() local v684=0 + 0 ;local v685;local v686;while true do if (v684==(1 + 0)) then if v686 then local v703=v686:FindFirstChild("bar");local v704=v703 and v703:FindFirstChild("fish") ;local v705=v703 and v703:FindFirstChild("playerbar") ;if (v704 and v705 and v704:IsA("GuiObject") and v705:IsA("GuiObject")) then while v17 and v686 and v686.Parent  do local v707=0;while true do if (v707==0) then pcall(function() v705.Position=UDim2.new(v704.Position.X.Scale,0,v705.Position.Y.Scale,0);end);task.wait();break;end end end end end break;end if (v684==(0 + 0)) then v685=v6:FindFirstChild("PlayerGui");v686=v685 and v685:FindFirstChild("reel") ;v684=1;end end end);end return v667;end);break;end end end end break;end end end break;end end end break;end end end end local function v56() if v51 then return;end v51=true;task.spawn(function() local v177=0 -0 ;while true do if (v177==(1911 -(340 + 1571))) then while v17 do local v391=v6:FindFirstChild("PlayerGui");local v392=v391 and v391:FindFirstChild("reel") ;while v17 and v391 and  not v392  do v392=v391:FindFirstChild("reel");task.wait(0.1 + 0 );end if v392 then local v486=v6.Character;if v486 then for v544,v545 in ipairs(v7) do local v546=v486:FindFirstChild(v545);if v546 then while v17 and v392 and v392.Parent and (v546.Parent==v486)  do if ((v24=="Legit(Safe to Use)") or (v24=="80% legit")) then local v609=1772 -(1733 + 39) ;local v610;while true do if (v609==(0 -0)) then v610=v392:FindFirstChild("bar");if v610 then local v657=1034 -(125 + 909) ;local v658;local v659;while true do if (v657==0) then v658=v610:FindFirstChild("fish");v659=v610:FindFirstChild("playerbar");v657=1949 -(1096 + 852) ;end if (v657==(1 + 0)) then if (v658 and v659 and v658:IsA("GuiObject") and v659:IsA("GuiObject")) then pcall(function() v659.Position=UDim2.new(v658.Position.X.Scale,0 -0 ,v659.Position.Y.Scale,0 + 0 );end);end break;end end end break;end end end if (v24=="80% legit") then local v611=v52();if (v611 and (v611>=(512.8 -(409 + 103)))) then local v633=0;local v634;while true do if (v633==1) then pcall(function() v1.events.reelfinished:FireServer(100,v634);end);break;end if (v633==0) then v634=nil;if (v19=="Perfect") then v634=true;elseif (v19=="Random") then v634=math.random(0,237 -(46 + 190) )==1 ;else v634=true;end v633=1;end end end elseif (v24=="Instant(Risk Ban)") then local v635=0;local v636;while true do if ((96 -(51 + 44))==v635) then pcall(function() v1.events.reelfinished:FireServer(29 + 71 ,v636);end);break;end if (v635==0) then v636=nil;if (v19=="Perfect") then v636=true;elseif (v19=="Random") then v636=math.random(0,1)==(1318 -(1114 + 203)) ;else v636=true;end v635=727 -(228 + 498) ;end end end task.wait();end end end end end task.wait();end v51=false;break;end end end);end local function v57() local v117=0 + 0 ;local v118;local v119;while true do if (v117==(0 + 0)) then v118=v6:WaitForChild("PlayerGui");v119=v118:FindFirstChild("shakeui");v117=664 -(174 + 489) ;end if (v117==1) then if v119 then local v393=0;local v394;while true do if (v393==(0 -0)) then v394=v119:FindFirstChild("safezone");if v394 then local v547=v394:FindFirstChild("button");if v547 then local v582=1905 -(830 + 1075) ;local v583;while true do if (v582==0) then v583=v547:FindFirstChild("shake");if (v583 and v583:IsA("RemoteEvent")) then v41(v583,"FireServer",function(v646,...) local v647=524 -(303 + 221) ;while true do if (v647==0) then if (v34 and (v20=="Shake Fast(Not Safe)")) then for v679=1270 -(231 + 1038) ,3 do v40[v583].FireServer(v646,...);end return;end return v40[v583].FireServer(v646,...);end end end);end break;end end end end break;end end end break;end end end local v58=false;local function v59() local v120=0 + 0 ;while true do if (0==v120) then if v58 then return;end v58=true;v120=1163 -(171 + 991) ;end if (v120==(4 -3)) then task.spawn(function() while v34 do local v395=0 -0 ;while true do if (v395==(0 -0)) then if (v20=="Shake Fast(Not Safe)") then local v548=0 + 0 ;local v549;while true do if (v548==(6 -4)) then if v549 then pcall(function() v549:FireServer();end);end break;end if (v548==(2 -1)) then v549=v549 and v549:FindFirstChild("button") ;v549=v549 and v549:FindFirstChild("shake") ;v548=2 -0 ;end if (v548==(0 -0)) then v549=v6.PlayerGui:FindFirstChild("shakeui");v549=v549 and v549:FindFirstChild("safezone") ;v548=1;end end elseif (v20=="Shake Normal") then local v584=1248 -(111 + 1137) ;local v585;local v586;while true do if ((158 -(91 + 67))==v584) then v585=game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui");v586=v585:FindFirstChild("shakeui");v584=2 -1 ;end if (v584==(1 + 0)) then if (v586 and v586.Enabled) then local v637=0;local v638;while true do if (v637==(523 -(423 + 100))) then v638=v586:FindFirstChild("safezone");if v638 then local v668=0;local v669;while true do if (v668==(0 + 0)) then v669=v638:FindFirstChild("button");if (v669 and v669:IsA("ImageButton") and v669.Visible) then local v699=0;local v700;local v701;while true do if (v699==(7 -4)) then v701:SendKeyEvent(false,Enum.KeyCode.Return,false,game);break;end if (v699==0) then v700=game:GetService("GuiService");v701=game:GetService("VirtualInputManager");v699=1 + 0 ;end if (v699==(773 -(326 + 445))) then v701:SendKeyEvent(true,Enum.KeyCode.Return,false,game);task.wait();v699=3;end if (v699==(4 -3)) then v700.SelectedObject=v669;task.wait();v699=4 -2 ;end end end break;end end end break;end end end break;end end end task.wait(0.001 -0 );break;end end end v58=false;end);break;end end end local v60=false;local v61=nil;local function v62() local v121=0;local v122;local v123;while true do if (v121==0) then v122=v1:WaitForChild("events");v123=v122:WaitForChild("SellAll");v121=1;end if (v121==(712 -(530 + 181))) then if (v123 and v123:IsA("RemoteFunction")) then local v396=881 -(614 + 267) ;while true do if (v396==(32 -(19 + 13))) then v61=v123.InvokeServer;v123.InvokeServer=function(v536,...) local v537=0 -0 ;while true do if (v537==(0 -0)) then if v21 then return true;end return v61(v536,...);end end end;break;end end end break;end end end local function v63() if v60 then return;end v60=true;task.spawn(function() local v178=0;while true do if (v178==0) then while v21 do pcall(function() if v61 then v61(v1.events.SellAll);else v1.events.SellAll:InvokeServer();end end);task.wait(2 -1 );end v60=false;break;end end end);end local v64=false;local function v65() local v124=0 + 0 ;while true do if (0==v124) then if v64 then return;end v64=true;v124=1;end if (v124==(1 -0)) then task.spawn(function() while v16 do local v397=0 -0 ;local v398;while true do if (1==v397) then task.wait();break;end if (v397==(1812 -(1293 + 519))) then v398=v45();if (v398 and v14) then pcall(function() v398.CFrame=v14;end);end v397=1;end end end v64=false;end);break;end end end local function v66(v125) local v126=0;local v127;while true do if (v126==0) then v25=v125;v13.WalkOnWater=v125;v126=1 -0 ;end if (v126==(2 -1)) then v15();v127=workspace:WaitForChild("zones"):WaitForChild("fishing");v126=3 -1 ;end if (v126==(8 -6)) then for v313,v314 in ipairs(v127:GetDescendants()) do if v314:IsA("BasePart") then v314.CanCollide=v25;end end break;end end end local v64=false;local function v67() local v128=0 -0 ;while true do if ((0 + 0)==v128) then if v64 then return;end v64=true;v128=1 + 0 ;end if (v128==(2 -1)) then task.spawn(function() local v315=0 + 0 ;while true do if (v315==0) then while v22 do local v513=v45();local v514=v10:FindFirstChild(v23);if  not v514 then for v562,v563 in ipairs(v9) do if (v563.Name==v23) then v514={CFrame=CFrame.new(v563.Position)};break;end end end if (v513 and v514) then pcall(function() v513.CFrame=v514.CFrame + Vector3.new(0 + 0 ,4 + 1 ,1096 -(709 + 387) ) ;end);end task.wait();end v64=false;break;end end end);break;end end end local function v68() if (v3 and v3:IsA("RemoteEvent")) then local v235=1858 -(673 + 1185) ;local v236;while true do if (v235==0) then v236=v3.FireServer;if hookfunction then hookfunction(v3.FireServer,function(v515,v516,v517,...) local v518=0;while true do if (0==v518) then if (v35 and v517) then task.wait(0.1 -0 );end return v236(v515,v516,v517,...);end end end);else v3.FireServer=function(v519,v520,v521,...) local v522=0 -0 ;while true do if (0==v522) then if (v35 and v521) then task.wait(0.1 -0 );end return v236(v519,v520,v521,...);end end end;end break;end end end end local v69=nil;local function v70() while v35 do local v179=0;while true do if (0==v179) then pcall(function() for v428,v429 in pairs(v2:GetChildren()) do if ((v429.Name=="WaterPart") and v429:FindFirstChild("ZoneFish")) then local v523=0 + 0 ;local v524;while true do if (v523==(0 + 0)) then v524=v429.ZoneFish;for v587,v588 in pairs(v524:GetChildren()) do if (v588:IsA("Model") and v35) then local v604=0 -0 ;local v605;while true do if (v604==(0 + 0)) then v605=v588:GetAttribute("UID");if v605 then local v651=0 -0 ;while true do if (v651==(0 -0)) then v3:FireServer(v605);task.wait(1880.15 -(446 + 1434) );v651=1284 -(1040 + 243) ;end if (v651==1) then v3:FireServer(v605,true);task.wait(0.1 -0 );break;end end end break;end end end end break;end end end end end);task.wait(1847.5 -(559 + 1288) );break;end end end end local v71=false;local function v72() if hookfunction then local v237=1931 -(609 + 1322) ;local v238;while true do if (v237==0) then v238=nil;v238=hookfunction(Instance.new("Part").Destroy,function(v430,...) local v431=454 -(13 + 441) ;while true do if (v431==(0 -0)) then if (v36 and v430:IsA("GuiObject") and (v430.Name=="reel")) then if v430:FindFirstAncestorWhichIsA("ScreenGui") then local v601=0 -0 ;while true do if (v601==0) then v430.Visible=false;v430.Enabled=false;v601=4 -3 ;end if (v601==(1 + 0)) then return;end end end end return v238(v430,...);end end end);break;end end end end local function v73() if hookfunction then local v239=0 -0 ;local v240;while true do if (v239==(0 + 0)) then v240=nil;v240=hookfunction(Instance.new("Tool").SetParent,function(v432,v433,...) local v434=0 + 0 ;while true do if ((0 -0)==v434) then if (v36 and table.find(v7,v432.Name)) then return v240(v432,v433,...);end return v240(v432,v433,...);end end end);break;end end end end local function v74() for v180,v181 in ipairs(v7) do local v182=0;local v183;while true do if (v182==0) then v183=v8:FindFirstChild(v181);if v183 then local v435=0 + 0 ;local v436;while true do if ((0 -0)==v435) then v436=v183:FindFirstChild("events");if v436 then local v566=v436:FindFirstChild("reset");if (v566 and v566:IsA("RemoteEvent")) then if hookfunction then local v612=0;local v613;while true do if (v612==(0 + 0)) then v613=v566.FireServer;hookfunction(v566.FireServer,function(v652,...) if v36 then task.wait(0.1 + 0 );end return v613(v652,...);end);break;end end end end end break;end end end break;end end end end local function v75() local v129=0 + 0 ;while true do if (v129==1) then task.spawn(function() while v36 do local v400=0;local v401;while true do if ((0 + 0)==v400) then v401=v6:FindFirstChild("PlayerGui");if v401 then local v550=0;local v551;while true do if (0==v550) then v551=v401:FindFirstChild("reel");if v551 then local v614=0;local v615;while true do if (v614==(2 + 0)) then v615=v6.Character;if v615 then for v662,v663 in ipairs(v7) do local v664=v615:FindFirstChild(v663);if v664 then pcall(function() v664.Parent=v6.Backpack;end);break;end end end break;end if (v614==1) then task.wait(433.3 -(153 + 280) );pcall(function() v551:Destroy();end);v614=2;end if (v614==(0 -0)) then task.wait(0.3 + 0 );pcall(function() local v653=0 + 0 ;local v654;while true do if (v653==(0 + 0)) then v654=v6.Character;if v654 then for v687,v688 in ipairs(v7) do local v689=v654:FindFirstChild(v688);if v689 then local v702=v689:FindFirstChild("events"):FindFirstChild("reset");if v702 then v702:FireServer();end break;end end end break;end end end);v614=1;end end end break;end end end v400=1 + 0 ;end if (v400==(1 + 0)) then task.wait(0.3 -0 );break;end end end v71=false;end);break;end if (v129==(0 + 0)) then if v71 then return;end v71=true;v129=1;end end end local function v76() local v130,v131=pcall(function() if  not hookfunction then error("hookfunction not available");end v53();v55();v57();v68();end);if  not v130 then local v241=667 -(89 + 578) ;while true do if (v241==(1 + 0)) then pcall(v57);pcall(v68);break;end if (v241==(0 -0)) then pcall(v53);pcall(v55);v241=1050 -(572 + 477) ;end end end end local function v77() pcall(function() if hookfunction then local v281=0;while true do if (v281==1) then v74();break;end if (v281==(0 + 0)) then v72();v73();v281=1 + 0 ;end end end end);end local function v78() local v132=0 + 0 ;local v133;local v134;local v135;while true do if (v132==3) then table.insert(v133,"🕐 "   .. os.date("%H:%M:%S") );return table.concat(v133,"\n");end if (v132==2) then if (v134==(86 -(84 + 2))) then local v402=0 -0 ;while true do if (v402==(0 + 0)) then table.insert(v133,"❌ No rods found");table.insert(v133,"lure value: 100");break;end end else local v403=0;while true do if (v403==(842 -(497 + 345))) then table.insert(v133,"");table.insert(v133,"📊 Total: "   .. v134   .. "/"   ..  #v7 );break;end end end table.insert(v133,"");v132=1 + 2 ;end if (v132==(1 + 0)) then v135=workspace:FindFirstChild(v6.Name);if v135 then for v437,v438 in ipairs(v7) do local v439=0;local v440;while true do if (v439==(1333 -(605 + 728))) then v440=v135:FindFirstChild(v438);if (v440 and v440:FindFirstChild("values") and v440.values:FindFirstChild("lure")) then local v567=0 + 0 ;local v568;while true do if (v567==0) then v568=v440.values.lure.Value;if (v568~=100) then local v621=0 -0 ;while true do if (v621==(0 + 0)) then table.insert(v133,string.format("🎣 %-20s: %s",v438,tostring(v568)));v134=v134 + (3 -2) ;break;end end end break;end end end break;end end end else table.insert(v133,"❌ Player folder not found: "   .. v6.Name );end v132=2 + 0 ;end if (v132==0) then v133={"=== Lure Value ===",""};v134=0;v132=490 -(457 + 32) ;end end end local v79=loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))();local v80=v79:Window({Title="Cxsmic",Desc="Fisch Script by Cxsmic",Icon=105059922904599 -(832 + 570) ,Theme="Dark",Config={Keybind=Enum.KeyCode.LeftControl,Size=UDim2.new(0,472 + 28 ,0 + 0 ,1415 -1015 )},CloseUIButton={Enabled=true,Text="Cxsmic"}});local v81=v80:Tab({Title="Main",Icon="star"});do local v136=0;local v137;while true do if (v136==(0 + 0)) then v81:Section({Title="Fishing Features"});v81:Toggle({Title="Auto Cast",Desc="Automatically cast fishing rod",Value=v16,Callback=function(v316) local v317=796 -(588 + 208) ;while true do if (v317==0) then v16=v316;v13.AutoCast=v316;v317=2 -1 ;end if (v317==(1801 -(884 + 916))) then v15();if v316 then v50();v65();end break;end end end});v137=v81:Code({Title="🎣 Fishing Lure",Code=v78()});task.spawn(function() while true do task.wait(0.1 -0 );v137:SetCode(v78());end end);v136=1 + 0 ;end if (3==v136) then v81:Dropdown({Title="Reel Method",Desc="Select reel method",List={"Legit(Safe to Use)","Instant(Risk Ban)","80% legit"},Value=v24 or "Legit(Safe to Use)" ,Callback=function(v318) local v319=0;while true do if (v319==(1889 -(1569 + 320))) then v24=v318;v13.ReelMethod=v318;v319=1 + 0 ;end if (v319==(1 + 0)) then v15();if v17 then local v538=0;while true do if (v538==(0 -0)) then v51=false;v56();break;end end end break;end end end});v81:Dropdown({Title="Shake Method",Desc="Select shake method",List={"Shake Normal","Shake Fast(Not Safe)"},Value=v20 or "Shake Normal" ,Callback=function(v320) local v321=0;while true do if (v321==(1 + 0)) then v15();if v34 then local v539=1453 -(666 + 787) ;while true do if ((425 -(360 + 65))==v539) then v58=false;task.wait(0.1 + 0 );v539=255 -(79 + 175) ;end if (v539==1) then v59();break;end end end break;end if (v321==(0 -0)) then v20=v320;v13.ShakeMethod=v320;v321=1 + 0 ;end end end});v81:Button({Title="Save Position",Desc="Save current position",Callback=function() local v322=v45();if v322 then v14=v322.CFrame;local v442=v14.Position;local v443,v444,v443=v14:ToEulerAnglesXYZ();v13.SavedPosition={X=v442.X,Y=v442.Y,Z=v442.Z,Yaw=math.deg(v444)};v15();v80:Notify({Title="Position Saved",Desc="Save Position successfully!",Time=3});end end});v81:Button({Title="Reset Saved Position",Desc="Reset saved position data",Callback=function() local v323=0 -0 ;while true do if (v323==(0 -0)) then v14=nil;v13.SavedPosition=nil;v323=1;end if ((900 -(503 + 396))==v323) then v15();v80:Notify({Title="Position Reset",Desc="Reset successfully!",Time=3});break;end end end});break;end if (v136==(183 -(92 + 89))) then v81:Toggle({Title="Auto Shake",Desc="Automatically shake fish",Value=v34,Callback=function(v324) local v325=0 -0 ;while true do if (v325==(1 + 0)) then v15();if v324 then v59();end break;end if (v325==0) then v34=v324;v13.AutoShake=v324;v325=1 + 0 ;end end end});v81:Toggle({Title="Auto Sell",Desc="Automatically sell fish",Value=v21,Callback=function(v326) local v327=0;while true do if (v327==(0 -0)) then v21=v326;v13.AutoSell=v326;v327=1 + 0 ;end if (v327==1) then v15();if v326 then v63();end break;end end end});v81:Section({Title="Farm Settings"});v81:Dropdown({Title="Catch Method",Desc="Select catch method",List={"Perfect","Random(Does work with legit)"},Value=v19 or "Perfect" ,Callback=function(v328) local v329=0 + 0 ;while true do if (v329==(0 -0)) then v19=v328;v13.CatchMethod=v328;v329=1 + 0 ;end if ((1 -0)==v329) then v15();break;end end end});v136=1247 -(485 + 759) ;end if (v136==(2 -1)) then v81:Toggle({Title="Auto Spear (BANNABLE)",Desc="Automatically spear fish",Value=v35,Callback=function(v330) local v331=1189 -(442 + 747) ;while true do if (v331==0) then v35=v330;if v330 then v69=task.spawn(v70);elseif v69 then local v569=0;while true do if (v569==(1135 -(832 + 303))) then task.cancel(v69);v69=nil;break;end end end break;end end end});v81:Toggle({Title="Auto Reel",Desc="Automatically reel fish",Value=v17,Callback=function(v332) local v333=946 -(88 + 858) ;while true do if (v333==(0 + 0)) then v17=v332;v13.AutoReel=v332;v333=1 + 0 ;end if (v333==(1 + 0)) then v15();if v332 then v56();end break;end end end});v81:Toggle({Title="Instant Reel",Desc="Instant reel fish",Value=false,Callback=function(v334) local v335=789 -(766 + 23) ;while true do if (v335==(0 -0)) then v36=v334;if v334 then v75();end break;end end end});v81:Toggle({Title="Auto Equip Rod",Desc="Automatically equip fishing rod",Value=v18,Callback=function(v336) local v337=0 -0 ;while true do if (v337==(0 -0)) then v18=v336;v13.AutoEquipRod=v336;v337=1;end if ((3 -2)==v337) then v15();if v336 then v46();end break;end end end});v136=1075 -(1036 + 37) ;end end end v80:Line();local v82=v80:Tab({Title="Player",Icon="user"});do v82:Section({Title="Player Settings"});v82:Slider({Title="WalkSpeed",Desc="Set player walk speed",Min=36 + 14 ,Max=973 -473 ,Rounding=0 + 0 ,Value=1580 -(641 + 839) ,Callback=function(v184) v26=v184;end});v82:Slider({Title="JumpPower",Desc="Set player jump power",Min=50,Max=1413 -(910 + 3) ,Rounding=0 -0 ,Value=50,Callback=function(v185) v27=v185;end});v82:Toggle({Title="Change Player Stats",Desc="Enable to change walk speed and jump power",Value=v30,Callback=function(v186) v30=v186;end});v82:Toggle({Title="Noclip",Desc="Walk through walls",Value=v28,Callback=function(v187) v28=v187;end});local v138,v139;local v140=false;local v141=3;local v142=1687 -(1466 + 218) ;local v143="FlyVelocity";local v144="FlyGyro";local v145=game:GetService("Players");local v146=game:GetService("RunService");local function v147(v188) return v188:FindFirstChild("HumanoidRootPart") or v188:FindFirstChildWhichIsA("BasePart") ;end local function v148(v189) local v190=0 + 0 ;local v191;while true do if ((1149 -(556 + 592))==v190) then if v139 then v139:Disconnect();v139=nil;end v191=v189.Character;v190=1 + 1 ;end if (v190==2) then if v191 then local v446=0;local v447;local v448;while true do if (v446==(809 -(329 + 479))) then v448=v191:FindFirstChildWhichIsA("Humanoid");if v448 then v448.PlatformStand=false;end break;end if (v446==0) then v447=v147(v191);if v447 then local v571=854 -(174 + 680) ;local v572;local v573;while true do if (v571==(3 -2)) then if v572 then v572:Destroy();end if v573 then v573:Destroy();end break;end if (v571==(0 -0)) then v572=v447:FindFirstChild(v143);v573=v447:FindFirstChild(v144);v571=1 + 0 ;end end end v446=740 -(396 + 343) ;end end end break;end if (v190==(0 + 0)) then v140=false;if v138 then local v449=1477 -(29 + 1448) ;while true do if (v449==(1389 -(135 + 1254))) then v138:Disconnect();v138=nil;break;end end end v190=3 -2 ;end end end local function v149(v192,v193) v148(v192);v140=true;local v194=v192.Character or v192.CharacterAdded:Wait() ;local v195=v147(v194);local v196=workspace.CurrentCamera;local v197=Vector3.new();local v198=Vector3.new(8999999488 -0 ,9000001015 -(389 + 1138) ,8999999488);local v199=require(v192.PlayerScripts:WaitForChild("PlayerModule"):WaitForChild("ControlModule"));local v200=Instance.new("BodyVelocity");v200.Name=v143;v200.Parent=v195;v200.MaxForce=Vector3.new();v200.Velocity=v197;local v205=Instance.new("BodyGyro");v205.Name=v144;v205.Parent=v195;v205.MaxTorque=v198;v205.P=1574 -(102 + 472) ;v205.D=48 + 2 ;v138=v194:WaitForChild("HumanoidRootPart").AncestryChanged:Connect(function() if  not v194:IsDescendantOf(game) then v148(v192);end end);v139=v146.RenderStepped:Connect(function() v195=v147(v192.Character);v196=workspace.CurrentCamera;if  not v195 then return;end local v243=v192.Character:FindFirstChildWhichIsA("Humanoid");if  not v243 then return;end local v244=v195:FindFirstChild(v143);local v245=v195:FindFirstChild(v144);if ( not v244 or  not v245) then return;end if  not v193 then v243.PlatformStand=true;end v245.CFrame=v196.CoordinateFrame;v244.MaxForce=v198;local v249=v199:GetMoveVector();local v250=((v193 and v142) or v141) * (28 + 22) ;local v251=Vector3.new();v251=v251 + (v196.CFrame.RightVector * v249.X * v250) ;v251=v251-(v196.CFrame.LookVector * v249.Z * v250) ;v244.Velocity=v251;end);end v82:Toggle({Title="Fly",Desc="Enable flying mode",Value=false,Callback=function(v211) local v212=v145.LocalPlayer;if v211 then v149(v212,false);else v148(v212);end end});v82:Toggle({Title="Infinity Jump",Desc="Jump infinitely",Value=v29,Callback=function(v213) v29=v213;end});v82:Toggle({Title="Walk on Water",Desc="Walk on water surfaces",Value=v25,Callback=function(v214) v66(v214);end});v82:Toggle({Title="Disable Notifications",Desc="Hide game notifications",Value=false,Callback=function(v215) local v216=0 + 0 ;while true do if ((1545 -(320 + 1225))==v216) then disableNotifications=v215;if v215 then task.spawn(function() local v497=0 -0 ;local v498;local v499;while true do if (v497==(1 + 0)) then v499=v498:FindFirstChild("hud");if v499 then local v589=1464 -(157 + 1307) ;local v590;while true do if (v589==(1859 -(821 + 1038))) then v590=v499:FindFirstChild("safezone");if v590 then local v639=0;local v640;while true do if (v639==(0 -0)) then v640=v590:FindFirstChild("announcements");if v640 then v640.Visible=true;end break;end end end break;end end end break;end if (v497==0) then while disableNotifications do local v574=0 + 0 ;local v575;local v576;while true do if (v574==(1 -0)) then if v576 then local v622=0 + 0 ;local v623;while true do if (v622==(0 -0)) then v623=v576:FindFirstChild("safezone");if v623 then local v665=v623:FindFirstChild("announcements");if v665 then v665.Visible=false;end end break;end end end task.wait(1026.5 -(834 + 192) );break;end if (v574==(0 + 0)) then v575=v145.LocalPlayer:WaitForChild("PlayerGui");v576=v575:FindFirstChild("hud");v574=1 + 0 ;end end end v498=v145.LocalPlayer:WaitForChild("PlayerGui");v497=1 + 0 ;end end end);end break;end end end});v82:Button({Title="Vip Server",Desc="Join VIP server",Callback=function() local v217={};local v218={};local v219={};do do local v282={3614090360 -0 ,3905402710 -0 ,1056713436 -450607617 ,3250441966 -0 ,4118549270 -(441 + 430) ,1200081840 -(1001 + 413) ,2821736837 -(244 + 638) ,5614168596 -1364907283 ,1770035416,2336553481 -(512 + 90) ,4294927139 -(1665 + 241) ,2304563134 -0 ,1804603682,4254627274 -(296 + 783) ,2629478608 -  -163486398 ,1236536588 -(233 + 1026) ,4129170786,3225466825 -(817 + 344) ,43492618 + 600225095 ,3921069994,3593408605 -0 ,66484498 -28468415 ,3634489205 -(157 + 87) ,3889429448,568446438,3275163606,4107603654 -(134 + 185) ,1163531501,2850286514 -(314 + 371) ,4243563512,2474150564 -738822091 ,2368360530 -(478 + 490) ,4294588738,2272392833,2751141405 -912110843 ,4259657740,2763976576 -(1093 + 247) ,1272893353,4104705188 -  -34764476 ,3200236656 -0 ,681279174,3936430074,3572445317,292898354 -216869165 ,3654602809,3873153038 -(1561 + 16) ,530743240 -(166 + 554) ,3299628645,4432181670 -335845218 ,1126891415,2878612391,4237533241 -0 ,1700487081 -(840 + 670) ,4071443590 -1671462900 ,4293915773 -0 ,2240044497,1873313359,4264355552,2734769145 -(73 + 156) ,1309152460 -(721 + 90) ,5674887923 -1525443697 ,3174756917,1321425998 -602638739 ,3951481745};local function v283(v340,v341) local v342=0;local v343;local v344;while true do if (v342==0) then v343=bit32.band(v340,1560 + 63975 ) + bit32.band(v341,65535) ;v344=bit32.rshift(v340,12 + 4 ) + bit32.rshift(v341,31 -15 ) + bit32.rshift(v343,53 -37 ) ;v342=1;end if ((514 -(203 + 310))==v342) then return bit32.bor(bit32.lshift(v344,16),bit32.band(v343,67528 -(1238 + 755) ));end end end local function v284(v345,v346) return bit32.bor(bit32.lshift(v345,v346),bit32.rshift(v345,32 -v346 ));end local function v285(v347,v348,v349) return bit32.bor(bit32.band(v347,v348),bit32.band(bit32.bnot(v347),v349));end local function v286(v350,v351,v352) return bit32.bor(bit32.band(v350,v352),bit32.band(v351,bit32.bnot(v352)));end local function v287(v353,v354,v355) return bit32.bxor(v353,bit32.bxor(v354,v355));end local function v288(v356,v357,v358) return bit32.bxor(v357,bit32.bor(v356,bit32.bnot(v358)));end v217.sum=function(v359) local v360,v361,v362,v363=121043569 + 1611540624 ,4023234951 -(709 + 825) ,2562383102,500743442 -229009564 ;local v364= #v359;local v365=v359   .. "\128" ;while ( #v365%(93 -29))~=(920 -(196 + 668))  do v365=v365   .. "\0" ;end local v366="";local v367=v364 * (31 -23) ;for v404=0 -0 ,840 -(171 + 662)  do v366=v366   .. string.char(bit32.band(bit32.rshift(v367,v404 * (101 -(4 + 89)) ),893 -638 )) ;end v365=v365   .. v366 ;for v405=1 + 0 , #v365,281 -217  do local v406=v365:sub(v405,v405 + 25 + 38 );local v407={};for v450=1486 -(35 + 1451) ,1468 -(28 + 1425)  do local v451,v452,v453,v454=v406:byte((v450 * 4) + (1994 -(941 + 1052)) ,(v450 * (4 + 0)) + 4 );v407[v450]=bit32.bor(v451,bit32.lshift(v452,8),bit32.lshift(v453,16),bit32.lshift(v454,1538 -(822 + 692) ));end local v408,v409,v410,v411=v360,v361,v362,v363;local v412={7,12,24 -7 ,319 -(45 + 252) ,2 + 3 ,442 -(114 + 319) ,17 -3 ,13 + 7 ,5 -1 ,11,16,488 -(170 + 295) ,4 + 2 ,10 + 0 ,13 + 2 ,12 + 9 };for v456=0,63 do local v457=1230 -(957 + 273) ;local v458;local v459;local v460;local v461;local v462;while true do if ((1 + 0)==v457) then v461=v283(v360,v458);v461=v283(v461,v407[v459]);v457=2;end if (v457==(1 + 1)) then v461=v283(v461,v282[v456 + (3 -2) ]);v461=v284(v461,v412[v460 + (2 -1) ]);v457=9 -6 ;end if ((14 -11)==v457) then v462=v283(v361,v461);v360,v361,v362,v363=v363,v462,v361,v362;break;end if (v457==0) then v458,v459,v460=nil;if (v456<(1796 -(389 + 1391))) then local v577=0;while true do if (v577==(1 + 0)) then v460=v456%(1 + 3) ;break;end if (0==v577) then v458=v285(v361,v362,v363);v459=v456;v577=1;end end elseif (v456<(72 -40)) then local v602=951 -(783 + 168) ;while true do if (0==v602) then v458=v286(v361,v362,v363);v459=((3 -2) + ((5 + 0) * v456))%(327 -(309 + 2)) ;v602=2 -1 ;end if (v602==(1213 -(1090 + 122))) then v460=4 + (v456%(2 + 2)) ;break;end end elseif (v456<(161 -113)) then local v616=0;while true do if (v616==(1 + 0)) then v460=(1126 -(628 + 490)) + (v456%(1 + 3)) ;break;end if ((0 -0)==v616) then v458=v287(v361,v362,v363);v459=((22 -17) + (3 * v456))%(790 -(431 + 343)) ;v616=1 -0 ;end end else v458=v288(v361,v362,v363);v459=((19 -12) * v456)%16 ;v460=10 + 2 + (v456%4) ;end v457=1 + 0 ;end end end v360=v283(v360,v408);v361=v283(v361,v409);v362=v283(v362,v410);v363=v283(v363,v411);end local function v368(v413) local v414="";for v463=1695 -(556 + 1139) ,18 -(6 + 9)  do v414=v414   .. string.char(bit32.band(bit32.rshift(v413,v463 * 8 ),47 + 208 )) ;end return v414;end return v368(v360)   .. v368(v361)   .. v368(v362)   .. v368(v363) ;end;end do v218.new=function(v369,v370,v371) local v372=0 + 0 ;local v373;local v374;while true do if (v372==1) then v374="";for v525=170 -(28 + 141) ,64 do local v526=0;local v527;while true do if (v526==1) then v374=v374   .. string.char(bit32.bxor(v527,54)) ;break;end if (v526==(0 + 0)) then v527=((v525<= #v369) and string.byte(v369,v525)) or (0 -0) ;v373=v373   .. string.char(bit32.bxor(v527,92)) ;v526=1 + 0 ;end end end v372=1319 -(486 + 831) ;end if ((5 -3)==v372) then return v371(v373   .. v371(v374   .. v370 ) );end if (v372==0) then if ( #v369>(225 -161)) then v369=v371(v369);end v373="";v372=1 + 0 ;end end end;end do local v291=0 -0 ;local v292;while true do if ((1263 -(668 + 595))==v291) then v292="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";v219.encode=function(v500) return (v500:gsub(".",function(v528) local v529,v530="",v528:byte();for v540=8,1 + 0 , -(1 + 0) do v529=v529   .. (((((v530%(2^v540)) -(v530%((5 -3)^(v540-(291 -(23 + 267))))))>0) and "1") or "0") ;end return v529;end)   .. "0000"):gsub("%d%d%d?%d?%d?%d?",function(v531) local v532=0;local v533;while true do if (v532==(1944 -(1129 + 815))) then if ( #v531<(393 -(371 + 16))) then return "";end v533=1750 -(1326 + 424) ;v532=1 -0 ;end if (v532==(3 -2)) then for v591=119 -(88 + 30) ,6 do v533=v533 + (((v531:sub(v591,v591)=="1") and ((773 -(720 + 51))^((13 -7) -v591))) or 0) ;end return v292:sub(v533 + (1777 -(421 + 1355)) ,v533 + (1 -0) );end end end)   .. ({"","==","="})[( #v500%(10 -7)) + (1 -0) ] ;end;break;end end end end local function v220(v253) local v254=439 -(397 + 42) ;local v255;local v256;local v257;local v258;local v259;local v260;local v261;local v262;local v263;local v264;local v265;while true do if (v254==(2 + 2)) then v265=0;v264,_=v264:gsub("=",function() local v465=800 -(24 + 776) ;while true do if (0==v465) then v265=v265 + (1 -0) ;return "";end end end);v264=v264   .. tostring(v265) ;return v264,v257;end if (v254==2) then v259=v253;for v466=786 -(222 + 563) ,8 do local v467=0 -0 ;while true do if (v467==0) then v258=v258   .. string.char(v259%256 ) ;v259=math.floor(v259/(185 + 71) );break;end end end v260=v256   .. v258 ;v261="e4Yn8ckbCJtw2sv7qmbg";v254=193 -(23 + 167) ;end if (v254==(1798 -(690 + 1108))) then v255={};for v468=1,6 + 10  do v255[v468]=math.random(0 + 0 ,1103 -(40 + 808) );end v255[2 + 5 ]=bit32.bor(bit32.band(v255[26 -19 ],15 + 0 ),64);v255[5 + 4 ]=bit32.bor(bit32.band(v255[5 + 4 ],634 -(47 + 524) ),84 + 44 );v254=2 -1 ;end if (v254==(4 -1)) then v262=v218.new(v261,v260,v217.sum);v263=v262   .. v260 ;v264=v219.encode(v263);v264=v264:gsub("+","-"):gsub("/","_");v254=8 -4 ;end if (v254==(1727 -(1165 + 561))) then v256="";for v470=1 + 0 ,16 do v256=v256   .. string.char(v255[v470]) ;end v257=string.format("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",table.unpack(v255));v258="";v254=6 -4 ;end end end local v221,v222=v220(game.PlaceId);game.RobloxReplicatedStorage.ContactListIrisInviteTeleport:FireServer(game.PlaceId,"",v221);end});end local v83=false;local v84=nil;local v85={};local function v86() local v150=0 + 0 ;local v151;local v152;while true do if (v150==(479 -(341 + 138))) then v151=game:GetService("Lighting");v84={Brightness=v151.Brightness,ClockTime=v151.ClockTime,FogEnd=v151.FogEnd,GlobalShadows=v151.GlobalShadows,OutdoorAmbient=v151.OutdoorAmbient};v150=1 + 0 ;end if (v150==1) then v151.Brightness=3 -1 ;v151.ClockTime=340 -(89 + 237) ;v150=6 -4 ;end if ((6 -3)==v150) then v151.OutdoorAmbient=Color3.fromRGB(1009 -(581 + 300) ,1348 -(855 + 365) ,303 -175 );v152={"Brightness","ClockTime","FogEnd","GlobalShadows","OutdoorAmbient"};v150=4;end if (v150==(4 + 0)) then for v375,v376 in ipairs(v152) do local v377=0;while true do if (0==v377) then if v85[v376] then v85[v376]:Disconnect();end v85[v376]=v151:GetPropertyChangedSignal(v376):Connect(function() if v83 then if (v376=="Brightness") then v151.Brightness=288 -(156 + 130) ;elseif (v376=="ClockTime") then v151.ClockTime=14;elseif (v376=="FogEnd") then v151.FogEnd=100000;elseif (v376=="GlobalShadows") then v151.GlobalShadows=false;elseif (v376=="OutdoorAmbient") then v151.OutdoorAmbient=Color3.fromRGB(290 -162 ,128,215 -87 );end end end);break;end end end break;end if ((3 -1)==v150) then v151.FogEnd=26351 + 73649 ;v151.GlobalShadows=false;v150=2 + 1 ;end end end local function v87() local v153=game:GetService("Lighting");for v223,v224 in pairs(v85) do if v224 then local v298=69 -(10 + 59) ;while true do if (v298==(0 + 0)) then v224:Disconnect();v85[v223]=nil;break;end end end end if v84 then v153.Brightness=v84.Brightness;v153.ClockTime=v84.ClockTime;v153.FogEnd=v84.FogEnd;v153.GlobalShadows=v84.GlobalShadows;v153.OutdoorAmbient=v84.OutdoorAmbient;end end v82:Toggle({Title="Fullbright",Desc="",Default=false,Callback=function(v154) local v155=0 -0 ;while true do if (v155==(1163 -(671 + 492))) then v83=v154;if v154 then v86();else v87();end break;end end end});v80:Line();local v88=v80:Tab({Title="Islands",Icon="home"});do local v156=0;while true do if (v156==(1 + 0)) then v88:Toggle({Title="Teleport to Island",Desc="Automatically teleport to selected island",Value=v22,Callback=function(v378) local v379=1215 -(369 + 846) ;while true do if (v379==(1 + 0)) then v15();if v22 then v67();end break;end if (0==v379) then v22=v378;v13.TpToIsland=v378;v379=1 + 0 ;end end end});break;end if (v156==(1945 -(1036 + 909))) then v88:Section({Title="Teleport Settings"});v88:Dropdown({Title="Select Island",Desc="Choose island to teleport to",List=v11,Value=v23 or v11[1 + 0 ] ,Callback=function(v380) local v381=0;while true do if (v381==(1 -0)) then v15();break;end if ((203 -(11 + 192))==v381) then v23=v380;v13.SelectedIsland=v380;v381=1;end end end});v156=1 + 0 ;end end end v80:Notify({Title="Fisch Script",Desc="Script loaded successfully! Enjoy fishing!",Time=179 -(135 + 40) });task.spawn(function() while true do local v225=0;local v226;while true do if ((0 -0)==v225) then task.wait(0.1 + 0 );v226=v6.Character;v225=2 -1 ;end if (1==v225) then if v226 then local v472=0 -0 ;local v473;while true do if (v472==(176 -(50 + 126))) then v473=v226:FindFirstChildOfClass("Humanoid");if v473 then if v30 then local v603=0 -0 ;while true do if (v603==(0 + 0)) then v473.WalkSpeed=v26;v473.JumpPower=v27;break;end end end end v472=1414 -(1233 + 180) ;end if (v472==1) then if v28 then for v593,v594 in ipairs(v226:GetChildren()) do if v594:IsA("BasePart") then v594.CanCollide=false;end end end break;end end end break;end end end end);game:GetService("UserInputService").JumpRequest:Connect(function() if v29 then local v276=v6.Character;if v276 then local v383=v276:FindFirstChildOfClass("Humanoid");if v383 then v383:ChangeState(Enum.HumanoidStateType.Jumping);end end end end);if v16 then local v227=0;while true do if (v227==(969 -(522 + 447))) then v50();v65();break;end end end if v17 then v56();end if v34 then v59();end if v21 then v63();end if v22 then v67();end if v25 then v66(true);end if v18 then v46();end game:GetService("Players").PlayerRemoving:Connect(function(v157) if (v157==v6) then local v277=1421 -(107 + 1314) ;while true do if (v277==(0 + 0)) then for v474,v475 in pairs(v40) do for v504,v505 in pairs(v475) do if (v474 and v474[v504]) then v474[v504]=v505;end end end if instantBobberConnection then instantBobberConnection:Disconnect();end v277=1;end if (v277==(2 -1)) then if antiAFKConnection then antiAFKConnection:Disconnect();end if mobileFlyConnection1 then mobileFlyConnection1:Disconnect();end v277=1 + 1 ;end if (v277==2) then if mobileFlyConnection2 then mobileFlyConnection2:Disconnect();end break;end end end end);task.spawn(function() local v158=0 -0 ;while true do if (v158==(0 -0)) then task.wait(1913 -(716 + 1194) );v76();v158=1;end if (v158==(1 + 0)) then v77();break;end end end);print("Fisch Script loaded successfully!");
+local Window = Library:Window({
+    Title = "_mm3",
+    Desc = "mm3 hub",
+    Icon = 105059922903197,
+    Theme = "Dark",
+    Config = {
+        Keybind = Enum.KeyCode.LeftControl,
+        Size = UDim2.new(0, 500, 0, 400)
+    },
+    CloseUIButton = {
+        Enabled = true,
+        Text = "_mm3"
+    }
+})
+
+-- Variables
+local AR = false
+local AC = false
+local AS = false
+local TP = false
+local autoEquipRodEnabled = false
+local LCT = 0
+local LRT = 0
+local CI = 0.5
+local RI = 2
+local SI = 0.1
+local casting = false
+local teleporting = false
+local autoshake_running = false
+local autoEquipRod_running = false
+local autoreel_running = false
+
+-- Saved Position
+local savedCFrame = nil
+
+-- Services
+local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local LocalPlayer = player
+local PlayerGUI = player:WaitForChild("PlayerGui")
+
+-- Get all rod names
+local rodNames = {}
+local rodsFolder = ReplicatedStorage:WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods")
+for _, rod in ipairs(rodsFolder:GetChildren()) do
+    table.insert(rodNames, rod.Name)
+end
+
+-- Auto Equip Rod Functions
+local function EquipRods()
+    local char = player.Character
+    if not char then return end
+    
+    local backpack = player:FindFirstChild("Backpack")
+    if not backpack then return end
+
+    local hasRodInHand = false
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") and table.find(rodNames, tool.Name) then
+            hasRodInHand = true
+            break
+        end
+    end
+
+    if hasRodInHand then return end
+
+    for _, rodName in ipairs(rodNames) do
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == rodName then
+                tool.Parent = char
+                return
+            end
+        end
+    end
+end
+
+local function StartAutoEquipRod()
+    if autoEquipRod_running then return end
+    autoEquipRod_running = true
+    task.spawn(function()
+        while autoEquipRodEnabled do
+            EquipRods()
+            task.wait(.1)
+        end
+        autoEquipRod_running = false
+    end)
+end
+
+local selectedIsland = ""
+local teleportingToIsland = false
+local extraTPs = {
+    {Name = "Carrot Garden", Position = Vector3.new(3744, -1116, -1108)},
+    {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
+    {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
+    {Name = "Castaway Cliffs", Position = Vector3.new(655, 179, -1793)},
+    {Name = "Luminescent Cavern", Position = Vector3.new(-1016, -337, -4071)},
+    {Name = "Crimson Cavern", Position = Vector3.new(-1013, -340, -4891)},
+    {Name = "Oscar's Locker", Position = Vector3.new(266, -387, 3407)},
+    {Name = "The Boom Ball", Position = Vector3.new(-1296, -900, -3479)},
+    {Name = "Lost Jungle", Position = Vector3.new(-2690, 149, -2051)}
+}
+
+local function TeleportToIsland()
+    if not selectedIsland or selectedIsland == "" then
+        Window:Notify({
+            Title = "Error",
+            Desc = "กรุณาเลือกเกาะก่อน!",
+            Time = 3
+        })
+        return
+    end
+
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        Window:Notify({
+            Title = "Error",
+            Desc = "ไม่พบตัวละคร!",
+            Time = 3
+        })
+        return
+    end
+
+    local targetPosition = nil
+    for _, tp in ipairs(extraTPs) do
+        if tp.Name == selectedIsland then
+            targetPosition = tp.Position
+            break
+        end
+    end
+
+    if not targetPosition then
+        local success, tpFolder = pcall(function()
+            return workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
+        end)
+        if success and tpFolder then
+            local spot = tpFolder:FindFirstChild(selectedIsland)
+            if spot and spot:IsA("Part") then
+                targetPosition = spot.Position
+            end
+        end
+    end
+
+    if targetPosition then
+        character.HumanoidRootPart.CFrame = CFrame.new(targetPosition)
+        Window:Notify({
+            Title = "Teleported",
+            Desc = "วาปไปยัง " .. selectedIsland .. " แล้ว!",
+            Time = 3
+        })
+    else
+        Window:Notify({
+            Title = "Error",
+            Desc = "ไม่พบตำแหน่งเกาะ: " .. selectedIsland,
+            Time = 3
+        })
+    end
+end
+
+local function StartIslandTeleport()
+    if teleportingToIsland then return end
+    teleportingToIsland = true
+    
+    task.spawn(function()
+        while teleportingToIsland do
+            TeleportToIsland()
+            task.wait(2)
+        end
+    end)
+end
+
+local function LoadIslandList()
+    local tpNames = {}
+
+    local success, tpFolder = pcall(function()
+        return workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
+    end)
+    
+    if success and tpFolder then
+        for _, spot in ipairs(tpFolder:GetChildren()) do
+            table.insert(tpNames, spot.Name)
+        end
+    end
+
+    for _, tp in ipairs(extraTPs) do
+        table.insert(tpNames, tp.Name)
+    end
+
+    table.sort(tpNames, function(a, b) 
+        return a:lower() < b:lower() 
+    end)
+    
+    return tpNames
+end
+
+local hookEnabled = true
+local originalFireServer
+local originalInvokeServer
+
+local function setupHooks()
+    if not hookEnabled then return end
+    
+    if not originalFireServer then
+        originalFireServer = hookfunction(Instance.new("RemoteEvent").FireServer, function(self, ...)
+            local args = {...}
+            
+            if AR and self.Name == "reelfinished" then
+                if #args >= 2 then
+                    Window:Notify({
+                        Title = "Bypass Anti-Cheat!",
+                        Desc = "Auto Reel Bypass ทำงานแล้ว!",
+                        Time = 3
+                    })
+                    return originalFireServer(self, 100, true)
+                end
+            end
+            
+            return originalFireServer(self, ...)
+        end)
+    end
+    
+    if not originalInvokeServer then
+        originalInvokeServer = hookfunction(Instance.new("RemoteFunction").InvokeServer, function(self, ...)
+            local args = {...}
+            
+            if AC and self.Name == "castAsync" then
+                if #args >= 2 then
+                    Window:Notify({
+                        Title = "Bypass Anti-Cheat!",
+                        Desc = "Auto Cast Bypass ทำงานแล้ว!",
+                        Time = 3
+                    })
+                    return originalInvokeServer(self, 100, true)
+                end
+            end
+            
+            return originalInvokeServer(self, ...)
+        end)
+    end
+    
+    Window:Notify({
+        Title = "Anti-Cheat Bypass ทำงานแล้ว!",
+        Desc = "ระบบป้องกันถูกเปิดใช้งานสำเร็จ",
+        Time = 5
+    })
+end
+
+local function restoreHooks()
+    if originalFireServer then
+        hookfunction(Instance.new("RemoteEvent").FireServer, originalFireServer)
+        originalFireServer = nil
+    end
+    
+    if originalInvokeServer then
+        hookfunction(Instance.new("RemoteFunction").InvokeServer, originalInvokeServer)
+        originalInvokeServer = nil
+    end
+end
+
+setupHooks()
+
+local function HR()
+    local character = LocalPlayer.Character
+    if not character then return false end
+    
+    for _, rodName in ipairs(rodNames) do
+        if character:FindFirstChild(rodName) then
+            return true
+        end
+    end
+    return false
+end
+
+local function GR()
+    local character = LocalPlayer.Character
+    if not character then return nil end
+    
+    for _, rodName in ipairs(rodNames) do
+        local rod = character:FindFirstChild(rodName)
+        if rod then
+            return rod
+        end
+    end
+    return nil
+end
+
+local function HB()
+    local playerName = LocalPlayer.Name
+    local playerWorkspace = workspace:FindFirstChild(playerName)
+    if playerWorkspace then
+        for _, rodName in ipairs(rodNames) do
+            local rod = playerWorkspace:FindFirstChild(rodName)
+            if rod and rod:FindFirstChild("bobber") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function StartAutoReel()
+    if autoreel_running then return end
+    autoreel_running = true
+
+    task.spawn(function()
+        while AR do
+            local gui = player:FindFirstChild("PlayerGui")
+            local reel = gui and gui:FindFirstChild("reel")
+
+            while AR and gui and not reel do
+                reel = gui:FindFirstChild("reel")
+                task.wait(0.1)
+            end
+
+            if reel then
+                local char = player.Character
+                if char then
+                    for _, rodName in ipairs(rodNames) do
+                        local rod = char:FindFirstChild(rodName)
+                        if rod then
+                            while AR and reel and reel.Parent and rod.Parent == char do
+                                local bar = reel:FindFirstChild("bar")
+                                if bar then
+                                    local fish = bar:FindFirstChild("fish")
+                                    local playerbar = bar:FindFirstChild("playerbar")
+                                    
+                                    if fish and playerbar and fish:IsA("GuiObject") and playerbar:IsA("GuiObject") then
+                                        pcall(function()
+                                            playerbar.Position = UDim2.new(fish.Position.X.Scale, 0, playerbar.Position.Y.Scale, 0)
+                                        end)
+                                    end
+                                    
+                                    -- ทำให้หลอด progress ขยายเต็มทันที
+                                    local progress = bar:FindFirstChild("progress")
+                                    if progress then
+                                        local inner = progress:FindFirstChild("bar")
+                                        if inner and inner:IsA("Frame") then
+                                            pcall(function()
+                                                inner.Size = UDim2.new(1, 0, 1, 0)  -- ขยายเต็ม 100%
+                                            end)
+                                        end
+                                    end
+                                end
+                                
+                                task.wait()
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait()
+        end
+        autoreel_running = false
+    end)
+end
+
+-- Save current position
+local function SavePosition()
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        savedCFrame = character.HumanoidRootPart.CFrame
+        Window:Notify({
+            Title = "Position Saved",
+            Desc = "ตำแหน่งถูกบันทึกแล้ว!",
+            Time = 3
+        })
+    else
+        Window:Notify({
+            Title = "Error",
+            Desc = "ไม่พบตัวละคร!",
+            Time = 3
+        })
+    end
+end
+
+-- Teleport to saved position
+local function TeleportToSavedPosition()
+    if savedCFrame then
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            character.HumanoidRootPart.CFrame = savedCFrame
+            Window:Notify({
+                Title = "Teleported",
+                Desc = "วาปไปยังตำแหน่งที่บันทึกแล้ว!",
+                Time = 3
+            })
+        end
+    else
+        Window:Notify({
+            Title = "Error",
+            Desc = "ยังไม่ได้บันทึกตำแหน่ง!",
+            Time = 3
+        })
+    end
+end
+
+-- Auto Shake
+local function StartAutoShake()
+    if autoshake_running then return end
+    autoshake_running = true
+    task.spawn(function()
+        while AS do
+            local shakeUI = PlayerGUI:FindFirstChild("shakeui")
+            if shakeUI and shakeUI.Enabled then
+                local safezone = shakeUI:FindFirstChild("safezone")
+                if safezone then
+                    local button = safezone:FindFirstChild("button")
+                    if button and button:IsA("ImageButton") and button.Visible then
+                        GuiService.SelectedObject = button
+                        task.wait()
+                        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+                        task.wait()
+                        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                    end
+                end
+            end
+            task.wait(SI)
+        end
+        autoshake_running = false
+    end)
+end
+
+local castConn
+local function SAC()
+    if castConn then castConn:Disconnect() end
+    
+    castConn = RunService.Heartbeat:Connect(function()
+        if not AC then return end
+        
+        local currentTime = tick()
+        
+        if HR() and not HB() and not casting and (currentTime - LCT) >= CI then
+            casting = true
+            
+            pcall(function()
+                local currentRod = GR()
+                if currentRod and currentRod:FindFirstChild("events") then
+                    local castAsync = currentRod.events:FindFirstChild("castAsync")
+                    if castAsync then
+                        castAsync:InvokeServer(50, false)
+                    end
+                end
+            end)
+            
+            LCT = currentTime
+            
+            task.delay(0.1, function()
+                casting = false
+            end)
+        end
+    end)
+end
+
+local teleportConn
+local function SAT()
+    if teleportConn then teleportConn:Disconnect() end
+    
+    teleportConn = RunService.Heartbeat:Connect(function()
+        if not TP then return end
+        if not savedCFrame or teleporting then return end
+        
+        teleporting = true
+        
+        pcall(function()
+            TeleportToSavedPosition()
+        end)
+        
+        task.delay(1, function()
+            teleporting = false
+        end)
+    end)
+end
+
+local Tab = Window:Tab({Title = "Main", Icon = "star"})
+
+Tab:Section({Title = "Fishing"})
+
+Tab:Toggle({
+    Title = "Auto Reel",
+    Desc = "",
+    Value = false,
+    Callback = function(value)
+        AR = value
+        if value then
+            StartAutoReel()
+            Window:Notify({
+                Title = "Auto Reel [80% LEGIT]",
+                Desc = "Bypass Anti-Cheat ทำงานแล้ว!",
+                Time = 3
+            })
+        else
+            autoreel_running = false
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "Auto Cast",
+    Desc = "",
+    Value = false,
+    Callback = function(value)
+        AC = value
+        if value then
+            SAC()
+            LCT = tick()
+            Window:Notify({
+                Title = "Auto Casted",
+                Desc = "Bypass Anti-Cheat ทำงานแล้ว!",
+                Time = 3
+            })
+        else
+            if castConn then
+                castConn:Disconnect()
+                castConn = nil
+            end
+            casting = false
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "Auto Shake",
+    Desc = "",
+    Value = false,
+    Callback = function(value)
+        AS = value
+        if value then
+            StartAutoShake()
+            Window:Notify({
+                Title = "Auto Shaked",
+                Desc = "",
+                Time = 3
+            })
+        else
+            autoshake_running = false
+        end
+    end
+})
+
+Tab:Toggle({
+    Title = "Auto Equip Rod",
+    Desc = "Automatically equip fishing rod",
+    Value = false,
+    Callback = function(state)
+        autoEquipRodEnabled = state
+        if state then
+            StartAutoEquipRod()
+            Window:Notify({
+                Title = "Auto Equip Roded",
+                Desc = "",
+                Time = 3
+            })
+        else
+            autoEquipRod_running = false
+        end
+    end
+})
+
+Tab:Section({Title = "Teleport"})
+
+Tab:Button({
+    Title = "Save Position",
+    Desc = "",
+    Callback = SavePosition
+})
+
+Tab:Toggle({
+    Title = "Auto Teleport",
+    Desc = "",
+    Value = false,
+    Callback = function(value)
+        TP = value
+        if value then
+            if savedCFrame then
+                SAT()
+                Window:Notify({
+                    Title = "Auto Teleported!",
+                    Desc = "",
+                    Time = 3
+                })
+            else
+                Window:Notify({
+                    Title = "Error",
+                    Desc = "",
+                    Time = 3
+                })
+                TP = false
+            end
+        else
+            if teleportConn then
+                teleportConn:Disconnect()
+                teleportConn = nil
+            end
+            teleporting = false
+        end
+    end
+})
+
+Tab:Section({Title = "Settings"})
+
+Tab:Slider({
+    Title = "Cast Delay",
+    Desc = "",
+    Value = 0.5,
+    Min = 0.1,
+    Max = 5,
+    Callback = function(value)
+        CI = value
+    end
+})
+
+Tab:Slider({
+    Title = "Shake Delay",
+    Desc = "",
+    Value = 0.1,
+    Min = 0.1,
+    Max = 1,
+    Callback = function(value)
+        SI = value
+    end
+})
+
+local TPTab = Window:Tab({Title = "Teleport", Icon = "map-pin"})
+
+TPTab:Section({Title = "Island Teleport"})
+
+local islandList = LoadIslandList()
+TPTab:Dropdown({
+    Title = "Select Island",
+    Desc = "เลือกเกาะที่ต้องการวาป",
+    List = islandList,
+    Value = islandList[1] or "",
+    Callback = function(value)
+        selectedIsland = value
+    end
+})
+
+TPTab:Button({
+    Title = "Teleport to Island",
+    Desc = "วาปไปยังเกาะที่เลือก",
+    Callback = function()
+        TeleportToIsland()
+    end
+})
+
+-- Cleanup function
+local function cleanup()
+    restoreHooks()
+    
+    if castConn then castConn:Disconnect() end
+    if teleportConn then teleportConn:Disconnect() end
+    autoshake_running = false
+    autoEquipRod_running = false
+    autoreel_running = false
+    teleportingToIsland = false
+end
+
+-- Auto cleanup when GUI is closed
+Window:OnClose(cleanup)
