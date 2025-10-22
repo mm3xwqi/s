@@ -252,8 +252,8 @@ local function setupHooks()
     end
     
     Window:Notify({
-        Title = "Anti-Cheat Bypass ทำงานแล้ว!",
-        Desc = "ระบบป้องกันถูกเปิดใช้งานสำเร็จ",
+        Title = "Anti-Cheat Bypass",
+        Desc = "",
         Time = 5
     })
 end
@@ -368,7 +368,7 @@ local function StartAutoReel()
                                     end
                                 end
                                 local prog = GetProgressBarScale()
-                                if prog and prog >= 0.80 then
+                                if prog and prog >= 0.45 then
                                     pcall(function()
                                         local events = ReplicatedStorage:FindFirstChild("events")
                                         if events then
