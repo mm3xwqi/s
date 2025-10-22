@@ -1,4 +1,3 @@
-
 local Library
 local success, errorMsg = pcall(function()
     Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
@@ -144,10 +143,14 @@ local function TeleportToIsland()
     end
 
     if not targetPosition then
-        local tpFolder = workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
-        local spot = tpFolder:FindFirstChild(selectedIsland)
-        if spot and spot:IsA("Part") then
-            targetPosition = spot.Position
+        local success, tpFolder = pcall(function()
+            return workspace:WaitForChild("world"):WaitForChild("spawns"):WaitForChild("TpSpots")
+        end)
+        if success and tpFolder then
+            local spot = tpFolder:FindFirstChild(selectedIsland)
+            if spot and spot:IsA("Part") then
+                targetPosition = spot.Position
+            end
         end
     end
 
@@ -293,20 +296,27 @@ local function HB()
 end
 
 local function GetProgressBarScale()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local reel = playerGui:FindFirstChild("reel")
-        if reel then
-            local bar = reel:FindFirstChild("bar")
-            if bar then
-                local fish = bar:FindFirstChild("fish")
-                if fish and fish:IsA("GuiObject") then
-                    return fish.Position.X.Scale
-                end
-            end
+    local ok, result = pcall(function()
+        local gui = player:FindFirstChild("PlayerGui")
+        if not gui then return nil end
+        local reel = gui:FindFirstChild("reel")
+        if not reel then return nil end
+        local bar = reel:FindFirstChild("bar")
+        if not bar then return nil end
+        local progress = bar:FindFirstChild("progress")
+        if not progress then return nil end
+        local inner = progress:FindFirstChild("bar")
+        if not inner then return nil end
+        if inner.Size and inner.Size.X and type(inner.Size.X.Scale) == "number" then
+            return inner.Size.X.Scale
         end
+        return nil
+    end)
+    if ok then
+        return result
+    else
+        return nil
     end
-    return 0
 end
 
 local function StartAutoReel()
@@ -341,7 +351,6 @@ local function StartAutoReel()
                                         end)
                                     end
                                 end
-
                                 local prog = GetProgressBarScale()
                                 if prog and prog >= 0.80 then
                                     pcall(function()
@@ -459,7 +468,7 @@ local function SAC()
             
             task.delay(0.1, function()
                 casting = false
-            end)
+            end
         end
     end)
 end
@@ -653,74 +662,6 @@ TPTab:Button({
     Desc = "วาปไปยังเกาะที่เลือก",
     Callback = function()
         TeleportToIsland()
-    end
-})
-
-TPTab:Toggle({
-    Title = "Auto Teleport to Island",
-    Desc = "วาปไปเกาะอัตโนมัติทุก 2 วินาที",
-    Value = false,
-    Callback = function(value)
-        teleportingToIsland = value
-        if value then
-            if selectedIsland and selectedIsland ~= "" then
-                StartIslandTeleport()
-                Window:Notify({
-                    Title = "Auto Island Teleport",
-                    Desc = "เปิดใช้งานวาปไป " .. selectedIsland .. " อัตโนมัติ!",
-                    Time = 3
-                })
-            else
-                Window:Notify({
-                    Title = "Error",
-                    Desc = "กรุณาเลือกเกาะก่อน!",
-                    Time = 3
-                })
-                teleportingToIsland = false
-            end
-        else
-            teleportingToIsland = false
-        end
-    end
-})
-
-TPTab:Section({Title = "Position Teleport"})
-
-TPTab:Button({
-    Title = "Save Position",
-    Desc = "",
-    Callback = SavePosition
-})
-
-TPTab:Toggle({
-    Title = "Auto Teleport to Saved Position",
-    Desc = "",
-    Value = false,
-    Callback = function(value)
-        TP = value
-        if value then
-            if savedCFrame then
-                SAT()
-                Window:Notify({
-                    Title = "Auto Teleport",
-                    Desc = "",
-                    Time = 3
-                })
-            else
-                Window:Notify({
-                    Title = "Error",
-                    Desc = "กรุณาบันทึกตำแหน่งก่อน!",
-                    Time = 3
-                })
-                TP = false
-            end
-        else
-            if teleportConn then
-                teleportConn:Disconnect()
-                teleportConn = nil
-            end
-            teleporting = false
-        end
     end
 })
 
