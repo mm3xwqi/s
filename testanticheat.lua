@@ -337,10 +337,17 @@ local function GetProgress()
         local innerBar = progress:FindFirstChild("bar")
         if not innerBar then return nil end
 
-        if innerBar:IsA("Frame") and innerBar.Size then
-            local xScale = innerBar.Size.X.Scale
-            if type(xScale) == "number" then
-                return xScale
+        if innerBar:IsA("Frame") then
+            local parent = innerBar.Parent
+            if parent and parent:IsA("Frame") then
+                local innerWidth = innerBar.AbsoluteSize.X
+                local parentWidth = parent.AbsoluteSize.X
+                
+                if parentWidth > 0 then
+                    local progressPercent = innerWidth / parentWidth
+                    print("Progress: " .. math.floor(progressPercent * 100) .. "% (" .. innerWidth .. "/" .. parentWidth .. ")")
+                    return progressPercent
+                end
             end
         end
         
@@ -397,14 +404,10 @@ local function StartAutoReel()
                                             if reelFinish then
                                                 local isPerfect = perfectCatch
                                                 reelFinish:FireServer(100, isPerfect)
-                                                print("Auto Reel: Progress = " .. progress .. ", Perfect = " .. tostring(isPerfect))
+                                                print("AUTO REEL: Progress = " .. math.floor(progress * 100) .. "%, Perfect = " .. tostring(isPerfect))
                                             end
                                         end
                                     end)
-                                else
-                                    if progress then
-                                        print("Auto Reel: Waiting - Progress = " .. progress)
-                                    end
                                 end
                                 
                                 task.wait(0.05)
