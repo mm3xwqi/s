@@ -41,7 +41,7 @@ local autoSell = false
 local autoTeleport = false
 local perfectCatch = false
 local perfectCast = false
-local targetReelProgress = 0.45 -- ค่าเริ่มต้น 45%
+local targetReelProgress = 45 -- 0-100
 
 local castDelay = 0.5
 local shakeDelay = 0.1
@@ -322,52 +322,44 @@ local function HasBobber()
     return false
 end
 
+-- ฟังก์ชันตรวจสอบ progress ที่แก้ไขแล้ว
 local function GetProgress()
     local ok, result = pcall(function()
         local gui = player:FindFirstChild("PlayerGui")
         if not gui then return nil end
+        
         local reel = gui:FindFirstChild("reel")
         if not reel then return nil end
+        
         local bar = reel:FindFirstChild("bar")
         if not bar then return nil end
+        
         local progress = bar:FindFirstChild("progress")
         if not progress then return nil end
+        
         local inner = progress:FindFirstChild("bar")
         if not inner then return nil end
         
-        -- ตรวจสอบค่าจริงทั้งหมด
+        -- ใช้ Scale.X ซึ่งเป็นค่าที่ถูกต้อง (0-1)
         local scaleX = inner.Size.X.Scale
-        local offsetX = inner.Size.X.Offset
-        local absoluteX = inner.AbsoluteSize.X
+        local progressPercent = scaleX * 100
         
-        print(string.format("DEBUG - Scale: %.2f, Offset: %d, Absolute: %d", scaleX, offsetX, absoluteX))
+        print(string.format("DEBUG - Scale: %.2f, Progress: %.1f%%", scaleX, progressPercent))
         
-        -- ลองใช้ AbsoluteSize แทน
-        local parent = inner.Parent
-        if parent and parent:IsA("Frame") then
-            local parentWidth = parent.AbsoluteSize.X
-            local innerWidth = inner.AbsoluteSize.X
-            
-            if parentWidth > 0 then
-                local progressPercent = (innerWidth / parentWidth) * 100
-                print(string.format("DEBUG - Progress: %.1f%% (%d/%d)", progressPercent, innerWidth, parentWidth))
-                return progressPercent
-            end
-        end
-        
-        return nil
+        return progressPercent
     end)
     
     if ok then
         return result
     else
+        print("ERROR - GetProgress failed:", result)
         return nil
     end
 end
 
 -- ฟังก์ชันตั้งค่าเป้าหมาย progress
 local function SetTargetReelProgress(value)
-    targetReelProgress = value -- เก็บเป็น 0-100 โดยตรง
+    targetReelProgress = value
     Window:Notify({
         Title = "Progress Target Set",
         Desc = "Will reel at " .. value .. "% progress",
@@ -379,82 +371,50 @@ end
 local function CheckCurrentProgress()
     local progress = GetProgress()
     if progress then
-        local currentPercent = math.floor(progress * 100)
-        local targetPercent = math.floor(targetReelProgress * 100)
         Window:Notify({
             Title = "Progress Info",
-            Desc = "Current: " .. currentPercent .. "% | Target: " .. targetPercent .. "%",
+            Desc = "Current: " .. string.format("%.1f", progress) .. "% | Target: " .. targetReelProgress .. "%",
             Time = 5
         })
     else
         Window:Notify({
             Title = "No Progress Bar",
-            Desc = "Progress bar not available",
+            Desc = "Progress bar not found or fishing not active",
             Time = 3
         })
     end
 end
 
--- Auto reel system
+-- Auto reel system ที่แก้ไขแล้ว
 local function StartAutoReel()
     if reelRunning then return end
     reelRunning = true
 
     task.spawn(function()
         while autoReel do
-            local gui = player:FindFirstChild("PlayerGui")
-            local reel = gui and gui:FindFirstChild("reel")
-
-            while autoReel and gui and not reel do
-                reel = gui:FindFirstChild("reel")
-                task.wait(0.1)
-            end
-
-            if reel then
-                local character = player.Character
-                if character then
-                    for _, rodName in ipairs(rodNames) do
-                        local rod = character:FindFirstChild(rodName)
-                        if rod then
-                            while autoReel and reel and reel.Parent and rod.Parent == character do
-                                local bar = reel:FindFirstChild("bar")
-                                if bar then
-                                    local fish = bar:FindFirstChild("fish")
-                                    local playerBar = bar:FindFirstChild("playerbar")
-                                    
-                                    if fish and playerBar and fish:IsA("GuiObject") and playerBar:IsA("GuiObject") then
-                                        pcall(function()
-                                            playerBar.Position = UDim2.new(fish.Position.X.Scale, 0, playerBar.Position.Y.Scale, 0)
-                                        end)
-                                    end
-                                end
-                                
-                                -- ตรวจสอบ progress
-                                local currentProgress = GetProgress()
-                                if currentProgress and currentProgress >= targetReelProgress then
-                                    pcall(function()
-                                        local events = ReplicatedStorage:FindFirstChild("events")
-                                        if events then
-                                            local reelFinish = events:FindFirstChild("reelfinished")
-                                            if reelFinish then
-                                                local isPerfect = perfectCatch
-                                                reelFinish:FireServer(100, isPerfect)
-                                                print("🎣 Reeling at " .. currentProgress .. "% (Target: " .. targetReelProgress .. "%)")
-                                            end
-                                        end
-                                    end)
-                                else
-                                    if currentProgress then
-                                        print("⏳ Waiting: " .. currentProgress .. "% / " .. targetReelProgress .. "%")
-                                    end
-                                end
-                                
-                                task.wait(0.1)
-                            end
+            local progress = GetProgress()
+            
+            if progress and progress >= targetReelProgress then
+                pcall(function()
+                    local events = ReplicatedStorage:FindFirstChild("events")
+                    if events then
+                        local reelFinish = events:FindFirstChild("reelfinished")
+                        if reelFinish then
+                            local isPerfect = perfectCatch
+                            reelFinish:FireServer(100, isPerfect)
+                            print("🎣 Reeling at " .. string.format("%.1f", progress) .. "% (Target: " .. targetReelProgress .. "%)")
+                            
+                            -- รอสักครู่หลัง reel
+                            task.wait(1)
                         end
                     end
+                end)
+            else
+                if progress then
+                    print("⏳ Waiting: " .. string.format("%.1f", progress) .. "% / " .. targetReelProgress .. "%")
                 end
             end
+            
             task.wait(0.1)
         end
         reelRunning = false
@@ -679,7 +639,7 @@ MainTab:Section({Title = "Reel Settings"})
 MainTab:Slider({
     Title = "Reel At Progress",
     Desc = "Auto reel when progress reaches this %",
-    Value = 45, -- ค่าเริ่มต้น 45%
+    Value = 45,
     Min = 1,
     Max = 100,
     Callback = function(value)
