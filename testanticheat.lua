@@ -41,8 +41,8 @@ local autoSell = false
 local autoTeleport = false
 local perfectCatch = false
 local perfectCast = false
-local targetReelProgress = 45 -- 0-100
-local followFishBar = true -- ตัวแปรใหม่สำหรับติดตาม fish bar
+local targetReelProgress = 30
+local Safe = true
 
 local castDelay = 0.5
 local shakeDelay = 0.1
@@ -340,8 +340,7 @@ local function GetProgress()
         
         local inner = progress:FindFirstChild("bar")
         if not inner then return nil end
-        
-        -- ใช้ Scale.X ซึ่งเป็นค่าที่ถูกต้อง (0-1)
+
         local scaleX = inner.Size.X.Scale
         local progressPercent = scaleX * 100
         
@@ -359,7 +358,7 @@ local function GetProgress()
 end
 
 -- ฟังก์ชันติดตาม fish bar
-local function FollowFishBar()
+local function Safe()
     local ok, result = pcall(function()
         local gui = player:FindFirstChild("PlayerGui")
         if not gui then return false end
@@ -374,7 +373,6 @@ local function FollowFishBar()
         local playerBar = bar:FindFirstChild("playerbar")
         
         if fish and playerBar and fish:IsA("GuiObject") and playerBar:IsA("GuiObject") then
-            -- คัดลอกตำแหน่งจาก fish ไปยัง playerbar
             playerBar.Position = UDim2.new(fish.Position.X.Scale, 0, playerBar.Position.Y.Scale, 0)
             return true
         end
@@ -390,7 +388,6 @@ local function FollowFishBar()
     return result
 end
 
--- ฟังก์ชันตั้งค่าเป้าหมาย progress
 local function SetTargetReelProgress(value)
     targetReelProgress = value
     Window:Notify({
@@ -400,34 +397,14 @@ local function SetTargetReelProgress(value)
     })
 end
 
--- ฟังก์ชันตรวจสอบ progress ปัจจุบัน
-local function CheckCurrentProgress()
-    local progress = GetProgress()
-    if progress then
-        Window:Notify({
-            Title = "Progress Info",
-            Desc = "Current: " .. string.format("%.1f", progress) .. "% | Target: " .. targetReelProgress .. "%",
-            Time = 5
-        })
-    else
-        Window:Notify({
-            Title = "No Progress Bar",
-            Desc = "Progress bar not found or fishing not active",
-            Time = 3
-        })
-    end
-end
-
--- Auto reel system ที่แก้ไขแล้ว
 local function StartAutoReel()
     if reelRunning then return end
     reelRunning = true
 
     task.spawn(function()
         while autoReel do
-            -- ถ้าเปิดโหมดติดตาม fish bar
-            if followFishBar then
-                FollowFishBar()
+            if Safe then
+                Safe()
             end
             
             local progress = GetProgress()
@@ -441,8 +418,7 @@ local function StartAutoReel()
                             local isPerfect = perfectCatch
                             reelFinish:FireServer(100, isPerfect)
                             print("🎣 Reeling at " .. string.format("%.1f", progress) .. "% (Target: " .. targetReelProgress .. "%)")
-                            
-                            -- รอสักครู่หลัง reel
+
                             task.wait(1)
                         end
                     end
@@ -453,7 +429,7 @@ local function StartAutoReel()
                 end
             end
             
-            task.wait(0.05) -- ลด delay เพื่อการตอบสนองที่เร็วขึ้น
+            task.wait()
         end
         reelRunning = false
     end)
@@ -479,7 +455,6 @@ local function StartAutoCast()
                 if rod and rod:FindFirstChild("events") then
                     local castFunc = rod.events:FindFirstChild("castAsync")
                     if castFunc then
-                        -- ใช้ Perfect Cast ถ้าเปิดอยู่
                         local castValue = perfectCast and 100 or 50
                         castFunc:InvokeServer(castValue, perfectCast)
                     end
@@ -676,8 +651,8 @@ MainTab:Section({Title = "Reel Settings"})
 
 MainTab:Slider({
     Title = "Reel At Progress",
-    Desc = "Auto reel when progress reaches this %",
-    Value = 45,
+    Desc = "recommend 30% +",
+    Value = 30,
     Min = 1,
     Max = 100,
     Callback = function(value)
@@ -686,26 +661,15 @@ MainTab:Slider({
 })
 
 MainTab:Toggle({
-    Title = "Follow Fish Bar",
-    Desc = "Player bar follows fish bar automatically",
+    Title = "Safe",
+    Desc = "Bar follow fish",
     Value = true,
     Callback = function(value)
-        followFishBar = value
-        Window:Notify({
-            Title = "Follow Fish Bar",
-            Desc = value and "Enabled - Player bar will follow fish" or "Disabled - Manual control",
-            Time = 3
-        })
+        Safe = value
     end
 })
 
-MainTab:Button({
-    Title = "Check Progress",
-    Desc = "Show current progress bar value",
-    Callback = CheckCurrentProgress
-})
 
--- Perfect settings section
 MainTab:Section({Title = "Perfect Settings"})
 
 MainTab:Toggle({
