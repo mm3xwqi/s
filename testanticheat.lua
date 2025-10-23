@@ -9,7 +9,7 @@ end
 
 local Window = Library:Window({
     Title = "_mm3",
-    Desc = "mm3 Undetected",
+    Desc = "mm3 fishing hub",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -41,6 +41,7 @@ local autoSell = false
 local autoTeleport = false
 local perfectCatch = false
 local perfectCast = false
+local targetReelProgress = 0.45 -- ค่าเริ่มต้น 45%
 
 local castDelay = 0.5
 local shakeDelay = 0.1
@@ -66,13 +67,14 @@ end
 -- Island teleport locations
 local islandLocations = {
     {Name = "Carrot Garden", Position = Vector3.new(3744, -1116, -1108)},
+    {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
     {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
+    {Name = "Castaway Cliffs", Position = Vector3.new(655, 179, -1793)},
     {Name = "Luminescent Cavern", Position = Vector3.new(-1016, -337, -4071)},
     {Name = "Crimson Cavern", Position = Vector3.new(-1013, -340, -4891)},
     {Name = "Oscar's Locker", Position = Vector3.new(266, -387, 3407)},
     {Name = "The Boom Ball", Position = Vector3.new(-1296, -900, -3479)},
-    {Name = "Lost Jungle", Position = Vector3.new(-2690, 149, -2051)},
-    {Name = "XP Farm", Position = Vector3.new(1378, -604, 2339)}
+    {Name = "Lost Jungle", Position = Vector3.new(-2690, 149, -2051)}
 }
 
 -- Anti-cheat bypass system
@@ -320,9 +322,7 @@ local function HasBobber()
     return false
 end
 
-local targetProgress = 0.30
-
-local function GetProgressBarScale()
+local function GetProgress()
     local ok, result = pcall(function()
         local gui = player:FindFirstChild("PlayerGui")
         if not gui then return nil end
@@ -339,15 +339,40 @@ local function GetProgressBarScale()
         end
         return nil
     end)
-    
-    if ok and result then
-        print("Progress Scale: " .. result)
-        return result
+    return ok and result or nil
+end
+
+-- ฟังก์ชันตั้งค่าเป้าหมาย progress
+local function SetTargetReelProgress(value)
+    targetReelProgress = value / 100 -- แปลงจาก % เป็นทศนิยม
+    Window:Notify({
+        Title = "Progress Target Set",
+        Desc = "Will reel at " .. value .. "% progress",
+        Time = 3
+    })
+end
+
+-- ฟังก์ชันตรวจสอบ progress ปัจจุบัน
+local function CheckCurrentProgress()
+    local progress = GetProgress()
+    if progress then
+        local currentPercent = math.floor(progress * 100)
+        local targetPercent = math.floor(targetReelProgress * 100)
+        Window:Notify({
+            Title = "Progress Info",
+            Desc = "Current: " .. currentPercent .. "% | Target: " .. targetPercent .. "%",
+            Time = 5
+        })
     else
-        return nil
+        Window:Notify({
+            Title = "No Progress Bar",
+            Desc = "Progress bar not available",
+            Time = 3
+        })
     end
 end
 
+-- Auto reel system
 local function StartAutoReel()
     if reelRunning then return end
     reelRunning = true
@@ -362,7 +387,7 @@ local function StartAutoReel()
                 task.wait(0.1)
             end
 
-            if reel and reel:FindFirstChild("bar") then
+            if reel then
                 local character = player.Character
                 if character then
                     for _, rodName in ipairs(rodNames) do
@@ -380,9 +405,10 @@ local function StartAutoReel()
                                         end)
                                     end
                                 end
-
-                                local currentProgress = GetProgressBarScale()
-                                if currentProgress and currentProgress >= targetProgress then
+                                
+                                -- ใช้ targetReelProgress แทนค่า fixed
+                                local progress = GetProgress()
+                                if progress and progress >= targetReelProgress then
                                     pcall(function()
                                         local events = ReplicatedStorage:FindFirstChild("events")
                                         if events then
@@ -390,31 +416,22 @@ local function StartAutoReel()
                                             if reelFinish then
                                                 local isPerfect = perfectCatch
                                                 reelFinish:FireServer(100, isPerfect)
-                                                print("🎣 REELING! Progress: " .. currentProgress .. " (Target: " .. targetProgress .. ")")
+                                                print("🎣 Reeling at " .. math.floor(progress * 100) .. "% (Target: " .. math.floor(targetReelProgress * 100) .. "%)")
                                             end
                                         end
                                     end)
                                 end
                                 
-                                task.wait(0.1)
+                                task.wait()
                             end
                         end
                     end
                 end
             end
-            task.wait(0.1)
+            task.wait()
         end
         reelRunning = false
     end)
-end
-
-local function SetTargetProgress(value)
-    targetProgress = value / 100
-    Window:Notify({
-        Title = "Target Set",
-        Desc = "Will reel at " .. value .. "% progress",
-        Time = 3
-    })
 end
 
 -- Auto cast system
@@ -568,17 +585,6 @@ MainTab:Toggle({
     end
 })
 
-MainTab:Slider({
-    Title = "Reel At Progress",
-    Desc = "Auto reel when progress reaches this %",
-    Value = 30,
-    Min = 1,
-    Max = 100,
-    Callback = function(value)
-        SetTargetProgress(value)
-    end
-})
-
 MainTab:Toggle({
     Title = "Auto Cast",
     Desc = "Automatically cast rod",
@@ -640,6 +646,26 @@ MainTab:Toggle({
     end
 })
 
+-- Reel Settings section
+MainTab:Section({Title = "Reel Settings"})
+
+MainTab:Slider({
+    Title = "Reel At Progress",
+    Desc = "Auto reel when progress reaches this %",
+    Value = 45, -- ค่าเริ่มต้น 45%
+    Min = 1,
+    Max = 100,
+    Callback = function(value)
+        SetTargetReelProgress(value)
+    end
+})
+
+MainTab:Button({
+    Title = "Check Progress",
+    Desc = "Show current progress bar value",
+    Callback = CheckCurrentProgress
+})
+
 -- Perfect settings section
 MainTab:Section({Title = "Perfect Settings"})
 
@@ -676,7 +702,7 @@ MainTab:Section({Title = "Selling"})
 
 MainTab:Toggle({
     Title = "Auto Sell All",
-    Desc = "Automatically sell all fish",
+    Desc = "Automatically sell all items",
     Value = false,
     Callback = function(value)
         autoSell = value
@@ -720,7 +746,7 @@ MainTab:Textbox({
 
 MainTab:Button({
     Title = "Sell All Now",
-    Desc = "Sell all Fish immediately",
+    Desc = "Sell all items immediately",
     Callback = SellAllItems
 })
 
