@@ -9,7 +9,7 @@ end
 
 local Window = Library:Window({
     Title = "_mm3",
-    Desc = "mm3 Undetected",
+    Desc = "mm3 fishing hub",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -39,6 +39,8 @@ local autoShake = false
 local autoEquip = false
 local autoSell = false
 local autoTeleport = false
+local perfectCatch = false
+local perfectCast = false
 
 local castDelay = 0.5
 local shakeDelay = 0.1
@@ -259,7 +261,7 @@ local function SellAllItems()
                 sellAll:InvokeServer()
                 Window:Notify({
                     Title = "Items Sold",
-                    Desc = "All fish sold successfully",
+                    Desc = "All items sold successfully",
                     Time = 2
                 })
             end
@@ -380,7 +382,9 @@ local function StartAutoReel()
                                         if events then
                                             local reelFinish = events:FindFirstChild("reelfinished")
                                             if reelFinish then
-                                                reelFinish:FireServer(100, false)
+                                                -- ใช้ Perfect Catch ถ้าเปิดอยู่
+                                                local isPerfect = perfectCatch
+                                                reelFinish:FireServer(100, isPerfect)
                                             end
                                         end
                                     end)
@@ -400,6 +404,8 @@ end
 
 -- Auto cast system
 local castConnection
+local lastCastTime = 0
+
 local function StartAutoCast()
     if castConnection then castConnection:Disconnect() end
     
@@ -408,7 +414,7 @@ local function StartAutoCast()
         
         local currentTime = tick()
         
-        if HasRodEquipped() and not HasBobber() and not isCasting and (currentTime - (LCT or 0)) >= castDelay then
+        if HasRodEquipped() and not HasBobber() and not isCasting and (currentTime - lastCastTime) >= castDelay then
             isCasting = true
             
             pcall(function()
@@ -416,12 +422,14 @@ local function StartAutoCast()
                 if rod and rod:FindFirstChild("events") then
                     local castFunc = rod.events:FindFirstChild("castAsync")
                     if castFunc then
-                        castFunc:InvokeServer(50, false)
+                        -- ใช้ Perfect Cast ถ้าเปิดอยู่
+                        local castValue = perfectCast and 100 or 50
+                        castFunc:InvokeServer(castValue, perfectCast)
                     end
                 end
             end)
             
-            LCT = currentTime
+            lastCastTime = currentTime
             
             task.delay(0.1, function()
                 isCasting = false
@@ -606,12 +614,43 @@ MainTab:Toggle({
     end
 })
 
+-- Perfect settings section
+MainTab:Section({Title = "Perfect Settings"})
+
+MainTab:Toggle({
+    Title = "Perfect Catch",
+    Desc = "Always get perfect catch",
+    Value = false,
+    Callback = function(value)
+        perfectCatch = value
+        Window:Notify({
+            Title = "Perfect Catch",
+            Desc = value and "Perfect catch enabled" or "Perfect catch disabled",
+            Time = 3
+        })
+    end
+})
+
+MainTab:Toggle({
+    Title = "Perfect Cast",
+    Desc = "Always perfect cast",
+    Value = false,
+    Callback = function(value)
+        perfectCast = value
+        Window:Notify({
+            Title = "Perfect Cast",
+            Desc = value and "Perfect cast enabled" or "Perfect cast disabled",
+            Time = 3
+        })
+    end
+})
+
 -- Sell section
 MainTab:Section({Title = "Selling"})
 
 MainTab:Toggle({
     Title = "Auto Sell All",
-    Desc = "Automatically sell all items",
+    Desc = "Automatically sell all fish",
     Value = false,
     Callback = function(value)
         autoSell = value
@@ -655,7 +694,7 @@ MainTab:Textbox({
 
 MainTab:Button({
     Title = "Sell All Now",
-    Desc = "Sell all items immediately",
+    Desc = "Sell all Fish immediately",
     Callback = SellAllItems
 })
 
