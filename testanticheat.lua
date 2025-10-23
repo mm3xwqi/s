@@ -9,7 +9,7 @@ end
 
 local Window = Library:Window({
     Title = "_mm3",
-    Desc = "mm3 fishing hub",
+    Desc = "mm3 Undetected",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
