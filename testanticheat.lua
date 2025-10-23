@@ -221,7 +221,7 @@ local function setupHooks()
                 if #args >= 2 then
                     Window:Notify({
                         Title = "Bypass Anti-Cheat!",
-                        Desc = "Auto Reel Bypass ทำงานแล้ว!",
+                        Desc = "Auto Reel Bypass",
                         Time = 3
                     })
                     return originalFireServer(self, 100, true)
@@ -240,7 +240,7 @@ local function setupHooks()
                 if #args >= 2 then
                     Window:Notify({
                         Title = "Bypass Anti-Cheat!",
-                        Desc = "Auto Cast Bypass ทำงานแล้ว!",
+                        Desc = "Auto Cast Bypass",
                         Time = 3
                     })
                     return originalInvokeServer(self, 100, true)
