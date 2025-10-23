@@ -364,7 +364,6 @@ local function StartAutoReel()
             local gui = player:FindFirstChild("PlayerGui")
             local reel = gui and gui:FindFirstChild("reel")
 
-            -- รอจนกว่า reel GUI จะปรากฏ
             while autoReel and gui and not reel do
                 reel = gui:FindFirstChild("reel")
                 task.wait(0.1)
@@ -377,7 +376,6 @@ local function StartAutoReel()
                         local rod = character:FindFirstChild(rodName)
                         if rod then
                             while autoReel and reel and reel.Parent and rod.Parent == character do
-                                -- ระบบติดตามปลา
                                 local bar = reel:FindFirstChild("bar")
                                 if bar then
                                     local fish = bar:FindFirstChild("fish")
@@ -389,10 +387,9 @@ local function StartAutoReel()
                                         end)
                                     end
                                 end
-                                
-                                -- ตรวจสอบ progress bar ก่อนรีด
+
                                 local progress = GetProgress()
-                                if progress and progress >= 0.32 then
+                                if progress and progress >= 0.45 then
                                     pcall(function()
                                         local events = ReplicatedStorage:FindFirstChild("events")
                                         if events then
