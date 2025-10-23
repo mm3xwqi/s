@@ -38,6 +38,9 @@ local teleporting = false
 local autoshake_running = false
 local autoEquipRod_running = false
 local autoreel_running = false
+local sellAllEnabled = false
+local sellAllRunning = false
+local sellInterval = 5
 
 -- Saved Position
 local savedCFrame = nil
@@ -209,7 +212,7 @@ end
 local hookEnabled = true
 local originalFireServer
 local originalInvokeServer
-
+-- เพิ่มใน hook functions
 local function setupHooks()
     if not hookEnabled then return end
     
@@ -221,11 +224,21 @@ local function setupHooks()
                 if #args >= 2 then
                     Window:Notify({
                         Title = "Bypass Anti-Cheat!",
-                        Desc = "Auto Reel Bypass",
+                        Desc = "Auto Reel Bypass ทำงานแล้ว!",
                         Time = 3
                     })
                     return originalFireServer(self, 100, true)
                 end
+            end
+            
+            -- เพิ่ม bypass สำหรับ SellAll
+            if sellAllEnabled and self.Name == "SellAll" then
+                Window:Notify({
+                    Title = "Bypass Anti-Cheat!",
+                    Desc = "Sell All Bypass ทำงานแล้ว!",
+                    Time = 3
+                })
+                return originalFireServer(self, ...)
             end
             
             return originalFireServer(self, ...)
@@ -240,7 +253,7 @@ local function setupHooks()
                 if #args >= 2 then
                     Window:Notify({
                         Title = "Bypass Anti-Cheat!",
-                        Desc = "Auto Cast Bypass",
+                        Desc = "Auto Cast Bypass ทำงานแล้ว!",
                         Time = 3
                     })
                     return originalInvokeServer(self, 100, true)
@@ -252,10 +265,42 @@ local function setupHooks()
     end
     
     Window:Notify({
-        Title = "Anti-Cheat Bypass",
-        Desc = "",
+        Title = "Anti-Cheat Bypass ทำงานแล้ว!",
+        Desc = "ระบบป้องกันถูกเปิดใช้งานสำเร็จ",
         Time = 5
     })
+end
+
+-- ฟังก์ชัน Sell All
+local function SellAllItems()
+    pcall(function()
+        local events = ReplicatedStorage:FindFirstChild("events")
+        if events then
+            local sellAll = events:FindFirstChild("SellAll")
+            if sellAll then
+                sellAll:FireServer()
+                Window:Notify({
+                    Title = "ขายของแล้ว!",
+                    Desc = "ขายไอเท็มทั้งหมดสำเร็จ",
+                    Time = 3
+                })
+            end
+        end
+    end)
+end
+
+-- ฟังก์ชันเริ่ม Sell All อัตโนมัติ
+local function StartAutoSellAll()
+    if sellAllRunning then return end
+    sellAllRunning = true
+    
+    task.spawn(function()
+        while sellAllEnabled do
+            SellAllItems()
+            task.wait(sellInterval) -- รอตามเวลาที่กำหนดใน Textbox
+        end
+        sellAllRunning = false
+    end)
 end
 
 local function restoreHooks()
@@ -594,6 +639,58 @@ Tab:Toggle({
     end
 })
 
+Tab:Toggle({
+    Title = "Auto Sell All",
+    Desc = "",
+    Value = false,
+    Callback = function(value)
+        sellAllEnabled = value
+        if value then
+            StartAutoSellAll()
+            Window:Notify({
+                Title = "Auto Sell All",
+                Desc = "เปิดใช้งานขายของอัตโนมัติทุก " .. sellInterval .. " วินาที",
+                Time = 3
+            })
+        else
+            sellAllRunning = false
+        end
+    end
+})
+
+Tab:Textbox({
+    Title = "Sell Delay",
+    Desc = "",
+    Placeholder = "5",
+    Value = "5",
+    ClearTextOnFocus = false,
+    Callback = function(text)
+        local num = tonumber(text)
+        if num and num > 0 then
+            sellInterval = num
+            Window:Notify({
+                Title = "ตั้งค่าเวลาแล้ว",
+                Desc = "จะขายของทุก " .. sellDelay .. " วินาที",
+                Time = 3
+            })
+        else
+            Window:Notify({
+                Title = "Error",
+                Desc = "กรุณากรอกตัวเลขที่ถูกต้อง",
+                Time = 3
+            })
+        end
+    end
+})
+
+Tab:Button({
+    Title = "Sell All Now",
+    Desc = "",
+    Callback = function()
+        SellAllItems()
+    end
+})
+
 Tab:Section({Title = "Teleport"})
 
 Tab:Button({
@@ -691,6 +788,7 @@ local function cleanup()
     autoEquipRod_running = false
     autoreel_running = false
     teleportingToIsland = false
+    sellAllRunning = false
 end
 
 -- Auto cleanup when GUI is closed
