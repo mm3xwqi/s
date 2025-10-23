@@ -9,7 +9,7 @@ end
 
 local Window = Library:Window({
     Title = "_mm3",
-    Desc = "mm3 fishing hub",
+    Desc = "mm3 Undetected",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -42,7 +42,7 @@ local autoTeleport = false
 local perfectCatch = false
 local perfectCast = false
 local safeMode = true
-local reelAfterSeconds = 3 -- จำนวนวินาทีที่รอก่อน reel
+local reelAfterSeconds = 3
 
 local castDelay = 0.5
 local shakeDelay = 0.1
@@ -380,14 +380,12 @@ local function StartAutoReel()
 
     task.spawn(function()
         while autoReel do
-            -- รอจนกว่า reel GUI จะปรากฏ
             print("⏳ Waiting for fishing to start...")
             while autoReel and not IsReelGUIVisible() do
                 task.wait(0.1)
             end
             
             if autoReel and IsReelGUIVisible() then
-                print("🎣 Fishing started! Waiting " .. reelAfterSeconds .. " seconds before reeling...")
                 
                 local startTime = tick()
                 while autoReel and IsReelGUIVisible() and (tick() - startTime) < reelAfterSeconds do
@@ -406,12 +404,10 @@ local function StartAutoReel()
                             if reelFinish then
                                 local isPerfect = perfectCatch
                                 reelFinish:FireServer(100, isPerfect)
-                                print("🎣 Reeling after " .. reelAfterSeconds .. " seconds")
                             end
                         end
                     end)
-                    
-                    -- รอให้ reel GUI หายไปก่อนที่จะเริ่มรอบใหม่
+
                     while autoReel and IsReelGUIVisible() do
                         task.wait(0.1)
                     end
