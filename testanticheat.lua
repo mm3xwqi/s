@@ -334,17 +334,40 @@ local function GetProgress()
         if not progress then return nil end
         local inner = progress:FindFirstChild("bar")
         if not inner then return nil end
-        if inner.Size and inner.Size.X and type(inner.Size.X.Scale) == "number" then
-            return inner.Size.X.Scale
+        
+        -- ตรวจสอบค่าจริงทั้งหมด
+        local scaleX = inner.Size.X.Scale
+        local offsetX = inner.Size.X.Offset
+        local absoluteX = inner.AbsoluteSize.X
+        
+        print(string.format("DEBUG - Scale: %.2f, Offset: %d, Absolute: %d", scaleX, offsetX, absoluteX))
+        
+        -- ลองใช้ AbsoluteSize แทน
+        local parent = inner.Parent
+        if parent and parent:IsA("Frame") then
+            local parentWidth = parent.AbsoluteSize.X
+            local innerWidth = inner.AbsoluteSize.X
+            
+            if parentWidth > 0 then
+                local progressPercent = (innerWidth / parentWidth) * 100
+                print(string.format("DEBUG - Progress: %.1f%% (%d/%d)", progressPercent, innerWidth, parentWidth))
+                return progressPercent
+            end
         end
+        
         return nil
     end)
-    return ok and result or nil
+    
+    if ok then
+        return result
+    else
+        return nil
+    end
 end
 
 -- ฟังก์ชันตั้งค่าเป้าหมาย progress
 local function SetTargetReelProgress(value)
-    targetReelProgress = value / 100 -- แปลงจาก % เป็นทศนิยม
+    targetReelProgress = value -- เก็บเป็น 0-100 โดยตรง
     Window:Notify({
         Title = "Progress Target Set",
         Desc = "Will reel at " .. value .. "% progress",
@@ -406,9 +429,9 @@ local function StartAutoReel()
                                     end
                                 end
                                 
-                                -- ใช้ targetReelProgress แทนค่า fixed
-                                local progress = GetProgress()
-                                if progress and progress >= targetReelProgress then
+                                -- ตรวจสอบ progress
+                                local currentProgress = GetProgress()
+                                if currentProgress and currentProgress >= targetReelProgress then
                                     pcall(function()
                                         local events = ReplicatedStorage:FindFirstChild("events")
                                         if events then
@@ -416,19 +439,23 @@ local function StartAutoReel()
                                             if reelFinish then
                                                 local isPerfect = perfectCatch
                                                 reelFinish:FireServer(100, isPerfect)
-                                                print("🎣 Reeling at " .. math.floor(progress * 100) .. "% (Target: " .. math.floor(targetReelProgress * 100) .. "%)")
+                                                print("🎣 Reeling at " .. currentProgress .. "% (Target: " .. targetReelProgress .. "%)")
                                             end
                                         end
                                     end)
+                                else
+                                    if currentProgress then
+                                        print("⏳ Waiting: " .. currentProgress .. "% / " .. targetReelProgress .. "%")
+                                    end
                                 end
                                 
-                                task.wait()
+                                task.wait(0.1)
                             end
                         end
                     end
                 end
             end
-            task.wait()
+            task.wait(0.1)
         end
         reelRunning = false
     end)
