@@ -42,6 +42,7 @@ local autoTeleport = false
 local perfectCatch = false
 local perfectCast = false
 local targetReelProgress = 45 -- 0-100
+local followFishBar = true -- ตัวแปรใหม่สำหรับติดตาม fish bar
 
 local castDelay = 0.5
 local shakeDelay = 0.1
@@ -357,6 +358,38 @@ local function GetProgress()
     end
 end
 
+-- ฟังก์ชันติดตาม fish bar
+local function FollowFishBar()
+    local ok, result = pcall(function()
+        local gui = player:FindFirstChild("PlayerGui")
+        if not gui then return false end
+        
+        local reel = gui:FindFirstChild("reel")
+        if not reel then return false end
+        
+        local bar = reel:FindFirstChild("bar")
+        if not bar then return false end
+        
+        local fish = bar:FindFirstChild("fish")
+        local playerBar = bar:FindFirstChild("playerbar")
+        
+        if fish and playerBar and fish:IsA("GuiObject") and playerBar:IsA("GuiObject") then
+            -- คัดลอกตำแหน่งจาก fish ไปยัง playerbar
+            playerBar.Position = UDim2.new(fish.Position.X.Scale, 0, playerBar.Position.Y.Scale, 0)
+            return true
+        end
+        
+        return false
+    end)
+    
+    if not ok then
+        print("ERROR - FollowFishBar failed:", result)
+        return false
+    end
+    
+    return result
+end
+
 -- ฟังก์ชันตั้งค่าเป้าหมาย progress
 local function SetTargetReelProgress(value)
     targetReelProgress = value
@@ -392,6 +425,11 @@ local function StartAutoReel()
 
     task.spawn(function()
         while autoReel do
+            -- ถ้าเปิดโหมดติดตาม fish bar
+            if followFishBar then
+                FollowFishBar()
+            end
+            
             local progress = GetProgress()
             
             if progress and progress >= targetReelProgress then
@@ -415,7 +453,7 @@ local function StartAutoReel()
                 end
             end
             
-            task.wait(0.1)
+            task.wait(0.05) -- ลด delay เพื่อการตอบสนองที่เร็วขึ้น
         end
         reelRunning = false
     end)
@@ -644,6 +682,20 @@ MainTab:Slider({
     Max = 100,
     Callback = function(value)
         SetTargetReelProgress(value)
+    end
+})
+
+MainTab:Toggle({
+    Title = "Follow Fish Bar",
+    Desc = "Player bar follows fish bar automatically",
+    Value = true,
+    Callback = function(value)
+        followFishBar = value
+        Window:Notify({
+            Title = "Follow Fish Bar",
+            Desc = value and "Enabled - Player bar will follow fish" or "Disabled - Manual control",
+            Time = 3
+        })
     end
 })
 
