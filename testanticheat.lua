@@ -322,22 +322,36 @@ end
 
 local function GetProgress()
     local ok, result = pcall(function()
-        local gui = player:FindFirstChild("PlayerGui")
-        if not gui then return nil end
-        local reel = gui:FindFirstChild("reel")
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if not playerGui then return nil end
+        
+        local reel = playerGui:FindFirstChild("reel")
         if not reel then return nil end
+        
         local bar = reel:FindFirstChild("bar")
         if not bar then return nil end
+        
         local progress = bar:FindFirstChild("progress")
         if not progress then return nil end
-        local inner = progress:FindFirstChild("bar")
-        if not inner then return nil end
-        if inner.Size and inner.Size.X and type(inner.Size.X.Scale) == "number" then
-            return inner.Size.X.Scale
+        
+        local innerBar = progress:FindFirstChild("bar")
+        if not innerBar then return nil end
+
+        if innerBar:IsA("Frame") and innerBar.Size then
+            local xScale = innerBar.Size.X.Scale
+            if type(xScale) == "number" then
+                return xScale
+            end
         end
+        
         return nil
     end)
-    return ok and result or nil
+    
+    if ok then
+        return result
+    else
+        return nil
+    end
 end
 
 -- Auto reel system
@@ -350,18 +364,20 @@ local function StartAutoReel()
             local gui = player:FindFirstChild("PlayerGui")
             local reel = gui and gui:FindFirstChild("reel")
 
+            -- รอจนกว่า reel GUI จะปรากฏ
             while autoReel and gui and not reel do
                 reel = gui:FindFirstChild("reel")
                 task.wait(0.1)
             end
 
-            if reel then
+            if reel and reel:FindFirstChild("bar") then
                 local character = player.Character
                 if character then
                     for _, rodName in ipairs(rodNames) do
                         local rod = character:FindFirstChild(rodName)
                         if rod then
                             while autoReel and reel and reel.Parent and rod.Parent == character do
+                                -- ระบบติดตามปลา
                                 local bar = reel:FindFirstChild("bar")
                                 if bar then
                                     local fish = bar:FindFirstChild("fish")
@@ -374,6 +390,7 @@ local function StartAutoReel()
                                     end
                                 end
                                 
+                                -- ตรวจสอบ progress bar ก่อนรีด
                                 local progress = GetProgress()
                                 if progress and progress >= 0.32 then
                                     pcall(function()
@@ -383,18 +400,23 @@ local function StartAutoReel()
                                             if reelFinish then
                                                 local isPerfect = perfectCatch
                                                 reelFinish:FireServer(100, isPerfect)
+                                                print("Auto Reel: Progress = " .. progress .. ", Perfect = " .. tostring(isPerfect))
                                             end
                                         end
                                     end)
+                                else
+                                    if progress then
+                                        print("Auto Reel: Waiting - Progress = " .. progress)
+                                    end
                                 end
                                 
-                                task.wait()
+                                task.wait(0.05)
                             end
                         end
                     end
                 end
             end
-            task.wait()
+            task.wait(0.1)
         end
         reelRunning = false
     end)
