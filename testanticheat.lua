@@ -224,7 +224,7 @@ local function setupHooks()
                 if #args >= 2 then
                     Window:Notify({
                         Title = "Bypass Anti-Cheat!",
-                        Desc = "Auto Reel Bypass ทำงานแล้ว!",
+                        Desc = "Auto Reel Bypass",
                         Time = 3
                     })
                     return originalFireServer(self, 100, true)
@@ -235,7 +235,7 @@ local function setupHooks()
             if sellAllEnabled and self.Name == "SellAll" then
                 Window:Notify({
                     Title = "Bypass Anti-Cheat!",
-                    Desc = "Sell All Bypass ทำงานแล้ว!",
+                    Desc = "Sell All Bypass",
                     Time = 3
                 })
                 return originalFireServer(self, ...)
@@ -253,7 +253,7 @@ local function setupHooks()
                 if #args >= 2 then
                     Window:Notify({
                         Title = "Bypass Anti-Cheat!",
-                        Desc = "Auto Cast Bypass ทำงานแล้ว!",
+                        Desc = "Auto Cast Bypass",
                         Time = 3
                     })
                     return originalInvokeServer(self, 100, true)
@@ -265,8 +265,8 @@ local function setupHooks()
     end
     
     Window:Notify({
-        Title = "Anti-Cheat Bypass ทำงานแล้ว!",
-        Desc = "ระบบป้องกันถูกเปิดใช้งานสำเร็จ",
+        Title = "Anti-Cheat Bypass Enabled",
+        Desc = "",
         Time = 5
     })
 end
@@ -280,8 +280,8 @@ local function SellAllItems()
             if sellAll then
                 sellAll:FireServer()
                 Window:Notify({
-                    Title = "ขายของแล้ว!",
-                    Desc = "ขายไอเท็มทั้งหมดสำเร็จ",
+                    Title = "Selled Fishs",
+                    Desc = "",
                     Time = 3
                 })
             end
@@ -289,7 +289,6 @@ local function SellAllItems()
     end)
 end
 
--- ฟังก์ชันเริ่ม Sell All อัตโนมัติ
 local function StartAutoSellAll()
     if sellAllRunning then return end
     sellAllRunning = true
@@ -297,7 +296,7 @@ local function StartAutoSellAll()
     task.spawn(function()
         while sellAllEnabled do
             SellAllItems()
-            task.wait(sellInterval) -- รอตามเวลาที่กำหนดใน Textbox
+            task.wait(sellInterval)
         end
         sellAllRunning = false
     end)
@@ -649,7 +648,7 @@ Tab:Toggle({
             StartAutoSellAll()
             Window:Notify({
                 Title = "Auto Sell All",
-                Desc = "เปิดใช้งานขายของอัตโนมัติทุก " .. sellInterval .. " วินาที",
+                Desc = "Sell " .. sellInterval .. " Sec",
                 Time = 3
             })
         else
@@ -669,14 +668,14 @@ Tab:Textbox({
         if num and num > 0 then
             sellInterval = num
             Window:Notify({
-                Title = "ตั้งค่าเวลาแล้ว",
-                Desc = "จะขายของทุก " .. sellDelay .. " วินาที",
+                Title = "Time set",
+                Desc = "Will sell " .. sellDelay .. " Sec",
                 Time = 3
             })
         else
             Window:Notify({
                 Title = "Error",
-                Desc = "กรุณากรอกตัวเลขที่ถูกต้อง",
+                Desc = "Please enter a valid number",
                 Time = 3
             })
         end
