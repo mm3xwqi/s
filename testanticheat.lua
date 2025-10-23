@@ -375,7 +375,7 @@ local function StartAutoReel()
                                 end
                                 
                                 local progress = GetProgress()
-                                if progress and progress >= 0.32 then
+                                if progress and progress >= 0.26 then
                                     pcall(function()
                                         local events = ReplicatedStorage:FindFirstChild("events")
                                         if events then
