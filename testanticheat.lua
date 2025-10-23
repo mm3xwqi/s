@@ -41,8 +41,8 @@ local autoSell = false
 local autoTeleport = false
 local perfectCatch = false
 local perfectCast = false
-local targetReelProgress = 30
-local safeMode = true -- เปลี่ยนชื่อจาก Safe เป็น safeMode
+local safeMode = true
+local reelAfterSeconds = 3 -- จำนวนวินาทีที่รอก่อน reel
 
 local castDelay = 0.5
 local shakeDelay = 0.1
@@ -323,41 +323,7 @@ local function HasBobber()
     return false
 end
 
--- ฟังก์ชันตรวจสอบ progress ที่แก้ไขแล้ว
-local function GetProgress()
-    local ok, result = pcall(function()
-        local gui = player:FindFirstChild("PlayerGui")
-        if not gui then return nil end
-        
-        local reel = gui:FindFirstChild("reel")
-        if not reel then return nil end
-        
-        local bar = reel:FindFirstChild("bar")
-        if not bar then return nil end
-        
-        local progress = bar:FindFirstChild("progress")
-        if not progress then return nil end
-        
-        local inner = progress:FindFirstChild("bar")
-        if not inner then return nil end
-
-        local scaleX = inner.Size.X.Scale
-        local progressPercent = scaleX * 100
-        
-        print(string.format("DEBUG - Scale: %.2f, Progress: %.1f%%", scaleX, progressPercent))
-        
-        return progressPercent
-    end)
-    
-    if ok then
-        return result
-    else
-        print("ERROR - GetProgress failed:", result)
-        return nil
-    end
-end
-
--- ฟังก์ชันติดตาม fish bar (เปลี่ยนชื่อจาก Safe เป็น FollowFishBar)
+-- ฟังก์ชันติดตาม fish bar
 local function FollowFishBar()
     local ok, result = pcall(function()
         local gui = player:FindFirstChild("PlayerGui")
@@ -388,48 +354,71 @@ local function FollowFishBar()
     return result
 end
 
-local function SetTargetReelProgress(value)
-    targetReelProgress = value
+-- ฟังก์ชันตรวจสอบว่า reel GUI ปรากฏแล้ว
+local function IsReelGUIVisible()
+    local ok, result = pcall(function()
+        local reel = player.PlayerGui:FindFirstChild("reel")
+        return reel and reel:IsA("ScreenGui") and reel.Enabled
+    end)
+    return ok and result
+end
+
+-- ฟังก์ชันตั้งค่าจำนวนวินาที
+local function SetReelAfterSeconds(value)
+    reelAfterSeconds = value
     Window:Notify({
-        Title = "Progress Target Set",
-        Desc = "Will reel at " .. value .. "% progress",
+        Title = "Reel Timer Set",
+        Desc = "Will reel after " .. value .. " seconds when fishing starts",
         Time = 3
     })
 end
 
+-- Auto reel system ที่รอจนกว่า reel GUI จะปรากฏ
 local function StartAutoReel()
     if reelRunning then return end
     reelRunning = true
 
     task.spawn(function()
         while autoReel do
-            if safeMode then
-                FollowFishBar()
+            -- รอจนกว่า reel GUI จะปรากฏ
+            print("⏳ Waiting for fishing to start...")
+            while autoReel and not IsReelGUIVisible() do
+                task.wait(0.1)
             end
             
-            local progress = GetProgress()
-            
-            if progress and progress >= targetReelProgress then
-                pcall(function()
-                    local events = ReplicatedStorage:FindFirstChild("events")
-                    if events then
-                        local reelFinish = events:FindFirstChild("reelfinished")
-                        if reelFinish then
-                            local isPerfect = perfectCatch
-                            reelFinish:FireServer(100, isPerfect)
-                            print("🎣 Reeling at " .. string.format("%.1f", progress) .. "% (Target: " .. targetReelProgress .. "%)")
-
-                            task.wait(1)
-                        end
+            if autoReel and IsReelGUIVisible() then
+                print("🎣 Fishing started! Waiting " .. reelAfterSeconds .. " seconds before reeling...")
+                
+                local startTime = tick()
+                while autoReel and IsReelGUIVisible() and (tick() - startTime) < reelAfterSeconds do
+                    if safeMode then
+                        FollowFishBar()
                     end
-                end)
-            else
-                if progress then
-                    print("⏳ Waiting: " .. string.format("%.1f", progress) .. "% / " .. targetReelProgress .. "%")
+                    task.wait(0.1)
+                end
+                
+                if autoReel and IsReelGUIVisible() then
+                    -- Reel เมื่อครบเวลา
+                    pcall(function()
+                        local events = ReplicatedStorage:FindFirstChild("events")
+                        if events then
+                            local reelFinish = events:FindFirstChild("reelfinished")
+                            if reelFinish then
+                                local isPerfect = perfectCatch
+                                reelFinish:FireServer(100, isPerfect)
+                                print("🎣 Reeling after " .. reelAfterSeconds .. " seconds")
+                            end
+                        end
+                    end)
+                    
+                    -- รอให้ reel GUI หายไปก่อนที่จะเริ่มรอบใหม่
+                    while autoReel and IsReelGUIVisible() do
+                        task.wait(0.1)
+                    end
                 end
             end
             
-            task.wait(0.05) -- เพิ่ม delay เล็กน้อยเพื่อป้องกันการใช้งาน CPU สูง
+            task.wait(0.1)
         end
         reelRunning = false
     end)
@@ -568,7 +557,7 @@ MainTab:Section({Title = "Fishing"})
 
 MainTab:Toggle({
     Title = "Auto Reel",
-    Desc = "Automatically reel fish",
+    Desc = "",
     Value = false,
     Callback = function(value)
         autoReel = value
@@ -576,7 +565,7 @@ MainTab:Toggle({
             StartAutoReel()
             Window:Notify({
                 Title = "Auto Reel",
-                Desc = "Auto reel enabled",
+                Desc = "Auto reel enabled - Will reel after " .. reelAfterSeconds .. " seconds when fishing starts",
                 Time = 3
             })
         else
@@ -650,30 +639,29 @@ MainTab:Toggle({
 MainTab:Section({Title = "Reel Settings"})
 
 MainTab:Slider({
-    Title = "Reel At Progress",
-    Desc = "recommend 30% +",
-    Value = 30,
+    Title = "Reel Delay",
+    Desc = "",
+    Value = 3,
     Min = 1,
-    Max = 100,
+    Max = 10,
     Callback = function(value)
-        SetTargetReelProgress(value)
+        SetReelAfterSeconds(value)
     end
 })
 
 MainTab:Toggle({
-    Title = "Safe",
-    Desc = "Bar follow fish",
+    Title = "Safe Mode",
+    Desc = "Bar follow fish automatically",
     Value = true,
     Callback = function(value)
         safeMode = value
         Window:Notify({
             Title = "Safe Mode",
-            Desc = value and "Safe mode enabled - Bar follows fish" or "Safe mode disabled",
+            Desc = value and "Safe mode enabled" or "Safe mode disabled",
             Time = 3
         })
     end
 })
-
 
 MainTab:Section({Title = "Perfect Settings"})
 
