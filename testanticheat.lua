@@ -376,13 +376,12 @@ local function StartAutoReel()
                                 end
                                 
                                 local progress = GetProgress()
-                                if progress and progress >= 0.35 then
+                                if progress and progress >= 0.25 then
                                     pcall(function()
                                         local events = ReplicatedStorage:FindFirstChild("events")
                                         if events then
                                             local reelFinish = events:FindFirstChild("reelfinished")
                                             if reelFinish then
-                                                -- ใช้ Perfect Catch ถ้าเปิดอยู่
                                                 local isPerfect = perfectCatch
                                                 reelFinish:FireServer(100, isPerfect)
                                             end
