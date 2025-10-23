@@ -42,7 +42,7 @@ local autoTeleport = false
 local perfectCatch = false
 local perfectCast = false
 local targetReelProgress = 30
-local Safe = true
+local safeMode = true -- เปลี่ยนชื่อจาก Safe เป็น safeMode
 
 local castDelay = 0.5
 local shakeDelay = 0.1
@@ -357,8 +357,8 @@ local function GetProgress()
     end
 end
 
--- ฟังก์ชันติดตาม fish bar
-local function Safe()
+-- ฟังก์ชันติดตาม fish bar (เปลี่ยนชื่อจาก Safe เป็น FollowFishBar)
+local function FollowFishBar()
     local ok, result = pcall(function()
         local gui = player:FindFirstChild("PlayerGui")
         if not gui then return false end
@@ -403,8 +403,8 @@ local function StartAutoReel()
 
     task.spawn(function()
         while autoReel do
-            if Safe then
-                Safe()
+            if safeMode then
+                FollowFishBar()
             end
             
             local progress = GetProgress()
@@ -429,7 +429,7 @@ local function StartAutoReel()
                 end
             end
             
-            task.wait()
+            task.wait(0.05) -- เพิ่ม delay เล็กน้อยเพื่อป้องกันการใช้งาน CPU สูง
         end
         reelRunning = false
     end)
@@ -665,7 +665,12 @@ MainTab:Toggle({
     Desc = "Bar follow fish",
     Value = true,
     Callback = function(value)
-        Safe = value
+        safeMode = value
+        Window:Notify({
+            Title = "Safe Mode",
+            Desc = value and "Safe mode enabled - Bar follows fish" or "Safe mode disabled",
+            Time = 3
+        })
     end
 })
 
