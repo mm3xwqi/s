@@ -320,48 +320,19 @@ local function HasBobber()
     return false
 end
 
+local targetProgress = 0.45 -- ค่าเริ่มต้น 45%
+
 local function GetProgress()
     local ok, result = pcall(function()
-        local playerGui = player:FindFirstChild("PlayerGui")
-        if not playerGui then return nil end
-        
-        local reel = playerGui:FindFirstChild("reel")
-        if not reel then return nil end
-        
-        local bar = reel:FindFirstChild("bar")
-        if not bar then return nil end
-        
-        local progress = bar:FindFirstChild("progress")
-        if not progress then return nil end
-        
-        local innerBar = progress:FindFirstChild("bar")
-        if not innerBar then return nil end
-
-        if innerBar:IsA("Frame") then
-            local parent = innerBar.Parent
-            if parent and parent:IsA("Frame") then
-                local innerWidth = innerBar.AbsoluteSize.X
-                local parentWidth = parent.AbsoluteSize.X
-                
-                if parentWidth > 0 then
-                    local progressPercent = innerWidth / parentWidth
-                    print("Progress: " .. math.floor(progressPercent * 100) .. "% (" .. innerWidth .. "/" .. parentWidth .. ")")
-                    return progressPercent
-                end
-            end
+        local innerBar = player.PlayerGui.reel.bar.progress.bar
+        if innerBar and innerBar:IsA("Frame") then
+            return innerBar.Size.X.Scale
         end
-        
         return nil
     end)
-    
-    if ok then
-        return result
-    else
-        return nil
-    end
+    return ok and result or nil
 end
 
--- Auto reel system
 local function StartAutoReel()
     if reelRunning then return end
     reelRunning = true
@@ -383,6 +354,7 @@ local function StartAutoReel()
                         local rod = character:FindFirstChild(rodName)
                         if rod then
                             while autoReel and reel and reel.Parent and rod.Parent == character do
+                                -- ระบบติดตามปลา
                                 local bar = reel:FindFirstChild("bar")
                                 if bar then
                                     local fish = bar:FindFirstChild("fish")
@@ -394,9 +366,10 @@ local function StartAutoReel()
                                         end)
                                     end
                                 end
-
-                                local progress = GetProgress()
-                                if progress and progress >= 0.45 then
+                                
+                                -- ตรวจสอบ progress และรอจนถึงค่าที่กำหนด
+                                local currentProgress = GetProgress()
+                                if currentProgress and currentProgress >= targetProgress then
                                     pcall(function()
                                         local events = ReplicatedStorage:FindFirstChild("events")
                                         if events then
@@ -404,10 +377,14 @@ local function StartAutoReel()
                                             if reelFinish then
                                                 local isPerfect = perfectCatch
                                                 reelFinish:FireServer(100, isPerfect)
-                                                print("AUTO REEL: Progress = " .. math.floor(progress * 100) .. "%, Perfect = " .. tostring(isPerfect))
+                                                print("AUTO REEL: Progress reached " .. math.floor(currentProgress * 100) .. "%, reeling now!")
                                             end
                                         end
                                     end)
+                                else
+                                    if currentProgress then
+                                        print("Waiting for progress: " .. math.floor(currentProgress * 100) .. "% / " .. math.floor(targetProgress * 100) .. "%")
+                                    end
                                 end
                                 
                                 task.wait(0.05)
@@ -420,6 +397,15 @@ local function StartAutoReel()
         end
         reelRunning = false
     end)
+end
+
+local function SetTargetProgress(value)
+    targetProgress = value / 100
+    Window:Notify({
+        Title = "Target Set",
+        Desc = "Will reel at " .. value .. "% progress",
+        Time = 3
+    })
 end
 
 -- Auto cast system
@@ -570,6 +556,17 @@ MainTab:Toggle({
         else
             reelRunning = false
         end
+    end
+})
+
+MainTab:Slider({
+    Title = "Reel At Progress",
+    Desc = "Auto reel when progress reaches this %",
+    Value = 45,
+    Min = 1,
+    Max = 100,
+    Callback = function(value)
+        SetTargetProgress(value)
     end
 })
 
