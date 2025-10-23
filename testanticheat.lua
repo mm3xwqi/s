@@ -66,14 +66,13 @@ end
 -- Island teleport locations
 local islandLocations = {
     {Name = "Carrot Garden", Position = Vector3.new(3744, -1116, -1108)},
-    {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
     {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
-    {Name = "Castaway Cliffs", Position = Vector3.new(655, 179, -1793)},
     {Name = "Luminescent Cavern", Position = Vector3.new(-1016, -337, -4071)},
     {Name = "Crimson Cavern", Position = Vector3.new(-1013, -340, -4891)},
     {Name = "Oscar's Locker", Position = Vector3.new(266, -387, 3407)},
     {Name = "The Boom Ball", Position = Vector3.new(-1296, -900, -3479)},
-    {Name = "Lost Jungle", Position = Vector3.new(-2690, 149, -2051)}
+    {Name = "Lost Jungle", Position = Vector3.new(-2690, 149, -2051)},
+    {Name = "XP Farm", Position = Vector3.new(1378, -604, 2339)}
 }
 
 -- Anti-cheat bypass system
