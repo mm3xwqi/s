@@ -68,14 +68,13 @@ end
 -- Island teleport locations
 local islandLocations = {
     {Name = "Carrot Garden", Position = Vector3.new(3744, -1116, -1108)},
-    {Name = "Crystal Cove", Position = Vector3.new(1364, -612, 2472)},
     {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
-    {Name = "Castaway Cliffs", Position = Vector3.new(655, 179, -1793)},
     {Name = "Luminescent Cavern", Position = Vector3.new(-1016, -337, -4071)},
     {Name = "Crimson Cavern", Position = Vector3.new(-1013, -340, -4891)},
     {Name = "Oscar's Locker", Position = Vector3.new(266, -387, 3407)},
     {Name = "The Boom Ball", Position = Vector3.new(-1296, -900, -3479)},
-    {Name = "Lost Jungle", Position = Vector3.new(-2690, 149, -2051)}
+    {Name = "Lost Jungle", Position = Vector3.new(-2690, 149, -2051)},
+    {Name = "XP Farm", Position = Vector3.new(1373, -603, 2336)}
 }
 
 -- Anti-cheat bypass system
@@ -323,7 +322,6 @@ local function HasBobber()
     return false
 end
 
--- ฟังก์ชันติดตาม fish bar โดยไม่มีดีเลย์
 local function FollowFishBar()
     local ok, result = pcall(function()
         local gui = player:FindFirstChild("PlayerGui")
@@ -339,7 +337,6 @@ local function FollowFishBar()
         local playerBar = bar:FindFirstChild("playerbar")
         
         if fish and playerBar and fish:IsA("GuiObject") and playerBar:IsA("GuiObject") then
-            -- อัพเดทตำแหน่งทันทีโดยไม่มีดีเลย์
             playerBar.Position = UDim2.new(fish.Position.X.Scale, 0, playerBar.Position.Y.Scale, 0)
             return true
         end
@@ -380,17 +377,14 @@ local function StartAutoReel()
 
     task.spawn(function()
         while autoReel do
-            -- รอจนกว่า reel GUI จะปรากฏ
             while autoReel and not IsReelGUIVisible() do
                 task.wait(0.1)
             end
             
             if autoReel and IsReelGUIVisible() then
-                print("🎣 Fishing started! Waiting " .. reelAfterSeconds .. " seconds before reeling...")
                 
                 local startTime = tick()
                 while autoReel and IsReelGUIVisible() and (tick() - startTime) < reelAfterSeconds do
-                    -- ติดตาม fish bar ตลอดเวลาโดยไม่มีดีเลย์
                     if safeMode then
                         FollowFishBar()
                     end
@@ -398,7 +392,6 @@ local function StartAutoReel()
                 end
                 
                 if autoReel and IsReelGUIVisible() then
-                    -- Reel เมื่อครบเวลา
                     pcall(function()
                         local events = ReplicatedStorage:FindFirstChild("events")
                         if events then
@@ -406,12 +399,10 @@ local function StartAutoReel()
                             if reelFinish then
                                 local isPerfect = perfectCatch
                                 reelFinish:FireServer(100, isPerfect)
-                                print("🎣 Reeling after " .. reelAfterSeconds .. " seconds")
                             end
                         end
                     end)
-                    
-                    -- รอให้ reel GUI หายไปก่อนที่จะเริ่มรอบใหม่
+
                     while autoReel and IsReelGUIVisible() do
                         task.wait(0.1)
                     end
@@ -424,7 +415,6 @@ local function StartAutoReel()
     end)
 end
 
--- Connection สำหรับติดตาม fish bar โดยไม่มีดีเลย์
 local followConnection
 
 local function StartFollowFishBar()
@@ -669,14 +659,14 @@ MainTab:Slider({
 
 MainTab:Toggle({
     Title = "Safe Mode",
-    Desc = "Bar follow fish automatically (No delay)",
+    Desc = "Bar follow fish automatically",
     Value = true,
     Callback = function(value)
         safeMode = value
         StartFollowFishBar()
         Window:Notify({
             Title = "Safe Mode",
-            Desc = value and "Safe mode enabled - Bar follows fish instantly" or "Safe mode disabled",
+            Desc = value
             Time = 3
         })
     end
