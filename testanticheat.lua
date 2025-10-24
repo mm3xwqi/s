@@ -9,7 +9,7 @@ end
 
 local Window = Library:Window({
     Title = "_mm3",
-    Desc = "mm3 Undetected",
+    Desc = "_mm3 Undetected",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -351,7 +351,6 @@ local function FollowFishBar()
     return result
 end
 
--- ฟังก์ชันตรวจสอบว่า reel GUI ปรากฏแล้ว
 local function IsReelGUIVisible()
     local ok, result = pcall(function()
         local reel = player.PlayerGui:FindFirstChild("reel")
@@ -360,7 +359,6 @@ local function IsReelGUIVisible()
     return ok and result
 end
 
--- ฟังก์ชันตั้งค่าจำนวนวินาที
 local function SetReelAfterSeconds(value)
     reelAfterSeconds = value
     Window:Notify({
@@ -382,7 +380,6 @@ local function StartAutoReel()
             end
             
             if autoReel and IsReelGUIVisible() then
-                
                 local startTime = tick()
                 while autoReel and IsReelGUIVisible() and (tick() - startTime) < reelAfterSeconds do
                     if safeMode then
@@ -666,7 +663,7 @@ MainTab:Toggle({
         StartFollowFishBar()
         Window:Notify({
             Title = "Safe Mode",
-            Desc = value
+            Desc = value and "Safe mode enabled" or "Safe mode disabled",
             Time = 3
         })
     end
