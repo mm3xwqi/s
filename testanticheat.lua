@@ -22,7 +22,6 @@ local Window = Library:Window({
     }
 })
 
--- Services
 local Players = game:GetService("Players")
 local GuiService = game:GetService("GuiService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -32,7 +31,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local PlayerGUI = player:WaitForChild("PlayerGui")
 
--- Fishing variables
 local autoReel = false
 local autoCast = false
 local autoShake = false
@@ -58,14 +56,12 @@ local teleportRunning = false
 local savedPosition = nil
 local selectedIsland = ""
 
--- Get fishing rod names
 local rodNames = {}
 local rodsFolder = ReplicatedStorage:WaitForChild("resources"):WaitForChild("items"):WaitForChild("rods")
 for _, rod in ipairs(rodsFolder:GetChildren()) do
     table.insert(rodNames, rod.Name)
 end
 
--- Island teleport locations
 local islandLocations = {
     {Name = "Carrot Garden", Position = Vector3.new(3744, -1116, -1108)},
     {Name = "Underground Music Venue", Position = Vector3.new(2043, -645, 2471)},
@@ -77,7 +73,6 @@ local islandLocations = {
     {Name = "XP Farm", Position = Vector3.new(1373, -603, 2336)}
 }
 
--- Anti-cheat bypass system
 local bypassEnabled = true
 local originalFireServer
 local originalInvokeServer
@@ -130,7 +125,6 @@ local function RestoreBypass()
     end
 end
 
--- Auto equip rod system
 local function EquipBestRod()
     local character = player.Character
     if not character then return end
@@ -171,7 +165,6 @@ local function StartAutoEquip()
     end)
 end
 
--- Island teleport system
 local function LoadIslandList()
     local islands = {}
 
@@ -252,7 +245,6 @@ local function TeleportToSelectedIsland()
     end
 end
 
--- Sell system
 local function SellAllItems()
     pcall(function()
         local events = ReplicatedStorage:FindFirstChild("events")
@@ -283,7 +275,6 @@ local function StartAutoSell()
     end)
 end
 
--- Fishing functions
 local function HasRodEquipped()
     local character = player.Character
     if not character then return false end
@@ -368,7 +359,6 @@ local function SetReelAfterSeconds(value)
     })
 end
 
--- Auto reel system
 local function StartAutoReel()
     if reelRunning then return end
     reelRunning = true
@@ -429,7 +419,6 @@ local function StartFollowFishBar()
     end
 end
 
--- Auto cast system
 local castConnection
 local lastCastTime = 0
 
@@ -464,7 +453,6 @@ local function StartAutoCast()
     end)
 end
 
--- Auto shake system
 local function StartAutoShake()
     if shakeRunning then return end
     shakeRunning = true
@@ -491,7 +479,6 @@ local function StartAutoShake()
     end)
 end
 
--- Position system
 local function SaveCurrentPosition()
     local character = player.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
@@ -530,7 +517,6 @@ local function TeleportToSavedPosition()
     end
 end
 
--- Auto teleport system
 local teleportConnection
 local function StartAutoTeleport()
     if teleportConnection then teleportConnection:Disconnect() end
@@ -551,13 +537,10 @@ local function StartAutoTeleport()
     end)
 end
 
--- Initialize bypass
 SetupBypass()
 
--- Create main tab
 local MainTab = Window:Tab({Title = "Main", Icon = "star"})
 
--- Fishing section
 MainTab:Section({Title = "Fishing"})
 
 MainTab:Toggle({
@@ -640,7 +623,6 @@ MainTab:Toggle({
     end
 })
 
--- Reel Settings section
 MainTab:Section({Title = "Reel Settings"})
 
 MainTab:Slider({
@@ -699,7 +681,6 @@ MainTab:Toggle({
     end
 })
 
--- Sell section
 MainTab:Section({Title = "Selling"})
 
 MainTab:Toggle({
@@ -752,7 +733,6 @@ MainTab:Button({
     Callback = SellAllItems
 })
 
--- Teleport section
 MainTab:Section({Title = "Teleport"})
 
 MainTab:Button({
@@ -793,7 +773,6 @@ MainTab:Toggle({
     end
 })
 
--- Settings section
 MainTab:Section({Title = "Settings"})
 
 MainTab:Slider({
@@ -818,7 +797,6 @@ MainTab:Slider({
     end
 })
 
--- Island teleport tab
 local TeleportTab = Window:Tab({Title = "Islands", Icon = "map-pin"})
 
 TeleportTab:Section({Title = "Island Teleport"})
@@ -840,7 +818,6 @@ TeleportTab:Button({
     Callback = TeleportToSelectedIsland
 })
 
--- Cleanup function
 local function Cleanup()
     RestoreBypass()
     
@@ -855,13 +832,10 @@ local function Cleanup()
     teleportRunning = false
 end
 
--- Auto cleanup when GUI is closed
 Window:OnClose(Cleanup)
 
--- เริ่มต้นติดตาม fish bar ทันที
 StartFollowFishBar()
 
--- Initial notification
 Window:Notify({
     Title = "mm3 Hub Loaded",
     Desc = "Script ready!",
