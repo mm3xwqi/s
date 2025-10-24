@@ -562,7 +562,7 @@ MainTab:Section({Title = "Fishing"})
 
 MainTab:Toggle({
     Title = "Auto Reel",
-    Desc = "Automatically reel fish after set seconds when fishing starts",
+    Desc = "Automatically Catch fish ",
     Value = false,
     Callback = function(value)
         autoReel = value
