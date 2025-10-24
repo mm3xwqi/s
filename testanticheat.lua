@@ -43,7 +43,7 @@ local safeMode = true
 local reelAfterSeconds = 2
 
 local castDelay = 0.5
-local shakeDelay = 0.1
+local shakeDelay = 0
 local sellDelay = 5
 
 local isCasting = false
