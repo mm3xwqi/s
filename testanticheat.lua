@@ -261,8 +261,8 @@ local function SellAllItems()
             if sellAll then
                 sellAll:InvokeServer()
                 Window:Notify({
-                    Title = "Items Sold",
-                    Desc = "All items sold successfully",
+                    Title = "fish Sold",
+                    Desc = "All fish sold successfully",
                     Time = 2
                 })
             end
