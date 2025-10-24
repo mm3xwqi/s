@@ -42,7 +42,7 @@ local autoTeleport = false
 local perfectCatch = false
 local perfectCast = false
 local safeMode = true
-local reelAfterSeconds = 3
+local reelAfterSeconds = 2
 
 local castDelay = 0.5
 local shakeDelay = 0.1
@@ -323,7 +323,7 @@ local function HasBobber()
     return false
 end
 
--- ฟังก์ชันติดตาม fish bar
+-- ฟังก์ชันติดตาม fish bar โดยไม่มีดีเลย์
 local function FollowFishBar()
     local ok, result = pcall(function()
         local gui = player:FindFirstChild("PlayerGui")
@@ -339,6 +339,7 @@ local function FollowFishBar()
         local playerBar = bar:FindFirstChild("playerbar")
         
         if fish and playerBar and fish:IsA("GuiObject") and playerBar:IsA("GuiObject") then
+            -- อัพเดทตำแหน่งทันทีโดยไม่มีดีเลย์
             playerBar.Position = UDim2.new(fish.Position.X.Scale, 0, playerBar.Position.Y.Scale, 0)
             return true
         end
@@ -347,7 +348,6 @@ local function FollowFishBar()
     end)
     
     if not ok then
-        print("ERROR - FollowFishBar failed:", result)
         return false
     end
     
@@ -373,26 +373,28 @@ local function SetReelAfterSeconds(value)
     })
 end
 
--- Auto reel system ที่รอจนกว่า reel GUI จะปรากฏ
+-- Auto reel system
 local function StartAutoReel()
     if reelRunning then return end
     reelRunning = true
 
     task.spawn(function()
         while autoReel do
-            print("⏳ Waiting for fishing to start...")
+            -- รอจนกว่า reel GUI จะปรากฏ
             while autoReel and not IsReelGUIVisible() do
                 task.wait(0.1)
             end
             
             if autoReel and IsReelGUIVisible() then
+                print("🎣 Fishing started! Waiting " .. reelAfterSeconds .. " seconds before reeling...")
                 
                 local startTime = tick()
                 while autoReel and IsReelGUIVisible() and (tick() - startTime) < reelAfterSeconds do
+                    -- ติดตาม fish bar ตลอดเวลาโดยไม่มีดีเลย์
                     if safeMode then
                         FollowFishBar()
                     end
-                    task.wait(0.1)
+                    task.wait()
                 end
                 
                 if autoReel and IsReelGUIVisible() then
@@ -404,10 +406,12 @@ local function StartAutoReel()
                             if reelFinish then
                                 local isPerfect = perfectCatch
                                 reelFinish:FireServer(100, isPerfect)
+                                print("🎣 Reeling after " .. reelAfterSeconds .. " seconds")
                             end
                         end
                     end)
-
+                    
+                    -- รอให้ reel GUI หายไปก่อนที่จะเริ่มรอบใหม่
                     while autoReel and IsReelGUIVisible() do
                         task.wait(0.1)
                     end
@@ -418,6 +422,24 @@ local function StartAutoReel()
         end
         reelRunning = false
     end)
+end
+
+-- Connection สำหรับติดตาม fish bar โดยไม่มีดีเลย์
+local followConnection
+
+local function StartFollowFishBar()
+    if followConnection then 
+        followConnection:Disconnect()
+        followConnection = nil
+    end
+    
+    if safeMode then
+        followConnection = RunService.Heartbeat:Connect(function()
+            if IsReelGUIVisible() then
+                FollowFishBar()
+            end
+        end)
+    end
 end
 
 -- Auto cast system
@@ -553,7 +575,7 @@ MainTab:Section({Title = "Fishing"})
 
 MainTab:Toggle({
     Title = "Auto Reel",
-    Desc = "",
+    Desc = "Automatically reel fish after set seconds when fishing starts",
     Value = false,
     Callback = function(value)
         autoReel = value
@@ -635,9 +657,9 @@ MainTab:Toggle({
 MainTab:Section({Title = "Reel Settings"})
 
 MainTab:Slider({
-    Title = "Reel Delay",
-    Desc = "",
-    Value = 3,
+    Title = "Reel After Seconds",
+    Desc = "Recommend 2 sec+",
+    Value = 2,
     Min = 1,
     Max = 10,
     Callback = function(value)
@@ -647,13 +669,14 @@ MainTab:Slider({
 
 MainTab:Toggle({
     Title = "Safe Mode",
-    Desc = "Bar follow fish automatically",
+    Desc = "Bar follow fish automatically (No delay)",
     Value = true,
     Callback = function(value)
         safeMode = value
+        StartFollowFishBar()
         Window:Notify({
             Title = "Safe Mode",
-            Desc = value and "Safe mode enabled" or "Safe mode disabled",
+            Desc = value and "Safe mode enabled - Bar follows fish instantly" or "Safe mode disabled",
             Time = 3
         })
     end
@@ -836,6 +859,7 @@ local function Cleanup()
     
     if castConnection then castConnection:Disconnect() end
     if teleportConnection then teleportConnection:Disconnect() end
+    if followConnection then followConnection:Disconnect() end
     
     reelRunning = false
     shakeRunning = false
@@ -846,6 +870,9 @@ end
 
 -- Auto cleanup when GUI is closed
 Window:OnClose(Cleanup)
+
+-- เริ่มต้นติดตาม fish bar ทันที
+StartFollowFishBar()
 
 -- Initial notification
 Window:Notify({
