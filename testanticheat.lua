@@ -789,7 +789,7 @@ MainTab:Slider({
 MainTab:Slider({
     Title = "Shake Delay",
     Desc = "Delay between shakes (seconds)",
-    Value = 0.1,
+    Value = 0,
     Min = 0.1,
     Max = 1,
     Callback = function(value)
