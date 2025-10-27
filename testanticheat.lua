@@ -125,6 +125,51 @@ local function RestoreBypass()
     end
 end
 
+-- ฟังก์ชันรีเซ็ต Fishing Rod โดยใช้ rodNames
+local function ResetFishingRod()
+    pcall(function()
+        local backpack = player:WaitForChild("Backpack")
+        
+        -- ตรวจสอบทุก rod ใน rodNames
+        for _, rodName in ipairs(rodNames) do
+            local rod = backpack:FindFirstChild(rodName)
+            if rod then
+                local events = rod:FindFirstChild("events")
+                if events then
+                    local resetEvent = events:FindFirstChild("reset")
+                    if resetEvent then
+                        resetEvent:FireServer()
+                        print("🎣 Reset fishing rod: " .. rodName)
+                        return true
+                    end
+                end
+            end
+        end
+        
+        -- ถ้าไม่เจอใน backpack ให้ตรวจสอบในตัวละคร
+        local character = player.Character
+        if character then
+            for _, rodName in ipairs(rodNames) do
+                local rod = character:FindFirstChild(rodName)
+                if rod then
+                    local events = rod:FindFirstChild("events")
+                    if events then
+                        local resetEvent = events:FindFirstChild("reset")
+                        if resetEvent then
+                            resetEvent:FireServer()
+                            print("🎣 Reset fishing rod: " .. rodName)
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+        
+        print("⚠️ No fishing rod found to reset")
+        return false
+    end)
+end
+
 local function EquipBestRod()
     local character = player.Character
     if not character then return end
@@ -146,6 +191,7 @@ local function EquipBestRod()
         for _, tool in ipairs(backpack:GetChildren()) do
             if tool:IsA("Tool") and tool.Name == rodName then
                 tool.Parent = character
+                print("🎣 Equipped rod: " .. rodName)
                 return
             end
         end
@@ -386,6 +432,11 @@ local function StartAutoReel()
                             if reelFinish then
                                 local isPerfect = perfectCatch
                                 reelFinish:FireServer(100, isPerfect)
+                                print("🎣 Reeling after " .. reelAfterSeconds .. " seconds")
+                                
+                                -- รีเซ็ต fishing rod หลังจาก reel
+                                task.wait(0.5)
+                                ResetFishingRod()
                             end
                         end
                     end)
@@ -440,6 +491,7 @@ local function StartAutoCast()
                     if castFunc then
                         local castValue = perfectCast and 100 or 50
                         castFunc:InvokeServer(castValue, perfectCast)
+                        print("🎣 Casting rod: " .. rod.Name)
                     end
                 end
             end)
@@ -545,7 +597,7 @@ MainTab:Section({Title = "Fishing"})
 
 MainTab:Toggle({
     Title = "Auto Reel",
-    Desc = "Automatically Catch fish ",
+    Desc = "Automatically Catch fish",
     Value = false,
     Callback = function(value)
         autoReel = value
@@ -648,6 +700,26 @@ MainTab:Toggle({
             Desc = value and "Safe mode enabled" or "Safe mode disabled",
             Time = 3
         })
+    end
+})
+
+MainTab:Button({
+    Title = "Reset Fishing Rod",
+    Desc = "Manually reset fishing rod",
+    Callback = function()
+        if ResetFishingRod() then
+            Window:Notify({
+                Title = "Rod Reset",
+                Desc = "Fishing rod reset successfully",
+                Time = 3
+            })
+        else
+            Window:Notify({
+                Title = "Error",
+                Desc = "No fishing rod found to reset",
+                Time = 3
+            })
+        end
     end
 })
 
