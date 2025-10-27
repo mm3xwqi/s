@@ -432,12 +432,9 @@ local function StartAutoReel()
                             if reelFinish then
                                 local isPerfect = perfectCatch
                                 reelFinish:FireServer(100, isPerfect)
-                                print("🎣 Reeling after " .. reelAfterSeconds .. " seconds")
-                                
-                                -- รีเซ็ต fishing rod หลังจาก reel
-                                task.wait(0.5)
+                                task.wait(0.7)
                                 ResetFishingRod()
-                            end
+                            end   end
                         end
                     end)
 
