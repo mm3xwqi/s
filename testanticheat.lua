@@ -125,12 +125,10 @@ local function RestoreBypass()
     end
 end
 
--- ฟังก์ชันรีเซ็ต Fishing Rod โดยใช้ rodNames
 local function ResetFishingRod()
     pcall(function()
         local backpack = player:WaitForChild("Backpack")
-        
-        -- ตรวจสอบทุก rod ใน rodNames
+
         for _, rodName in ipairs(rodNames) do
             local rod = backpack:FindFirstChild(rodName)
             if rod then
@@ -139,14 +137,12 @@ local function ResetFishingRod()
                     local resetEvent = events:FindFirstChild("reset")
                     if resetEvent then
                         resetEvent:FireServer()
-                        print("🎣 Reset fishing rod: " .. rodName)
                         return true
                     end
                 end
             end
         end
-        
-        -- ถ้าไม่เจอใน backpack ให้ตรวจสอบในตัวละคร
+
         local character = player.Character
         if character then
             for _, rodName in ipairs(rodNames) do
@@ -157,15 +153,13 @@ local function ResetFishingRod()
                         local resetEvent = events:FindFirstChild("reset")
                         if resetEvent then
                             resetEvent:FireServer()
-                            print("🎣 Reset fishing rod: " .. rodName)
                             return true
                         end
                     end
                 end
             end
         end
-        
-        print("⚠️ No fishing rod found to reset")
+
         return false
     end)
 end
@@ -191,7 +185,6 @@ local function EquipBestRod()
         for _, tool in ipairs(backpack:GetChildren()) do
             if tool:IsA("Tool") and tool.Name == rodName then
                 tool.Parent = character
-                print("🎣 Equipped rod: " .. rodName)
                 return
             end
         end
@@ -434,7 +427,8 @@ local function StartAutoReel()
                                 reelFinish:FireServer(100, isPerfect)
                                 task.wait(0.7)
                                 ResetFishingRod()
-                            end   end
+                            end   
+                            end
                         end
                     end)
 
