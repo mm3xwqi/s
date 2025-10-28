@@ -137,6 +137,7 @@ local function ResetFishingRod()
                     local resetEvent = events:FindFirstChild("reset")
                     if resetEvent then
                         resetEvent:FireServer()
+                        print("🎣 Reset fishing rod: " .. rodName)
                         return true
                     end
                 end
@@ -153,6 +154,7 @@ local function ResetFishingRod()
                         local resetEvent = events:FindFirstChild("reset")
                         if resetEvent then
                             resetEvent:FireServer()
+                            print("🎣 Reset fishing rod: " .. rodName)
                             return true
                         end
                     end
@@ -160,6 +162,7 @@ local function ResetFishingRod()
             end
         end
 
+        print("⚠️ No fishing rod found to reset")
         return false
     end)
 end
@@ -425,9 +428,12 @@ local function StartAutoReel()
                             if reelFinish then
                                 local isPerfect = perfectCatch
                                 reelFinish:FireServer(100, isPerfect)
-                                task.wait(0.7)
+                                print("🎣 Reeling after " .. reelAfterSeconds .. " seconds")
+                                
+                                -- รอ 0.5 วินาทีแล้ว reset
+                                task.wait(0.5)
                                 ResetFishingRod()
-                            end   
+                                print("🔄 Rod reset after 0.5 seconds")
                             end
                         end
                     end)
