@@ -163,16 +163,63 @@ local function findGeneratorPoint(generatorModel)
     return nil
 end
 
+-- Function to check distance between player and generator
+local function checkDistanceToGenerator(generatorModel)
+    if not generatorModel or not LocalPlayer.Character or not LocalPlayer.Character.PrimaryPart then
+        return math.huge -- return very large number if cannot check
+    end
+    
+    local generatorPoint = findGeneratorPoint(generatorModel)
+    if not generatorPoint then
+        return math.huge
+    end
+    
+    local playerPosition = LocalPlayer.Character.PrimaryPart.Position
+    local generatorPosition = generatorPoint.Position
+    
+    return (playerPosition - generatorPosition).Magnitude
+end
+
+-- Modified teleport function with distance check
 local function teleportToGenerator(generatorModel)
     local generatorPoint = findGeneratorPoint(generatorModel)
     if generatorPoint and LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
         -- Teleport in front of Generator Point (about 3 units away)
         local cframe = generatorPoint.CFrame
         LocalPlayer.Character:SetPrimaryPartCFrame(cframe + cframe.LookVector * -3)
-        print("✅ Teleported to Generator: " .. generatorModel:GetFullName())
-        State.CurrentGenerator = generatorModel
-        State.LastActionTime = os.time()
-        return true
+        
+        -- Wait a bit for teleport to complete
+        task.wait(0.5)
+        
+        -- Check distance after teleport
+        local distance = checkDistanceToGenerator(generatorModel)
+        print("📏 Distance to generator: " .. string.format("%.2f", distance) .. " studs")
+        
+        if distance <= 10 then
+            print("✅ Teleported to Generator: " .. generatorModel:GetFullName())
+            State.CurrentGenerator = generatorModel
+            State.LastActionTime = os.time()
+            return true
+        else
+            print("❌ Teleport failed - too far away, retrying...")
+            -- Retry teleport
+            LocalPlayer.Character:SetPrimaryPartCFrame(cframe + cframe.LookVector * -2)
+            task.wait(0.5)
+            
+            local newDistance = checkDistanceToGenerator(generatorModel)
+            print("📏 Retry distance: " .. string.format("%.2f", newDistance) .. " studs")
+            
+            if newDistance <= 10 then
+                print("✅ Teleport retry successful!")
+                State.CurrentGenerator = generatorModel
+                State.LastActionTime = os.time()
+                return true
+            else
+                print("❌ Teleport retry failed")
+                State.CurrentGenerator = nil
+                return false
+            end
+        end
     else
         print("❌ Failed to teleport to Generator: " .. (generatorModel and generatorModel:GetFullName() or "Generator not found"))
         State.CurrentGenerator = nil
@@ -263,35 +310,72 @@ local function cancelRepair()
     return false
 end
 
--- Continuous repair function
+-- Continuous repair function with distance monitoring
 local function continuousRepair()
     local startTime = os.time()
     local maxRepairTime = 120 -- Maximum 2 minutes
+    local teleportRetryCount = 0
+    local maxTeleportRetries = 3
     
     while State.AutoRepair and State.CurrentGenerator and not State.CancelRepair do
-        -- Check current Generator status continuously
-        if not checkCurrentGeneratorStatus() then
-            print("🔍 Current Generator not ready -> Find new one")
-            State.CurrentGenerator = nil
-            break
-        end
+        local success, errorMsg = pcall(function()
+            -- Check distance before repairing
+            local distance = checkDistanceToGenerator(State.CurrentGenerator)
+            if distance > 10 then
+                print("📏 Too far from generator (" .. string.format("%.2f", distance) .. " studs), re-teleporting...")
+                
+                if teleportRetryCount < maxTeleportRetries then
+                    teleportRetryCount = teleportRetryCount + 1
+                    local teleportSuccess = teleportToGenerator(State.CurrentGenerator)
+                    if not teleportSuccess then
+                        print("❌ Re-teleport failed, finding new generator...")
+                        State.CurrentGenerator = nil
+                        return
+                    end
+                else
+                    print("❌ Max teleport retries reached, finding new generator...")
+                    State.CurrentGenerator = nil
+                    return
+                end
+            else
+                teleportRetryCount = 0 -- Reset counter if within range
+            end
+            
+            -- Check current Generator status continuously
+            if not checkCurrentGeneratorStatus() then
+                print("🔍 Current Generator not ready -> Find new one")
+                State.CurrentGenerator = nil
+                return
+            end
+            
+            -- Check if taking too long
+            if os.time() - startTime > maxRepairTime then
+                print("⏰ Repair taking too long -> Change Generator")
+                State.CurrentGenerator = nil
+                return
+            end
+            
+            -- Repair Generator
+            local repairSuccess = repairGenerator(State.CurrentGenerator)
+            if not repairSuccess then
+                print("❌ Repair failed, finding new generator...")
+                State.CurrentGenerator = nil
+                return
+            end
+            
+            -- Check progress from Model directly
+            local currentProgress = checkRepairProgress(State.CurrentGenerator)
+            
+            -- If Generator completed
+            if currentProgress >= 100 then
+                print("🎉 Generator repaired!")
+                State.CurrentGenerator = nil
+                return
+            end
+        end)
         
-        -- Check if taking too long
-        if os.time() - startTime > maxRepairTime then
-            print("⏰ Repair taking too long -> Change Generator")
-            State.CurrentGenerator = nil
-            break
-        end
-        
-        -- Repair Generator
-        repairGenerator(State.CurrentGenerator)
-        
-        -- Check progress from Model directly
-        local currentProgress = checkRepairProgress(State.CurrentGenerator)
-        
-        -- If Generator completed
-        if currentProgress >= 100 then
-            print("🎉 Generator repaired!")
+        if not success then
+            print("❌ Error in continuousRepair: " .. tostring(errorMsg))
             State.CurrentGenerator = nil
             break
         end
@@ -303,22 +387,36 @@ local function continuousRepair()
     State.CancelRepair = false
 end
 
--- Exit Functions
--- Exit Functions
 local function findExitLever()
     local Map = workspace:FindFirstChild("Map")
     if not Map then return nil end
     
+    -- Method 1: Check in Rooftop first
+    local Rooftop = Map:FindFirstChild("Rooftop")
+    if Rooftop then
+        local Gate = Rooftop:FindFirstChild("Gate")
+        if Gate then
+            local ExitLever = Gate:FindFirstChild("ExitLever")
+            if ExitLever then
+                local Tp = ExitLever:FindFirstChild("Tp")
+                local Main = ExitLever:FindFirstChild("Main")
+                return Tp, Main
+            end
+        end
+    end
+    
+    -- Method 2: Check in Map directly (for other maps)
     local Gate = Map:FindFirstChild("Gate")
-    if not Gate then return nil end
+    if Gate then
+        local ExitLever = Gate:FindFirstChild("ExitLever")
+        if ExitLever then
+            local Tp = ExitLever:FindFirstChild("Tp")
+            local Main = ExitLever:FindFirstChild("Main")
+            return Tp, Main
+        end
+    end
     
-    local ExitLever = Gate:FindFirstChild("ExitLever")
-    if not ExitLever then return nil end
-    
-    local Tp = ExitLever:FindFirstChild("Tp")
-    local Main = ExitLever:FindFirstChild("Main")
-    
-    return Tp, Main
+    return nil, nil
 end
 
 local function teleportToExit()
@@ -344,18 +442,50 @@ end
 
 local function teleportToGateCenter()
     if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
-        -- หา Gate โดยตรง
-        local Gate = workspace:FindFirstChild("Map"):FindFirstChild("Gate")
-        if Gate then
-            -- ใช้ตำแหน่งของ Gate เป็นจุดศูนย์กลาง
-            local gatePosition = Gate.Position
-            -- วาปไปตรงกลาง Gate
-            LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(gatePosition))
-            State.LastActionTime = os.time()
-            print("✅ Teleported to gate center")
-            return true
+        -- หา Gate ทั้งใน Rooftop และใน Map โดยตรง
+        local Map = workspace:FindFirstChild("Map")
+        if not Map then 
+            print("❌ Map not found")
+            return false 
+        end
+        
+        local GateModel = nil
+        
+        -- ตรวจสอบใน Rooftop ก่อน
+        local Rooftop = Map:FindFirstChild("Rooftop")
+        if Rooftop then
+            GateModel = Rooftop:FindFirstChild("Gate")
+        end
+        
+        -- ถ้าไม่เจอใน Rooftop ให้หาใน Map โดยตรง
+        if not GateModel then
+            GateModel = Map:FindFirstChild("Gate")
+        end
+        
+        if GateModel then
+            -- หา Part ใดๆ ใน Gate Model เพื่อใช้ตำแหน่ง
+            local gatePart = nil
+            for _, child in pairs(GateModel:GetDescendants()) do
+                if child:IsA("Part") then
+                    gatePart = child
+                    break
+                end
+            end
+            
+            if gatePart then
+                -- ใช้ตำแหน่งของ Part ที่เจอเป็นจุดศูนย์กลาง
+                local gatePosition = gatePart.Position
+                -- วาปไปตรงกลาง Gate (เพิ่มความสูงเล็กน้อยเพื่อไม่ให้ติดพื้น)
+                LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(gatePosition + Vector3.new(10, 20, -15)))
+                State.LastActionTime = os.time()
+                print("✅ Teleported to gate center")
+                return true
+            else
+                print("❌ No Parts found in Gate model")
+                return false
+            end
         else
-            print("❌ Gate not found")
+            print("❌ Gate model not found in both Rooftop and Map")
             return false
         end
     end
@@ -371,30 +501,38 @@ local function openExitGate()
     State.CheckingExit = true
     print("🚪 Attempting to open exit gate...")
     
+    local success = false
+    
     -- 1. วาปไปที่ Tp ก่อน
     local teleportSuccess, mainPart = teleportToExit()
     if teleportSuccess then
+        print("✅ Teleported to exit lever")
         task.wait(0.5)
         
         -- 2. เปิดประตู
         local leverSuccess = activateExitLever()
         if leverSuccess then
+            print("✅ Lever activated")
             task.wait(0.5)
             
-            -- 3. วาปไปตรงกลาง Gate
-            teleportToGateCenter()
-            print("🎉 Exit gate opened successfully!")
-            State.CheckingExit = false
-            return true
+            -- 3. วาปไปตรงกลาง Gate (ใช้ฟังก์ชันที่แก้ไขแล้ว)
+            local gateSuccess = teleportToGateCenter()
+            if gateSuccess then
+                print("🎉 Exit gate opened successfully!")
+                success = true
+            else
+                print("⚠️ Gate opened but teleport to center failed")
+                success = true -- ยังถือว่าประตูเปิดสำเร็จ
+            end
         else
-            print("❌ Failed to open gate")
+            print("❌ Failed to activate lever")
         end
     else
-        print("❌ Failed to teleport to gate")
+        print("❌ Failed to teleport to exit lever")
     end
     
     State.CheckingExit = false
-    return false
+    return success
 end
 
 -- Player Functions
@@ -577,80 +715,97 @@ local function autoRepair()
     local stuckCount = 0
     
     while State.AutoRepair and isSurvivor(LocalPlayer) do
-        State.LastActionTime = os.time()
-        
-        -- Check if stuck (no action for 30 seconds)
-        if os.time() - State.LastActionTime > 30 then
-            print("🚨 Possible stuck detected, resetting...")
-            State.CurrentGenerator = nil
-            stuckCount = stuckCount + 1
+        local success, errorMsg = pcall(function()
+            State.LastActionTime = os.time()
             
-            if stuckCount >= 3 then
-                print("🔴 Multiple stuck detected, cancelling repair...")
-                cancelRepair()
-                task.wait(5)
+            -- Check if stuck (no action for 30 seconds)
+            if os.time() - State.LastActionTime > 30 then
+                print("🚨 Possible stuck detected, resetting...")
+                State.CurrentGenerator = nil
+                stuckCount = stuckCount + 1
+                
+                if stuckCount >= 3 then
+                    print("🔴 Multiple stuck detected, cancelling repair...")
+                    cancelRepair()
+                    task.wait(5)
+                    stuckCount = 0
+                end
+            else
                 stuckCount = 0
             end
-        else
-            stuckCount = 0
-        end
-        
-        -- Check number of completed generators
-        local completed = countCompletedGenerators()
-        print("🔧 Generator Progress: " .. completed .. "/" .. State.TargetGenerators .. " completed")
-        
-        -- If reached target number of generators, open exit gate
-        if completed >= State.TargetGenerators then
-            print("🎯 Target reached! " .. completed .. "/" .. State.TargetGenerators .. " generators completed -> Opening exit gate...")
-            if openExitGate() then
-                print("✅ Gate opened successfully!")
-                task.wait(10)
-            else
-                print("❌ Failed to open gate -> Try again in 5 seconds")
-                task.wait(5)
-            end
-            continue
-        end
-        
-        -- If currently repairing a generator, continue
-        if State.CurrentGenerator and checkCurrentGeneratorStatus() then
-            print("🔧 Continuing repair on current generator...")
-            continuousRepair()
-        else
-            State.CurrentGenerator = nil
-        end
-        
-        -- Find new generator if none is current
-        if not State.CurrentGenerator then
-            print("🔍 Searching for new generator to repair...")
-            State.IsSearchingGenerator = true
             
-            local bestGenerator = findBestGenerator()
+            -- Check number of completed generators
+            local completed = countCompletedGenerators()
+            print("🔧 Generator Progress: " .. completed .. "/" .. State.TargetGenerators .. " completed")
             
-            if bestGenerator then
-                print("🎯 Found generator to repair: " .. bestGenerator:GetFullName())
-                
-                if teleportToGenerator(bestGenerator) then
-                    task.wait(1)
-                    continuousRepair()
+            -- If reached target number of generators, open exit gate
+            if completed >= State.TargetGenerators then
+                print("🎯 Target reached! " .. completed .. "/" .. State.TargetGenerators .. " generators completed -> Opening exit gate...")
+                if openExitGate() then
+                    print("✅ Gate opened successfully!")
+                    task.wait(10)
                 else
-                    print("❌ Failed to teleport to generator, searching again...")
-                    task.wait(2)
+                    print("❌ Failed to open gate -> Try again in 5 seconds")
+                    task.wait(5)
                 end
-            else
-                print("🔍 No available generators found, waiting...")
-                if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
-                    local currentPos = LocalPlayer.Character.PrimaryPart.Position
-                    LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(currentPos + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))))
-                end
-                task.wait(3)
+                return
             end
             
+            -- If currently repairing a generator, continue
+            if State.CurrentGenerator and checkCurrentGeneratorStatus() then
+                print("🔧 Continuing repair on current generator...")
+                continuousRepair()
+            else
+                State.CurrentGenerator = nil
+            end
+            
+            -- Find new generator if none is current
+            if not State.CurrentGenerator then
+                print("🔍 Searching for new generator to repair...")
+                State.IsSearchingGenerator = true
+                
+                local bestGenerator = findBestGenerator()
+                
+                if bestGenerator then
+                    print("🎯 Found generator to repair: " .. bestGenerator:GetFullName())
+                    
+                    if teleportToGenerator(bestGenerator) then
+                        task.wait(1)
+                        continuousRepair()
+                    else
+                        print("❌ Failed to teleport to generator, searching again...")
+                        task.wait(2)
+                    end
+                else
+                    print("🔍 No available generators found, waiting...")
+                    if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
+                        local currentPos = LocalPlayer.Character.PrimaryPart.Position
+                        LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(currentPos + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))))
+                    end
+                    task.wait(3)
+                end
+                
+                State.IsSearchingGenerator = false
+            end
+        end)
+        
+        if not success then
+            print("❌ Error in autoRepair: " .. tostring(errorMsg))
+            print("🔍 Debug - State.AutoRepair: " .. tostring(State.AutoRepair))
+            print("🔍 Debug - isSurvivor: " .. tostring(isSurvivor(LocalPlayer)))
+            print("🔍 Debug - State.CurrentGenerator: " .. tostring(State.CurrentGenerator))
+            
+            -- รีเซ็ตสถานะเพื่อป้องกันการติดลูป
+            State.CurrentGenerator = nil
             State.IsSearchingGenerator = false
+            task.wait(2) -- รอสักครู่ก่อนลองใหม่
         end
         
         task.wait(1)
     end
+    
+    print("🛑 Auto Repair stopped")
+    State.AutoRepair = false
 end
 
 -- Killer continuous teleport and attack function
@@ -744,35 +899,63 @@ local function autoFarmCombined()
     local lastTeam = nil
     
     while State.AutoFarm do
-        local currentTeam = LocalPlayer.Team and LocalPlayer.Team.Name or "No Team"
+        local success, errorMsg = pcall(function()
+            local currentTeam = LocalPlayer.Team and LocalPlayer.Team.Name or "No Team"
+            
+            if lastTeam ~= currentTeam then
+                print("🔄 Team changed: " .. (lastTeam or "None") .. " -> " .. currentTeam)
+                lastTeam = currentTeam
+            end
+            
+            -- ตรวจสอบว่าผู้เล่นยังอยู่ในเกม
+            if not LocalPlayer or not LocalPlayer.Parent then
+                print("❌ LocalPlayer not found, stopping auto farm")
+                State.AutoFarm = false
+                return
+            end
+            
+            if isSpectator(LocalPlayer) then
+                print("👻 Player is spectator, waiting...")
+                task.wait(3.0)
+                return
+            end
+            
+            if isSurvivor(LocalPlayer) then
+                print("🏃 Auto Farm: Survivor mode activated")
+                State.AutoRepair = true
+                State.KillerLoopActive = false
+                autoRepair()
+            elseif isKiller(LocalPlayer) then
+                print("🔪 Auto Farm: Killer mode activated")
+                State.AutoRepair = false
+                State.CurrentGenerator = nil
+                killerContinuousAttack()
+            else
+                print("❓ Auto Farm: Unknown team, waiting...")
+                State.AutoRepair = false
+                State.CurrentGenerator = nil
+                State.KillerLoopActive = false
+                task.wait(3.0)
+            end
+        end)
         
-        if lastTeam ~= currentTeam then
-            print("🔄 Team changed: " .. (lastTeam or "None") .. " -> " .. currentTeam)
-            lastTeam = currentTeam
-        end
-        
-        if isSpectator(LocalPlayer) then
-            task.wait(3.0)
-            continue
-        end
-        
-        if isSurvivor(LocalPlayer) then
-            State.AutoRepair = true
-            State.KillerLoopActive = false
-            autoRepair()
-        elseif isKiller(LocalPlayer) then
-            State.AutoRepair = false
-            State.CurrentGenerator = nil
-            killerContinuousAttack()
-        else
-            State.AutoRepair = false
-            State.CurrentGenerator = nil
-            State.KillerLoopActive = false
-            task.wait(3.0)
+        if not success then
+            print("❌ Critical Error in autoFarmCombined!")
+            print("📄 Error details: " .. tostring(errorMsg))
+            print("🔍 Debug info:")
+            print("   - State.AutoFarm: " .. tostring(State.AutoFarm))
+            print("   - LocalPlayer: " .. tostring(LocalPlayer))
+            print("   - LocalPlayer.Team: " .. (LocalPlayer and LocalPlayer.Team and LocalPlayer.Team.Name or "None"))
+            
+            -- พยายาม restart auto farm หลังจาก error
+            task.wait(2)
+            print("🔄 Attempting to restart auto farm...")
         end
         
         task.wait(1.0)
     end
+    
+    print("🛑 Auto Farm stopped")
 end
 
 -- Auto Attack Function
