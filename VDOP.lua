@@ -45,8 +45,7 @@ local State = {
     ExitTpFound = false,
     TargetGenerators = 5,
     LastActionTime = os.time(),
-    IsSearchingGenerator = false,
-    StatusAutoUpdate = true  -- เพิ่ม state สำหรับการอัพเดทอัตโนมัติ
+    IsSearchingGenerator = false
 }
 
 -- Team Functions
@@ -113,19 +112,6 @@ local function hasGeneratorPoint(generatorModel)
     return false
 end
 
-local function countGeneratorsWithPoints()
-    local generators = findGenerators()
-    local generatorsWithPoints = 0
-    
-    for _, generator in ipairs(generators) do
-        if hasGeneratorPoint(generator) then
-            generatorsWithPoints = generatorsWithPoints + 1
-        end
-    end
-    
-    return generatorsWithPoints
-end
-
 -- Function to check repair progress from Generator Model Attributes
 local function checkRepairProgress(generatorModel)
     if not generatorModel then return 0 end
@@ -159,36 +145,7 @@ local function countCompletedGenerators()
         end
     end
     
-    return completed, #generators
-end
-
--- Function to get all generators status for display
-local function getAllGeneratorsStatus()
-    local generators = findGenerators()
-    local statusText = "-- Generator Status (All 7)\n"
-    local completedCount = 0
-    
-    -- Sort generators by name for consistent display
-    table.sort(generators, function(a, b)
-        return a.Name < b.Name
-    end)
-    
-    for i, generator in ipairs(generators) do
-        local progress = checkRepairProgress(generator)
-        local hasPoint = hasGeneratorPoint(generator)
-        local status = progress >= 100 and "✅ COMPLETED" or ("🔄 " .. math.floor(progress) .. "%")
-        local pointStatus = hasPoint and "🟢" or "🔴"
-        
-        statusText = statusText .. string.format("Gen %d: %s %s\n", i, status, pointStatus)
-        
-        if progress >= 100 then
-            completedCount = completedCount + 1
-        end
-    end
-    
-    statusText = statusText .. string.format("\n-- Summary: %d/7 Completed", completedCount)
-    statusText = statusText .. string.format("\n-- Auto Update: %s", State.StatusAutoUpdate and "🟢 ON" or "🔴 OFF")
-    return statusText
+    return completed
 end
 
 local function findGeneratorPoint(generatorModel)
@@ -347,20 +304,12 @@ local function continuousRepair()
 end
 
 -- Exit Functions
+-- Exit Functions
 local function findExitLever()
     local Map = workspace:FindFirstChild("Map")
     if not Map then return nil end
     
-    -- Check in Map directly
     local Gate = Map:FindFirstChild("Gate")
-    if not Gate then
-        -- Check in Rooftop
-        local Rooftop = Map:FindFirstChild("Rooftop")
-        if Rooftop then
-            Gate = Rooftop:FindFirstChild("Gate")
-        end
-    end
-    
     if not Gate then return nil end
     
     local ExitLever = Gate:FindFirstChild("ExitLever")
@@ -370,12 +319,6 @@ local function findExitLever()
     local Main = ExitLever:FindFirstChild("Main")
     
     return Tp, Main
-end
-
--- Function to check if Exit Tp part exists
-local function checkExitTpExists()
-    local Tp, Main = findExitLever()
-    return Tp ~= nil
 end
 
 local function teleportToExit()
@@ -399,22 +342,21 @@ local function activateExitLever()
     return false
 end
 
-local function teleportForward()
+local function teleportToGateCenter()
     if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
-        local Tp, Main = findExitLever()
-        if Tp then
-            -- วาปไปด้านนอกประตู (ปรับตำแหน่งตามต้องการ)
-            local gatePosition = Tp.Position
-            local outsidePosition = gatePosition + Vector3.new(0, 0, 50) -- วาปไปด้านหน้าประตู 50 หน่วย
-            LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(outsidePosition))
+        -- หา Gate โดยตรง
+        local Gate = workspace:FindFirstChild("Map"):FindFirstChild("Gate")
+        if Gate then
+            -- ใช้ตำแหน่งของ Gate เป็นจุดศูนย์กลาง
+            local gatePosition = Gate.Position
+            -- วาปไปตรงกลาง Gate
+            LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(gatePosition))
             State.LastActionTime = os.time()
+            print("✅ Teleported to gate center")
             return true
         else
-            -- Fallback: วาปไปข้างหน้าตัวละคร
-            local currentCFrame = LocalPlayer.Character.PrimaryPart.CFrame
-            LocalPlayer.Character:SetPrimaryPartCFrame(currentCFrame + currentCFrame.LookVector * 50)
-            State.LastActionTime = os.time()
-            return true
+            print("❌ Gate not found")
+            return false
         end
     end
     return false
@@ -429,18 +371,18 @@ local function openExitGate()
     State.CheckingExit = true
     print("🚪 Attempting to open exit gate...")
     
-    -- Teleport to gate
+    -- 1. วาปไปที่ Tp ก่อน
     local teleportSuccess, mainPart = teleportToExit()
     if teleportSuccess then
         task.wait(0.5)
         
-        -- Open gate
+        -- 2. เปิดประตู
         local leverSuccess = activateExitLever()
         if leverSuccess then
             task.wait(0.5)
             
-            -- Teleport outside
-            teleportForward()
+            -- 3. วาปไปตรงกลาง Gate
+            teleportToGateCenter()
             print("🎉 Exit gate opened successfully!")
             State.CheckingExit = false
             return true
@@ -513,13 +455,6 @@ local function findHookModel()
             return Hook
         end
         
-        -- Method 3: Find by related names
-        for _, obj in pairs(Map:GetDescendants()) do
-            if obj.Name == "Hook" and obj:IsA("Model") then
-                return obj
-            end
-        end
-        
         return nil
     end)
     
@@ -539,18 +474,6 @@ local function findHookPart()
         
         -- Find any Part in Hook Model
         for _, child in pairs(hookModel:GetChildren()) do
-            if child:IsA("Part") then
-                return child
-            end
-        end
-        
-        -- If hookModel is Part directly
-        if hookModel:IsA("Part") then
-            return hookModel
-        end
-        
-        -- Find in descendants
-        for _, child in pairs(hookModel:GetDescendants()) do
             if child:IsA("Part") then
                 return child
             end
@@ -630,7 +553,6 @@ end
 local function findBestGenerator()
     local generators = findGenerators()
     local bestGenerator = nil
-    local highestProgress = -1
     
     for _, generator in ipairs(generators) do
         if not hasGeneratorPoint(generator) then
@@ -638,32 +560,13 @@ local function findBestGenerator()
         end
         
         local progress = checkRepairProgress(generator)
-        
-        -- Skip completed generators
         if progress >= 100 then
             continue
         end
         
-        -- Prefer generators with higher progress (closer to completion)
-        if progress > highestProgress then
-            highestProgress = progress
+        if not bestGenerator then
             bestGenerator = generator
         end
-    end
-    
-    -- If no generator with progress found, take any available
-    if not bestGenerator then
-        for _, generator in ipairs(generators) do
-            if hasGeneratorPoint(generator) and checkRepairProgress(generator) < 100 then
-                bestGenerator = generator
-                break
-            end
-        end
-    end
-    
-    if bestGenerator then
-        local progress = checkRepairProgress(bestGenerator)
-        print("🎯 Selected generator: " .. bestGenerator:GetFullName() .. " (Progress: " .. progress .. "%)")
     end
     
     return bestGenerator
@@ -674,7 +577,6 @@ local function autoRepair()
     local stuckCount = 0
     
     while State.AutoRepair and isSurvivor(LocalPlayer) do
-        -- Update action time
         State.LastActionTime = os.time()
         
         -- Check if stuck (no action for 30 seconds)
@@ -694,8 +596,8 @@ local function autoRepair()
         end
         
         -- Check number of completed generators
-        local completed, total = countCompletedGenerators()
-        print("🔧 Generator Progress: " .. completed .. "/" .. State.TargetGenerators .. " completed (Total: " .. total .. " generators)")
+        local completed = countCompletedGenerators()
+        print("🔧 Generator Progress: " .. completed .. "/" .. State.TargetGenerators .. " completed")
         
         -- If reached target number of generators, open exit gate
         if completed >= State.TargetGenerators then
@@ -712,8 +614,7 @@ local function autoRepair()
         
         -- If currently repairing a generator, continue
         if State.CurrentGenerator and checkCurrentGeneratorStatus() then
-            local progress = checkRepairProgress(State.CurrentGenerator)
-            print("🔧 Continuing repair on current generator... Progress: " .. progress .. "%")
+            print("🔧 Continuing repair on current generator...")
             continuousRepair()
         else
             State.CurrentGenerator = nil
@@ -727,8 +628,7 @@ local function autoRepair()
             local bestGenerator = findBestGenerator()
             
             if bestGenerator then
-                local progress = checkRepairProgress(bestGenerator)
-                print("🎯 Found generator to repair: " .. bestGenerator:GetFullName() .. " (Progress: " .. progress .. "%)")
+                print("🎯 Found generator to repair: " .. bestGenerator:GetFullName())
                 
                 if teleportToGenerator(bestGenerator) then
                     task.wait(1)
@@ -934,96 +834,6 @@ local AutoTab = Window:Tab({Title = "Auto System", Icon = "swords"}) do
                     Time = 3
                 })
             end
-        end
-    })
-    
-    AutoTab:Section({Title = "Generator Settings"})
-    
-    AutoTab:Slider({
-        Title = "Target Generators",
-        Desc = "Number of generators to complete before opening gate",
-        Value = State.TargetGenerators,
-        Min = 1,
-        Max = 7,
-        Callback = function(value)
-            State.TargetGenerators = value
-            Window:Notify({
-                Title = "Target Updated",
-                Desc = "Will open gate after " .. value .. " generators completed",
-                Time = 3
-            })
-        end
-    })
-    
-    AutoTab:Section({Title = "Tools"})
-    
-    -- Generator Status Display
-    local GeneratorStatus = AutoTab:Code({
-        Title = "Generator Status",
-        Code = getAllGeneratorsStatus()
-    })
-
-    -- Function to update generator status
-    local function updateGeneratorStatus()
-        if GeneratorStatus then
-            GeneratorStatus:SetCode(getAllGeneratorsStatus())
-        end
-    end
-
-    -- Auto update system
-    local autoUpdateThread
-    local function startAutoUpdate()
-        if autoUpdateThread then
-            return -- Already running
-        end
-        
-        autoUpdateThread = task.spawn(function()
-            while State.StatusAutoUpdate do
-                updateGeneratorStatus()
-                task.wait(2) -- อัพเดททุก 2 วินาที (ลดจาก 3 วินาที)
-            end
-            autoUpdateThread = nil
-        end)
-    end
-
-    -- Start auto update initially
-    startAutoUpdate()
-    
-    AutoTab:Button({
-        Title = "🔄 Refresh Status",
-        Desc = "Update generator status display manually",
-        Callback = function()
-            updateGeneratorStatus()
-            Window:Notify({
-                Title = "Generator Status",
-                Desc = "Generator status updated!",
-                Time = 2
-            })
-        end
-    })
-    
-    AutoTab:Toggle({
-        Title = "Auto Update Status",
-        Desc = "Automatically update generator status every 2 seconds",
-        Value = State.StatusAutoUpdate,
-        Callback = function(value)
-            State.StatusAutoUpdate = value
-            if value then
-                startAutoUpdate()
-                Window:Notify({
-                    Title = "Auto Update",
-                    Desc = "Auto update enabled!",
-                    Time = 2
-                })
-            else
-                Window:Notify({
-                    Title = "Auto Update",
-                    Desc = "Auto update disabled!",
-                    Time = 2
-                })
-            end
-            -- อัพเดท display ทันทีเพื่อแสดงสถานะ
-            updateGeneratorStatus()
         end
     })
     
