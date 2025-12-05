@@ -235,7 +235,7 @@ local function tweenToRockLocation(locationName)
         if AutoFarmEnabled then
             print("Reached model at:", locationName)
             startMining()
-            task.wait(1)
+            task.wait()
             tweenToRockLocation(locationName)
         end
     end)
