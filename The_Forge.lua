@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "the forge1",
+    Desc = "the forge2",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -27,49 +27,74 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
--- Function to get ALL rock locations with SpawnLocation (ALL of them)
-local function getAllRockLocations()
-    local allLocations = {}
+-- Function to get ALL SpawnLocation folders in Rocks (direct children)
+local function getAllSpawnLocations()
+    local spawnLocations = {}
     
     if not workspace:FindFirstChild("Rocks") then
-        print("❌ No Rocks folder found!")
-        return allLocations
+        return spawnLocations
     end
     
-    print("🔍 Scanning ALL Rocks locations...")
+    print("🔍 Scanning Rocks folder...")
     
-    for _, rock in ipairs(workspace.Rocks:GetChildren()) do
-        -- Function to find ANY SpawnLocation in this rock
-        local function findAnySpawnLocation(parent)
-            -- Check direct children
-            if parent:FindFirstChild("SpawnLocation") then
-                return parent:FindFirstChild("SpawnLocation")
-            end
-            
-            -- Check all descendants recursively
-            for _, child in ipairs(parent:GetDescendants()) do
-                if child.Name == "SpawnLocation" then
-                    return child
+    for _, item in ipairs(workspace.Rocks:GetChildren()) do
+        -- Check if this is a SpawnLocation folder directly in Rocks
+        if item.Name == "SpawnLocation" then
+            -- Check if this SpawnLocation has at least one Model inside
+            local hasModel = false
+            for _, child in ipairs(item:GetChildren()) do
+                if child:IsA("Model") then
+                    hasModel = true
+                    break
                 end
             end
             
-            return nil
-        end
-        
-        local spawnLocation = findAnySpawnLocation(rock)
-        
-        if spawnLocation then
-            table.insert(allLocations, rock.Name)
-            print("✓ Found: " .. rock.Name .. " (has SpawnLocation)")
-        else
-            print("✗ Skipping: " .. rock.Name .. " (no SpawnLocation found)")
+            if hasModel then
+                -- Create a unique display name
+                local displayName = "SpawnLocation_" .. #spawnLocations + 1
+                table.insert(spawnLocations, {
+                    DisplayName = displayName,
+                    RealObject = item,
+                    HasModel = true
+                })
+                print("✓ Found SpawnLocation with Model: " .. displayName)
+            else
+                print("✗ Skipping SpawnLocation (no Model inside)")
+            end
         end
     end
     
-    -- Sort alphabetically
-    table.sort(allLocations)
-    print("✅ Total found: " .. #allLocations .. " locations")
-    return allLocations
+    -- Also check for named folders (like Island1CaveStart, etc.)
+    for _, item in ipairs(workspace.Rocks:GetChildren()) do
+        if item.Name ~= "SpawnLocation" then
+            -- Check if this folder has a SpawnLocation inside
+            local spawnLoc = item:FindFirstChild("SpawnLocation")
+            if spawnLoc then
+                -- Check if SpawnLocation has at least one Model
+                local hasModel = false
+                for _, child in ipairs(spawnLoc:GetChildren()) do
+                    if child:IsA("Model") then
+                        hasModel = true
+                        break
+                    end
+                end
+                
+                if hasModel then
+                    table.insert(spawnLocations, {
+                        DisplayName = item.Name,
+                        RealObject = spawnLoc,
+                        HasModel = true
+                    })
+                    print("✓ Found " .. item.Name .. " with SpawnLocation (has Model)")
+                else
+                    print("✗ Skipping " .. item.Name .. " (SpawnLocation has no Model)")
+                end
+            end
+        end
+    end
+    
+    print("✅ Total valid locations: " .. #spawnLocations)
+    return spawnLocations
 end
 
 -- Auto farm variables
@@ -78,6 +103,7 @@ local TweenSpeed = 100
 local Mining = false
 local CurrentTween = nil
 local SelectedLocation = nil
+local SpawnLocationsData = {}
 
 -- Remote setup
 local ToolService
@@ -105,45 +131,13 @@ local function enableNoclip(char)
     end
 end
 
--- Function to find SpawnLocation in rock (deep search)
-local function findSpawnLocationDeep(rock)
-    -- Check direct child
-    if rock:FindFirstChild("SpawnLocation") then
-        return rock:FindFirstChild("SpawnLocation")
-    end
-    
-    -- Search all descendants
-    for _, descendant in ipairs(rock:GetDescendants()) do
-        if descendant.Name == "SpawnLocation" then
-            return descendant
-        end
-    end
-    
-    return nil
-end
-
--- Function to find ANY Model in SpawnLocation
-local function findAnyModelInSpawnLocation(spawnLoc)
-    -- First priority: Models directly in SpawnLocation
+-- Function to find first Model in SpawnLocation
+local function findFirstModel(spawnLoc)
     for _, child in ipairs(spawnLoc:GetChildren()) do
         if child:IsA("Model") then
             return child
         end
     end
-    
-    -- Second priority: Models in subfolders of SpawnLocation
-    for _, child in ipairs(spawnLoc:GetChildren()) do
-        if child:IsA("Folder") or child:IsA("Model") then
-            for _, subChild in ipairs(child:GetChildren()) do
-                if subChild:IsA("Model") then
-                    return subChild
-                end
-            end
-        end
-    end
-    
-    -- If no Model found at all (shouldn't happen based on your info)
-    print("⚠️ Warning: No Model found in SpawnLocation")
     return nil
 end
 
@@ -171,36 +165,20 @@ local function startMining()
     Mining = false
 end
 
--- Tween to specific rock location
-local function tweenToRockLocation(locationName)
+-- Tween to SpawnLocation
+local function tweenToSpawnLocation(locationData)
     if not AutoFarmEnabled then return end
     
-    print("🎯 Targeting: " .. locationName)
+    print("🎯 Targeting: " .. locationData.DisplayName)
     
-    -- Get the rock
-    local rock = workspace.Rocks:FindFirstChild(locationName)
-    if not rock then 
-        print("❌ Rock not found:", locationName)
-        return 
-    end
-    
-    -- Find SpawnLocation (deep search)
-    local spawnLocation = findSpawnLocationDeep(rock)
-    if not spawnLocation then 
-        print("❌ No SpawnLocation found in:", locationName)
-        return 
-    end
-    
-    print("📍 Found SpawnLocation in:", locationName)
-    
-    -- Find Model in SpawnLocation
-    local targetModel = findAnyModelInSpawnLocation(spawnLocation)
+    -- Find first Model in this SpawnLocation
+    local targetModel = findFirstModel(locationData.RealObject)
     if not targetModel then 
-        print("⚠️ No Model found in SpawnLocation of:", locationName)
+        print("❌ No Model found in " .. locationData.DisplayName)
         return 
     end
     
-    print("🎯 Target Model:", targetModel.Name, "in", locationName)
+    print("🎯 Target Model:", targetModel.Name)
     
     -- Get character
     local char, hrp = getCharacter()
@@ -213,19 +191,17 @@ local function tweenToRockLocation(locationName)
     local targetCFrame
     if targetModel.PrimaryPart then
         targetCFrame = targetModel:GetPivot()
-        print("📌 Using PrimaryPart at:", targetCFrame.Position)
     else
         for _, part in ipairs(targetModel:GetDescendants()) do
             if part:IsA("BasePart") then
                 targetCFrame = part.CFrame
-                print("📌 Using BasePart at:", targetCFrame.Position)
                 break
             end
         end
     end
     
     if not targetCFrame then 
-        print("❌ Cannot get position of model in:", locationName)
+        print("❌ Cannot get model position")
         return 
     end
     
@@ -233,7 +209,7 @@ local function tweenToRockLocation(locationName)
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
     local tweenTime = distance / TweenSpeed
     
-    print("📏 Distance:", math.floor(distance), "Speed:", TweenSpeed, "Time:", string.format("%.2f", tweenTime) .. "s")
+    print("📏 Distance:", math.floor(distance), "Time:", string.format("%.2f", tweenTime) .. "s")
     
     -- Cancel current tween
     if CurrentTween then
@@ -246,62 +222,51 @@ local function tweenToRockLocation(locationName)
     CurrentTween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
     CurrentTween:Play()
     
-    print("🚀 Started tweening to", locationName)
+    print("🚀 Started tweening to " .. locationData.DisplayName)
     
     -- When tween completes
     CurrentTween.Completed:Connect(function()
         if AutoFarmEnabled then
-            print("✅ Reached", locationName)
+            print("✅ Reached " .. locationData.DisplayName)
             startMining()
             task.wait(1)
-            tweenToRockLocation(locationName)
+            tweenToSpawnLocation(locationData)
         end
     end)
 end
 
--- Main auto farm function
-local function startAutoFarm()
-    while AutoFarmEnabled do
-        if SelectedLocation then
-            tweenToRockLocation(SelectedLocation)
-        end
-        
-        -- Wait for current process to finish
-        while Mining and AutoFarmEnabled do
-            task.wait(1)
-        end
-        
-        if not AutoFarmEnabled then break end
-        task.wait(1)
-    end
+-- Get ALL valid SpawnLocations
+SpawnLocationsData = getAllSpawnLocations()
+
+-- Create display names list for dropdown
+local displayNames = {}
+for _, data in ipairs(SpawnLocationsData) do
+    table.insert(displayNames, data.DisplayName)
 end
 
--- Get ALL rock locations
-local allRockLocations = getAllRockLocations()
-
--- Set default location if available
-if #allRockLocations > 0 then
-    SelectedLocation = allRockLocations[1]
+-- Set default if available
+if #displayNames > 0 then
+    SelectedLocation = displayNames[1]
 else
     SelectedLocation = nil
     Window:Notify({
         Title = "Error",
-        Desc = "No rock locations found!",
+        Desc = "No SpawnLocations with Models found!",
         Time = 3
     })
 end
 
--- Location dropdown (shows ALL locations)
+-- Location dropdown
 Tab:Dropdown({
-    Title = "Select Rock Location",
-    Desc = "All locations with SpawnLocation",
-    List = allRockLocations,
+    Title = "Select SpawnLocation",
+    Desc = "Only shows SpawnLocations with Models",
+    List = displayNames,
     Value = SelectedLocation,
     Callback = function(choice)
         SelectedLocation = choice
         print("📍 Selected:", choice)
         
-        -- If auto farm is running, restart with new location
+        -- If auto farm is running, restart
         if AutoFarmEnabled then
             Mining = false
             if CurrentTween then
@@ -309,7 +274,14 @@ Tab:Dropdown({
                 CurrentTween = nil
             end
             task.wait(0.5)
-            tweenToRockLocation(SelectedLocation)
+            
+            -- Find the selected location data
+            for _, data in ipairs(SpawnLocationsData) do
+                if data.DisplayName == choice then
+                    tweenToSpawnLocation(data)
+                    break
+                end
+            end
         end
     end
 })
@@ -323,14 +295,14 @@ Tab:Slider({
     Value = TweenSpeed,
     Callback = function(val)
         TweenSpeed = val
-        print("⚡ Speed set to:", val)
+        print("⚡ Speed:", val)
     end
 })
 
 -- Auto Farm toggle
 Tab:Toggle({
     Title = "Auto Farm",
-    Desc = "Farm at selected location",
+    Desc = "Farm at selected SpawnLocation",
     Value = false,
     Callback = function(v)
         AutoFarmEnabled = v
@@ -351,8 +323,15 @@ Tab:Toggle({
                 Time = 3
             })
             
-            -- Start auto farm
-            task.spawn(startAutoFarm)
+            -- Find and start farming at selected location
+            for _, data in ipairs(SpawnLocationsData) do
+                if data.DisplayName == SelectedLocation then
+                    task.spawn(function()
+                        tweenToSpawnLocation(data)
+                    end)
+                    break
+                end
+            end
         else
             Window:Notify({
                 Title = "Auto Farm",
@@ -380,31 +359,28 @@ RunService.Stepped:Connect(function()
 end)
 
 -- Handle character changes
-LocalPlayer.CharacterAdded:Connect(function(newChar)
-    print("🔄 Character respawned")
-    task.wait(1)
-    
+LocalPlayer.CharacterAdded:Connect(function()
     if AutoFarmEnabled and SelectedLocation then
-        print("🔄 Restarting auto farm...")
-        task.wait(0.5)
-        tweenToRockLocation(SelectedLocation)
+        task.wait(1)
+        for _, data in ipairs(SpawnLocationsData) do
+            if data.DisplayName == SelectedLocation then
+                tweenToSpawnLocation(data)
+                break
+            end
+        end
     end
 end)
 
 -- Final notification
-if #allRockLocations > 0 then
+if #displayNames > 0 then
     Window:Notify({
         Title = "x2zu Auto Farm",
-        Desc = "Loaded " .. #allRockLocations .. " rock locations!",
+        Desc = "Found " .. #displayNames .. " SpawnLocations with Models!",
         Time = 4
     })
 end
 
 print("\n" .. string.rep("=", 50))
 print("✅ AUTO FARM SCRIPT LOADED")
-print("📊 Total Locations: " .. #allRockLocations)
-print(string.rep("=", 50))
-for i, loc in ipairs(allRockLocations) do
-    print(string.format("%3d. %s", i, loc))
-end
+print("📊 Total SpawnLocations with Models: " .. #displayNames)
 print(string.rep("=", 50))
