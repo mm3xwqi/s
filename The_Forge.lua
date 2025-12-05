@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "The Forge2",
+    Desc = "The Forge3",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -33,6 +33,8 @@ local SelectedLocation = "Island1CaveStart"
 local AutoFarmEnabled = false
 local TweenSpeed = 50
 local CurrentTween = nil
+local CurrentTarget = nil
+local Farming = false
 
 -- Function to enable noclip
 local function enableNoclip()
@@ -64,28 +66,49 @@ local function stopCurrentTween()
     end
 end
 
--- Function to find target model in SpawnLocation Model
-local function findTargetModel(spawnLocationModel)
-    if not spawnLocationModel or not spawnLocationModel:IsA("Model") then
+-- Function to check if model has health and if it's alive
+local function isModelAlive(model)
+    -- Look for Humanoid or Health value
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        return humanoid.Health > 0
+    end
+    
+    -- Check for custom health value
+    local healthValue = model:FindFirstChild("Health") or model:FindFirstChild("health")
+    if healthValue and healthValue:IsA("NumberValue") then
+        return healthValue.Value > 0
+    end
+    
+    -- Check for BoolValue indicating alive/dead
+    local aliveValue = model:FindFirstChild("Alive") or model:FindFirstChild("alive")
+    if aliveValue and aliveValue:IsA("BoolValue") then
+        return aliveValue.Value == true
+    end
+    
+    -- If no health system found, assume it's alive
+    return true
+end
+
+-- Function to find alive model in SpawnLocation
+local function findAliveModelInSpawnLocation(spawnLocationPart)
+    if not spawnLocationPart then
         return nil
     end
     
-    -- ถ้า SpawnLocation Model เองมี PrimaryPart ก็ใช้มันเลย
-    if spawnLocationModel.PrimaryPart then
-        return spawnLocationModel
-    end
-    
-    -- ลองหา Model อื่นภายใน SpawnLocation
-    for _, child in ipairs(spawnLocationModel:GetChildren()) do
-        if child:IsA("Model") and child ~= spawnLocationModel then
-            if child.PrimaryPart then
+    -- Look for models inside SpawnLocation
+    for _, child in ipairs(spawnLocationPart:GetChildren()) do
+        if child:IsA("Model") then
+            -- Check if model is alive
+            if isModelAlive(child) then
                 return child
+            else
+                print("Model " .. child.Name .. " is dead (health 0), skipping...")
             end
         end
     end
     
-    -- ถ้าไม่เจออะไรเลย ก็ใช้ SpawnLocation Model เอง
-    return spawnLocationModel
+    return nil
 end
 
 -- Function to get valid target CFrame
@@ -110,112 +133,147 @@ local function getTargetCFrame(targetModel)
     return nil
 end
 
--- Function to tween to location
-local function tweenToLocation()
-    if not AutoFarmEnabled or not SelectedLocation then
+-- Function to check and farm all locations in sequence
+local function checkAndFarmLocations()
+    if not AutoFarmEnabled then
+        Farming = false
         return
     end
     
-    -- รอให้ Character พร้อม
-    Character = LocalPlayer.Character
-    if not Character then
-        Character = LocalPlayer.CharacterAdded:Wait()
+    Farming = true
+    
+    -- List of locations to check in order
+    local locations = {
+        "Island1CaveStart",
+        "Island1CaveMid", 
+        "Island1CaveDeep",
+        "Roof"
+    }
+    
+    -- If specific location is selected, only check that one
+    if SelectedLocation ~= "All" then
+        locations = {SelectedLocation}
     end
     
-    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-    
-    -- หา location ใน workspace.Rocks
-    local locationFolder = workspace.Rocks:FindFirstChild(SelectedLocation)
-    if not locationFolder then
-        Window:Notify({
-            Title = "Auto Farm",
-            Desc = "Location not found: " .. SelectedLocation,
-            Time = 3
-        })
-        stopCurrentTween()
-        return
-    end
-    
-    -- หา SpawnLocation Model
-    local spawnLocationModel = locationFolder:FindFirstChild("SpawnLocation")
-    if not spawnLocationModel then
-        Window:Notify({
-            Title = "Auto Farm",
-            Desc = "No SpawnLocation found in " .. SelectedLocation,
-            Time = 3
-        })
-        stopCurrentTween()
-        return
-    end
-    
-    -- หา target model
-    local targetModel = findTargetModel(spawnLocationModel)
-    if not targetModel then
-        Window:Notify({
-            Title = "Auto Farm",
-            Desc = "No valid target model found",
-            Time = 3
-        })
-        stopCurrentTween()
-        return
-    end
-    
-    -- ตรวจสอบว่ายังมี targetModel อยู่หรือไม่ (ป้องกันถ้ามันหายไป)
-    if not targetModel:IsDescendantOf(workspace) then
-        Window:Notify({
-            Title = "Auto Farm",
-            Desc = "Target model disappeared, skipping...",
-            Time = 3
-        })
-        stopCurrentTween()
-        task.wait(0.5)
-        tweenToLocation()
-        return
-    end
-    
-    -- หา CFrame เป้าหมาย
-    local targetCFrame = getTargetCFrame(targetModel)
-    if not targetCFrame then
-        Window:Notify({
-            Title = "Auto Farm",
-            Desc = "Cannot get target position",
-            Time = 3
-        })
-        stopCurrentTween()
-        return
-    end
-    
-    -- คำนวณระยะทางและเวลา tween
-    local distance = (HumanoidRootPart.Position - targetCFrame.Position).Magnitude
-    if distance < 5 then
-        -- ถ้าอยู่ใกล้แล้วให้รอสักครู่แล้วเริ่มใหม่
-        task.wait(1)
-        tweenToLocation()
-        return
-    end
-    
-    local tweenTime = distance / TweenSpeed
-    if tweenTime < 0.1 then
-        tweenTime = 0.1
-    end
-    
-    -- สร้างและเริ่ม tween
-    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(HumanoidRootPart, tweenInfo, {CFrame = targetCFrame})
-    
-    CurrentTween = tween
-    tween:Play()
-    
-    -- รอให้ tween เสร็จ
-    tween.Completed:Connect(function()
-        CurrentTween = nil
+    -- Check each location
+    for _, locationName in ipairs(locations) do
+        if not AutoFarmEnabled then break end
         
-        if AutoFarmEnabled then
-            -- รอสักครู่แล้วเริ่มใหม่
+        print("Checking location: " .. locationName)
+        
+        -- หา location ใน workspace.Rocks
+        local locationFolder = workspace.Rocks:FindFirstChild(locationName)
+        if not locationFolder then
+            print("Location not found: " .. locationName)
             task.wait(0.5)
-            tweenToLocation()
+            continue
         end
-    end)
+        
+        -- หา SpawnLocation Part
+        local spawnLocationPart = locationFolder:FindFirstChild("SpawnLocation")
+        if not spawnLocationPart then
+            print("No SpawnLocation found in " .. locationName)
+            task.wait(0.5)
+            continue
+        end
+        
+        -- หา model ที่ยังมีชีวิตอยู่ใน SpawnLocation
+        local targetModel = findAliveModelInSpawnLocation(spawnLocationPart)
+        if not targetModel then
+            print("No alive models found in " .. locationName .. ", skipping...")
+            task.wait(0.5)
+            continue
+        end
+        
+        -- ตั้งค่า CurrentTarget
+        CurrentTarget = targetModel
+        
+        -- ตรวจสอบว่ายังมีชีวิตอยู่หรือไม่
+        if not isModelAlive(targetModel) then
+            print("Model died before reaching, skipping...")
+            task.wait(0.5)
+            continue
+        end
+        
+        print("Found alive model: " .. targetModel.Name .. " in " .. locationName)
+        
+        -- หา CFrame เป้าหมาย
+        local targetCFrame = getTargetCFrame(targetModel)
+        if not targetCFrame then
+            print("Cannot get target position")
+            task.wait(0.5)
+            continue
+        end
+        
+        -- เดินทางไปหา target
+        Character = LocalPlayer.Character
+        if not Character then
+            Character = LocalPlayer.CharacterAdded:Wait()
+        end
+        
+        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+        
+        -- คำนวณระยะทางและเวลา tween
+        local distance = (HumanoidRootPart.Position - targetCFrame.Position).Magnitude
+        local tweenTime = distance / TweenSpeed
+        if tweenTime < 0.1 then
+            tweenTime = 0.1
+        end
+        
+        -- สร้างและเริ่ม tween
+        local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(HumanoidRootPart, tweenInfo, {CFrame = targetCFrame})
+        
+        CurrentTween = tween
+        tween:Play()
+        
+        -- รอให้ tween เสร็จ
+        local completed = false
+        tween.Completed:Connect(function()
+            completed = true
+        end)
+        
+        -- รอจนกว่า tween จะเสร็จหรือ target ตาย
+        while not completed and AutoFarmEnabled do
+            -- ตรวจสอบว่า target ยังมีชีวิตอยู่หรือไม่
+            if not isModelAlive(CurrentTarget) then
+                print("Target died while traveling, canceling tween...")
+                stopCurrentTween()
+                break
+            end
+            
+            -- ตรวจสอบว่า target ยังอยู่ใน workspace หรือไม่
+            if not CurrentTarget:IsDescendantOf(workspace) then
+                print("Target removed from workspace, canceling tween...")
+                stopCurrentTween()
+                break
+            end
+            
+            task.wait(0.1)
+        end
+        
+        -- รอสักครู่ก่อนไปที่อันต่อไป
+        task.wait(1)
+        
+        -- ตรวจสอบอีกครั้งว่า target ยังมีชีวิตอยู่
+        if CurrentTarget and isModelAlive(CurrentTarget) then
+            print("Successfully reached target at " .. locationName)
+            -- รอสักครู่ที่ target
+            task.wait(2)
+        end
+        
+        -- Clear current target
+        CurrentTarget = nil
+    end
+    
+    -- ถ้ายังเปิด AutoFarm อยู่ ให้เริ่มใหม่
+    if AutoFarmEnabled then
+        print("Finished checking all locations, starting over...")
+        task.wait(1)
+        checkAndFarmLocations()
+    else
+        Farming = false
+    end
 end
 
 -- Dropdown for selecting location
@@ -235,8 +293,11 @@ Tab:Dropdown({
         -- ถ้า AutoFarm กำลังทำงานอยู่ ให้รีสตาร์ทด้วย location ใหม่
         if AutoFarmEnabled then
             stopCurrentTween()
-            task.wait(0.1)
-            tweenToLocation()
+            task.wait(0.5)
+            if Farming then
+                task.wait(0.1)
+                checkAndFarmLocations()
+            end
         end
     end
 })
@@ -279,8 +340,8 @@ Tab:Toggle({
                 Time = 3
             })
             
-            -- เริ่ม tweening
-            task.spawn(tweenToLocation)
+            -- เริ่ม farming process
+            task.spawn(checkAndFarmLocations)
         else
             -- ปิด Auto Farm
             Window:Notify({
@@ -291,6 +352,8 @@ Tab:Toggle({
             
             stopCurrentTween()
             disableNoclip()
+            Farming = false
+            CurrentTarget = nil
         end
     end
 })
@@ -303,10 +366,10 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
         HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
         
         -- ถ้า AutoFarm กำลังทำงานอยู่ ให้รีสตาร์ท
-        if AutoFarmEnabled then
+        if AutoFarmEnabled and Farming then
             stopCurrentTween()
             task.wait(1)
-            tweenToLocation()
+            checkAndFarmLocations()
         end
     end
 end)
@@ -321,6 +384,19 @@ end)
 -- Character removed event
 LocalPlayer.CharacterRemoving:Connect(function()
     stopCurrentTween()
+    CurrentTarget = nil
+end)
+
+-- Monitor target health
+RunService.Heartbeat:Connect(function()
+    if AutoFarmEnabled and CurrentTarget and Character then
+        -- ตรวจสอบว่า target ยังมีชีวิตอยู่หรือไม่
+        if not isModelAlive(CurrentTarget) then
+            print("Target died, stopping tween...")
+            stopCurrentTween()
+            CurrentTarget = nil
+        end
+    end
 end)
 
 -- Final Notification
@@ -331,8 +407,5 @@ Window:Notify({
 })
 
 print("Auto Farm Script Loaded")
-print("Available Locations:")
-print("1. Island1CaveStart")
-print("2. Island1CaveMid")
-print("3. Island1CaveDeep")
-print("4. Roof")
+print("Will check health of models before tweening")
+print("If health is 0, will skip to next location")
