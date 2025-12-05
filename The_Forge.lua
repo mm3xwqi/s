@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "the forge8",
+    Desc = "the forge9",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -27,10 +27,31 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+-- Get all rock locations with SpawnLocation
+local function getRockLocations()
+    local locations = {}
+    
+    if workspace:FindFirstChild("Rocks") then
+        for _, rock in ipairs(workspace.Rocks:GetChildren()) do
+            -- Check if this rock has SpawnLocation
+            local spawnLocation = rock:FindFirstChild("SpawnLocation")
+            if spawnLocation then
+                table.insert(locations, rock.Name)
+            end
+        end
+    end
+    
+    -- Sort alphabetically
+    table.sort(locations)
+    return locations
+end
+
+-- Auto farm variables
 local AutoFarmEnabled = false
 local TweenSpeed = 100
 local Mining = false
 local CurrentTween = nil
+local SelectedLocation = nil
 
 -- Remote setup
 local ToolService
@@ -86,21 +107,21 @@ end
 local function tweenToLocation(locationName)
     if not AutoFarmEnabled then return end
     
-    -- Get the location folder
-    local locationFolder = workspace.Rocks:FindFirstChild(locationName)
-    if not locationFolder then
-        print("Location not found:", locationName)
+    -- Get the rock location
+    local rockLocation = workspace.Rocks:FindFirstChild(locationName)
+    if not rockLocation then
+        print("Rock location not found:", locationName)
         return
     end
     
-    -- Find SpawnLocation inside
-    local spawnLocation = locationFolder:FindFirstChild("SpawnLocation")
+    -- Get SpawnLocation
+    local spawnLocation = rockLocation:FindFirstChild("SpawnLocation")
     if not spawnLocation then
-        print("SpawnLocation not found in:", locationName)
+        print("No SpawnLocation in:", locationName)
         return
     end
     
-    -- Find Model inside SpawnLocation
+    -- Find first Model in SpawnLocation
     local targetModel
     for _, child in ipairs(spawnLocation:GetChildren()) do
         if child:IsA("Model") then
@@ -110,7 +131,7 @@ local function tweenToLocation(locationName)
     end
     
     if not targetModel then
-        print("No Model found in SpawnLocation")
+        print("No Model found in SpawnLocation of:", locationName)
         return
     end
     
@@ -137,7 +158,7 @@ local function tweenToLocation(locationName)
         return
     end
     
-    -- Calculate tween time based on distance and speed
+    -- Calculate tween time
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
     local tweenTime = distance / TweenSpeed
     
@@ -157,7 +178,7 @@ local function tweenToLocation(locationName)
         if AutoFarmEnabled then
             -- Start mining when reached
             startMining()
-            -- Wait and go to next location
+            -- Wait and go to same location again
             task.wait(1)
             tweenToLocation(locationName)
         end
@@ -167,34 +188,32 @@ end
 -- Main auto farm loop
 local function autoFarmLoop()
     while AutoFarmEnabled do
-        -- Get current selected location
-        local currentLocation = SelectedLocation
-        
-        if currentLocation then
-            tweenToLocation(currentLocation)
+        if SelectedLocation then
+            tweenToLocation(SelectedLocation)
         else
             print("No location selected")
         end
         
-        -- Wait before next check
         task.wait(1)
     end
 end
 
+-- Get available rock locations
+local rockLocations = getRockLocations()
+if #rockLocations == 0 then
+    rockLocations = {"No rocks found"}
+else
+    SelectedLocation = rockLocations[1] -- Set first as default
+end
+
 -- Location dropdown
-local SelectedLocation = "Island1CaveStart"
 Tab:Dropdown({
-    Title = "Select Location",
-    List = {
-        "Island1CaveStart",
-        "Island1CaveMid",
-        "Island1CaveDeep",
-        "Roof"
-    },
+    Title = "Select Rock Location",
+    List = rockLocations,
     Value = SelectedLocation,
     Callback = function(choice)
         SelectedLocation = choice
-        print("Location selected:", choice)
+        print("Selected location:", choice)
     end
 })
 
@@ -222,7 +241,7 @@ Tab:Toggle({
         if v then
             Window:Notify({
                 Title = "Auto Farm",
-                Desc = "Started farming at: " .. SelectedLocation,
+                Desc = "Started farming at: " .. (SelectedLocation or "None"),
                 Time = 3
             })
             
@@ -258,7 +277,7 @@ end)
 -- Handle character changes
 LocalPlayer.CharacterAdded:Connect(function()
     if AutoFarmEnabled then
-        task.wait(1) -- Wait for character to load
+        task.wait(1)
         task.spawn(autoFarmLoop)
     end
 end)
@@ -266,9 +285,12 @@ end)
 -- Final notification
 Window:Notify({
     Title = "x2zu Auto Farm",
-    Desc = "Script loaded successfully!",
+    Desc = "Found " .. #rockLocations .. " rock locations",
     Time = 4
 })
 
 print("Auto Farm Script Loaded")
-print("Locations: Island1CaveStart, Island1CaveMid, Island1CaveDeep, Roof")
+print("Rock locations found:", #rockLocations)
+for _, loc in ipairs(rockLocations) do
+    print("  - " .. loc)
+end
