@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "The Forge",
+    Desc = "The Forge4",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
