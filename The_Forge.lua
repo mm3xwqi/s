@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "The Forge3",
+    Desc = "The Forge4",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -35,6 +35,61 @@ local TweenSpeed = 50
 local CurrentTween = nil
 local CurrentTarget = nil
 local Farming = false
+local Mining = false
+local ToolService
+
+-- Function to setup ToolService reference
+local function setupToolService()
+    ToolService = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ToolService"):WaitForChild("RF"):WaitForChild("ToolActivated")
+end
+
+-- Setup ToolService
+pcall(setupToolService)
+
+-- Function to mine the target
+local function mineTarget()
+    if not ToolService or not AutoFarmEnabled then
+        return false
+    end
+    
+    Mining = true
+    
+    -- Try to mine continuously
+    local startTime = tick()
+    local maxMineTime = 10 -- maximum mining time in seconds
+    
+    while Mining and AutoFarmEnabled and CurrentTarget do
+        local args = {"Pickaxe"}
+        
+        -- Invoke the mining server
+        local success, result = pcall(function()
+            return ToolService:InvokeServer(unpack(args))
+        end)
+        
+        if not success then
+            print("Mining failed:", result)
+            break
+        end
+        
+        -- Check if target is still alive
+        if not isModelAlive(CurrentTarget) then
+            print("Target mined successfully!")
+            break
+        end
+        
+        -- Check mining time
+        if tick() - startTime > maxMineTime then
+            print("Mining timeout")
+            break
+        end
+        
+        -- Wait a bit before next mining attempt
+        task.wait(0.1)
+    end
+    
+    Mining = false
+    return true
+end
 
 -- Function to enable noclip
 local function enableNoclip()
@@ -68,6 +123,10 @@ end
 
 -- Function to check if model has health and if it's alive
 local function isModelAlive(model)
+    if not model or not model.Parent then
+        return false
+    end
+    
     -- Look for Humanoid or Health value
     local humanoid = model:FindFirstChildOfClass("Humanoid")
     if humanoid then
@@ -75,7 +134,7 @@ local function isModelAlive(model)
     end
     
     -- Check for custom health value
-    local healthValue = model:FindFirstChild("Health") or model:FindFirstChild("health")
+    local healthValue = model:FindFirstChild("Health") or model:FindFirstChild("health") or model:FindFirstChild("HP")
     if healthValue and healthValue:IsA("NumberValue") then
         return healthValue.Value > 0
     end
@@ -117,20 +176,36 @@ local function getTargetCFrame(targetModel)
         return nil
     end
     
-    -- ถ้า Model มี PrimaryPart ใช้ GetPivot()
+    -- If Model has PrimaryPart use GetPivot()
     if targetModel.PrimaryPart then
         return targetModel:GetPivot()
     end
     
-    -- ถ้าไม่มี PrimaryPart ให้หา BasePart แรกที่เจอ
+    -- If no PrimaryPart, find first BasePart
     for _, child in ipairs(targetModel:GetDescendants()) do
         if child:IsA("BasePart") then
             return child.CFrame
         end
     end
     
-    -- ถ้าไม่เจอ BasePart เลย
+    -- If no BasePart found
     return nil
+end
+
+-- Function to get all locations in workspace.Rocks
+local function getAllRockLocations()
+    local locations = {}
+    
+    if workspace:FindFirstChild("Rocks") then
+        for _, child in ipairs(workspace.Rocks:GetChildren()) do
+            -- Check if this location has a SpawnLocation
+            if child:FindFirstChild("SpawnLocation") then
+                table.insert(locations, child.Name)
+            end
+        end
+    end
+    
+    return locations
 end
 
 -- Function to check and farm all locations in sequence
@@ -142,18 +217,42 @@ local function checkAndFarmLocations()
     
     Farming = true
     
-    -- List of locations to check in order
-    local locations = {
-        "Island1CaveStart",
-        "Island1CaveMid", 
-        "Island1CaveDeep",
-        "Roof"
-    }
+    -- Get all available locations
+    local allLocations = getAllRockLocations()
     
-    -- If specific location is selected, only check that one
+    -- If specific location is selected and exists
+    local locations = {}
     if SelectedLocation ~= "All" then
-        locations = {SelectedLocation}
+        -- Check if selected location exists
+        local found = false
+        for _, loc in ipairs(allLocations) do
+            if loc == SelectedLocation then
+                found = true
+                break
+            end
+        end
+        
+        if found then
+            locations = {SelectedLocation}
+        else
+            print("Selected location not found, using all available locations")
+            locations = allLocations
+        end
+    else
+        locations = allLocations
     end
+    
+    if #locations == 0 then
+        Window:Notify({
+            Title = "Auto Farm",
+            Desc = "No rock locations found!",
+            Time = 3
+        })
+        Farming = false
+        return
+    end
+    
+    print("Available locations: " .. table.concat(locations, ", "))
     
     -- Check each location
     for _, locationName in ipairs(locations) do
@@ -164,7 +263,7 @@ local function checkAndFarmLocations()
         -- หา location ใน workspace.Rocks
         local locationFolder = workspace.Rocks:FindFirstChild(locationName)
         if not locationFolder then
-            print("Location not found: " .. locationName)
+            print("Location not found in Rocks folder: " .. locationName)
             task.wait(0.5)
             continue
         end
@@ -252,15 +351,18 @@ local function checkAndFarmLocations()
             task.wait(0.1)
         end
         
+        if completed then
+            print("Successfully reached target at " .. locationName)
+            
+            -- เริ่มทำการขุดทันทีที่ถึง
+            if AutoFarmEnabled and CurrentTarget and isModelAlive(CurrentTarget) then
+                print("Starting mining...")
+                mineTarget()
+            end
+        end
+        
         -- รอสักครู่ก่อนไปที่อันต่อไป
         task.wait(1)
-        
-        -- ตรวจสอบอีกครั้งว่า target ยังมีชีวิตอยู่
-        if CurrentTarget and isModelAlive(CurrentTarget) then
-            print("Successfully reached target at " .. locationName)
-            -- รอสักครู่ที่ target
-            task.wait(2)
-        end
         
         -- Clear current target
         CurrentTarget = nil
@@ -276,15 +378,16 @@ local function checkAndFarmLocations()
     end
 end
 
+-- Get initial locations
+local availableLocations = getAllRockLocations()
+if #availableLocations == 0 then
+    availableLocations = {"Island1CaveStart", "Island1CaveMid", "Island1CaveDeep", "Roof"}
+end
+
 -- Dropdown for selecting location
 Tab:Dropdown({
     Title = "Select Tween Location",
-    List = {
-        "Island1CaveStart",
-        "Island1CaveMid", 
-        "Island1CaveDeep",
-        "Roof"
-    },
+    List = availableLocations,
     Value = SelectedLocation,
     Callback = function(choice)
         SelectedLocation = choice
@@ -293,6 +396,7 @@ Tab:Dropdown({
         -- ถ้า AutoFarm กำลังทำงานอยู่ ให้รีสตาร์ทด้วย location ใหม่
         if AutoFarmEnabled then
             stopCurrentTween()
+            Mining = false
             task.wait(0.5)
             if Farming then
                 task.wait(0.1)
@@ -325,18 +429,9 @@ Tab:Toggle({
         
         if v then
             -- เปิด Auto Farm
-            if not SelectedLocation then
-                Window:Notify({
-                    Title = "Auto Farm",
-                    Desc = "Please select a location first!",
-                    Time = 3
-                })
-                return
-            end
-            
             Window:Notify({
                 Title = "Auto Farm",
-                Desc = "Started auto farming at: " .. SelectedLocation,
+                Desc = "Started auto farming",
                 Time = 3
             })
             
@@ -353,6 +448,7 @@ Tab:Toggle({
             stopCurrentTween()
             disableNoclip()
             Farming = false
+            Mining = false
             CurrentTarget = nil
         end
     end
@@ -364,6 +460,9 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     task.wait(0.5) -- รอให้ Character โหลดเสร็จ
     if Character then
         HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+        
+        -- Reconnect ToolService when character respawns
+        pcall(setupToolService)
         
         -- ถ้า AutoFarm กำลังทำงานอยู่ ให้รีสตาร์ท
         if AutoFarmEnabled and Farming then
@@ -385,6 +484,7 @@ end)
 LocalPlayer.CharacterRemoving:Connect(function()
     stopCurrentTween()
     CurrentTarget = nil
+    Mining = false
 end)
 
 -- Monitor target health
@@ -395,6 +495,7 @@ RunService.Heartbeat:Connect(function()
             print("Target died, stopping tween...")
             stopCurrentTween()
             CurrentTarget = nil
+            Mining = false
         end
     end
 end)
@@ -407,5 +508,6 @@ Window:Notify({
 })
 
 print("Auto Farm Script Loaded")
-print("Will check health of models before tweening")
-print("If health is 0, will skip to next location")
+print("Will auto-detect available rock locations")
+print("Will mine automatically when reaching target")
+print("ToolService initialized: " .. tostring(ToolService ~= nil))
