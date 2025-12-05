@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "Auto Farm Script",
+    Desc = "The Forge",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -31,16 +31,19 @@ local noclipConnection = nil
 -- Remote setup
 local toolRemote = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ToolService"):WaitForChild("RF"):WaitForChild("ToolActivated")
 
--- Function to get the single farm location from SpawnLocation
-local function getFarmLocation()
-    local locations = {
-        "workspace.Rocks.Island1CaveStart.SpawnLocation",
-        "workspace.Rocks.Island1CaveMid.SpawnLocation", 
-        "workspace.Rocks.Island1CaveDeep.SpawnLocation",
-        "workspace.Rocks.Roof.SpawnLocation"
+-- Function to get all parts inside SpawnLocations
+local function getFarmParts()
+    local farmData = {}
+    
+    -- Define paths to check
+    local paths = {
+        "workspace.Rocks.Island1CaveStart",
+        "workspace.Rocks.Island1CaveMid",
+        "workspace.Rocks.Island1CaveDeep",
+        "workspace.Rocks.Roof"
     }
     
-    for _, path in ipairs(locations) do
+    for _, path in ipairs(paths) do
         local parts = path:split(".")
         local current = workspace
         
@@ -51,22 +54,44 @@ local function getFarmLocation()
             end
         end
         
-        if current and current:IsA("BasePart") then
-            -- Get the Model name that contains the SpawnLocation
-            local modelName = current.Parent and current.Parent.Name or "Unknown"
-            return {
-                Path = path,
-                Location = current,
-                ModelName = modelName
-            }
+        if current then
+            for _, model in ipairs(current:GetChildren()) do
+                if model:IsA("Model") then
+                    local spawnLocation = model:FindFirstChild("SpawnLocation")
+                    if spawnLocation and spawnLocation:IsA("BasePart") then
+                        -- Get all BaseParts inside the SpawnLocation
+                        for _, child in ipairs(spawnLocation:GetChildren()) do
+                            if child:IsA("BasePart") then
+                                table.insert(farmData, {
+                                    Name = child.Name .. " [" .. model.Name .. "]",
+                                    ModelName = model.Name,
+                                    PartName = child.Name,
+                                    Location = child,
+                                    ParentModel = model
+                                })
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return farmData
+end
+
+-- Function to get part by display name
+local function getPartByName(displayName)
+    local farmData = getFarmParts()
+    
+    for _, data in ipairs(farmData) do
+        if data.Name == displayName then
+            return data.Location
         end
     end
     
     return nil
 end
-
--- Get the single farm location
-local farmLocation = getFarmLocation()
 
 -- Noclip functions
 local function enableNoclip()
@@ -101,9 +126,12 @@ local function disableNoclip()
     end
 end
 
--- Tween function with noclip
-local function tweenToLocation()
-    if not farmLocation or not farmLocation.Location:IsA("BasePart") then return end
+-- Tween function to part inside SpawnLocation
+local function tweenToPart(partName)
+    if not partName or partName == "" then return end
+    
+    local targetPart = getPartByName(partName)
+    if not targetPart or not targetPart:IsA("BasePart") then return end
     
     -- Enable noclip during tween if setting is on
     local wasNoclipEnabled = noclipEnabled
@@ -112,8 +140,7 @@ local function tweenToLocation()
     end
     
     -- Create tween info
-    local location = farmLocation.Location
-    local distance = (humanoidRootPart.Position - location.Position).Magnitude
+    local distance = (humanoidRootPart.Position - targetPart.Position).Magnitude
     local duration = distance / tweenSpeed
     
     local tweenInfo = TweenInfo.new(
@@ -125,8 +152,8 @@ local function tweenToLocation()
         0
     )
     
-    -- Create tween
-    local tween = tweenService:Create(humanoidRootPart, tweenInfo, {CFrame = location.CFrame})
+    -- Create tween to the part
+    local tween = tweenService:Create(humanoidRootPart, tweenInfo, {CFrame = targetPart.CFrame})
     tween:Play()
     
     -- Wait for tween to complete
@@ -157,13 +184,58 @@ local function startAutoFarm()
     end
     
     autoFarmThread = task.spawn(function()
-        while autoFarmEnabled do
+        while autoFarmEnabled and selectedFarm ~= "" do
             pcall(function()
-                tweenToLocation()
+                tweenToPart(selectedFarm)
             end)
             task.wait(0.1) -- Small delay between cycles
         end
     end)
+end
+
+-- Function to update dropdown
+local farmDropdown
+local function updateDropdown()
+    local farmData = getFarmParts()
+    local displayNames = {}
+    
+    for _, data in ipairs(farmData) do
+        table.insert(displayNames, data.Name)
+    end
+    
+    if #displayNames > 0 then
+        if farmDropdown then
+            farmDropdown:UpdateList(displayNames)
+            if selectedFarm == "" then
+                selectedFarm = displayNames[1]
+            end
+        else
+            farmDropdown = MainTab:Dropdown({
+                Title = "Select Farm",
+                List = displayNames,
+                Value = displayNames[1],
+                Callback = function(choice)
+                    selectedFarm = choice
+                    print("Selected Farm:", choice)
+                end
+            })
+            selectedFarm = displayNames[1]
+        end
+        return true
+    else
+        if farmDropdown then
+            farmDropdown:UpdateList({"No Parts found in SpawnLocations"})
+        else
+            farmDropdown = MainTab:Dropdown({
+                Title = "Select Farm",
+                List = {"No Parts found in SpawnLocations"},
+                Value = "No Parts found in SpawnLocations",
+                Callback = function() end
+            })
+        end
+        selectedFarm = ""
+        return false
+    end
 end
 
 -- Main Tab
@@ -171,18 +243,18 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     -- Auto Farm Section
     MainTab:Section({Title = "Auto Farm"})
     
-    -- Status display
-    MainTab:Label({
-        Title = "Farm Location Status",
-        Desc = farmLocation and ("Found: " .. farmLocation.ModelName) or "No SpawnLocation found!"
-    })
+    -- Auto-update dropdown initially
+    updateDropdown()
     
-    if farmLocation then
-        MainTab:Label({
-            Title = "Path",
-            Desc = farmLocation.Path
-        })
-    end
+    -- Auto-refresh thread
+    task.spawn(function()
+        while true do
+            task.wait(5) -- Update every 5 seconds
+            if MainTab then
+                updateDropdown()
+            end
+        end
+    end)
     
     -- Tween Speed Slider
     MainTab:Slider({
@@ -221,24 +293,24 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     -- Auto Farm Toggle
     MainTab:Toggle({
         Title = "Auto Farm",
-        Desc = farmLocation and ("Enable/Disable automatic farming at: " .. farmLocation.ModelName) or "No farm location found",
+        Desc = "Enable/Disable automatic farming",
         Value = false,
         Callback = function(v)
-            if not farmLocation then
-                Window:Notify({
-                    Title = "Error",
-                    Desc = "No farm location found!",
-                    Time = 3
-                })
-                return
-            end
-            
             autoFarmEnabled = v
             if v then
+                if selectedFarm == "" or selectedFarm == "No Parts found in SpawnLocations" then
+                    Window:Notify({
+                        Title = "Error",
+                        Desc = "No farm part available!",
+                        Time = 3
+                    })
+                    autoFarmEnabled = false
+                    return
+                end
                 startAutoFarm()
                 Window:Notify({
                     Title = "Auto Farm",
-                    Desc = "Started farming at: " .. farmLocation.ModelName,
+                    Desc = "Started farming: " .. selectedFarm,
                     Time = 3
                 })
             else
@@ -257,47 +329,47 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
         end
     })
     
-    -- Teleport Button (for testing)
+    -- Teleport Button
     MainTab:Button({
         Title = "Teleport to Farm",
-        Desc = "Teleport once to farm location",
+        Desc = "Teleport once to selected farm part",
         Callback = function()
-            if not farmLocation then
+            if selectedFarm == "" or selectedFarm == "No Parts found in SpawnLocations" then
                 Window:Notify({
                     Title = "Error",
-                    Desc = "No farm location found!",
+                    Desc = "No farm part selected!",
                     Time = 3
                 })
                 return
             end
             
             pcall(function()
-                tweenToLocation()
+                tweenToPart(selectedFarm)
                 Window:Notify({
                     Title = "Teleport",
-                    Desc = "Teleported to " .. farmLocation.ModelName,
+                    Desc = "Teleported to: " .. selectedFarm,
                     Time = 3
                 })
             end)
         end
     })
     
-    -- Refresh Button
+    -- Manual Refresh Button
     MainTab:Button({
-        Title = "Refresh Location",
-        Desc = "Reload farm location",
+        Title = "Manual Refresh",
+        Desc = "Refresh farm parts now",
         Callback = function()
-            farmLocation = getFarmLocation()
-            if farmLocation then
+            if updateDropdown() then
+                local farmData = getFarmParts()
                 Window:Notify({
                     Title = "Refreshed",
-                    Desc = "Found farm: " .. farmLocation.ModelName,
+                    Desc = #farmData .. " parts found in SpawnLocations",
                     Time = 3
                 })
             else
                 Window:Notify({
-                    Title = "Not Found",
-                    Desc = "No SpawnLocation found in any of the paths",
+                    Title = "No Parts",
+                    Desc = "No parts found inside SpawnLocations",
                     Time = 3
                 })
             end
@@ -323,16 +395,17 @@ game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
 end)
 
 -- Initial Notification
-if farmLocation then
+local farmData = getFarmParts()
+if #farmData > 0 then
     Window:Notify({
         Title = "Auto Farm Loaded",
-        Desc = "Found farm at: " .. farmLocation.ModelName .. ". Enable Auto Farm to start!",
+        Desc = #farmData .. " parts found in SpawnLocations. Auto-updating every 5 seconds.",
         Time = 4
     })
 else
     Window:Notify({
         Title = "Warning",
-        Desc = "No SpawnLocation found in any of the 4 paths. Click Refresh to retry.",
+        Desc = "No parts found inside SpawnLocations. Dropdown will auto-refresh every 5 seconds.",
         Time = 5
     })
 end
