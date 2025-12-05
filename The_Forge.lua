@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "the forge2",
+    Desc = "the forge3",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -27,20 +27,104 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
--- Function to get ALL SpawnLocation folders in Rocks (direct children)
-local function getAllSpawnLocations()
-    local spawnLocations = {}
+-- Function to teleport to location instantly
+local function teleportToPosition(position)
+    local char = LocalPlayer.Character
+    if not char then
+        char = LocalPlayer.CharacterAdded:Wait()
+    end
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    
+    hrp.CFrame = CFrame.new(position)
+    print("✅ Teleported to position")
+end
+
+-- Function to get ALL SpawnLocations with Models and check IsOccupied attribute
+local function getOccupiedSpawnLocations()
+    local occupiedLocations = {}
     
     if not workspace:FindFirstChild("Rocks") then
-        return spawnLocations
+        return occupiedLocations
     end
     
-    print("🔍 Scanning Rocks folder...")
+    print("🔍 Checking ALL SpawnLocations for IsOccupied...")
     
+    -- Check direct SpawnLocations in Rocks
     for _, item in ipairs(workspace.Rocks:GetChildren()) do
-        -- Check if this is a SpawnLocation folder directly in Rocks
         if item.Name == "SpawnLocation" then
-            -- Check if this SpawnLocation has at least one Model inside
+            -- Check if this SpawnLocation has a Model AND IsOccupied is true
+            local hasOccupiedModel = false
+            local targetModel = nil
+            
+            for _, child in ipairs(item:GetChildren()) do
+                if child:IsA("Model") then
+                    -- Check if model has IsOccupied attribute
+                    if child:GetAttribute("IsOccupied") == true then
+                        hasOccupiedModel = true
+                        targetModel = child
+                        break
+                    end
+                end
+            end
+            
+            if hasOccupiedModel and targetModel then
+                table.insert(occupiedLocations, {
+                    DisplayName = "SpawnLocation_" .. #occupiedLocations + 1,
+                    SpawnLocation = item,
+                    TargetModel = targetModel
+                })
+                print("✓ Found occupied SpawnLocation (direct)")
+            end
+        end
+    end
+    
+    -- Check named folders with SpawnLocation inside
+    for _, item in ipairs(workspace.Rocks:GetChildren()) do
+        if item.Name ~= "SpawnLocation" then
+            local spawnLoc = item:FindFirstChild("SpawnLocation")
+            if spawnLoc then
+                -- Check if SpawnLocation has an occupied model
+                local hasOccupiedModel = false
+                local targetModel = nil
+                
+                for _, child in ipairs(spawnLoc:GetChildren()) do
+                    if child:IsA("Model") then
+                        if child:GetAttribute("IsOccupied") == true then
+                            hasOccupiedModel = true
+                            targetModel = child
+                            break
+                        end
+                    end
+                end
+                
+                if hasOccupiedModel and targetModel then
+                    table.insert(occupiedLocations, {
+                        DisplayName = item.Name,
+                        SpawnLocation = spawnLoc,
+                        TargetModel = targetModel
+                    })
+                    print("✓ Found occupied in " .. item.Name)
+                end
+            end
+        end
+    end
+    
+    print("✅ Total occupied locations: " .. #occupiedLocations)
+    return occupiedLocations
+end
+
+-- Function to scan ALL SpawnLocations (for dropdown)
+local function getAllSpawnLocationsWithModels()
+    local allLocations = {}
+    
+    if not workspace:FindFirstChild("Rocks") then
+        return allLocations
+    end
+    
+    -- Direct SpawnLocations
+    local spawnCount = 1
+    for _, item in ipairs(workspace.Rocks:GetChildren()) do
+        if item.Name == "SpawnLocation" then
             local hasModel = false
             for _, child in ipairs(item:GetChildren()) do
                 if child:IsA("Model") then
@@ -50,27 +134,21 @@ local function getAllSpawnLocations()
             end
             
             if hasModel then
-                -- Create a unique display name
-                local displayName = "SpawnLocation_" .. #spawnLocations + 1
-                table.insert(spawnLocations, {
-                    DisplayName = displayName,
-                    RealObject = item,
-                    HasModel = true
+                table.insert(allLocations, {
+                    DisplayName = "SpawnLocation_" .. spawnCount,
+                    SpawnLocation = item,
+                    IsDirect = true
                 })
-                print("✓ Found SpawnLocation with Model: " .. displayName)
-            else
-                print("✗ Skipping SpawnLocation (no Model inside)")
+                spawnCount = spawnCount + 1
             end
         end
     end
     
-    -- Also check for named folders (like Island1CaveStart, etc.)
+    -- Named folders
     for _, item in ipairs(workspace.Rocks:GetChildren()) do
         if item.Name ~= "SpawnLocation" then
-            -- Check if this folder has a SpawnLocation inside
             local spawnLoc = item:FindFirstChild("SpawnLocation")
             if spawnLoc then
-                -- Check if SpawnLocation has at least one Model
                 local hasModel = false
                 for _, child in ipairs(spawnLoc:GetChildren()) do
                     if child:IsA("Model") then
@@ -80,21 +158,18 @@ local function getAllSpawnLocations()
                 end
                 
                 if hasModel then
-                    table.insert(spawnLocations, {
+                    table.insert(allLocations, {
                         DisplayName = item.Name,
-                        RealObject = spawnLoc,
-                        HasModel = true
+                        SpawnLocation = spawnLoc,
+                        IsDirect = false,
+                        ParentFolder = item
                     })
-                    print("✓ Found " .. item.Name .. " with SpawnLocation (has Model)")
-                else
-                    print("✗ Skipping " .. item.Name .. " (SpawnLocation has no Model)")
                 end
             end
         end
     end
     
-    print("✅ Total valid locations: " .. #spawnLocations)
-    return spawnLocations
+    return allLocations
 end
 
 -- Auto farm variables
@@ -103,7 +178,8 @@ local TweenSpeed = 100
 local Mining = false
 local CurrentTween = nil
 local SelectedLocation = nil
-local SpawnLocationsData = {}
+local AllSpawnLocations = {}
+local CurrentScanIndex = 1
 
 -- Remote setup
 local ToolService
@@ -131,11 +207,13 @@ local function enableNoclip(char)
     end
 end
 
--- Function to find first Model in SpawnLocation
-local function findFirstModel(spawnLoc)
+-- Find first occupied model in SpawnLocation
+local function findOccupiedModel(spawnLoc)
     for _, child in ipairs(spawnLoc:GetChildren()) do
         if child:IsA("Model") then
-            return child
+            if child:GetAttribute("IsOccupied") == true then
+                return child
+            end
         end
     end
     return nil
@@ -165,27 +243,12 @@ local function startMining()
     Mining = false
 end
 
--- Tween to SpawnLocation
-local function tweenToSpawnLocation(locationData)
-    if not AutoFarmEnabled then return end
+-- Tween to target model
+local function tweenToModel(targetModel)
+    if not AutoFarmEnabled or not targetModel then return end
     
-    print("🎯 Targeting: " .. locationData.DisplayName)
-    
-    -- Find first Model in this SpawnLocation
-    local targetModel = findFirstModel(locationData.RealObject)
-    if not targetModel then 
-        print("❌ No Model found in " .. locationData.DisplayName)
-        return 
-    end
-    
-    print("🎯 Target Model:", targetModel.Name)
-    
-    -- Get character
     local char, hrp = getCharacter()
-    if not char or not hrp then 
-        print("❌ Character not found")
-        return 
-    end
+    if not char or not hrp then return end
     
     -- Get target position
     local targetCFrame
@@ -200,16 +263,11 @@ local function tweenToSpawnLocation(locationData)
         end
     end
     
-    if not targetCFrame then 
-        print("❌ Cannot get model position")
-        return 
-    end
+    if not targetCFrame then return end
     
     -- Calculate tween time
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
     local tweenTime = distance / TweenSpeed
-    
-    print("📏 Distance:", math.floor(distance), "Time:", string.format("%.2f", tweenTime) .. "s")
     
     -- Cancel current tween
     if CurrentTween then
@@ -222,25 +280,107 @@ local function tweenToSpawnLocation(locationData)
     CurrentTween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
     CurrentTween:Play()
     
-    print("🚀 Started tweening to " .. locationData.DisplayName)
-    
     -- When tween completes
     CurrentTween.Completed:Connect(function()
         if AutoFarmEnabled then
-            print("✅ Reached " .. locationData.DisplayName)
             startMining()
-            task.wait(1)
-            tweenToSpawnLocation(locationData)
         end
     end)
 end
 
--- Get ALL valid SpawnLocations
-SpawnLocationsData = getAllSpawnLocations()
+-- Scan and farm ALL occupied locations
+local function scanAndFarmAllOccupied()
+    while AutoFarmEnabled do
+        print("🔄 Scanning for occupied locations...")
+        local occupiedLocations = getOccupiedSpawnLocations()
+        
+        if #occupiedLocations == 0 then
+            print("⏳ No occupied locations found, waiting...")
+            task.wait(2)
+            continue
+        end
+        
+        -- Farm each occupied location
+        for _, locationData in ipairs(occupiedLocations) do
+            if not AutoFarmEnabled then break end
+            
+            print("🎯 Farming occupied: " .. locationData.DisplayName)
+            
+            -- Teleport to SpawnLocation first
+            local spawnPos = locationData.SpawnLocation.Position
+            teleportToPosition(spawnPos)
+            task.wait(0.5)
+            
+            -- Check if still occupied
+            local targetModel = findOccupiedModel(locationData.SpawnLocation)
+            if targetModel and targetModel:GetAttribute("IsOccupied") == true then
+                print("✅ Still occupied, tweening to model...")
+                tweenToModel(targetModel)
+                
+                -- Wait for mining to finish
+                while Mining and AutoFarmEnabled do
+                    task.wait(1)
+                end
+            else
+                print("❌ No longer occupied, skipping...")
+            end
+            
+            if not AutoFarmEnabled then break end
+            task.wait(1)
+        end
+        
+        task.wait(1)
+    end
+end
 
--- Create display names list for dropdown
+-- Farm specific selected location
+local function farmSelectedLocation()
+    while AutoFarmEnabled and SelectedLocation do
+        -- Find the selected location
+        local targetLocation = nil
+        for _, locData in ipairs(AllSpawnLocations) do
+            if locData.DisplayName == SelectedLocation then
+                targetLocation = locData
+                break
+            end
+        end
+        
+        if not targetLocation then
+            print("❌ Selected location not found")
+            task.wait(2)
+            continue
+        end
+        
+        -- Check if occupied
+        local occupiedModel = findOccupiedModel(targetLocation.SpawnLocation)
+        if occupiedModel then
+            print("✅ " .. SelectedLocation .. " is occupied")
+            
+            -- Teleport to SpawnLocation
+            local spawnPos = targetLocation.SpawnLocation.Position
+            teleportToPosition(spawnPos)
+            task.wait(0.5)
+            
+            -- Tween to model
+            tweenToModel(occupiedModel)
+            
+            -- Wait for mining
+            while Mining and AutoFarmEnabled do
+                task.wait(1)
+            end
+        else
+            print("❌ " .. SelectedLocation .. " not occupied, waiting...")
+            task.wait(2)
+        end
+    end
+end
+
+-- Get all locations for dropdown
+AllSpawnLocations = getAllSpawnLocationsWithModels()
+
+-- Create display names list
 local displayNames = {}
-for _, data in ipairs(SpawnLocationsData) do
+for _, data in ipairs(AllSpawnLocations) do
     table.insert(displayNames, data.DisplayName)
 end
 
@@ -249,40 +389,33 @@ if #displayNames > 0 then
     SelectedLocation = displayNames[1]
 else
     SelectedLocation = nil
-    Window:Notify({
-        Title = "Error",
-        Desc = "No SpawnLocations with Models found!",
-        Time = 3
-    })
 end
 
--- Location dropdown
+-- Mode dropdown
+local FarmMode = "Selected" -- Selected or All
+Tab:Dropdown({
+    Title = "Farm Mode",
+    List = {"Selected Location", "All Occupied"},
+    Value = "Selected Location",
+    Callback = function(choice)
+        if choice == "Selected Location" then
+            FarmMode = "Selected"
+            print("📍 Mode: Farm selected location only")
+        else
+            FarmMode = "All"
+            print("📍 Mode: Farm all occupied locations")
+        end
+    end
+})
+
+-- Location dropdown (for Selected mode)
 Tab:Dropdown({
     Title = "Select SpawnLocation",
-    Desc = "Only shows SpawnLocations with Models",
     List = displayNames,
     Value = SelectedLocation,
     Callback = function(choice)
         SelectedLocation = choice
         print("📍 Selected:", choice)
-        
-        -- If auto farm is running, restart
-        if AutoFarmEnabled then
-            Mining = false
-            if CurrentTween then
-                CurrentTween:Cancel()
-                CurrentTween = nil
-            end
-            task.wait(0.5)
-            
-            -- Find the selected location data
-            for _, data in ipairs(SpawnLocationsData) do
-                if data.DisplayName == choice then
-                    tweenToSpawnLocation(data)
-                    break
-                end
-            end
-        end
     end
 })
 
@@ -302,13 +435,13 @@ Tab:Slider({
 -- Auto Farm toggle
 Tab:Toggle({
     Title = "Auto Farm",
-    Desc = "Farm at selected SpawnLocation",
+    Desc = "Start auto farming",
     Value = false,
     Callback = function(v)
         AutoFarmEnabled = v
         
         if v then
-            if not SelectedLocation then
+            if FarmMode == "Selected" and not SelectedLocation then
                 Window:Notify({
                     Title = "Error",
                     Desc = "Please select a location first!",
@@ -319,18 +452,15 @@ Tab:Toggle({
             
             Window:Notify({
                 Title = "Auto Farm",
-                Desc = "Started farming at: " .. SelectedLocation,
+                Desc = "Started farming (" .. FarmMode .. " mode)",
                 Time = 3
             })
             
-            -- Find and start farming at selected location
-            for _, data in ipairs(SpawnLocationsData) do
-                if data.DisplayName == SelectedLocation then
-                    task.spawn(function()
-                        tweenToSpawnLocation(data)
-                    end)
-                    break
-                end
+            -- Start farming based on mode
+            if FarmMode == "Selected" then
+                task.spawn(farmSelectedLocation)
+            else
+                task.spawn(scanAndFarmAllOccupied)
             end
         else
             Window:Notify({
@@ -360,13 +490,12 @@ end)
 
 -- Handle character changes
 LocalPlayer.CharacterAdded:Connect(function()
-    if AutoFarmEnabled and SelectedLocation then
+    if AutoFarmEnabled then
         task.wait(1)
-        for _, data in ipairs(SpawnLocationsData) do
-            if data.DisplayName == SelectedLocation then
-                tweenToSpawnLocation(data)
-                break
-            end
+        if FarmMode == "Selected" then
+            task.spawn(farmSelectedLocation)
+        else
+            task.spawn(scanAndFarmAllOccupied)
         end
     end
 end)
@@ -375,12 +504,13 @@ end)
 if #displayNames > 0 then
     Window:Notify({
         Title = "x2zu Auto Farm",
-        Desc = "Found " .. #displayNames .. " SpawnLocations with Models!",
+        Desc = "Found " .. #displayNames .. " SpawnLocations",
         Time = 4
     })
 end
 
 print("\n" .. string.rep("=", 50))
-print("✅ AUTO FARM SCRIPT LOADED")
-print("📊 Total SpawnLocations with Models: " .. #displayNames)
+print("✅ OCCUPIED AUTO FARM SCRIPT LOADED")
+print("📊 Total SpawnLocations: " .. #displayNames)
+print("📍 Mode: Check IsOccupied attribute")
 print(string.rep("=", 50))
