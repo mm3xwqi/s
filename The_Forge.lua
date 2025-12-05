@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "the forge3",
+    Desc = "the forge4",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -27,7 +27,7 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
--- Function to teleport to location instantly
+-- Function to teleport to position instantly
 local function teleportToPosition(position)
     local char = LocalPlayer.Character
     if not char then
@@ -36,44 +36,69 @@ local function teleportToPosition(position)
     local hrp = char:WaitForChild("HumanoidRootPart")
     
     hrp.CFrame = CFrame.new(position)
-    print("✅ Teleported to position")
+    return true
 end
 
--- Function to get ALL SpawnLocations with Models and check IsOccupied attribute
-local function getOccupiedSpawnLocations()
-    local occupiedLocations = {}
+-- Function to check model health
+local function checkModelHealth(model)
+    if not model then return false end
     
-    if not workspace:FindFirstChild("Rocks") then
-        return occupiedLocations
+    -- Check for Humanoid health
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Health then
+        return humanoid.Health > 0
     end
     
-    print("🔍 Checking ALL SpawnLocations for IsOccupied...")
+    -- Check for Health value
+    local healthValue = model:FindFirstChild("Health")
+    if healthValue then
+        if healthValue:IsA("NumberValue") or healthValue:IsA("IntValue") then
+            return healthValue.Value > 0
+        end
+    end
+    
+    -- Check for health attribute
+    local healthAttr = model:GetAttribute("Health")
+    if healthAttr then
+        return healthAttr > 0
+    end
+    
+    -- If no health system found, assume it's alive
+    return true
+end
+
+-- Function to get ALL occupied SpawnLocations with healthy models
+local function getHealthyOccupiedSpawnLocations()
+    local healthyLocations = {}
+    
+    if not workspace:FindFirstChild("Rocks") then
+        return healthyLocations
+    end
+    
+    print("🔍 Scanning for healthy occupied models...")
     
     -- Check direct SpawnLocations in Rocks
     for _, item in ipairs(workspace.Rocks:GetChildren()) do
         if item.Name == "SpawnLocation" then
-            -- Check if this SpawnLocation has a Model AND IsOccupied is true
-            local hasOccupiedModel = false
-            local targetModel = nil
-            
             for _, child in ipairs(item:GetChildren()) do
                 if child:IsA("Model") then
-                    -- Check if model has IsOccupied attribute
+                    -- Check IsOccupied attribute
                     if child:GetAttribute("IsOccupied") == true then
-                        hasOccupiedModel = true
-                        targetModel = child
-                        break
+                        -- Check model health
+                        if checkModelHealth(child) then
+                            table.insert(healthyLocations, {
+                                DisplayName = "SpawnLocation_" .. #healthyLocations + 1,
+                                SpawnLocation = item,
+                                TargetModel = child,
+                                Position = item.Position
+                            })
+                            print("✓ Found healthy occupied model (direct)")
+                            break -- Move to next SpawnLocation
+                        else
+                            print("✗ Skipping - model health is 0")
+                        end
                     end
                 end
-            end
-            
-            if hasOccupiedModel and targetModel then
-                table.insert(occupiedLocations, {
-                    DisplayName = "SpawnLocation_" .. #occupiedLocations + 1,
-                    SpawnLocation = item,
-                    TargetModel = targetModel
-                })
-                print("✓ Found occupied SpawnLocation (direct)")
             end
         end
     end
@@ -83,34 +108,30 @@ local function getOccupiedSpawnLocations()
         if item.Name ~= "SpawnLocation" then
             local spawnLoc = item:FindFirstChild("SpawnLocation")
             if spawnLoc then
-                -- Check if SpawnLocation has an occupied model
-                local hasOccupiedModel = false
-                local targetModel = nil
-                
                 for _, child in ipairs(spawnLoc:GetChildren()) do
                     if child:IsA("Model") then
                         if child:GetAttribute("IsOccupied") == true then
-                            hasOccupiedModel = true
-                            targetModel = child
-                            break
+                            if checkModelHealth(child) then
+                                table.insert(healthyLocations, {
+                                    DisplayName = item.Name,
+                                    SpawnLocation = spawnLoc,
+                                    TargetModel = child,
+                                    Position = spawnLoc.Position
+                                })
+                                print("✓ Found healthy occupied in " .. item.Name)
+                                break
+                            else
+                                print("✗ Skipping " .. item.Name .. " - model health is 0")
+                            end
                         end
                     end
-                end
-                
-                if hasOccupiedModel and targetModel then
-                    table.insert(occupiedLocations, {
-                        DisplayName = item.Name,
-                        SpawnLocation = spawnLoc,
-                        TargetModel = targetModel
-                    })
-                    print("✓ Found occupied in " .. item.Name)
                 end
             end
         end
     end
     
-    print("✅ Total occupied locations: " .. #occupiedLocations)
-    return occupiedLocations
+    print("✅ Total healthy occupied locations: " .. #healthyLocations)
+    return healthyLocations
 end
 
 -- Function to scan ALL SpawnLocations (for dropdown)
@@ -137,7 +158,7 @@ local function getAllSpawnLocationsWithModels()
                 table.insert(allLocations, {
                     DisplayName = "SpawnLocation_" .. spawnCount,
                     SpawnLocation = item,
-                    IsDirect = true
+                    Position = item.Position
                 })
                 spawnCount = spawnCount + 1
             end
@@ -161,8 +182,7 @@ local function getAllSpawnLocationsWithModels()
                     table.insert(allLocations, {
                         DisplayName = item.Name,
                         SpawnLocation = spawnLoc,
-                        IsDirect = false,
-                        ParentFolder = item
+                        Position = spawnLoc.Position
                     })
                 end
             end
@@ -179,7 +199,7 @@ local Mining = false
 local CurrentTween = nil
 local SelectedLocation = nil
 local AllSpawnLocations = {}
-local CurrentScanIndex = 1
+local FarmMode = "Selected" -- Selected or All
 
 -- Remote setup
 local ToolService
@@ -207,12 +227,19 @@ local function enableNoclip(char)
     end
 end
 
--- Find first occupied model in SpawnLocation
-local function findOccupiedModel(spawnLoc)
+-- Find first healthy occupied model in SpawnLocation
+local function findHealthyOccupiedModel(spawnLoc)
     for _, child in ipairs(spawnLoc:GetChildren()) do
         if child:IsA("Model") then
+            -- Check IsOccupied
             if child:GetAttribute("IsOccupied") == true then
-                return child
+                -- Check health
+                if checkModelHealth(child) then
+                    return child
+                else
+                    print("⚠️ Model found but health is 0")
+                    return nil
+                end
             end
         end
     end
@@ -222,7 +249,7 @@ end
 -- Mining function
 local function startMining()
     if not ToolService or not AutoFarmEnabled then
-        return
+        return false
     end
     
     Mining = true
@@ -241,14 +268,27 @@ local function startMining()
     end
     
     Mining = false
+    return true
 end
 
 -- Tween to target model
 local function tweenToModel(targetModel)
-    if not AutoFarmEnabled or not targetModel then return end
+    if not AutoFarmEnabled or not targetModel then 
+        print("❌ Cannot tween - no target model")
+        return false 
+    end
+    
+    -- Double check health before tweening
+    if not checkModelHealth(targetModel) then
+        print("❌ Model health is 0, skipping...")
+        return false
+    end
     
     local char, hrp = getCharacter()
-    if not char or not hrp then return end
+    if not char or not hrp then 
+        print("❌ Character not found")
+        return false 
+    end
     
     -- Get target position
     local targetCFrame
@@ -263,11 +303,16 @@ local function tweenToModel(targetModel)
         end
     end
     
-    if not targetCFrame then return end
+    if not targetCFrame then 
+        print("❌ Cannot get model position")
+        return false 
+    end
     
     -- Calculate tween time
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
     local tweenTime = distance / TweenSpeed
+    
+    print("📏 Distance:", math.floor(distance), "Time:", string.format("%.2f", tweenTime) .. "s")
     
     -- Cancel current tween
     if CurrentTween then
@@ -280,55 +325,88 @@ local function tweenToModel(targetModel)
     CurrentTween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
     CurrentTween:Play()
     
+    print("🚀 Tweening to model...")
+    
     -- When tween completes
+    local reached = false
     CurrentTween.Completed:Connect(function()
-        if AutoFarmEnabled then
-            startMining()
-        end
+        reached = true
     end)
+    
+    -- Wait for tween to complete or health check
+    while not reached and AutoFarmEnabled do
+        -- Check health during tween
+        if not checkModelHealth(targetModel) then
+            print("❌ Model died during tween, canceling...")
+            if CurrentTween then
+                CurrentTween:Cancel()
+            end
+            return false
+        end
+        task.wait(0.1)
+    end
+    
+    return reached and AutoFarmEnabled
 end
 
--- Scan and farm ALL occupied locations
-local function scanAndFarmAllOccupied()
+-- Scan and farm ALL healthy occupied locations
+local function scanAndFarmAllHealthy()
     while AutoFarmEnabled do
-        print("🔄 Scanning for occupied locations...")
-        local occupiedLocations = getOccupiedSpawnLocations()
+        print("\n🔄 Scanning for healthy occupied locations...")
+        local healthyLocations = getHealthyOccupiedSpawnLocations()
         
-        if #occupiedLocations == 0 then
-            print("⏳ No occupied locations found, waiting...")
+        if #healthyLocations == 0 then
+            print("⏳ No healthy occupied locations found, waiting...")
             task.wait(2)
             continue
         end
         
-        -- Farm each occupied location
-        for _, locationData in ipairs(occupiedLocations) do
+        print("🎯 Found " .. #healthyLocations .. " healthy locations to farm")
+        
+        -- Farm each healthy occupied location
+        for _, locationData in ipairs(healthyLocations) do
             if not AutoFarmEnabled then break end
             
-            print("🎯 Farming occupied: " .. locationData.DisplayName)
+            print("🎯 Processing: " .. locationData.DisplayName)
             
             -- Teleport to SpawnLocation first
-            local spawnPos = locationData.SpawnLocation.Position
-            teleportToPosition(spawnPos)
-            task.wait(0.5)
-            
-            -- Check if still occupied
-            local targetModel = findOccupiedModel(locationData.SpawnLocation)
-            if targetModel and targetModel:GetAttribute("IsOccupied") == true then
-                print("✅ Still occupied, tweening to model...")
-                tweenToModel(targetModel)
+            if teleportToPosition(locationData.Position) then
+                task.wait(0.5)
                 
-                -- Wait for mining to finish
-                while Mining and AutoFarmEnabled do
-                    task.wait(1)
+                -- Re-check if still healthy and occupied
+                local targetModel = findHealthyOccupiedModel(locationData.SpawnLocation)
+                if targetModel then
+                    print("✅ Still healthy and occupied, tweening...")
+                    
+                    -- Tween to model
+                    local reached = tweenToModel(targetModel)
+                    
+                    if reached then
+                        -- Start mining
+                        print("⛏️ Starting mining...")
+                        startMining()
+                        
+                        -- Wait for mining to finish (model should die)
+                        while Mining and AutoFarmEnabled and checkModelHealth(targetModel) do
+                            task.wait(1)
+                        end
+                        
+                        print("✅ Finished mining " .. locationData.DisplayName)
+                    else
+                        print("❌ Failed to reach model")
+                    end
+                else
+                    print("❌ No longer healthy/occupied, skipping...")
                 end
             else
-                print("❌ No longer occupied, skipping...")
+                print("❌ Failed to teleport")
             end
             
             if not AutoFarmEnabled then break end
             task.wait(1)
         end
         
+        print("✅ Completed scan cycle")
         task.wait(1)
     end
 end
@@ -351,25 +429,37 @@ local function farmSelectedLocation()
             continue
         end
         
-        -- Check if occupied
-        local occupiedModel = findOccupiedModel(targetLocation.SpawnLocation)
-        if occupiedModel then
-            print("✅ " .. SelectedLocation .. " is occupied")
+        -- Check for healthy occupied model
+        local healthyModel = findHealthyOccupiedModel(targetLocation.SpawnLocation)
+        if healthyModel then
+            print("✅ " .. SelectedLocation .. " has healthy occupied model")
             
             -- Teleport to SpawnLocation
-            local spawnPos = targetLocation.SpawnLocation.Position
-            teleportToPosition(spawnPos)
-            task.wait(0.5)
-            
-            -- Tween to model
-            tweenToModel(occupiedModel)
-            
-            -- Wait for mining
-            while Mining and AutoFarmEnabled do
-                task.wait(1)
+            if teleportToPosition(targetLocation.Position) then
+                task.wait(0.5)
+                
+                -- Re-check health after teleport
+                if not checkModelHealth(healthyModel) then
+                    print("❌ Model health became 0 after teleport, skipping...")
+                    task.wait(2)
+                    continue
+                end
+                
+                -- Tween to model
+                local reached = tweenToModel(healthyModel)
+                
+                if reached then
+                    -- Start mining
+                    startMining()
+                    
+                    -- Wait for mining to finish
+                    while Mining and AutoFarmEnabled and checkModelHealth(healthyModel) do
+                        task.wait(1)
+                    end
+                end
             end
         else
-            print("❌ " .. SelectedLocation .. " not occupied, waiting...")
+            print("❌ " .. SelectedLocation .. " no healthy occupied model, waiting...")
             task.wait(2)
         end
     end
@@ -392,10 +482,9 @@ else
 end
 
 -- Mode dropdown
-local FarmMode = "Selected" -- Selected or All
 Tab:Dropdown({
     Title = "Farm Mode",
-    List = {"Selected Location", "All Occupied"},
+    List = {"Selected Location", "All Healthy Occupied"},
     Value = "Selected Location",
     Callback = function(choice)
         if choice == "Selected Location" then
@@ -403,7 +492,7 @@ Tab:Dropdown({
             print("📍 Mode: Farm selected location only")
         else
             FarmMode = "All"
-            print("📍 Mode: Farm all occupied locations")
+            print("📍 Mode: Farm all healthy occupied locations")
         end
     end
 })
@@ -435,7 +524,7 @@ Tab:Slider({
 -- Auto Farm toggle
 Tab:Toggle({
     Title = "Auto Farm",
-    Desc = "Start auto farming",
+    Desc = "Start auto farming (checks health)",
     Value = false,
     Callback = function(v)
         AutoFarmEnabled = v
@@ -460,7 +549,7 @@ Tab:Toggle({
             if FarmMode == "Selected" then
                 task.spawn(farmSelectedLocation)
             else
-                task.spawn(scanAndFarmAllOccupied)
+                task.spawn(scanAndFarmAllHealthy)
             end
         else
             Window:Notify({
@@ -495,7 +584,7 @@ LocalPlayer.CharacterAdded:Connect(function()
         if FarmMode == "Selected" then
             task.spawn(farmSelectedLocation)
         else
-            task.spawn(scanAndFarmAllOccupied)
+            task.spawn(scanAndFarmAllHealthy)
         end
     end
 end)
@@ -504,13 +593,14 @@ end)
 if #displayNames > 0 then
     Window:Notify({
         Title = "x2zu Auto Farm",
-        Desc = "Found " .. #displayNames .. " SpawnLocations",
+        Desc = "Health Check Enabled - Only farms healthy models",
         Time = 4
     })
 end
 
-print("\n" .. string.rep("=", 50))
-print("✅ OCCUPIED AUTO FARM SCRIPT LOADED")
+print("\n" .. string.rep("=", 60))
+print("✅ HEALTH-CHECK AUTO FARM SCRIPT LOADED")
 print("📊 Total SpawnLocations: " .. #displayNames)
-print("📍 Mode: Check IsOccupied attribute")
-print(string.rep("=", 50))
+print("⚕️  Health Check: ON (skips health = 0 models)")
+print("📍 Occupied Check: ON (skips IsOccupied = false)")
+print(string.rep("=", 60))
