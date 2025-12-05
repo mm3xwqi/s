@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "The Forge4",
+    Desc = "The Forge5",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -22,7 +22,6 @@ local Tab = Window:Tab({Title = "Main", Icon = "star"})
 Tab:Section({Title = "Auto Farm"})
 
 -- Variables
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -31,12 +30,14 @@ local RunService = game:GetService("RunService")
 
 local SelectedLocation = "Island1CaveStart"
 local AutoFarmEnabled = false
-local TweenSpeed = 50
-local CurrentTween = nil
+local TweenSpeed = 100
+local Moving = false
 local CurrentTarget = nil
 local Farming = false
 local Mining = false
 local ToolService
+local Velocity = nil
+local Gyro = nil
 
 -- Function to setup ToolService reference
 local function setupToolService()
@@ -46,30 +47,107 @@ end
 -- Setup ToolService
 pcall(setupToolService)
 
--- Function to mine the target
+-- Function to check all possible location names
+local function getAllPossibleLocations()
+    local possibleNames = {}
+    
+    -- Check for locations in Rocks folder
+    if workspace:FindFirstChild("Rocks") then
+        for _, child in ipairs(workspace.Rocks:GetChildren()) do
+            if child:IsA("Folder") or child:IsA("Model") then
+                -- Look for SpawnLocation
+                if child:FindFirstChild("SpawnLocation") then
+                    table.insert(possibleNames, child.Name)
+                else
+                    -- Maybe SpawnLocation is direct child of workspace.Rocks
+                    for _, subchild in ipairs(child:GetChildren()) do
+                        if subchild.Name == "SpawnLocation" then
+                            table.insert(possibleNames, child.Name)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- If no locations found, use default names
+    if #possibleNames == 0 then
+        possibleNames = {"Island1CaveStart", "Island1CaveMid", "Island1CaveDeep", "Roof"}
+    end
+    
+    return possibleNames
+end
+
+-- Function to find spawn location by name
+local function findSpawnLocationByName(locationName)
+    -- Try different patterns
+    local patterns = {
+        locationName,
+        string.lower(locationName),
+        string.gsub(locationName, "Island1", "Island"),
+        string.gsub(locationName, "Cave", ""),
+        string.gsub(locationName, "Start", "Begin"),
+        string.gsub(locationName, "Deep", "End")
+    }
+    
+    if workspace:FindFirstChild("Rocks") then
+        for _, rockFolder in ipairs(workspace.Rocks:GetChildren()) do
+            -- Check if folder name matches any pattern
+            for _, pattern in ipairs(patterns) do
+                if string.find(string.lower(rockFolder.Name), string.lower(pattern)) then
+                    -- Look for SpawnLocation
+                    local spawnLoc = rockFolder:FindFirstChild("SpawnLocation")
+                    if spawnLoc then
+                        print("Found location: " .. rockFolder.Name)
+                        return spawnLoc
+                    end
+                    
+                    -- Maybe SpawnLocation is inside a subfolder
+                    for _, child in ipairs(rockFolder:GetChildren()) do
+                        if child:IsA("Folder") or child:IsA("Model") then
+                            spawnLoc = child:FindFirstChild("SpawnLocation")
+                            if spawnLoc then
+                                print("Found location in subfolder: " .. rockFolder.Name .. "/" .. child.Name)
+                                return spawnLoc
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
+-- Function to mine the target continuously
 local function mineTarget()
     if not ToolService or not AutoFarmEnabled then
         return false
     end
     
     Mining = true
+    local mineAttempts = 0
+    local maxAttempts = 20
     
-    -- Try to mine continuously
-    local startTime = tick()
-    local maxMineTime = 10 -- maximum mining time in seconds
+    print("Starting mining...")
     
-    while Mining and AutoFarmEnabled and CurrentTarget do
+    while Mining and AutoFarmEnabled and CurrentTarget and mineAttempts < maxAttempts do
         local args = {"Pickaxe"}
         
         -- Invoke the mining server
         local success, result = pcall(function()
-            return ToolService:InvokeServer(unpack(args))
+            ToolService:InvokeServer(unpack(args))
         end)
         
-        if not success then
+        if success then
+            print("Mining attempt " .. mineAttempts + 1 .. " successful")
+        else
             print("Mining failed:", result)
-            break
         end
+        
+        mineAttempts = mineAttempts + 1
         
         -- Check if target is still alive
         if not isModelAlive(CurrentTarget) then
@@ -77,14 +155,8 @@ local function mineTarget()
             break
         end
         
-        -- Check mining time
-        if tick() - startTime > maxMineTime then
-            print("Mining timeout")
-            break
-        end
-        
         -- Wait a bit before next mining attempt
-        task.wait(0.1)
+        task.wait(0.2)
     end
     
     Mining = false
@@ -113,11 +185,19 @@ local function disableNoclip()
     end
 end
 
--- Function to stop current tween
-local function stopCurrentTween()
-    if CurrentTween then
-        CurrentTween:Cancel()
-        CurrentTween = nil
+-- Function to stop movement
+local function stopMovement()
+    Moving = false
+    
+    -- Remove BodyVelocity and BodyGyro
+    if Velocity then
+        Velocity:Destroy()
+        Velocity = nil
+    end
+    
+    if Gyro then
+        Gyro:Destroy()
+        Gyro = nil
     end
 end
 
@@ -135,7 +215,7 @@ local function isModelAlive(model)
     
     -- Check for custom health value
     local healthValue = model:FindFirstChild("Health") or model:FindFirstChild("health") or model:FindFirstChild("HP")
-    if healthValue and healthValue:IsA("NumberValue") then
+    if healthValue and healthValue:IsA("NumberValue") or healthValue:IsA("IntValue") then
         return healthValue.Value > 0
     end
     
@@ -145,24 +225,24 @@ local function isModelAlive(model)
         return aliveValue.Value == true
     end
     
-    -- If no health system found, assume it's alive
-    return true
+    -- If no health system found, check if model still exists
+    return model.Parent ~= nil
 end
 
 -- Function to find alive model in SpawnLocation
-local function findAliveModelInSpawnLocation(spawnLocationPart)
-    if not spawnLocationPart then
+local function findAliveModelInSpawnLocation(spawnLocation)
+    if not spawnLocation then
         return nil
     end
     
     -- Look for models inside SpawnLocation
-    for _, child in ipairs(spawnLocationPart:GetChildren()) do
+    for _, child in ipairs(spawnLocation:GetChildren()) do
         if child:IsA("Model") then
             -- Check if model is alive
             if isModelAlive(child) then
                 return child
             else
-                print("Model " .. child.Name .. " is dead (health 0), skipping...")
+                print("Model " .. child.Name .. " is dead, skipping...")
             end
         end
     end
@@ -170,219 +250,144 @@ local function findAliveModelInSpawnLocation(spawnLocationPart)
     return nil
 end
 
--- Function to get valid target CFrame
-local function getTargetCFrame(targetModel)
+-- Function to get valid target position
+local function getTargetPosition(targetModel)
     if not targetModel then
         return nil
     end
     
-    -- If Model has PrimaryPart use GetPivot()
+    -- If Model has PrimaryPart use its position
     if targetModel.PrimaryPart then
-        return targetModel:GetPivot()
+        return targetModel.PrimaryPart.Position
     end
     
     -- If no PrimaryPart, find first BasePart
     for _, child in ipairs(targetModel:GetDescendants()) do
         if child:IsA("BasePart") then
-            return child.CFrame
+            return child.Position
         end
     end
     
-    -- If no BasePart found
-    return nil
+    -- If no BasePart found, use model position
+    return targetModel:GetPivot().Position
 end
 
--- Function to get all locations in workspace.Rocks
-local function getAllRockLocations()
-    local locations = {}
-    
-    if workspace:FindFirstChild("Rocks") then
-        for _, child in ipairs(workspace.Rocks:GetChildren()) do
-            -- Check if this location has a SpawnLocation
-            if child:FindFirstChild("SpawnLocation") then
-                table.insert(locations, child.Name)
-            end
-        end
+-- Function to move to target using BodyVelocity and BodyGyro
+local function moveToTarget(targetPosition)
+    if not Character or not HumanoidRootPart or not targetPosition then
+        return false
     end
     
-    return locations
+    stopMovement()
+    Moving = true
+    
+    -- Create BodyVelocity
+    Velocity = Instance.new("BodyVelocity")
+    Velocity.MaxForce = Vector3.new(400000, 400000, 400000)
+    Velocity.P = 10000
+    Velocity.Velocity = Vector3.new(0, 0, 0)
+    Velocity.Parent = HumanoidRootPart
+    
+    -- Create BodyGyro
+    Gyro = Instance.new("BodyGyro")
+    Gyro.MaxTorque = Vector3.new(400000, 400000, 400000)
+    Gyro.P = 10000
+    Gyro.D = 100
+    Gyro.Parent = HumanoidRootPart
+    
+    local startTime = tick()
+    local timeout = 10 -- seconds
+    
+    while Moving and AutoFarmEnabled and Character and HumanoidRootPart do
+        if tick() - startTime > timeout then
+            print("Movement timeout")
+            stopMovement()
+            return false
+        end
+        
+        local distance = (HumanoidRootPart.Position - targetPosition).Magnitude
+        
+        -- Check if reached target
+        if distance < 5 then
+            print("Reached target")
+            stopMovement()
+            return true
+        end
+        
+        -- Calculate direction
+        local direction = (targetPosition - HumanoidRootPart.Position).Unit
+        
+        -- Set velocity
+        Velocity.Velocity = direction * TweenSpeed
+        
+        -- Set gyro to face target
+        Gyro.CFrame = CFrame.new(HumanoidRootPart.Position, targetPosition)
+        
+        task.wait(0.1)
+    end
+    
+    stopMovement()
+    return false
 end
 
--- Function to check and farm all locations in sequence
-local function checkAndFarmLocations()
-    if not AutoFarmEnabled then
-        Farming = false
+-- Main farming function
+local function startFarming()
+    if Farming or not AutoFarmEnabled then
         return
     end
     
     Farming = true
     
-    -- Get all available locations
-    local allLocations = getAllRockLocations()
-    
-    -- If specific location is selected and exists
-    local locations = {}
-    if SelectedLocation ~= "All" then
-        -- Check if selected location exists
-        local found = false
-        for _, loc in ipairs(allLocations) do
-            if loc == SelectedLocation then
-                found = true
-                break
-            end
-        end
+    while AutoFarmEnabled do
+        -- Find spawn location
+        local spawnLocation = findSpawnLocationByName(SelectedLocation)
         
-        if found then
-            locations = {SelectedLocation}
-        else
-            print("Selected location not found, using all available locations")
-            locations = allLocations
-        end
-    else
-        locations = allLocations
-    end
-    
-    if #locations == 0 then
-        Window:Notify({
-            Title = "Auto Farm",
-            Desc = "No rock locations found!",
-            Time = 3
-        })
-        Farming = false
-        return
-    end
-    
-    print("Available locations: " .. table.concat(locations, ", "))
-    
-    -- Check each location
-    for _, locationName in ipairs(locations) do
-        if not AutoFarmEnabled then break end
-        
-        print("Checking location: " .. locationName)
-        
-        -- หา location ใน workspace.Rocks
-        local locationFolder = workspace.Rocks:FindFirstChild(locationName)
-        if not locationFolder then
-            print("Location not found in Rocks folder: " .. locationName)
-            task.wait(0.5)
+        if not spawnLocation then
+            print("Could not find spawn location: " .. SelectedLocation)
+            task.wait(2)
             continue
         end
         
-        -- หา SpawnLocation Part
-        local spawnLocationPart = locationFolder:FindFirstChild("SpawnLocation")
-        if not spawnLocationPart then
-            print("No SpawnLocation found in " .. locationName)
-            task.wait(0.5)
-            continue
-        end
+        -- Find alive model
+        local targetModel = findAliveModelInSpawnLocation(spawnLocation)
         
-        -- หา model ที่ยังมีชีวิตอยู่ใน SpawnLocation
-        local targetModel = findAliveModelInSpawnLocation(spawnLocationPart)
         if not targetModel then
-            print("No alive models found in " .. locationName .. ", skipping...")
-            task.wait(0.5)
+            print("No alive models found at " .. SelectedLocation)
+            task.wait(2)
             continue
         end
         
-        -- ตั้งค่า CurrentTarget
         CurrentTarget = targetModel
         
-        -- ตรวจสอบว่ายังมีชีวิตอยู่หรือไม่
-        if not isModelAlive(targetModel) then
-            print("Model died before reaching, skipping...")
-            task.wait(0.5)
+        -- Get target position
+        local targetPosition = getTargetPosition(targetModel)
+        
+        if not targetPosition then
+            print("Could not get target position")
+            task.wait(1)
             continue
         end
         
-        print("Found alive model: " .. targetModel.Name .. " in " .. locationName)
+        print("Moving to target at " .. SelectedLocation)
         
-        -- หา CFrame เป้าหมาย
-        local targetCFrame = getTargetCFrame(targetModel)
-        if not targetCFrame then
-            print("Cannot get target position")
-            task.wait(0.5)
-            continue
+        -- Move to target
+        local reached = moveToTarget(targetPosition)
+        
+        if reached and AutoFarmEnabled and CurrentTarget and isModelAlive(CurrentTarget) then
+            print("Starting mining process...")
+            mineTarget()
         end
         
-        -- เดินทางไปหา target
-        Character = LocalPlayer.Character
-        if not Character then
-            Character = LocalPlayer.CharacterAdded:Wait()
-        end
-        
-        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-        
-        -- คำนวณระยะทางและเวลา tween
-        local distance = (HumanoidRootPart.Position - targetCFrame.Position).Magnitude
-        local tweenTime = distance / TweenSpeed
-        if tweenTime < 0.1 then
-            tweenTime = 0.1
-        end
-        
-        -- สร้างและเริ่ม tween
-        local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
-        local tween = TweenService:Create(HumanoidRootPart, tweenInfo, {CFrame = targetCFrame})
-        
-        CurrentTween = tween
-        tween:Play()
-        
-        -- รอให้ tween เสร็จ
-        local completed = false
-        tween.Completed:Connect(function()
-            completed = true
-        end)
-        
-        -- รอจนกว่า tween จะเสร็จหรือ target ตาย
-        while not completed and AutoFarmEnabled do
-            -- ตรวจสอบว่า target ยังมีชีวิตอยู่หรือไม่
-            if not isModelAlive(CurrentTarget) then
-                print("Target died while traveling, canceling tween...")
-                stopCurrentTween()
-                break
-            end
-            
-            -- ตรวจสอบว่า target ยังอยู่ใน workspace หรือไม่
-            if not CurrentTarget:IsDescendantOf(workspace) then
-                print("Target removed from workspace, canceling tween...")
-                stopCurrentTween()
-                break
-            end
-            
-            task.wait(0.1)
-        end
-        
-        if completed then
-            print("Successfully reached target at " .. locationName)
-            
-            -- เริ่มทำการขุดทันทีที่ถึง
-            if AutoFarmEnabled and CurrentTarget and isModelAlive(CurrentTarget) then
-                print("Starting mining...")
-                mineTarget()
-            end
-        end
-        
-        -- รอสักครู่ก่อนไปที่อันต่อไป
+        -- Wait before next cycle
         task.wait(1)
-        
-        -- Clear current target
         CurrentTarget = nil
     end
     
-    -- ถ้ายังเปิด AutoFarm อยู่ ให้เริ่มใหม่
-    if AutoFarmEnabled then
-        print("Finished checking all locations, starting over...")
-        task.wait(1)
-        checkAndFarmLocations()
-    else
-        Farming = false
-    end
+    Farming = false
 end
 
--- Get initial locations
-local availableLocations = getAllRockLocations()
-if #availableLocations == 0 then
-    availableLocations = {"Island1CaveStart", "Island1CaveMid", "Island1CaveDeep", "Roof"}
-end
+-- Get available locations
+local availableLocations = getAllPossibleLocations()
 
 -- Dropdown for selecting location
 Tab:Dropdown({
@@ -392,30 +397,19 @@ Tab:Dropdown({
     Callback = function(choice)
         SelectedLocation = choice
         print("Selected location:", choice)
-        
-        -- ถ้า AutoFarm กำลังทำงานอยู่ ให้รีสตาร์ทด้วย location ใหม่
-        if AutoFarmEnabled then
-            stopCurrentTween()
-            Mining = false
-            task.wait(0.5)
-            if Farming then
-                task.wait(0.1)
-                checkAndFarmLocations()
-            end
-        end
     end
 })
 
--- Slider for Tween Speed
+-- Slider for Movement Speed
 Tab:Slider({
-    Title = "Tween Speed",
-    Min = 10,
-    Max = 200,
+    Title = "Movement Speed",
+    Min = 50,
+    Max = 300,
     Rounding = 0,
     Value = TweenSpeed,
     Callback = function(val)
         TweenSpeed = val
-        print("Tween Speed set to:", val)
+        print("Movement Speed set to:", val)
     end
 })
 
@@ -431,12 +425,12 @@ Tab:Toggle({
             -- เปิด Auto Farm
             Window:Notify({
                 Title = "Auto Farm",
-                Desc = "Started auto farming",
+                Desc = "Started auto farming at: " .. SelectedLocation,
                 Time = 3
             })
             
-            -- เริ่ม farming process
-            task.spawn(checkAndFarmLocations)
+            -- Start farming process
+            task.spawn(startFarming)
         else
             -- ปิด Auto Farm
             Window:Notify({
@@ -445,7 +439,7 @@ Tab:Toggle({
                 Time = 3
             })
             
-            stopCurrentTween()
+            stopMovement()
             disableNoclip()
             Farming = false
             Mining = false
@@ -454,21 +448,24 @@ Tab:Toggle({
     end
 })
 
--- Character added event to update references
+-- Character added event
 LocalPlayer.CharacterAdded:Connect(function(newChar)
     Character = newChar
-    task.wait(0.5) -- รอให้ Character โหลดเสร็จ
+    task.wait(1)
+    
     if Character then
         HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
         
-        -- Reconnect ToolService when character respawns
+        -- Reconnect ToolService
         pcall(setupToolService)
         
-        -- ถ้า AutoFarm กำลังทำงานอยู่ ให้รีสตาร์ท
-        if AutoFarmEnabled and Farming then
-            stopCurrentTween()
-            task.wait(1)
-            checkAndFarmLocations()
+        -- Restart farming if enabled
+        if AutoFarmEnabled then
+            stopMovement()
+            task.wait(0.5)
+            if not Farming then
+                task.spawn(startFarming)
+            end
         end
     end
 end)
@@ -480,24 +477,11 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Character removed event
+-- Cleanup on character removal
 LocalPlayer.CharacterRemoving:Connect(function()
-    stopCurrentTween()
+    stopMovement()
     CurrentTarget = nil
     Mining = false
-end)
-
--- Monitor target health
-RunService.Heartbeat:Connect(function()
-    if AutoFarmEnabled and CurrentTarget and Character then
-        -- ตรวจสอบว่า target ยังมีชีวิตอยู่หรือไม่
-        if not isModelAlive(CurrentTarget) then
-            print("Target died, stopping tween...")
-            stopCurrentTween()
-            CurrentTarget = nil
-            Mining = false
-        end
-    end
 end)
 
 -- Final Notification
@@ -508,6 +492,6 @@ Window:Notify({
 })
 
 print("Auto Farm Script Loaded")
-print("Will auto-detect available rock locations")
-print("Will mine automatically when reaching target")
-print("ToolService initialized: " .. tostring(ToolService ~= nil))
+print("Using BodyVelocity/BodyGyro for movement")
+print("Available locations: " .. table.concat(availableLocations, ", "))
+print("ToolService available: " .. tostring(ToolService ~= nil))
