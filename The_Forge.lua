@@ -3,8 +3,8 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 
 -- Create Main Window
 local Window = Library:Window({
-    Title = "x2zu [ Stellar ]",
-    Desc = "Auto Farm Script",
+    Title = "Mwqq",
+    Desc = "The Forge",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -25,30 +25,132 @@ local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local autoFarmEnabled = false
 local selectedFarm = ""
 local tweenSpeed = 50
+local noclipEnabled = false
+local noclipConnection = nil
 
 -- Remote setup
 local toolRemote = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ToolService"):WaitForChild("RF"):WaitForChild("ToolActivated")
 
--- Farm locations
-local farmLocations = {
-    ["Island1 Cave Start"] = workspace.Rocks.Island1CaveStart.SpawnLocation,
-    ["Island1 Cave Mid"] = workspace.Rocks.Island1CaveMid.SpawnLocation,
-    ["Island1 Cave Deep"] = workspace.Rocks.Island1CaveDeep.SpawnLocation,
-    ["Roof"] = workspace.Rocks.Roof.SpawnLocation
-}
-
--- Function to get rock name from location
-local function getRockName(locationPart)
-    local parent = locationPart.Parent
-    if parent and parent:IsA("Model") then
-        return parent.Name
+-- Function to get farm locations
+local function getFarmLocations()
+    local locations = {}
+    
+    -- Check Island1CaveStart
+    local island1Start = workspace.Rocks:FindFirstChild("Island1CaveStart")
+    if island1Start then
+        for _, model in ipairs(island1Start:GetChildren()) do
+            if model:IsA("Model") then
+                local spawnLocation = model:FindFirstChild("SpawnLocation")
+                if spawnLocation and spawnLocation:IsA("BasePart") then
+                    table.insert(locations, {
+                        Name = model.Name,
+                        DisplayName = model.Name .. " (Island1 Start)",
+                        Location = spawnLocation
+                    })
+                end
+            end
+        end
     end
-    return "Rock"
+    
+    -- Check Island1CaveMid
+    local island1Mid = workspace.Rocks:FindFirstChild("Island1CaveMid")
+    if island1Mid then
+        for _, model in ipairs(island1Mid:GetChildren()) do
+            if model:IsA("Model") then
+                local spawnLocation = model:FindFirstChild("SpawnLocation")
+                if spawnLocation and spawnLocation:IsA("BasePart") then
+                    table.insert(locations, {
+                        Name = model.Name,
+                        DisplayName = model.Name .. " (Island1 Mid)",
+                        Location = spawnLocation
+                    })
+                end
+            end
+        end
+    end
+    
+    -- Check Island1CaveDeep
+    local island1Deep = workspace.Rocks:FindFirstChild("Island1CaveDeep")
+    if island1Deep then
+        for _, model in ipairs(island1Deep:GetChildren()) do
+            if model:IsA("Model") then
+                local spawnLocation = model:FindFirstChild("SpawnLocation")
+                if spawnLocation and spawnLocation:IsA("BasePart") then
+                    table.insert(locations, {
+                        Name = model.Name,
+                        DisplayName = model.Name .. " (Island1 Deep)",
+                        Location = spawnLocation
+                    })
+                end
+            end
+        end
+    end
+    
+    -- Check Roof
+    local roof = workspace.Rocks:FindFirstChild("Roof")
+    if roof then
+        for _, model in ipairs(roof:GetChildren()) do
+            if model:IsA("Model") then
+                local spawnLocation = model:FindFirstChild("SpawnLocation")
+                if spawnLocation and spawnLocation:IsA("BasePart") then
+                    table.insert(locations, {
+                        Name = model.Name,
+                        DisplayName = model.Name .. " (Roof)",
+                        Location = spawnLocation
+                    })
+                end
+            end
+        end
+    end
+    
+    return locations
 end
 
--- Tween function
+-- Get all available farm locations
+local farmLocations = getFarmLocations()
+
+-- Noclip functions
+local function enableNoclip()
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+    
+    noclipConnection = game:GetService("RunService").Stepped:Connect(function()
+        if character and noclipEnabled then
+            for _, part in ipairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+local function disableNoclip()
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+    
+    if character then
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- Tween function with noclip
 local function tweenToLocation(location)
     if not location or not location:IsA("BasePart") then return end
+    
+    -- Enable noclip during tween if setting is on
+    local wasNoclipEnabled = noclipEnabled
+    if noclipEnabled then
+        enableNoclip()
+    end
     
     -- Create tween info
     local distance = (humanoidRootPart.Position - location.Position).Magnitude
@@ -68,10 +170,19 @@ local function tweenToLocation(location)
     tween:Play()
     
     -- Wait for tween to complete
-    tween.Completed:Wait()
+    local success, errorMsg = pcall(function()
+        tween.Completed:Wait()
+    end)
     
     -- Activate tool
-    toolRemote:InvokeServer("Pickaxe")
+    if success then
+        toolRemote:InvokeServer("Pickaxe")
+    end
+    
+    -- Disable noclip after tween if it wasn't enabled before
+    if noclipEnabled and not wasNoclipEnabled then
+        disableNoclip()
+    end
     
     -- Small delay before returning
     task.wait(0.5)
@@ -87,15 +198,44 @@ local function startAutoFarm()
     
     autoFarmThread = task.spawn(function()
         while autoFarmEnabled and selectedFarm ~= "" do
-            local location = farmLocations[selectedFarm]
-            if location then
+            -- Find the selected location
+            local targetLocation = nil
+            for _, locationData in ipairs(farmLocations) do
+                if locationData.DisplayName == selectedFarm then
+                    targetLocation = locationData.Location
+                    break
+                end
+            end
+            
+            if targetLocation then
                 pcall(function()
-                    tweenToLocation(location)
+                    tweenToLocation(targetLocation)
                 end)
+            else
+                Window:Notify({
+                    Title = "Error",
+                    Desc = "Selected location not found!",
+                    Time = 3
+                })
+                autoFarmEnabled = false
+                break
             end
             task.wait(0.1) -- Small delay between cycles
         end
     end)
+end
+
+-- Function to refresh farm locations
+local function refreshFarmLocations()
+    farmLocations = getFarmLocations()
+    
+    -- Update dropdown list
+    local locationNames = {}
+    for _, locationData in ipairs(farmLocations) do
+        table.insert(locationNames, locationData.DisplayName)
+    end
+    
+    return locationNames
 end
 
 -- Main Tab
@@ -103,16 +243,49 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     -- Auto Farm Section
     MainTab:Section({Title = "Auto Farm"})
     
-    -- Farm Selection Dropdown
-    local farmDropdown = MainTab:Dropdown({
-        Title = "Select Farm",
-        List = {"Island1 Cave Start", "Island1 Cave Mid", "Island1 Cave Deep", "Roof"},
-        Value = "Island1 Cave Start",
-        Callback = function(choice)
-            selectedFarm = choice
-            print("Selected Farm:", choice)
+    -- Refresh Button
+    MainTab:Button({
+        Title = "Refresh Locations",
+        Desc = "Update available farm locations",
+        Callback = function()
+            local locations = refreshFarmLocations()
+            if #locations == 0 then
+                Window:Notify({
+                    Title = "Info",
+                    Desc = "No farm locations found with SpawnLocation",
+                    Time = 3
+                })
+            else
+                Window:Notify({
+                    Title = "Refreshed",
+                    Desc = "Found " .. #locations .. " locations",
+                    Time = 3
+                })
+            end
         end
     })
+    
+    -- Farm Selection Dropdown
+    local farmDropdown
+    local function updateDropdown()
+        local locations = refreshFarmLocations()
+        if farmDropdown then
+            farmDropdown:UpdateList(locations)
+        else
+            farmDropdown = MainTab:Dropdown({
+                Title = "Select Farm",
+                List = locations,
+                Value = #locations > 0 and locations[1] or "No locations found",
+                Callback = function(choice)
+                    selectedFarm = choice
+                    print("Selected Farm:", choice)
+                end
+            })
+        end
+    end
+    
+    -- Initial dropdown setup
+    updateDropdown()
     
     -- Tween Speed Slider
     MainTab:Slider({
@@ -128,6 +301,26 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
         end
     })
     
+    -- Noclip Toggle
+    MainTab:Toggle({
+        Title = "Noclip during Tween",
+        Desc = "Enable noclip while moving to target",
+        Value = false,
+        Callback = function(v)
+            noclipEnabled = v
+            if v then
+                Window:Notify({
+                    Title = "Noclip",
+                    Desc = "Noclip will be active during tween",
+                    Time = 3
+                })
+            else
+                disableNoclip()
+            end
+            print("Noclip during Tween:", v)
+        end
+    })
+    
     -- Auto Farm Toggle
     MainTab:Toggle({
         Title = "Auto Farm",
@@ -136,7 +329,7 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
         Callback = function(v)
             autoFarmEnabled = v
             if v then
-                if selectedFarm == "" then
+                if selectedFarm == "" or selectedFarm == "No locations found" then
                     Window:Notify({
                         Title = "Error",
                         Desc = "Please select a farm location first!",
@@ -156,6 +349,7 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
                     task.cancel(autoFarmThread)
                     autoFarmThread = nil
                 end
+                disableNoclip() -- Ensure noclip is disabled when stopping
                 Window:Notify({
                     Title = "Auto Farm",
                     Desc = "Stopped farming",
@@ -171,7 +365,7 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
         Title = "Teleport to Selected",
         Desc = "Teleport once to selected location",
         Callback = function()
-            if selectedFarm == "" then
+            if selectedFarm == "" or selectedFarm == "No locations found" then
                 Window:Notify({
                     Title = "Error",
                     Desc = "Please select a farm location first!",
@@ -180,10 +374,18 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
                 return
             end
             
-            local location = farmLocations[selectedFarm]
-            if location then
+            -- Find the selected location
+            local targetLocation = nil
+            for _, locationData in ipairs(farmLocations) do
+                if locationData.DisplayName == selectedFarm then
+                    targetLocation = locationData.Location
+                    break
+                end
+            end
+            
+            if targetLocation then
                 pcall(function()
-                    tweenToLocation(location)
+                    tweenToLocation(targetLocation)
                     Window:Notify({
                         Title = "Teleport",
                         Desc = "Teleported to " .. selectedFarm,
@@ -200,11 +402,33 @@ player.CharacterAdded:Connect(function(newChar)
     character = newChar
     repeat task.wait() until character:FindFirstChild("HumanoidRootPart")
     humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    -- Re-enable noclip if it was on
+    if noclipEnabled then
+        enableNoclip()
+    end
+end)
+
+-- Disable noclip when script stops
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
+    disableNoclip()
 end)
 
 -- Initial Notification
 Window:Notify({
     Title = "Auto Farm Loaded",
-    Desc = "Select a location and toggle Auto Farm to start!",
+    Desc = "Refresh locations, select one, and toggle Auto Farm to start!",
     Time = 4
 })
+
+-- Initial refresh
+task.spawn(function()
+    local locations = refreshFarmLocations()
+    if #locations == 0 then
+        Window:Notify({
+            Title = "No Locations",
+            Desc = "No SpawnLocation parts found. Click Refresh.",
+            Time = 5
+        })
+    end
+end)
