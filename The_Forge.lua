@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "The Forge6",
+    Desc = "the forge7",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -24,8 +24,6 @@ Tab:Section({Title = "Auto Farm"})
 -- Variables
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character
-local HumanoidRootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 local RunService = game:GetService("RunService")
 
 local SelectedLocation = "Island1CaveStart"
@@ -37,19 +35,20 @@ local Farming = false
 local Mining = false
 local ToolService
 local Velocity = nil
-local Gyro = nil
 
--- Function to ensure character exists
-local function ensureCharacter()
-    if not Character or not Character.Parent then
-        Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+-- Function to get character safely
+local function getCharacter()
+    local char = LocalPlayer.Character
+    if not char then
+        return nil
     end
     
-    if not HumanoidRootPart or not HumanoidRootPart.Parent then
-        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        return nil
     end
     
-    return Character, HumanoidRootPart
+    return char, hrp
 end
 
 -- Function to setup ToolService reference
@@ -78,17 +77,8 @@ local function getAllPossibleLocations()
     if workspace:FindFirstChild("Rocks") then
         for _, child in ipairs(workspace.Rocks:GetChildren()) do
             if child:IsA("Folder") or child:IsA("Model") then
-                -- Look for SpawnLocation
                 if child:FindFirstChild("SpawnLocation") then
                     table.insert(possibleNames, child.Name)
-                else
-                    -- Maybe SpawnLocation is direct child of workspace.Rocks
-                    for _, subchild in ipairs(child:GetChildren()) do
-                        if subchild.Name == "SpawnLocation" then
-                            table.insert(possibleNames, child.Name)
-                            break
-                        end
-                    end
                 end
             end
         end
@@ -108,37 +98,31 @@ local function findSpawnLocationByName(locationName)
         return nil
     end
     
-    -- Try different patterns
-    local patterns = {
-        locationName,
-        string.lower(locationName),
-        string.gsub(locationName, "Island1", "Island"),
-        string.gsub(locationName, "Cave", ""),
-        string.gsub(locationName, "Start", "Begin"),
-        string.gsub(locationName, "Deep", "End")
-    }
+    -- Try to find exact match first
+    local rockFolder = workspace.Rocks:FindFirstChild(locationName)
+    if rockFolder then
+        local spawnLoc = rockFolder:FindFirstChild("SpawnLocation")
+        if spawnLoc then
+            return spawnLoc
+        end
+    end
     
-    for _, rockFolder in ipairs(workspace.Rocks:GetChildren()) do
-        -- Check if folder name matches any pattern
-        for _, pattern in ipairs(patterns) do
-            if string.find(string.lower(rockFolder.Name), string.lower(pattern)) then
-                -- Look for SpawnLocation
-                local spawnLoc = rockFolder:FindFirstChild("SpawnLocation")
-                if spawnLoc then
-                    print("Found location: " .. rockFolder.Name)
-                    return spawnLoc
-                end
-                
-                -- Maybe SpawnLocation is inside a subfolder
-                for _, child in ipairs(rockFolder:GetChildren()) do
-                    if child:IsA("Folder") or child:IsA("Model") then
-                        spawnLoc = child:FindFirstChild("SpawnLocation")
-                        if spawnLoc then
-                            print("Found location in subfolder: " .. rockFolder.Name .. "/" .. child.Name)
-                            return spawnLoc
-                        end
-                    end
-                end
+    -- Try case insensitive search
+    for _, child in ipairs(workspace.Rocks:GetChildren()) do
+        if string.lower(child.Name) == string.lower(locationName) then
+            local spawnLoc = child:FindFirstChild("SpawnLocation")
+            if spawnLoc then
+                return spawnLoc
+            end
+        end
+    end
+    
+    -- Try partial match
+    for _, child in ipairs(workspace.Rocks:GetChildren()) do
+        if string.find(string.lower(child.Name), string.lower(locationName)) then
+            local spawnLoc = child:FindFirstChild("SpawnLocation")
+            if spawnLoc then
+                return spawnLoc
             end
         end
     end
@@ -185,7 +169,6 @@ local function mineTarget()
             break
         end
         
-        -- Wait a bit before next mining attempt
         task.wait(0.2)
     end
     
@@ -195,7 +178,7 @@ end
 
 -- Function to enable noclip
 local function enableNoclip()
-    local char = ensureCharacter()
+    local char, hrp = getCharacter()
     if not char then return end
     
     for _, part in ipairs(char:GetDescendants()) do
@@ -207,7 +190,7 @@ end
 
 -- Function to disable noclip
 local function disableNoclip()
-    local char = ensureCharacter()
+    local char, hrp = getCharacter()
     if not char then return end
     
     for _, part in ipairs(char:GetDescendants()) do
@@ -221,16 +204,13 @@ end
 local function stopMovement()
     Moving = false
     
-    -- Remove BodyVelocity and BodyGyro
-    if Velocity and Velocity.Parent then
-        Velocity:Destroy()
+    -- Remove BodyVelocity
+    if Velocity then
+        pcall(function()
+            Velocity:Destroy()
+        end)
+        Velocity = nil
     end
-    Velocity = nil
-    
-    if Gyro and Gyro.Parent then
-        Gyro:Destroy()
-    end
-    Gyro = nil
 end
 
 -- Function to check if model has health and if it's alive
@@ -241,7 +221,7 @@ local function isModelAlive(model)
     
     -- Look for Humanoid
     local humanoid = model:FindFirstChildOfClass("Humanoid")
-    if humanoid then
+    if humanoid and humanoid.Health then
         return humanoid.Health > 0
     end
     
@@ -253,14 +233,14 @@ local function isModelAlive(model)
         end
     end
     
-    -- Check for BoolValue indicating alive/dead
+    -- Check for BoolValue
     local aliveValue = model:FindFirstChild("Alive") or model:FindFirstChild("alive")
     if aliveValue and aliveValue:IsA("BoolValue") then
         return aliveValue.Value == true
     end
     
-    -- If no health system found, check if model still exists
-    return model.Parent ~= nil
+    -- Default to true if no health system
+    return true
 end
 
 -- Function to find alive model in SpawnLocation
@@ -272,7 +252,6 @@ local function findAliveModelInSpawnLocation(spawnLocation)
     -- Look for models inside SpawnLocation
     for _, child in ipairs(spawnLocation:GetChildren()) do
         if child:IsA("Model") then
-            -- Check if model is alive
             if isModelAlive(child) then
                 return child
             else
@@ -302,17 +281,17 @@ local function getTargetPosition(targetModel)
         end
     end
     
-    -- If no BasePart found, use model position
-    return targetModel:GetPivot().Position
+    -- If no BasePart found
+    return nil
 end
 
--- Function to move to target using BodyVelocity and BodyGyro
+-- Function to move to target using BodyVelocity only
 local function moveToTarget(targetPosition)
-    if not AutoFarmEnabled then
+    if not AutoFarmEnabled or not targetPosition then
         return false
     end
     
-    local char, hrp = ensureCharacter()
+    local char, hrp = getCharacter()
     if not char or not hrp then
         return false
     end
@@ -327,26 +306,27 @@ local function moveToTarget(targetPosition)
     Velocity.Velocity = Vector3.new(0, 0, 0)
     Velocity.Parent = hrp
     
-    -- Create BodyGyro
-    Gyro = Instance.new("BodyGyro")
-    Gyro.MaxTorque = Vector3.new(400000, 400000, 400000)
-    Gyro.P = 10000
-    Gyro.D = 100
-    Gyro.Parent = hrp
-    
     local startTime = tick()
     local timeout = 10 -- seconds
     
-    while Moving and AutoFarmEnabled and char and hrp and hrp.Parent do
+    while Moving and AutoFarmEnabled do
+        -- Check character
+        local currentChar, currentHrp = getCharacter()
+        if not currentChar or not currentHrp then
+            stopMovement()
+            return false
+        end
+        
+        -- Check timeout
         if tick() - startTime > timeout then
             print("Movement timeout")
             stopMovement()
             return false
         end
         
-        local distance = (hrp.Position - targetPosition).Magnitude
+        -- Check distance
+        local distance = (currentHrp.Position - targetPosition).Magnitude
         
-        -- Check if reached target
         if distance < 5 then
             print("Reached target")
             stopMovement()
@@ -354,13 +334,15 @@ local function moveToTarget(targetPosition)
         end
         
         -- Calculate direction
-        local direction = (targetPosition - hrp.Position).Unit
+        local direction = (targetPosition - currentHrp.Position).Unit
         
         -- Set velocity
-        Velocity.Velocity = direction * TweenSpeed
-        
-        -- Set gyro to face target
-        Gyro.CFrame = CFrame.new(hrp.Position, targetPosition)
+        if Velocity and Velocity.Parent then
+            Velocity.Velocity = direction * TweenSpeed
+        else
+            stopMovement()
+            return false
+        end
         
         task.wait(0.1)
     end
@@ -378,8 +360,8 @@ local function startFarming()
     Farming = true
     
     while AutoFarmEnabled do
-        -- Ensure character exists
-        local char, hrp = ensureCharacter()
+        -- Check character
+        local char, hrp = getCharacter()
         if not char or not hrp then
             task.wait(1)
             continue
@@ -476,9 +458,6 @@ Tab:Toggle({
                 Time = 3
             })
             
-            -- Ensure character exists
-            ensureCharacter()
-            
             -- Start farming process
             task.spawn(startFarming)
         else
@@ -500,30 +479,28 @@ Tab:Toggle({
 
 -- Character added event
 LocalPlayer.CharacterAdded:Connect(function(newChar)
-    Character = newChar
     task.wait(1)
     
-    if Character then
-        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-        
-        -- Reconnect ToolService
-        setupToolService()
-        
-        -- Restart farming if enabled
-        if AutoFarmEnabled then
-            stopMovement()
-            task.wait(0.5)
-            if not Farming then
-                task.spawn(startFarming)
-            end
+    -- Reconnect ToolService
+    setupToolService()
+    
+    -- Restart farming if enabled
+    if AutoFarmEnabled then
+        stopMovement()
+        task.wait(0.5)
+        if not Farming then
+            task.spawn(startFarming)
         end
     end
 end)
 
 -- Auto noclip when auto farming is enabled
 RunService.Stepped:Connect(function()
-    if AutoFarmEnabled and Character and Character.Parent then
-        enableNoclip()
+    if AutoFarmEnabled then
+        local char, hrp = getCharacter()
+        if char then
+            enableNoclip()
+        end
     end
 end)
 
@@ -532,30 +509,26 @@ LocalPlayer.CharacterRemoving:Connect(function()
     stopMovement()
     CurrentTarget = nil
     Mining = false
-    Character = nil
-    HumanoidRootPart = nil
 end)
 
 -- Heartbeat for safety checks
 RunService.Heartbeat:Connect(function()
     if AutoFarmEnabled then
-        -- Ensure character exists
-        local char, hrp = ensureCharacter()
+        -- Check character
+        local char, hrp = getCharacter()
         if not char or not hrp then
             stopMovement()
         end
         
-        -- Check if target is still alive while mining
-        if Mining and CurrentTarget and not isModelAlive(CurrentTarget) then
-            Mining = false
-            print("Target died during mining")
+        -- Check target while mining
+        if Mining and CurrentTarget then
+            if not isModelAlive(CurrentTarget) then
+                Mining = false
+                print("Target died during mining")
+            end
         end
     end
 end)
-
--- Initial character setup
-task.wait(1)
-ensureCharacter()
 
 -- Final Notification
 Window:Notify({
@@ -566,4 +539,4 @@ Window:Notify({
 
 print("Auto Farm Script Loaded")
 print("Available locations: " .. table.concat(availableLocations, ", "))
-print("ToolService available: " .. tostring(ToolService ~= nil))
+print("Using BodyVelocity only for movement")
