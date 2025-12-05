@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "The Forge5",
+    Desc = "The Forge6",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -31,165 +31,169 @@ local noclipConnection = nil
 -- Remote setup
 local toolRemote = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ToolService"):WaitForChild("RF"):WaitForChild("ToolActivated")
 
--- Define farm locations with their specific models
-local farmLocations = {
-    {
-        Location = "CaveStart",
-        ModelName = "Pebble",
-        DisplayName = "Pebble [CaveStart]"
-    },
-    {
-        Location = "CaveMid",
-        ModelName = "Rock",
-        DisplayName = "Rock [CaveMid]"
-    },
-    {
-        Location = "CaveDeep",
-        ModelName = "Boulder",
-        DisplayName = "Boulder [CaveDeep]"
-    },
-    {
-        Location = "Roof",
-        ModelName = "Lucky Block",
-        DisplayName = "Lucky Block [Roof]"
-    }
+-- Define all possible locations
+local ALL_LOCATIONS = {
+    "workspace.Rocks.Island1CaveStart.SpawnLocation",
+    "workspace.Rocks.Island1CaveMid.SpawnLocation",
+    "workspace.Rocks.Island1CaveDeep.SpawnLocation",
+    "workspace.Rocks.Roof.SpawnLocation"
 }
 
--- Function to get farm targets
-local function getFarmTargets()
-    local targets = {}
+-- Cache for found models
+local foundModelsCache = {}
+local lastSearchTime = 0
+local SEARCH_COOLDOWN = 5 -- seconds
+
+-- Function to safely get an object from path
+local function getObjectFromPath(path)
+    local parts = string.split(path, ".")
+    local current = workspace
     
-    print("=== Searching for Farm Targets ===")
-    
-    -- Check if Rocks folder exists
-    if not workspace:FindFirstChild("Rocks") then
-        warn("❌ Rocks folder not found!")
-        return targets
+    for i = 2, #parts do
+        current = current:FindFirstChild(parts[i])
+        if not current then
+            return nil
+        end
     end
     
-    local rocksFolder = workspace.Rocks
+    return current
+end
+
+-- Main function to find ALL models in ALL SpawnLocations
+local function findAllFarmModels()
+    local now = tick()
     
-    for _, farmData in ipairs(farmLocations) do
-        local locationName = farmData.Location
-        local expectedModelName = farmData.ModelName
-        local displayName = farmData.DisplayName
+    -- Use cache if recently searched
+    if now - lastSearchTime < SEARCH_COOLDOWN and #foundModelsCache > 0 then
+        return foundModelsCache
+    end
+    
+    local allFoundModels = {}
+    print("[AutoFarm] 🔍 Searching for farm models...")
+    
+    for _, path in ipairs(ALL_LOCATIONS) do
+        -- Get the SpawnLocation part
+        local spawnLocation = getObjectFromPath(path)
         
-        print("\n🔍 Checking:", locationName, "for model:", expectedModelName)
-        
-        local locationFolder = rocksFolder:FindFirstChild(locationName)
-        if locationFolder then
-            print("   ✓ Location folder found")
+        if spawnLocation and spawnLocation:IsA("BasePart") then
+            -- Extract location name from path
+            local locationName = string.split(path, ".")[3] -- Gets Island1CaveStart, Island1CaveMid, etc.
             
-            -- Search through all models in this location
-            local foundTarget = nil
+            print("[AutoFarm] 📍 Checking: " .. locationName)
             
-            for _, model in ipairs(locationFolder:GetChildren()) do
-                if model:IsA("Model") then
-                    print("   • Checking model:", model.Name)
+            -- Check all children inside this SpawnLocation
+            for _, child in ipairs(spawnLocation:GetChildren()) do
+                if child:IsA("Model") then
+                    print("[AutoFarm]   🎯 Found Model: " .. child.Name .. " inside " .. locationName)
                     
-                    -- Look for SpawnLocation
-                    local spawnLocation = model:FindFirstChild("SpawnLocation")
-                    if spawnLocation and spawnLocation:IsA("BasePart") then
-                        print("     ✓ Found SpawnLocation")
-                        
-                        -- Look for the expected model inside SpawnLocation
-                        local targetModel = spawnLocation:FindFirstChild(expectedModelName)
-                        if targetModel and targetModel:IsA("Model") then
-                            print("     🎯 Found target model:", expectedModelName)
-                            
-                            -- Find a BasePart to tween to
-                            local targetPart = targetModel.PrimaryPart
-                            if not targetPart then
-                                -- Look for any BasePart in the model
-                                for _, part in ipairs(targetModel:GetChildren()) do
-                                    if part:IsA("BasePart") then
-                                        targetPart = part
-                                        break
-                                    end
-                                end
-                            end
-                            
-                            if targetPart then
-                                foundTarget = {
-                                    DisplayName = displayName,
-                                    ModelName = expectedModelName,
-                                    LocationName = locationName,
-                                    TargetPart = targetPart,
-                                    FullModel = targetModel
-                                }
-                                print("     ✅ Target part found:", targetPart.Name)
+                    -- Find a BasePart to tween to
+                    local targetPart = child.PrimaryPart
+                    if not targetPart then
+                        -- Try to find any BasePart in the model
+                        for _, part in ipairs(child:GetChildren()) do
+                            if part:IsA("BasePart") then
+                                targetPart = part
                                 break
-                            else
-                                print("     ⚠️ Model has no BasePart")
-                            end
-                        else
-                            print("     ❌ Model", expectedModelName, "not found in SpawnLocation")
-                            -- List what's actually in the SpawnLocation
-                            print("     📦 Contents of SpawnLocation:")
-                            for _, child in ipairs(spawnLocation:GetChildren()) do
-                                print("       -", child.Name, "(" .. child.ClassName .. ")")
                             end
                         end
+                    end
+                    
+                    -- Also check for MeshPart which is also a BasePart
+                    if not targetPart then
+                        for _, part in ipairs(child:GetChildren()) do
+                            if part:IsA("MeshPart") then
+                                targetPart = part
+                                break
+                            end
+                        end
+                    end
+                    
+                    if targetPart then
+                        local displayName = child.Name .. " [" .. locationName .. "]"
+                        
+                        table.insert(allFoundModels, {
+                            DisplayName = displayName,
+                            ModelName = child.Name,
+                            LocationName = locationName,
+                            TargetPart = targetPart,
+                            FullModel = child,
+                            SpawnLocation = spawnLocation,
+                            Path = path
+                        })
+                        
+                        print("[AutoFarm]   ✅ Added: " .. displayName .. " (Part: " .. targetPart.Name .. ")")
+                    else
+                        print("[AutoFarm]   ⚠️ Model has no BasePart/MeshPart: " .. child.Name)
                     end
                 end
             end
             
-            if foundTarget then
-                table.insert(targets, foundTarget)
+            -- If no models found in this SpawnLocation, list what's there
+            if #spawnLocation:GetChildren() == 0 then
+                print("[AutoFarm]   📭 SpawnLocation is empty")
             else
-                print("   ❌ Could not find target for", locationName)
+                local hasNonModel = false
+                for _, child in ipairs(spawnLocation:GetChildren()) do
+                    if not child:IsA("Model") then
+                        hasNonModel = true
+                        print("[AutoFarm]   📦 Other item: " .. child.Name .. " (" .. child.ClassName .. ")")
+                    end
+                end
             end
         else
-            print("   ❌ Location folder not found:", locationName)
+            if spawnLocation then
+                print("[AutoFarm]   ❌ Not a BasePart: " .. spawnLocation.ClassName)
+            else
+                print("[AutoFarm]   ❌ Path not found: " .. path)
+            end
         end
     end
     
-    print("\n=== Search Complete ===")
-    print("Found " .. #targets .. " farm targets:")
-    for i, target in ipairs(targets) do
-        print(i .. ". " .. target.DisplayName .. " (Part: " .. target.TargetPart.Name .. ")")
-    end
+    -- Update cache
+    foundModelsCache = allFoundModels
+    lastSearchTime = now
     
-    return targets
+    print("[AutoFarm] 📊 Search complete. Found " .. #allFoundModels .. " models total.")
+    
+    return allFoundModels
 end
 
 -- Function to get target by display name
 local function getTargetByDisplayName(displayName)
-    local targets = getFarmTargets()
-    
-    for _, target in ipairs(targets) do
-        if target.DisplayName == displayName then
-            return target.TargetPart
+    -- First check cache
+    for _, modelData in ipairs(foundModelsCache) do
+        if modelData.DisplayName == displayName then
+            return modelData.TargetPart
         end
     end
     
-    -- If not found, search specifically
-    for _, farmData in ipairs(farmLocations) do
-        if farmData.DisplayName == displayName then
-            -- Try to find it manually
-            if workspace:FindFirstChild("Rocks") then
-                local rocksFolder = workspace.Rocks
-                local locationFolder = rocksFolder:FindFirstChild(farmData.Location)
-                
-                if locationFolder then
-                    for _, model in ipairs(locationFolder:GetChildren()) do
-                        if model:IsA("Model") then
-                            local spawnLocation = model:FindFirstChild("SpawnLocation")
-                            if spawnLocation then
-                                local targetModel = spawnLocation:FindFirstChild(farmData.ModelName)
-                                if targetModel and targetModel:IsA("Model") then
-                                    local targetPart = targetModel.PrimaryPart
-                                    if not targetPart then
-                                        for _, part in ipairs(targetModel:GetChildren()) do
-                                            if part:IsA("BasePart") then
-                                                return part
-                                            end
-                                        end
-                                    end
-                                    return targetPart
+    -- If not in cache, do a fresh search
+    local allModels = findAllFarmModels()
+    for _, modelData in ipairs(allModels) do
+        if modelData.DisplayName == displayName then
+            return modelData.TargetPart
+        end
+    end
+    
+    -- Try to find it manually
+    for _, path in ipairs(ALL_LOCATIONS) do
+        local spawnLocation = getObjectFromPath(path)
+        if spawnLocation then
+            for _, child in ipairs(spawnLocation:GetChildren()) do
+                if child:IsA("Model") then
+                    local locationName = string.split(path, ".")[3]
+                    local testName = child.Name .. " [" .. locationName .. "]"
+                    
+                    if testName == displayName then
+                        local targetPart = child.PrimaryPart
+                        if not targetPart then
+                            for _, part in ipairs(child:GetChildren()) do
+                                if part:IsA("BasePart") or part:IsA("MeshPart") then
+                                    return part
                                 end
                             end
                         end
+                        return targetPart
                     end
                 end
             end
@@ -235,35 +239,49 @@ end
 -- Tween function
 local function tweenToTarget(displayName)
     if not displayName or displayName == "" then
-        warn("❌ No target selected!")
-        return
+        warn("[AutoFarm] ❌ No target selected!")
+        return false
     end
     
-    print("🔧 Tweening to:", displayName)
+    print("[AutoFarm] 🔧 Starting tween to: " .. displayName)
     
+    -- Get target part
     local targetPart = getTargetByDisplayName(displayName)
+    
     if not targetPart then
-        warn("❌ Target not found:", displayName)
-        return
+        warn("[AutoFarm] ❌ Target not found: " .. displayName)
+        
+        -- Try one more time with fresh search
+        findAllFarmModels()
+        targetPart = getTargetByDisplayName(displayName)
+        
+        if not targetPart then
+            Window:Notify({
+                Title = "Target Error",
+                Desc = "Could not find: " .. displayName,
+                Time = 3
+            })
+            return false
+        end
     end
     
-    if not targetPart:IsA("BasePart") then
-        warn("❌ Target is not a BasePart")
-        return
+    if not targetPart:IsA("BasePart") and not targetPart:IsA("MeshPart") then
+        warn("[AutoFarm] ❌ Invalid target type: " .. targetPart.ClassName)
+        return false
     end
     
-    print("📍 Target position:", targetPart.Position)
-    print("📏 Distance:", (humanoidRootPart.Position - targetPart.Position).Magnitude)
-    
-    -- Enable noclip if setting is on
+    -- Enable noclip if needed
     if noclipEnabled then
         enableNoclip()
     end
     
-    -- Create tween
+    -- Calculate tween
     local distance = (humanoidRootPart.Position - targetPart.Position).Magnitude
     local duration = distance / tweenSpeed
     
+    print(string.format("[AutoFarm] 📏 Distance: %.2f | Duration: %.2fs | Speed: %d", distance, duration, tweenSpeed))
+    
+    -- Create and play tween
     local tweenInfo = TweenInfo.new(
         duration,
         Enum.EasingStyle.Linear,
@@ -274,97 +292,114 @@ local function tweenToTarget(displayName)
     )
     
     local tween = tweenService:Create(humanoidRootPart, tweenInfo, {CFrame = targetPart.CFrame})
-    tween:Play()
     
-    -- Wait for completion
-    local success = pcall(function()
+    local tweenSuccess = pcall(function()
+        tween:Play()
         tween.Completed:Wait()
     end)
-    
-    if success then
-        print("✅ Tween complete")
-        -- Use pickaxe
-        local toolSuccess = pcall(function()
-            toolRemote:InvokeServer("Pickaxe")
-        end)
-        
-        if toolSuccess then
-            print("✅ Pickaxe used")
-        else
-            warn("❌ Failed to use pickaxe")
-        end
-    else
-        warn("❌ Tween failed")
-    end
     
     -- Disable noclip
     if noclipEnabled then
         disableNoclip()
     end
     
-    task.wait(0.5)
+    if tweenSuccess then
+        print("[AutoFarm] ✅ Tween complete!")
+        
+        -- Use pickaxe
+        local pickaxeSuccess = pcall(function()
+            toolRemote:InvokeServer("Pickaxe")
+        end)
+        
+        if pickaxeSuccess then
+            print("[AutoFarm] ⚒️ Pickaxe used successfully")
+        else
+            warn("[AutoFarm] ⚠️ Failed to use pickaxe")
+        end
+        
+        return true
+    else
+        warn("[AutoFarm] ❌ Tween failed")
+        return false
+    end
 end
 
 -- Auto farm loop
 local autoFarmThread
 local function startAutoFarm()
+    -- Stop existing thread
     if autoFarmThread then
         task.cancel(autoFarmThread)
         autoFarmThread = nil
     end
     
+    -- Start new thread
     autoFarmThread = task.spawn(function()
+        print("[AutoFarm] 🚀 Starting auto farm for: " .. selectedFarm)
+        
         while autoFarmEnabled and selectedFarm ~= "" do
-            pcall(function()
+            local success = pcall(function()
                 tweenToTarget(selectedFarm)
             end)
-            task.wait(0.5)
+            
+            if not success then
+                warn("[AutoFarm] ⚠️ Farm cycle failed, retrying...")
+            end
+            
+            task.wait(0.5) -- Wait between cycles
         end
+        
+        print("[AutoFarm] ⏹️ Auto farm stopped")
     end)
 end
 
--- Main Tab
-local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
+-- Function to update dropdown with fresh data
+local function refreshFarmList()
+    print("[AutoFarm] 🔄 Refreshing farm list...")
+    
+    local allModels = findAllFarmModels()
+    local displayNames = {}
+    
+    for _, modelData in ipairs(allModels) do
+        table.insert(displayNames, modelData.DisplayName)
+    end
+    
+    -- Sort alphabetically
+    table.sort(displayNames)
+    
+    return displayNames, allModels
+end
+
+-- Create main tab
+local MainTab
+local farmDropdown
+
+MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     -- Auto Farm Section
     MainTab:Section({Title = "Auto Farm"})
     
-    -- Get available targets
-    local availableTargets = getFarmTargets()
-    local displayNames = {}
-    
-    for _, target in ipairs(availableTargets) do
-        table.insert(displayNames, target.DisplayName)
-    end
-    
-    -- If no targets found, use default list
-    if #displayNames == 0 then
-        for _, farmData in ipairs(farmLocations) do
-            table.insert(displayNames, farmData.DisplayName)
-        end
-    end
+    -- Initial farm list
+    local initialDisplayNames, initialModels = refreshFarmList()
     
     -- Create dropdown
-    if #displayNames > 0 then
-        MainTab:Dropdown({
-            Title = "Select Farm",
-            Desc = "Choose location to farm",
-            List = displayNames,
-            Value = displayNames[1],
-            Callback = function(choice)
+    farmDropdown = MainTab:Dropdown({
+        Title = "Select Farm",
+        Desc = "Choose model to farm",
+        List = #initialDisplayNames > 0 and initialDisplayNames or {"No models found"},
+        Value = #initialDisplayNames > 0 and initialDisplayNames[1] or "No models found",
+        Callback = function(choice)
+            if choice ~= "No models found" then
                 selectedFarm = choice
-                print("📌 Selected:", choice)
+                print("[AutoFarm] 📌 Selected: " .. choice)
+            else
+                selectedFarm = ""
             end
-        })
-        selectedFarm = displayNames[1]
-    else
-        MainTab:Dropdown({
-            Title = "Select Farm",
-            Desc = "No targets available",
-            List = {"No targets found"},
-            Value = "No targets found",
-            Callback = function() end
-        })
-        selectedFarm = ""
+        end
+    })
+    
+    -- Set initial selection
+    if #initialDisplayNames > 0 then
+        selectedFarm = initialDisplayNames[1]
     end
     
     -- Tween Speed Slider
@@ -377,7 +412,7 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
         Value = 50,
         Callback = function(val)
             tweenSpeed = val
-            print("🎚️ Speed set to:", val)
+            print("[AutoFarm] 🎚️ Speed: " .. val)
         end
     })
     
@@ -391,7 +426,7 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
             if v then
                 Window:Notify({
                     Title = "Noclip",
-                    Desc = "Noclip enabled for tween",
+                    Desc = "Noclip enabled during tween",
                     Time = 3
                 })
             else
@@ -403,21 +438,36 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     -- Auto Farm Toggle
     MainTab:Toggle({
         Title = "Auto Farm",
-        Desc = "Start/stop automatic farming",
+        Desc = "Enable/disable automatic farming",
         Value = false,
         Callback = function(v)
             autoFarmEnabled = v
+            
             if v then
-                if selectedFarm == "" or selectedFarm == "No targets found" then
+                -- Validate selection
+                if selectedFarm == "" or selectedFarm == "No models found" then
                     Window:Notify({
                         Title = "Error",
-                        Desc = "Select a farm location first!",
+                        Desc = "Please select a farm model first!",
                         Time = 3
                     })
                     autoFarmEnabled = false
                     return
                 end
                 
+                -- Verify target still exists
+                local targetPart = getTargetByDisplayName(selectedFarm)
+                if not targetPart then
+                    Window:Notify({
+                        Title = "Error",
+                        Desc = "Selected model not found! Refresh list.",
+                        Time = 3
+                    })
+                    autoFarmEnabled = false
+                    return
+                end
+                
+                -- Start auto farm
                 startAutoFarm()
                 Window:Notify({
                     Title = "Auto Farm",
@@ -425,6 +475,7 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
                     Time = 3
                 })
             else
+                -- Stop auto farm
                 if autoFarmThread then
                     task.cancel(autoFarmThread)
                     autoFarmThread = nil
@@ -444,70 +495,121 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
         Title = "Test Teleport",
         Desc = "Teleport to selected once",
         Callback = function()
-            if selectedFarm == "" or selectedFarm == "No targets found" then
+            if selectedFarm == "" or selectedFarm == "No models found" then
                 Window:Notify({
                     Title = "Error",
-                    Desc = "Select a farm location first!",
+                    Desc = "Select a farm model first!",
                     Time = 3
                 })
                 return
             end
             
-            pcall(function()
+            local success = pcall(function()
                 tweenToTarget(selectedFarm)
+            end)
+            
+            if success then
                 Window:Notify({
-                    Title = "Teleport",
+                    Title = "Success",
                     Desc = "Teleported to: " .. selectedFarm,
                     Time = 3
                 })
-            end)
+            else
+                Window:Notify({
+                    Title = "Error",
+                    Desc = "Failed to teleport!",
+                    Time = 3
+                })
+            end
         end
     })
     
     -- Refresh Button
     MainTab:Button({
-        Title = "Refresh Targets",
-        Desc = "Reload farm locations",
+        Title = "Refresh List",
+        Desc = "Reload all farm models",
         Callback = function()
-            local targets = getFarmTargets()
+            local displayNames, models = refreshFarmList()
             
-            if #targets > 0 then
+            if #displayNames > 0 then
                 Window:Notify({
                     Title = "Refreshed",
-                    Desc = "Found " .. #targets .. " farm targets",
+                    Desc = "Found " .. #displayNames .. " models",
                     Time = 3
                 })
-                print("✅ Refreshed targets")
+                
+                -- Update selection if current doesn't exist
+                local currentExists = false
+                for _, name in ipairs(displayNames) do
+                    if name == selectedFarm then
+                        currentExists = true
+                        break
+                    end
+                end
+                
+                if not currentExists and #displayNames > 0 then
+                    selectedFarm = displayNames[1]
+                    print("[AutoFarm] 🔄 Selection updated to: " .. selectedFarm)
+                end
             else
                 Window:Notify({
-                    Title = "No Targets",
-                    Desc = "Could not find any farm targets",
+                    Title = "No Models",
+                    Desc = "No farm models found",
                     Time = 3
                 })
+                selectedFarm = ""
             end
         end
     })
     
-    -- Info Button
+    -- Debug Button
     MainTab:Button({
-        Title = "Farm Info",
-        Desc = "Show available farm locations",
+        Title = "Debug Info",
+        Desc = "Show detailed structure info",
         Callback = function()
-            local info = "Farm Locations:\n"
-            for _, farmData in ipairs(farmLocations) do
-                info = info .. "• " .. farmData.DisplayName .. "\n"
+            print("\n=== DEBUG INFORMATION ===")
+            
+            -- Check workspace structure
+            if workspace:FindFirstChild("Rocks") then
+                local rocks = workspace.Rocks
+                print("📁 Rocks folder found")
+                
+                for _, location in ipairs(rocks:GetChildren()) do
+                    print("\n📍 " .. location.Name .. ":")
+                    
+                    for _, item in ipairs(location:GetChildren()) do
+                        if item:IsA("Model") then
+                            print("  ├─ " .. item.Name)
+                            local spawn = item:FindFirstChild("SpawnLocation")
+                            if spawn then
+                                print("  │  └─ SpawnLocation (" .. spawn.ClassName .. ")")
+                                print("  │     ├─ Position: " .. tostring(spawn.Position))
+                                print("  │     └─ Children: " .. #spawn:GetChildren())
+                                
+                                for _, child in ipairs(spawn:GetChildren()) do
+                                    print("  │        ├─ " .. child.Name .. " (" .. child.ClassName .. ")")
+                                end
+                            end
+                        end
+                    end
+                end
+            else
+                print("❌ No Rocks folder!")
             end
+            
+            print("\n=== CACHE INFO ===")
+            print("Cached models: " .. #foundModelsCache)
+            for i, model in ipairs(foundModelsCache) do
+                print(i .. ". " .. model.DisplayName)
+            end
+            
+            print("\n=== END DEBUG ===")
             
             Window:Notify({
-                Title = "Farm Locations",
-                Desc = info,
-                Time = 5
+                Title = "Debug Complete",
+                Desc = "Check console (F9) for details",
+                Time = 3
             })
-            
-            print("📋 Farm Locations:")
-            for _, farmData in ipairs(farmLocations) do
-                print("  • " .. farmData.DisplayName)
-            end
         end
     })
 end
@@ -517,27 +619,48 @@ player.CharacterAdded:Connect(function(newChar)
     character = newChar
     repeat task.wait() until character:FindFirstChild("HumanoidRootPart")
     humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    print("🎭 Character loaded")
+    print("[AutoFarm] 🎭 Character loaded")
+    
+    -- Re-enable noclip if it was on
+    if noclipEnabled then
+        enableNoclip()
+    end
 end)
 
 -- Initial setup
-local initialTargets = getFarmTargets()
-if #initialTargets > 0 then
-    Window:Notify({
-        Title = "Auto Farm Ready",
-        Desc = "Select a location and enable Auto Farm",
-        Time = 4
-    })
-else
-    Window:Notify({
-        Title = "Farm Locations",
-        Desc = "4 locations available. Use Test Teleport first.",
-        Time = 5
-    })
-end
+task.spawn(function()
+    task.wait(2) -- Wait a bit for game to load
+    
+    local displayNames = refreshFarmList()
+    
+    if #displayNames > 0 then
+        Window:Notify({
+            Title = "Auto Farm Ready",
+            Desc = "Found " .. #displayNames .. " farm models",
+            Time = 4
+        })
+        print("[AutoFarm] ✅ Script loaded successfully!")
+    else
+        Window:Notify({
+            Title = "Setup Needed",
+            Desc = "No models found. Check Debug Info.",
+            Time = 5
+        })
+        print("[AutoFarm] ⚠️ No farm models found on initial search")
+    end
+end)
 
-print("\n✅ x2zu Auto Farm Script Loaded")
-print("📋 Available Farm Locations:")
-for _, farmData in ipairs(farmLocations) do
-    print("  • " .. farmData.DisplayName)
-end
+-- Auto-refresh every 30 seconds
+task.spawn(function()
+    while true do
+        task.wait(30)
+        if MainTab then
+            refreshFarmList()
+            print("[AutoFarm] 🔄 Auto-refresh complete")
+        end
+    end
+end)
+
+print("\n=================================")
+print("🚀 x2zu Auto Farm Script Loaded")
+print("=================================")
