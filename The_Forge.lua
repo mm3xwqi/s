@@ -4,7 +4,7 @@ local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/
 -- Create Main Window
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
-    Desc = "The Forge",
+    Desc = "The Forge1",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
@@ -27,6 +27,8 @@ local selectedFarm = ""
 local tweenSpeed = 50
 local noclipEnabled = false
 local noclipConnection = nil
+local farmDropdown = nil
+local farmPartsCache = {}
 
 -- Remote setup
 local toolRemote = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ToolService"):WaitForChild("RF"):WaitForChild("ToolActivated")
@@ -77,13 +79,20 @@ local function getFarmParts()
         end
     end
     
+    farmPartsCache = farmData
     return farmData
 end
 
 -- Function to get part by display name
 local function getPartByName(displayName)
-    local farmData = getFarmParts()
+    for _, data in ipairs(farmPartsCache) do
+        if data.Name == displayName then
+            return data.Location
+        end
+    end
     
+    -- If not in cache, search again
+    local farmData = getFarmParts()
     for _, data in ipairs(farmData) do
         if data.Name == displayName then
             return data.Location
@@ -193,68 +202,42 @@ local function startAutoFarm()
     end)
 end
 
--- Function to update dropdown
-local farmDropdown
-local function updateDropdown()
-    local farmData = getFarmParts()
-    local displayNames = {}
-    
-    for _, data in ipairs(farmData) do
-        table.insert(displayNames, data.Name)
-    end
-    
-    if #displayNames > 0 then
-        if farmDropdown then
-            farmDropdown:UpdateList(displayNames)
-            if selectedFarm == "" then
-                selectedFarm = displayNames[1]
-            end
-        else
-            farmDropdown = MainTab:Dropdown({
-                Title = "Select Farm",
-                List = displayNames,
-                Value = displayNames[1],
-                Callback = function(choice)
-                    selectedFarm = choice
-                    print("Selected Farm:", choice)
-                end
-            })
-            selectedFarm = displayNames[1]
-        end
-        return true
-    else
-        if farmDropdown then
-            farmDropdown:UpdateList({"No Parts found in SpawnLocations"})
-        else
-            farmDropdown = MainTab:Dropdown({
-                Title = "Select Farm",
-                List = {"No Parts found in SpawnLocations"},
-                Value = "No Parts found in SpawnLocations",
-                Callback = function() end
-            })
-        end
-        selectedFarm = ""
-        return false
-    end
-end
-
 -- Main Tab
 local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     -- Auto Farm Section
     MainTab:Section({Title = "Auto Farm"})
     
-    -- Auto-update dropdown initially
-    updateDropdown()
+    -- Get initial farm parts
+    local initialFarmParts = getFarmParts()
+    local initialDisplayNames = {}
     
-    -- Auto-refresh thread
-    task.spawn(function()
-        while true do
-            task.wait(5) -- Update every 5 seconds
-            if MainTab then
-                updateDropdown()
+    for _, data in ipairs(initialFarmParts) do
+        table.insert(initialDisplayNames, data.Name)
+    end
+    
+    -- Create dropdown with initial data
+    if #initialDisplayNames > 0 then
+        farmDropdown = MainTab:Dropdown({
+            Title = "Select Farm",
+            List = initialDisplayNames,
+            Value = initialDisplayNames[1],
+            Callback = function(choice)
+                selectedFarm = choice
+                print("Selected Farm:", choice)
             end
-        end
-    end)
+        })
+        selectedFarm = initialDisplayNames[1]
+    else
+        farmDropdown = MainTab:Dropdown({
+            Title = "Select Farm",
+            List = {"No Parts found in SpawnLocations"},
+            Value = "No Parts found in SpawnLocations",
+            Callback = function(choice)
+                selectedFarm = choice
+            end
+        })
+        selectedFarm = ""
+    end
     
     -- Tween Speed Slider
     MainTab:Slider({
@@ -356,22 +339,51 @@ local MainTab = Window:Tab({Title = "Main", Icon = "star"}) do
     
     -- Manual Refresh Button
     MainTab:Button({
-        Title = "Manual Refresh",
-        Desc = "Refresh farm parts now",
+        Title = "Refresh Farm List",
+        Desc = "Refresh and update farm parts list",
         Callback = function()
-            if updateDropdown() then
-                local farmData = getFarmParts()
-                Window:Notify({
-                    Title = "Refreshed",
-                    Desc = #farmData .. " parts found in SpawnLocations",
-                    Time = 3
-                })
+            local farmData = getFarmParts()
+            
+            if #farmData > 0 then
+                local displayNames = {}
+                for _, data in ipairs(farmData) do
+                    table.insert(displayNames, data.Name)
+                end
+                
+                -- Recreate the dropdown with new data
+                if farmDropdown then
+                    -- Since we can't update, we'll notify user to reselect
+                    Window:Notify({
+                        Title = "Farm List Updated",
+                        Desc = #farmData .. " parts found. Please check the list.",
+                        Time = 3
+                    })
+                    
+                    -- Update selected farm if the previous selection still exists
+                    local found = false
+                    for _, name in ipairs(displayNames) do
+                        if name == selectedFarm then
+                            found = true
+                            break
+                        end
+                    end
+                    
+                    if not found and #displayNames > 0 then
+                        selectedFarm = displayNames[1]
+                        Window:Notify({
+                            Title = "Selection Reset",
+                            Desc = "Previous selection not found. Reset to: " .. displayNames[1],
+                            Time = 3
+                        })
+                    end
+                end
             else
                 Window:Notify({
-                    Title = "No Parts",
+                    Title = "No Parts Found",
                     Desc = "No parts found inside SpawnLocations",
                     Time = 3
                 })
+                selectedFarm = ""
             end
         end
     })
@@ -399,13 +411,13 @@ local farmData = getFarmParts()
 if #farmData > 0 then
     Window:Notify({
         Title = "Auto Farm Loaded",
-        Desc = #farmData .. " parts found in SpawnLocations. Auto-updating every 5 seconds.",
+        Desc = #farmData .. " parts found in SpawnLocations",
         Time = 4
     })
 else
     Window:Notify({
         Title = "Warning",
-        Desc = "No parts found inside SpawnLocations. Dropdown will auto-refresh every 5 seconds.",
+        Desc = "No parts found inside SpawnLocations. Click Refresh to retry.",
         Time = 5
     })
 end
