@@ -1,606 +1,866 @@
--- Load UI Library
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
-
--- Create Main Window
-local Window = Library:Window({
-    Title = "x2zu [ Stellar ]",
-    Desc = "the forge4",
-    Icon = 105059922903197,
-    Theme = "Dark",
-    Config = {
-        Keybind = Enum.KeyCode.LeftControl,
-        Size = UDim2.new(0, 500, 0, 400)
-    },
-    CloseUIButton = {
-        Enabled = true,
-        Text = "x2zu"
-    }
-})
-
--- Tab
-local Tab = Window:Tab({Title = "Main", Icon = "star"})
-Tab:Section({Title = "Auto Farm"})
-
--- Variables
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Function to teleport to position instantly
-local function teleportToPosition(position)
-    local char = LocalPlayer.Character
-    if not char then
-        char = LocalPlayer.CharacterAdded:Wait()
-    end
-    local hrp = char:WaitForChild("HumanoidRootPart")
+-- ประกาศตัวแปรทั้งหมดก่อน
+local allRocks = {} -- ตารางเก็บหินทั้งหมด
+local isAutoFarming = false
+local currentTween = nil
+local isHoldingAtRock = false
+local Dropdown, Toggle, SpeedSlider, TweenSpeedSlider, Button
+local noclipEnabled = false
+local noclipConnection
+local selectedRockType = "All Rocks"
+local xOffset, yOffset, zOffset = 0, 5, 0 -- Offset สำหรับตำแหน่ง
+local miningActive = false -- สำหรับควบคุมการตีหิน
+local floatPosition = nil -- สำหรับควบคุมการลอย
+local currentTargetRock = nil -- หินเป้าหมายปัจจุบัน
+local pickaxeInHand = nil -- เก็บ Pickaxe ที่อยู่ในมือ
+local isMovingToRock = false -- สำหรับตรวจสอบว่ากำลังเคลื่อนที่ไปหาหินหรือไม่
+
+-- ฟังก์ชันเปิด/ปิด NoClip
+local function toggleNoClip(state)
+    noclipEnabled = state
     
-    hrp.CFrame = CFrame.new(position)
-    return true
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+    
+    if state then
+        noclipConnection = game:GetService("RunService").Stepped:Connect(function()
+            if LocalPlayer.Character then
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide == true then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+        print("NoClip enabled")
+    else
+        if LocalPlayer.Character then
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+        print("NoClip disabled")
+    end
 end
 
--- Function to check model health
-local function checkModelHealth(model)
-    if not model then return false end
+-- ฟังก์ชันถือ Pickaxe
+local function equipPickaxe()
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not backpack then return nil end
     
-    -- Check for Humanoid health
-    local humanoid = model:FindFirstChildOfClass("Humanoid")
-    if humanoid and humanoid.Health then
-        return humanoid.Health > 0
+    local pickaxe = backpack:FindFirstChild("Pickaxe")
+    if not pickaxe then 
+        print("Pickaxe not found in backpack")
+        return nil 
     end
     
-    -- Check for Health value
-    local healthValue = model:FindFirstChild("Health")
-    if healthValue then
-        if healthValue:IsA("NumberValue") or healthValue:IsA("IntValue") then
-            return healthValue.Value > 0
+    local character = LocalPlayer.Character
+    if not character then return nil end
+    
+    -- ถ่ายโอน Pickaxe ไปที่ตัวละครเลย
+    pickaxe.Parent = character
+    pickaxeInHand = pickaxe
+    print("Pickaxe equipped to character")
+    
+    return pickaxe
+end
+
+-- ฟังก์ชันใช้ Pickaxe รัวๆ ตลอดเวลา
+local function startContinuousMining()
+    miningActive = true
+    
+    while miningActive and isAutoFarming do
+        local success, error = pcall(function()
+            local args = {"Pickaxe"}
+            ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ToolService"):WaitForChild("RF"):WaitForChild("ToolActivated"):InvokeServer(unpack(args))
+        end)
+        
+        if not success then
+            print("Error using Pickaxe:", error)
+        end
+        
+        -- รอตามความเร็วที่ตั้ง (ใช้ความเร็วต่ำสุด 0.05 วินาทีเพื่อตีเร็วๆ)
+        local delayTime = math.max(SpeedSlider.CurrentValue, 0.05)
+        wait(delayTime)
+    end
+end
+
+-- ฟังก์ชันหยุดการตีหิน
+local function stopMining()
+    miningActive = false
+end
+
+-- ฟังก์ชันสร้างและควบคุม FloatPosition
+local function setupFloatControl()
+    spawn(function()
+        local player = LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local root = character:WaitForChild("HumanoidRootPart")
+        
+        -- ลบ Float เดิมถ้ามี
+        if floatPosition then
+            floatPosition:Destroy()
+            floatPosition = nil
+        end
+        
+        while isAutoFarming do
+            task.wait(0.005)
+            
+            pcall(function()
+                if isAutoFarming then
+                    -- ยืนขึ้นถ้านั่ง
+                    if character:WaitForChild("Humanoid").Sit then
+                        character:WaitForChild("Humanoid").Sit = false
+                    end
+                    
+                    -- ถ้ายังไม่มีส่วนควบคุมการลอย
+                    if not root:FindFirstChild("FloatPosition") then
+                        floatPosition = Instance.new("BodyPosition")
+                        floatPosition.Name = "FloatPosition"
+                        floatPosition.Parent = root
+                        floatPosition.MaxForce = Vector3.new(9000000000, 9000000000, 9000000000)
+                        floatPosition.Position = root.Position
+                        
+                        print("FloatPosition created")
+                    else
+                        floatPosition = root:FindFirstChild("FloatPosition")
+                    end
+                    
+                    -- อัพเดทตำแหน่ง FloatPosition
+                    if floatPosition then
+                        floatPosition.Position = root.Position
+                    end
+                else
+                    -- ลบส่วนควบคุมการลอย
+                    if floatPosition then
+                        floatPosition:Destroy()
+                        floatPosition = nil
+                        print("FloatPosition destroyed")
+                    end
+                end
+            end)
+        end
+        
+        -- ลบ FloatPosition เมื่อออกจาก loop
+        if floatPosition then
+            floatPosition:Destroy()
+            floatPosition = nil
+        end
+    end)
+end
+
+-- ฟังก์ชันตรวจสอบเลือดหิน
+local function getRockHealth(rockModel)
+    if not rockModel or not rockModel.Parent then
+        return 0, 0
+    end
+    
+    local health = rockModel:GetAttribute("Health") or 0
+    local maxHealth = rockModel:GetAttribute("MaxHealth") or 0
+    
+    if health == 0 and rockModel:FindFirstChild("Humanoid") then
+        health = rockModel.Humanoid.Health
+        maxHealth = rockModel.Humanoid.MaxHealth
+    end
+    
+    return health, maxHealth
+end
+
+-- ฟังก์ชันตรวจสอบว่าหินยังมีเลือดอยู่หรือไม่
+local function checkRockHealth(rockModel)
+    local health, _ = getRockHealth(rockModel)
+    return health > 0
+end
+
+-- ฟังก์ชันค้นหาหินทั้งหมดตามประเภทที่เลือก (ไม่เอา currentTargetRock)
+local function findAllRocks()
+    allRocks = {}
+    local rockTypes = {}
+    
+    local function exploreUntilModel(obj)
+        if obj.ClassName == "Model" then
+            local health = obj:GetAttribute("Health")
+            if health and health > 0 then
+                local rockName = obj.Name
+                if selectedRockType == "All Rocks" or rockName == selectedRockType then
+                    -- ไม่เอาหินที่เป็นเป้าหมายปัจจุบัน (ถ้ามี)
+                    if not currentTargetRock or obj ~= currentTargetRock then
+                        table.insert(allRocks, obj)
+                        
+                        if not rockTypes[rockName] then
+                            rockTypes[rockName] = 0
+                        end
+                        rockTypes[rockName] = rockTypes[rockName] + 1
+                    end
+                end
+            end
+            return
+        end
+        
+        for _, child in ipairs(obj:GetChildren()) do
+            exploreUntilModel(child)
         end
     end
     
-    -- Check for health attribute
-    local healthAttr = model:GetAttribute("Health")
-    if healthAttr then
-        return healthAttr > 0
+    if workspace:FindFirstChild("Rocks") then
+        exploreUntilModel(workspace.Rocks)
     end
     
-    -- If no health system found, assume it's alive
-    return true
+    if #allRocks > 0 then
+        print("=== Found Rock Types ===")
+        for rockType, count in pairs(rockTypes) do
+            print(rockType .. ": " .. count .. "x")
+        end
+        print("Total rocks with health: " .. #allRocks)
+        print("Selected type: " .. selectedRockType)
+        print("====================")
+    end
+    
+    return #allRocks
 end
 
--- Function to get ALL occupied SpawnLocations with healthy models
-local function getHealthyOccupiedSpawnLocations()
-    local healthyLocations = {}
+-- ฟังก์ชันหยุดการเคลื่อนที่และ farm หินปัจจุบัน
+local function stopCurrentFarm()
+    print("Stopping current farm...")
     
-    if not workspace:FindFirstChild("Rocks") then
-        return healthyLocations
+    -- หยุดค้างตำแหน่ง
+    isHoldingAtRock = false
+    isMovingToRock = false
+    
+    -- หยุด Tween ปัจจุบัน
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
     end
     
-    print("🔍 Scanning for healthy occupied models...")
+    -- ล้างหินเป้าหมายปัจจุบัน
+    currentTargetRock = nil
     
-    -- Check direct SpawnLocations in Rocks
-    for _, item in ipairs(workspace.Rocks:GetChildren()) do
-        if item.Name == "SpawnLocation" then
-            for _, child in ipairs(item:GetChildren()) do
-                if child:IsA("Model") then
-                    -- Check IsOccupied attribute
-                    if child:GetAttribute("IsOccupied") == true then
-                        -- Check model health
-                        if checkModelHealth(child) then
-                            table.insert(healthyLocations, {
-                                DisplayName = "SpawnLocation_" .. #healthyLocations + 1,
-                                SpawnLocation = item,
-                                TargetModel = child,
-                                Position = item.Position
-                            })
-                            print("✓ Found healthy occupied model (direct)")
-                            break -- Move to next SpawnLocation
-                        else
-                            print("✗ Skipping - model health is 0")
-                        end
-                    end
-                end
+    -- รอเล็กน้อยให้ระบบหยุดทำงาน
+    wait(0.5)
+end
+
+-- ฟังก์ชัน Tween ไปยังหิน (แก้ไขปัญหาหินใกล้เกินไป)
+local function tweenToRock(rockModel)
+    if not rockModel or not isAutoFarming then 
+        isMovingToRock = false
+        return false 
+    end
+    
+    isMovingToRock = true
+    
+    -- ตั้งหินเป้าหมายปัจจุบัน
+    currentTargetRock = rockModel
+    
+    -- หาตำแหน่งของหิน
+    local rockPosition
+    if rockModel:FindFirstChild("PrimaryPart") then
+        rockPosition = rockModel.PrimaryPart.Position
+    elseif rockModel:FindFirstChild("HumanoidRootPart") then
+        rockPosition = rockModel.HumanoidRootPart.Position
+    else
+        rockPosition = rockModel:GetPivot().Position
+    end
+    
+    -- ตำแหน่งเป้าหมาย = ตำแหน่งหิน + offset
+    local targetPosition = rockPosition + Vector3.new(xOffset, yOffset, zOffset)
+    
+    local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then 
+        isMovingToRock = false
+        return false 
+    end
+    
+    -- ตรวจสอบระยะทาง
+    local distance = (humanoidRootPart.Position - targetPosition).Magnitude
+    
+    print(string.format("Moving to rock: %s | Distance: %.2f studs", rockModel.Name, distance))
+    
+    -- ถ้าอยู่ใกล้เกินไป (น้อยกว่า 5 studs) ให้ใช้วิธี teleport แทน tween
+    if distance < 5 then
+        print("Rock is very close, teleporting instead of tweening...")
+        
+        -- ตรวจสอบว่า FloatPosition มีอยู่หรือไม่
+        if not humanoidRootPart:FindFirstChild("FloatPosition") then
+            floatPosition = Instance.new("BodyPosition")
+            floatPosition.Name = "FloatPosition"
+            floatPosition.Parent = humanoidRootPart
+            floatPosition.MaxForce = Vector3.new(9000000000, 9000000000, 9000000000)
+            floatPosition.Position = targetPosition
+        else
+            floatPosition = humanoidRootPart:FindFirstChild("FloatPosition")
+            floatPosition.Position = targetPosition
+        end
+        
+        -- Teleport ไปเลย
+        humanoidRootPart.CFrame = CFrame.new(targetPosition)
+        print("Teleported to rock")
+        isMovingToRock = false
+        return true
+    end
+    
+    -- ถ้าอยู่ในระยะปานกลาง (5-20 studs) ให้ใช้วิธีเคลื่อนที่ธรรมดา
+    local speed = TweenSpeedSlider.CurrentValue
+    local travelTime = distance / speed
+    
+    -- จำกัดเวลาเดินทาง
+    if travelTime < 0.3 then
+        travelTime = 0.3
+    elseif travelTime > 8 then
+        travelTime = 8
+    end
+    
+    print(string.format("Using tween: Speed: %.2f studs/sec | Time: %.2f sec", speed, travelTime))
+    
+    -- หยุด Tween เดิมถ้ามี
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+    
+    -- สร้าง Tween ใหม่
+    local tweenInfo = TweenInfo.new(
+        travelTime,
+        Enum.EasingStyle.Linear,
+        Enum.EasingDirection.Out,
+        0,
+        false,
+        0
+    )
+    
+    currentTween = TweenService:Create(humanoidRootPart, tweenInfo, {CFrame = CFrame.new(targetPosition)})
+    currentTween:Play()
+    
+    -- ใช้ FloatPosition ช่วยในการเคลื่อนที่
+    if not humanoidRootPart:FindFirstChild("FloatPosition") then
+        floatPosition = Instance.new("BodyPosition")
+        floatPosition.Name = "FloatPosition"
+        floatPosition.Parent = humanoidRootPart
+        floatPosition.MaxForce = Vector3.new(9000000000, 9000000000, 9000000000)
+        floatPosition.Position = humanoidRootPart.Position
+    end
+    
+    local moveStartTime = tick()
+    local maxMoveTime = 10
+    
+    while isAutoFarming and currentTargetRock == rockModel and distance > 2 and (tick() - moveStartTime) < maxMoveTime and isMovingToRock do
+        if floatPosition and floatPosition.Parent then
+            local direction = (targetPosition - humanoidRootPart.Position)
+            if direction.Magnitude > 0 then
+                floatPosition.Position = humanoidRootPart.Position + (direction.Unit * speed * 0.1)
+            end
+        end
+        wait(0.1)
+        distance = (humanoidRootPart.Position - targetPosition).Magnitude
+        
+        -- แสดง progress ทุก 2 วินาที
+        if math.floor(tick() - moveStartTime) % 2 == 0 then
+            print(string.format("Moving... Distance: %.2f studs", distance))
+        end
+    end
+    
+    -- รอให้ Tween เสร็จ (ถ้ายังไม่ถูก cancel)
+    if currentTween and isMovingToRock then
+        local success = pcall(function()
+            currentTween.Completed:Wait()
+        end)
+        
+        currentTween = nil
+    end
+    
+    if distance <= 2 and currentTargetRock == rockModel then
+        print("Arrived at rock: " .. rockModel.Name)
+        isMovingToRock = false
+        return true
+    else
+        print("Failed to reach rock or target changed")
+        isMovingToRock = false
+        return false
+    end
+end
+
+-- ฟังก์ชัน farm หินเดียว (แก้ไขปัญหาหินเลือดหมดแล้วไม่ไปหาตัวใหม่)
+local function farmSingleRock(rockModel)
+    if not rockModel or not isAutoFarming then return false end
+    
+    local initialHealth, maxHealth = getRockHealth(rockModel)
+    
+    print(string.format("Starting to farm rock: %s | Initial health: %d/%d", rockModel.Name, initialHealth, maxHealth))
+    
+    -- Tween ไปหินใหม่
+    local arrived = tweenToRock(rockModel)
+    if not arrived then return false end
+    
+    -- รอจนกว่าหินจะเลือดหมด (ตีทำงานใน background)
+    local checkStartTime = tick()
+    local lastCheckTime = tick()
+    local healthCheckInterval = 1 -- ตรวจสอบทุก 1 วินาที
+    
+    while isAutoFarming and currentTargetRock == rockModel and checkRockHealth(rockModel) do
+        wait(0.5)
+        
+        -- ตรวจสอบเลือดปัจจุบัน (แค่แสดงข้อมูล)
+        if tick() - lastCheckTime > healthCheckInterval then
+            local currentHealth, _ = getRockHealth(rockModel)
+            local healthPercent = (currentHealth / maxHealth) * 100
+            
+            -- แสดง progress ทุก 5 วินาที หรือเมื่อเลือดลดลงมาก
+            if tick() - checkStartTime > 5 or currentHealth < initialHealth then
+                print(string.format("Rock health: %d/%d (%.1f%%) | Time: %.1f sec", 
+                    currentHealth, maxHealth, healthPercent, tick() - checkStartTime))
+                lastCheckTime = tick()
+            end
+            
+            initialHealth = currentHealth
+        end
+        
+        -- ถ้ารอนานเกิน 60 วินาทีให้ข้าม (ป้องกันการค้าง)
+        if tick() - checkStartTime > 60 then
+            print("Farming taking too long, moving to next rock...")
+            break
+        end
+    end
+    
+    -- ตรวจสอบผลลัพธ์
+    local finalHealth, _ = getRockHealth(rockModel)
+    if finalHealth <= 0 and currentTargetRock == rockModel then
+        print("Successfully destroyed rock!")
+        return true
+    else
+        print("Rock still has health or target changed")
+        return false
+    end
+end
+
+-- ฟังก์ชันเลือกหินใหม่ตามประเภท (ให้เลือกหินที่อยู่ไกลที่สุดก่อน)
+local function selectNewRockByType()
+    findAllRocks()
+    
+    if #allRocks == 0 then
+        print("No rocks found for type: " .. selectedRockType)
+        return nil
+    end
+    
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        -- เลือกหินที่ยังมีเลือดอยู่เป็นอันแรก
+        for _, rock in ipairs(allRocks) do
+            if checkRockHealth(rock) then
+                return rock
+            end
+        end
+        return nil
+    end
+    
+    local humanoidRootPart = character.HumanoidRootPart
+    
+    -- หาหินที่อยู่ไกลที่สุด (เพื่อหลีกเลี่ยงปัญหาหินใกล้เกินไป)
+    local farthestRock = nil
+    local maxDistance = 0
+    
+    for _, rock in ipairs(allRocks) do
+        if checkRockHealth(rock) then
+            local rockPosition
+            if rock:FindFirstChild("PrimaryPart") then
+                rockPosition = rock.PrimaryPart.Position
+            elseif rock:FindFirstChild("HumanoidRootPart") then
+                rockPosition = rock.HumanoidRootPart.Position
+            else
+                rockPosition = rock:GetPivot().Position
+            end
+            
+            local distance = (humanoidRootPart.Position - rockPosition).Magnitude
+            
+            if distance > maxDistance then
+                maxDistance = distance
+                farthestRock = rock
             end
         end
     end
     
-    -- Check named folders with SpawnLocation inside
-    for _, item in ipairs(workspace.Rocks:GetChildren()) do
-        if item.Name ~= "SpawnLocation" then
-            local spawnLoc = item:FindFirstChild("SpawnLocation")
-            if spawnLoc then
-                for _, child in ipairs(spawnLoc:GetChildren()) do
-                    if child:IsA("Model") then
-                        if child:GetAttribute("IsOccupied") == true then
-                            if checkModelHealth(child) then
-                                table.insert(healthyLocations, {
-                                    DisplayName = item.Name,
-                                    SpawnLocation = spawnLoc,
-                                    TargetModel = child,
-                                    Position = spawnLoc.Position
-                                })
-                                print("✓ Found healthy occupied in " .. item.Name)
-                                break
-                            else
-                                print("✗ Skipping " .. item.Name .. " - model health is 0")
-                            end
-                        end
-                    end
-                end
+    if farthestRock then
+        print("Selected farthest rock: " .. farthestRock.Name .. " | Distance: " .. math.floor(maxDistance) .. " studs")
+        return farthestRock
+    else
+        -- ถ้าไม่เจอหินไกล ให้เลือกหินแรกที่เจอ
+        for _, rock in ipairs(allRocks) do
+            if checkRockHealth(rock) then
+                return rock
             end
         end
+        return nil
     end
-    
-    print("✅ Total healthy occupied locations: " .. #healthyLocations)
-    return healthyLocations
 end
 
--- Function to scan ALL SpawnLocations (for dropdown)
-local function getAllSpawnLocationsWithModels()
-    local allLocations = {}
+-- ฟังก์ชัน Auto Farm หลัก (แก้ไขปัญหาหินหมดแล้วไม่ไปหาตัวใหม่)
+local function startAutoFarm()
+    isAutoFarming = true
+    toggleNoClip(true)
+    setupFloatControl()
     
-    if not workspace:FindFirstChild("Rocks") then
-        return allLocations
-    end
+    -- ถือ Pickaxe ทันทีที่เริ่ม
+    equipPickaxe()
     
-    -- Direct SpawnLocations
-    local spawnCount = 1
-    for _, item in ipairs(workspace.Rocks:GetChildren()) do
-        if item.Name == "SpawnLocation" then
-            local hasModel = false
-            for _, child in ipairs(item:GetChildren()) do
-                if child:IsA("Model") then
-                    hasModel = true
+    -- เริ่มตีหินทันที (ไม่ต้องรอถึงหิน)
+    task.spawn(startContinuousMining)
+    
+    while isAutoFarming do
+        -- เลือกหินตามประเภทที่เลือกใน dropdown
+        local rockModel = selectNewRockByType()
+        
+        if not rockModel then
+            print("No valid rocks found for type: " .. selectedRockType)
+            
+            -- ลองรีเฟรชลิสต์หิน
+            wait(1)
+            findAllRocks()
+            
+            if #allRocks == 0 then
+                print("Still no rocks, waiting 3 seconds...")
+                wait(3)
+            end
+            continue
+        end
+        
+        print("Selected new rock: " .. rockModel.Name)
+        
+        -- Farm หินนี้
+        local destroyed = farmSingleRock(rockModel)
+        
+        if destroyed and isAutoFarming and currentTargetRock == rockModel then
+            print("Rock destroyed! Removing from list and finding next rock...")
+            
+            -- ลบหินนี้ออกจากลิสต์
+            for i, r in ipairs(allRocks) do
+                if r == rockModel then
+                    table.remove(allRocks, i)
                     break
                 end
             end
             
-            if hasModel then
-                table.insert(allLocations, {
-                    DisplayName = "SpawnLocation_" .. spawnCount,
-                    SpawnLocation = item,
-                    Position = item.Position
-                })
-                spawnCount = spawnCount + 1
-            end
-        end
-    end
-    
-    -- Named folders
-    for _, item in ipairs(workspace.Rocks:GetChildren()) do
-        if item.Name ~= "SpawnLocation" then
-            local spawnLoc = item:FindFirstChild("SpawnLocation")
-            if spawnLoc then
-                local hasModel = false
-                for _, child in ipairs(spawnLoc:GetChildren()) do
-                    if child:IsA("Model") then
-                        hasModel = true
+            -- รอสักครู่ก่อนหาหินใหม่
+            wait(0.5)
+            
+            -- ล้าง target ปัจจุบัน
+            currentTargetRock = nil
+            isMovingToRock = false
+            
+        elseif isAutoFarming then
+            print("Could not destroy rock or target changed, moving to next...")
+            
+            -- ถ้าหินยังไม่หมดเลือดและ target ไม่ได้เปลี่ยน ให้ลบออกจากลิสต์ชั่วคราว
+            if currentTargetRock == rockModel then
+                for i, r in ipairs(allRocks) do
+                    if r == rockModel then
+                        table.remove(allRocks, i)
                         break
                     end
                 end
                 
-                if hasModel then
-                    table.insert(allLocations, {
-                        DisplayName = item.Name,
-                        SpawnLocation = spawnLoc,
-                        Position = spawnLoc.Position
-                    })
-                end
+                -- ล้าง target
+                currentTargetRock = nil
+                isMovingToRock = false
+            end
+            
+            wait(0.5)
+        end
+        
+        -- รีเซ็ตตัวแปรเพื่อป้องกันการค้าง
+        isMovingToRock = false
+    end
+    
+    -- เมื่อหยุด farm
+    stopCurrentFarm()
+    stopMining()
+    
+    -- ลบ FloatPosition
+    if floatPosition then
+        floatPosition:Destroy()
+        floatPosition = nil
+    end
+    
+    toggleNoClip(false)
+    isAutoFarming = false
+    print("Auto Farm stopped")
+end
+
+-- สร้าง UI
+local Window = Rayfield:CreateWindow({
+   Name = "Miau hub",
+   Icon = 0,
+   LoadingTitle = "Miau hub",
+   LoadingSubtitle = "by MX",
+   ShowText = "Rayfield",
+   Theme = "Default",
+   ToggleUIKeybind = "K",
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil,
+      FileName = "Big Hub"
+   },
+   Discord = {
+      Enabled = false,
+      Invite = "noinvitelink",
+      RememberJoins = true
+   },
+   KeySystem = false,
+})
+
+local Tab = Window:CreateTab("Main", 4483362458)
+local Section = Tab:CreateSection("Auto Farm Settings")
+Section:Set("Main")
+
+-- สร้าง Dropdown
+local function updateDropdownOptions()
+    local rockTypes = {}
+    
+    local function collectRockTypes(obj)
+        if obj.ClassName == "Model" and obj:GetAttribute("Health") then
+            local rockName = obj.Name
+            rockTypes[rockName] = true
+            return
+        end
+        
+        for _, child in ipairs(obj:GetChildren()) do
+            collectRockTypes(child)
+        end
+    end
+    
+    if workspace:FindFirstChild("Rocks") then
+        collectRockTypes(workspace.Rocks)
+    end
+    
+    local options = {"All Rocks"}
+    for rockType, _ in pairs(rockTypes) do
+        table.insert(options, rockType)
+    end
+    
+    return options
+end
+
+Dropdown = Tab:CreateDropdown({
+    Name = "Select Rock Type",
+    Options = {"All Rocks"},
+    CurrentOption = "All Rocks",
+    MultipleOptions = false,
+    Flag = "RockDropdown",
+    Callback = function(Option)
+        local selected = Option
+        if type(Option) == "table" then
+            selected = Option[1] or "All Rocks"
+        end
+        
+        local oldType = selectedRockType
+        selectedRockType = selected
+        
+        print("Rock type changed: " .. oldType .. " → " .. selectedRockType)
+        
+        -- ถ้า Auto Farm กำลังทำงานอยู่ ให้เปลี่ยนเป้าหมายทันที
+        if isAutoFarming then
+            print("Auto Farm is running, switching to new rock type...")
+            stopCurrentFarm()
+            
+            -- รอเล็กน้อยให้ระบบหยุด
+            wait(0.5)
+            
+            -- ค้นหาหินใหม่ตามประเภท
+            findAllRocks()
+            
+            if #allRocks > 0 then
+                print("Found " .. #allRocks .. " rocks of type: " .. selectedRockType)
+                Rayfield:Notify({
+                    Title = "Target Changed",
+                    Content = "Switching to " .. selectedRockType,
+                    Duration = 3,
+                    Image = 4483362458,
+                })
+            else
+                print("No rocks found for new type")
+                Rayfield:Notify({
+                    Title = "No Rocks Found",
+                    Content = "No " .. selectedRockType .. " found",
+                    Duration = 3,
+                    Image = 4483362458,
+                })
             end
         end
-    end
-    
-    return allLocations
-end
+    end,
+})
 
--- Auto farm variables
-local AutoFarmEnabled = false
-local TweenSpeed = 100
-local Mining = false
-local CurrentTween = nil
-local SelectedLocation = nil
-local AllSpawnLocations = {}
-local FarmMode = "Selected" -- Selected or All
+-- Slider สำหรับปรับแกน X (จากหินเป็นศูนย์กลาง)
+local XSlider = Tab:CreateSlider({
+    Name = "X Offset from Rock",
+    Range = {-10, 10},
+    Increment = 0.5,
+    Suffix = "studs",
+    CurrentValue = 0,
+    Flag = "XOffset",
+    Callback = function(Value)
+        xOffset = Value
+        print("X Offset from rock center: " .. Value .. " studs")
+    end,
+})
 
--- Remote setup
-local ToolService
-local function setupRemote()
-    ToolService = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ToolService"):WaitForChild("RF"):WaitForChild("ToolActivated")
-end
-pcall(setupRemote)
+-- Slider สำหรับปรับแกน Y (จากหินเป็นศูนย์กลาง)
+local YSlider = Tab:CreateSlider({
+    Name = "Y Offset from Rock",
+    Range = {-5, 15},
+    Increment = 0.5,
+    Suffix = "studs",
+    CurrentValue = 5,
+    Flag = "YOffset",
+    Callback = function(Value)
+        yOffset = Value
+        print("Y Offset from rock center: " .. Value .. " studs")
+    end,
+})
 
--- Get character function
-local function getCharacter()
-    local char = LocalPlayer.Character
-    if not char then
-        char = LocalPlayer.CharacterAdded:Wait()
-    end
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    return char, hrp
-end
+-- Slider สำหรับปรับแกน Z (จากหินเป็นศูนย์กลาง)
+local ZSlider = Tab:CreateSlider({
+    Name = "Z Offset from Rock",
+    Range = {-10, 10},
+    Increment = 0.5,
+    Suffix = "studs",
+    CurrentValue = 0,
+    Flag = "ZOffset",
+    Callback = function(Value)
+        zOffset = Value
+        print("Z Offset from rock center: " .. Value .. " studs")
+    end,
+})
 
--- Enable noclip
-local function enableNoclip(char)
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = false
-        end
-    end
-end
+SpeedSlider = Tab:CreateSlider({
+    Name = "Mining Speed",
+    Range = {0.05, 2}, -- ต่ำสุด 0.05 วินาทีสำหรับตีเร็ว
+    Increment = 0.05,
+    Suffix = "seconds",
+    CurrentValue = 0.1,
+    Flag = "MiningSpeed",
+    Callback = function(Value)
+        print("Mining speed: " .. Value .. " seconds (lower = faster)")
+    end,
+})
 
--- Find first healthy occupied model in SpawnLocation
-local function findHealthyOccupiedModel(spawnLoc)
-    for _, child in ipairs(spawnLoc:GetChildren()) do
-        if child:IsA("Model") then
-            -- Check IsOccupied
-            if child:GetAttribute("IsOccupied") == true then
-                -- Check health
-                if checkModelHealth(child) then
-                    return child
-                else
-                    print("⚠️ Model found but health is 0")
-                    return nil
-                end
-            end
-        end
-    end
-    return nil
-end
+TweenSpeedSlider = Tab:CreateSlider({
+    Name = "Tween Speed",
+    Range = {10, 100},
+    Increment = 5,
+    Suffix = "studs/sec",
+    CurrentValue = 50,
+    Flag = "TweenSpeed",
+    Callback = function(Value)
+        print("Tween speed: " .. Value .. " studs/sec")
+    end,
+})
 
--- Mining function
-local function startMining()
-    if not ToolService or not AutoFarmEnabled then
-        return false
-    end
-    
-    Mining = true
-    
-    while Mining and AutoFarmEnabled do
-        local args = {"Pickaxe"}
-        local success, result = pcall(function()
-            ToolService:InvokeServer(unpack(args))
+Button = Tab:CreateButton({
+    Name = "Refresh Rocks",
+    Callback = function()
+        local rockCount = findAllRocks()
+        
+        local newOptions = updateDropdownOptions()
+        pcall(function()
+            Dropdown:Refresh(newOptions, selectedRockType)
         end)
         
-        if not success then
-            print("Mining error:", result)
-        end
-        
-        task.wait(0.1)
-    end
-    
-    Mining = false
-    return true
-end
-
--- Tween to target model
-local function tweenToModel(targetModel)
-    if not AutoFarmEnabled or not targetModel then 
-        print("❌ Cannot tween - no target model")
-        return false 
-    end
-    
-    -- Double check health before tweening
-    if not checkModelHealth(targetModel) then
-        print("❌ Model health is 0, skipping...")
-        return false
-    end
-    
-    local char, hrp = getCharacter()
-    if not char or not hrp then 
-        print("❌ Character not found")
-        return false 
-    end
-    
-    -- Get target position
-    local targetCFrame
-    if targetModel.PrimaryPart then
-        targetCFrame = targetModel:GetPivot()
-    else
-        for _, part in ipairs(targetModel:GetDescendants()) do
-            if part:IsA("BasePart") then
-                targetCFrame = part.CFrame
-                break
-            end
-        end
-    end
-    
-    if not targetCFrame then 
-        print("❌ Cannot get model position")
-        return false 
-    end
-    
-    -- Calculate tween time
-    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local tweenTime = distance / TweenSpeed
-    
-    print("📏 Distance:", math.floor(distance), "Time:", string.format("%.2f", tweenTime) .. "s")
-    
-    -- Cancel current tween
-    if CurrentTween then
-        CurrentTween:Cancel()
-        CurrentTween = nil
-    end
-    
-    -- Create tween
-    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
-    CurrentTween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-    CurrentTween:Play()
-    
-    print("🚀 Tweening to model...")
-    
-    -- When tween completes
-    local reached = false
-    CurrentTween.Completed:Connect(function()
-        reached = true
-    end)
-    
-    -- Wait for tween to complete or health check
-    while not reached and AutoFarmEnabled do
-        -- Check health during tween
-        if not checkModelHealth(targetModel) then
-            print("❌ Model died during tween, canceling...")
-            if CurrentTween then
-                CurrentTween:Cancel()
-            end
-            return false
-        end
-        task.wait(0.1)
-    end
-    
-    return reached and AutoFarmEnabled
-end
-
--- Scan and farm ALL healthy occupied locations
-local function scanAndFarmAllHealthy()
-    while AutoFarmEnabled do
-        print("\n🔄 Scanning for healthy occupied locations...")
-        local healthyLocations = getHealthyOccupiedSpawnLocations()
-        
-        if #healthyLocations == 0 then
-            print("⏳ No healthy occupied locations found, waiting...")
-            task.wait(2)
-            continue
-        end
-        
-        print("🎯 Found " .. #healthyLocations .. " healthy locations to farm")
-        
-        -- Farm each healthy occupied location
-        for _, locationData in ipairs(healthyLocations) do
-            if not AutoFarmEnabled then break end
-            
-            print("🎯 Processing: " .. locationData.DisplayName)
-            
-            -- Teleport to SpawnLocation first
-            if teleportToPosition(locationData.Position) then
-                task.wait(0.5)
-                
-                -- Re-check if still healthy and occupied
-                local targetModel = findHealthyOccupiedModel(locationData.SpawnLocation)
-                if targetModel then
-                    print("✅ Still healthy and occupied, tweening...")
-                    
-                    -- Tween to model
-                    local reached = tweenToModel(targetModel)
-                    
-                    if reached then
-                        -- Start mining
-                        print("⛏️ Starting mining...")
-                        startMining()
-                        
-                        -- Wait for mining to finish (model should die)
-                        while Mining and AutoFarmEnabled and checkModelHealth(targetModel) do
-                            task.wait(1)
-                        end
-                        
-                        print("✅ Finished mining " .. locationData.DisplayName)
-                    else
-                        print("❌ Failed to reach model")
-                    end
-                else
-                    print("❌ No longer healthy/occupied, skipping...")
-                end
-            else
-                print("❌ Failed to teleport")
-            end
-            
-            if not AutoFarmEnabled then break end
-            task.wait(1)
-        end
-        
-        print("✅ Completed scan cycle")
-        task.wait(1)
-    end
-end
-
--- Farm specific selected location
-local function farmSelectedLocation()
-    while AutoFarmEnabled and SelectedLocation do
-        -- Find the selected location
-        local targetLocation = nil
-        for _, locData in ipairs(AllSpawnLocations) do
-            if locData.DisplayName == SelectedLocation then
-                targetLocation = locData
-                break
-            end
-        end
-        
-        if not targetLocation then
-            print("❌ Selected location not found")
-            task.wait(2)
-            continue
-        end
-        
-        -- Check for healthy occupied model
-        local healthyModel = findHealthyOccupiedModel(targetLocation.SpawnLocation)
-        if healthyModel then
-            print("✅ " .. SelectedLocation .. " has healthy occupied model")
-            
-            -- Teleport to SpawnLocation
-            if teleportToPosition(targetLocation.Position) then
-                task.wait(0.5)
-                
-                -- Re-check health after teleport
-                if not checkModelHealth(healthyModel) then
-                    print("❌ Model health became 0 after teleport, skipping...")
-                    task.wait(2)
-                    continue
-                end
-                
-                -- Tween to model
-                local reached = tweenToModel(healthyModel)
-                
-                if reached then
-                    -- Start mining
-                    startMining()
-                    
-                    -- Wait for mining to finish
-                    while Mining and AutoFarmEnabled and checkModelHealth(healthyModel) do
-                        task.wait(1)
-                    end
-                end
-            end
+        if rockCount > 0 then
+            Rayfield:Notify({
+                Title = "Rocks Loaded",
+                Content = "Found " .. rockCount .. " " .. selectedRockType .. " with health",
+                Duration = 3,
+                Image = 4483362458,
+            })
         else
-            print("❌ " .. SelectedLocation .. " no healthy occupied model, waiting...")
-            task.wait(2)
+            Rayfield:Notify({
+                Title = "No Rocks Found",
+                Content = "No rocks with health found",
+                Duration = 3,
+                Image = 4483362458,
+            })
         end
-    end
-end
-
--- Get all locations for dropdown
-AllSpawnLocations = getAllSpawnLocationsWithModels()
-
--- Create display names list
-local displayNames = {}
-for _, data in ipairs(AllSpawnLocations) do
-    table.insert(displayNames, data.DisplayName)
-end
-
--- Set default if available
-if #displayNames > 0 then
-    SelectedLocation = displayNames[1]
-else
-    SelectedLocation = nil
-end
-
--- Mode dropdown
-Tab:Dropdown({
-    Title = "Farm Mode",
-    List = {"Selected Location", "All Healthy Occupied"},
-    Value = "Selected Location",
-    Callback = function(choice)
-        if choice == "Selected Location" then
-            FarmMode = "Selected"
-            print("📍 Mode: Farm selected location only")
-        else
-            FarmMode = "All"
-            print("📍 Mode: Farm all healthy occupied locations")
-        end
-    end
+    end,
 })
 
--- Location dropdown (for Selected mode)
-Tab:Dropdown({
-    Title = "Select SpawnLocation",
-    List = displayNames,
-    Value = SelectedLocation,
-    Callback = function(choice)
-        SelectedLocation = choice
-        print("📍 Selected:", choice)
-    end
-})
-
--- Speed slider
-Tab:Slider({
-    Title = "Tween Speed",
-    Min = 50,
-    Max = 300,
-    Rounding = 0,
-    Value = TweenSpeed,
-    Callback = function(val)
-        TweenSpeed = val
-        print("⚡ Speed:", val)
-    end
-})
-
--- Auto Farm toggle
-Tab:Toggle({
-    Title = "Auto Farm",
-    Desc = "Start auto farming (checks health)",
-    Value = false,
-    Callback = function(v)
-        AutoFarmEnabled = v
-        
-        if v then
-            if FarmMode == "Selected" and not SelectedLocation then
-                Window:Notify({
+Toggle = Tab:CreateToggle({
+   Name = "Auto Farm",
+   CurrentValue = false,
+   Flag = "Toggle1",
+   Callback = function(Value)
+        if Value then
+            print("Starting Auto Farm...")
+            print("Auto-equipping Pickaxe...")
+            print("Current rock type: " .. selectedRockType)
+            print("Offsets from rock - X:" .. xOffset .. " Y:" .. yOffset .. " Z:" .. zOffset)
+            print("Fixed: Teleports when rock is close, finds farthest rocks first")
+            
+            if not LocalPlayer.Character then
+                Rayfield:Notify({
                     Title = "Error",
-                    Desc = "Please select a location first!",
-                    Time = 3
+                    Content = "Character not found!",
+                    Duration = 3,
+                    Image = 4483362458,
                 })
+                Toggle:Set(false)
                 return
             end
             
-            Window:Notify({
-                Title = "Auto Farm",
-                Desc = "Started farming (" .. FarmMode .. " mode)",
-                Time = 3
-            })
+            task.spawn(startAutoFarm)
             
-            -- Start farming based on mode
-            if FarmMode == "Selected" then
-                task.spawn(farmSelectedLocation)
-            else
-                task.spawn(scanAndFarmAllHealthy)
-            end
         else
-            Window:Notify({
-                Title = "Auto Farm",
-                Desc = "Stopped farming",
-                Time = 3
-            })
+            print("Stopping Auto Farm...")
+            stopCurrentFarm()
+            stopMining()
+            isAutoFarming = false
             
-            Mining = false
-            if CurrentTween then
-                CurrentTween:Cancel()
-                CurrentTween = nil
+            -- ลบ FloatPosition
+            if floatPosition then
+                floatPosition:Destroy()
+                floatPosition = nil
             end
         end
-    end
+   end,
 })
 
--- Auto noclip
-RunService.Stepped:Connect(function()
-    if AutoFarmEnabled then
-        local char = LocalPlayer.Character
-        if char then
-            enableNoclip(char)
-        end
-    end
+-- Auto-refresh
+task.spawn(function()
+    wait(2)
+    Button.Callback()
 end)
 
--- Handle character changes
+-- Character respawn
 LocalPlayer.CharacterAdded:Connect(function()
-    if AutoFarmEnabled then
-        task.wait(1)
-        if FarmMode == "Selected" then
-            task.spawn(farmSelectedLocation)
-        else
-            task.spawn(scanAndFarmAllHealthy)
+    if isAutoFarming then
+        wait(2)
+        print("Character respawned, continuing...")
+        
+        -- ถือ Pickaxe ใหม่เมื่อ respawn
+        equipPickaxe()
+        
+        toggleNoClip(true)
+        setupFloatControl()
+        
+        -- เริ่มตีใหม่
+        if not miningActive then
+            task.spawn(startContinuousMining)
         end
     end
 end)
 
--- Final notification
-if #displayNames > 0 then
-    Window:Notify({
-        Title = "x2zu Auto Farm",
-        Desc = "Health Check Enabled - Only farms healthy models",
-        Time = 4
-    })
-end
-
-print("\n" .. string.rep("=", 60))
-print("✅ HEALTH-CHECK AUTO FARM SCRIPT LOADED")
-print("📊 Total SpawnLocations: " .. #displayNames)
-print("⚕️  Health Check: ON (skips health = 0 models)")
-print("📍 Occupied Check: ON (skips IsOccupied = false)")
-print(string.rep("=", 60))
+print("=== Miau Hub loaded ===")
+print("Fixed issues:")
+print("- Teleports when rock is too close (less than 5 studs)")
+print("- Selects farthest rocks first to avoid close-range bugs")
+print("- Properly moves to next rock after current is destroyed")
+print("- Continuous mining from start")
+print("- Dynamic target switching")
