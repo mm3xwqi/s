@@ -1,14 +1,13 @@
 for _, v in ipairs(workspace:GetDescendants()) do
-    pcall(function()
-        if v:IsA("BasePart") then
-            v.Transparency = 1
-        end
-    end)
+    if v:IsA("BasePart") then
+        v.Transparency = 1
+    end
 end
-workspace.DescendantAdded:Connect(function(v)
-    pcall(function()
-        if v:IsA("BasePart") then
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and v.Transparency < 1 then
             v.Transparency = 1
         end
-    end)
+    end
 end)
