@@ -30,21 +30,69 @@ local tweenSpeed = 100 -- ความเร็วเริ่มต้น
 local oxygenCheckCoroutine
 local oxygenRefillPosition = Vector3.new(-59, 4883, -49)
 local autoSellInterval = 10 -- วินาที
+local fishDisplayNames = {} -- ตารางเก็บชื่อปลา
 
--- ฟังก์ชันดึงรายชื่อปลาทั้งหมด
+-- ฟังก์ชันดึงรายชื่อปลาทั้งหมดพร้อมชื่อ
 local function getFishList()
     local fishList = {}
     local fishFolder = workspace.Game.Fish.client
     
+    -- ล้างตารางชื่อปลาเก่า
+    fishDisplayNames = {}
+    
     if fishFolder then
         for _, fish in pairs(fishFolder:GetChildren()) do
             if fish:IsA("Model") then
-                table.insert(fishList, fish.Name)
+                -- พยายามดึงชื่อปลาจริงจากปลา
+                local displayName = fish.Name -- เริ่มต้นด้วย ID
+                
+                -- ลองหาชื่อปลาจาก Attribute
+                if fish:GetAttribute("Name") then
+                    displayName = fish:GetAttribute("Name")
+                end
+                
+                -- ลองหาจาก Parts ที่อาจมีชื่อ
+                local head = fish:FindFirstChild("Head")
+                if head then
+                    -- ลองหาจาก BillboardGui
+                    local billboardGui = head:FindFirstChildWhichIsA("BillboardGui")
+                    if billboardGui then
+                        local textLabel = billboardGui:FindFirstChildWhichIsA("TextLabel")
+                        if textLabel and textLabel.Text ~= "" then
+                            displayName = textLabel.Text
+                        end
+                    end
+                    
+                    -- ลองหาจากอื่นๆ
+                    for _, child in pairs(head:GetChildren()) do
+                        if child:IsA("StringValue") and child.Name == "FishName" then
+                            displayName = child.Value
+                        elseif child:IsA("StringValue") and child.Name == "Name" then
+                            displayName = child.Value
+                        end
+                    end
+                end
+                
+                -- เก็บชื่อปลาในตาราง (ใช้ ID เป็น key)
+                fishDisplayNames[fish.Name] = displayName
+                
+                -- เพิ่มชื่อที่แสดงใน dropdown
+                table.insert(fishList, displayName)
             end
         end
     end
     
     return fishList
+end
+
+-- ฟังก์ชันแปลงชื่อปลาเป็น ID
+local function getFishIdFromDisplayName(displayName)
+    for fishId, name in pairs(fishDisplayNames) do
+        if name == displayName then
+            return fishId
+        end
+    end
+    return displayName -- ถ้าไม่เจอให้คืนค่าที่รับมา (อาจเป็น ID อยู่แล้ว)
 end
 
 -- ฟังก์ชันตรวจสอบออกซิเจน
@@ -258,9 +306,26 @@ local function startAutoFishingLoop()
                     ["2"] = "36e94fbc4fcc4e38b16242dc3aea0730"
                 }
             }
-            game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
             
-            print("SaveHotbar executed after catching success")
+            -- พิมพ์ข้อความเพื่อตรวจสอบ
+            print("=== SAVE HOTBAR DEBUG INFO ===")
+            print("Running SaveHotbar remote...")
+            print("Selected Fish ID:", selectedFishId)
+            print("Fish Display Name:", fishDisplayNames[selectedFishId] or "Unknown")
+            print("Arguments:", args2)
+            
+            -- รันรีโมท
+            local success, result = pcall(function()
+                return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
+            end)
+            
+            if success then
+                print("SaveHotbar executed successfully!")
+                print("Result:", result)
+            else
+                print("ERROR executing SaveHotbar:", result)
+            end
+            print("==============================")
         else
             Window:Notify({
                 Title = "Catching Failed",
@@ -293,14 +358,17 @@ local function startAutoSelling()
     coroutine.resume(sellingCoroutine)
 end
 
--- สร้าง Dropdown สำหรับเลือกปลา
+-- สร้าง Dropdown สำหรับเลือกปลา (แสดงชื่อปลา)
 local fishDropdown = Tab:Dropdown({
     Title = "Select Fish",
     List = getFishList(),
     Value = "",
     Callback = function(choice)
-        selectedFishId = choice
+        -- แปลงชื่อปลาเป็น ID
+        selectedFishId = getFishIdFromDisplayName(choice)
+        print("Selected Fish Display Name:", choice)
         print("Selected Fish ID:", selectedFishId)
+        print("Fish Display Names Table:", fishDisplayNames)
     end
 })
 
@@ -315,6 +383,14 @@ Tab:Button({
             Desc = "Fish list updated!",
             Time = 3
         })
+        
+        -- พิมพ์ข้อมูลปลาทั้งหมดสำหรับ debugging
+        print("=== FISH LIST DEBUG INFO ===")
+        print("Total fish count:", #getFishList())
+        for fishId, displayName in pairs(fishDisplayNames) do
+            print("Fish ID:", fishId, "| Display Name:", displayName)
+        end
+        print("===========================")
     end
 })
 
@@ -371,7 +447,7 @@ local autoFishToggle = Tab:Toggle({
             
             Window:Notify({
                 Title = "Auto Fish Started",
-                Desc = "Equipped and starting to fish: " .. selectedFishId,
+                Desc = "Equipped and starting to fish: " .. (fishDisplayNames[selectedFishId] or selectedFishId),
                 Time = 3
             })
             
@@ -450,10 +526,10 @@ local autoSellToggle = Tab:Toggle({
 
 Tab:Section({Title = "Utilities"})
 
--- ปุ่มสำหรับรันรีโมท SaveHotbar ด้วยตัวเอง
+-- ปุ่มสำหรับรันรีโมท SaveHotbar ด้วยตัวเอง (พร้อม print)
 Tab:Button({
     Title = "Save Hotbar",
-    Desc = "Run SaveHotbar remote manually",
+    Desc = "Run SaveHotbar remote manually with debug print",
     Callback = function()
         if selectedFishId == "" then
             Window:Notify({
@@ -472,13 +548,33 @@ Tab:Button({
             }
         }
         
-        game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args))
+        -- พิมพ์ข้อความเพื่อตรวจสอบ
+        print("=== MANUAL SAVE HOTBAR DEBUG ===")
+        print("Selected Fish ID:", selectedFishId)
+        print("Fish Display Name:", fishDisplayNames[selectedFishId] or "Unknown")
+        print("Arguments:", args)
         
-        Window:Notify({
-            Title = "Hotbar Saved",
-            Desc = "SaveHotbar remote executed!",
-            Time = 3
-        })
+        local success, result = pcall(function()
+            return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args))
+        end)
+        
+        if success then
+            print("SaveHotbar executed successfully!")
+            print("Result:", result)
+            Window:Notify({
+                Title = "Hotbar Saved",
+                Desc = "SaveHotbar remote executed successfully!",
+                Time = 3
+            })
+        else
+            print("ERROR executing SaveHotbar:", result)
+            Window:Notify({
+                Title = "Error",
+                Desc = "Failed to execute SaveHotbar: " .. tostring(result),
+                Time = 3
+            })
+        end
+        print("================================")
     end
 })
 
@@ -592,5 +688,10 @@ Tab:Button({
 Window:Notify({
     Title = "UI Loaded",
     Desc = "Auto Fish & Auto Sell UI loaded successfully!",
-    Time = 2
+    Time = 3
 })
+
+-- พิมพ์ข้อมูลเริ่มต้น
+print("=== AUTO FISH UI LOADED ===")
+print("Fish Display Names Table initialized")
+print("============================")
