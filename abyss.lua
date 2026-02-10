@@ -23,22 +23,24 @@ Tab:Section({Title = "Fishing Settings"})
 local isAutoFishing = false
 local isAutoSelling = false
 local currentTween
-local selectedFishId = ""
+local selectedFishName = "" -- เก็บชื่อปลาที่เลือก
+local selectedFishIds = {} -- เก็บไอดีทั้งหมดของปลาที่มีชื่อเดียวกัน
 local fishingCoroutine
 local sellingCoroutine
 local tweenSpeed = 100 -- ความเร็วเริ่มต้น
 local oxygenCheckCoroutine
 local oxygenRefillPosition = Vector3.new(-59, 4883, -49)
 local autoSellInterval = 10 -- วินาที
-local fishDisplayNames = {} -- ตารางเก็บชื่อปลา
+local fishNameToIds = {} -- ตารางเก็บชื่อปลา -> ไอดีทั้งหมด
+local activeFishIds = {} -- ไอดีปลาที่กำลังไล่จับ
 
--- ฟังก์ชันดึงรายชื่อปลาทั้งหมดพร้อมชื่อ
-local function getFishList()
-    local fishList = {}
+-- ฟังก์ชันดึงรายชื่อปลาทั้งหมด (แสดงชื่อปลาที่ไม่ซ้ำกัน)
+local function getUniqueFishNames()
+    local uniqueNames = {}
     local fishFolder = workspace.Game.Fish.client
     
-    -- ล้างตารางชื่อปลาเก่า
-    fishDisplayNames = {}
+    -- ล้างตารางเก่า
+    fishNameToIds = {}
     
     if fishFolder then
         for _, fish in pairs(fishFolder:GetChildren()) do
@@ -73,26 +75,37 @@ local function getFishList()
                     end
                 end
                 
-                -- เก็บชื่อปลาในตาราง (ใช้ ID เป็น key)
-                fishDisplayNames[fish.Name] = displayName
-                
-                -- เพิ่มชื่อที่แสดงใน dropdown
-                table.insert(fishList, displayName)
+                -- เก็บไอดีปลาตามชื่อ
+                if not fishNameToIds[displayName] then
+                    fishNameToIds[displayName] = {}
+                    table.insert(uniqueNames, displayName)
+                end
+                table.insert(fishNameToIds[displayName], fish.Name)
             end
         end
     end
     
-    return fishList
+    return uniqueNames
 end
 
--- ฟังก์ชันแปลงชื่อปลาเป็น ID
-local function getFishIdFromDisplayName(displayName)
-    for fishId, name in pairs(fishDisplayNames) do
-        if name == displayName then
-            return fishId
-        end
-    end
-    return displayName -- ถ้าไม่เจอให้คืนค่าที่รับมา (อาจเป็น ID อยู่แล้ว)
+-- ฟังก์ชันตรวจสอบเลือดปลา
+local function getFishHealth(fishId)
+    local fish = workspace.Game.Fish.client:FindFirstChild(fishId)
+    if not fish then return 0 end
+    
+    local head = fish:FindFirstChild("Head")
+    if not head then return 0 end
+    
+    local stats = head:FindFirstChild("stats")
+    if not stats then return 0 end
+    
+    local health = stats:FindFirstChild("Health")
+    if not health then return 0 end
+    
+    local amount = health:FindFirstChild("Amount")
+    if not amount then return 0 end
+    
+    return amount.Value
 end
 
 -- ฟังก์ชันตรวจสอบออกซิเจน
@@ -100,40 +113,32 @@ local function checkOxygen()
     local character = game.Players.LocalPlayer.Character
     if not character then return 100 end
     
-    -- ตรวจสอบว่าออกซิเจนอยู่ที่ไหน (อาจต้องปรับตามเกม)
     local humanoid = character:FindFirstChild("Humanoid")
     if humanoid then
-        -- กรณีที่ออกซิเจนอยู่ใน Humanoid
         if humanoid:FindFirstChild("Oxygen") then
             return humanoid.Oxygen
         end
     end
     
-    -- กรณีอื่นๆ
     for _, child in pairs(character:GetChildren()) do
         if child.Name == "Oxygen" and child:IsA("NumberValue") then
             return child.Value
         end
     end
     
-    return 100 -- ถ้าไม่พบ คืนค่า 100
+    return 100
 end
 
 -- ฟังก์ชันตรวจสอบ CatchingBar UI
 local function waitForCatchingSuccess(timeout)
     local startTime = tick()
-    local maxWaitTime = timeout or 5 -- รอสูงสุด 5 วินาที
+    local maxWaitTime = timeout or 5
     
     while tick() - startTime < maxWaitTime do
-        -- ตรวจสอบว่า CatchingBar ปรากฏขึ้น
         local catchingBar = game:GetService("Players").LocalPlayer.PlayerGui.Main:FindFirstChild("CatchingBar")
         
         if catchingBar then
-            -- ตรวจสอบว่า CatchingBar มีการติ๊กถูก (เช่น มีการแสดงว่าจับปลาได้)
-            -- อาจตรวจสอบจาก Visible, Image, หรือคุณสมบัติอื่นๆ
             if catchingBar.Visible then
-                -- ตรวจสอบว่ามี indication ของการจับปลาสำเร็จหรือไม่
-                -- เช่น มี ImageLabel ที่แสดงเครื่องหมายถูก
                 local successIndicator = catchingBar:FindFirstChild("Check") or 
                                         catchingBar:FindFirstChild("Success") or
                                         catchingBar:FindFirstChild("Tick")
@@ -144,8 +149,6 @@ local function waitForCatchingSuccess(timeout)
                         return true
                     end
                 else
-                    -- ถ้าไม่มี indicator เฉพาะ ตรวจสอบจากคุณสมบัติอื่น
-                    -- เช่น CatchingBar หายไป หรือมีข้อความสำเร็จ
                     for _, child in pairs(catchingBar:GetChildren()) do
                         if child:IsA("TextLabel") or child:IsA("TextButton") then
                             if child.Text and (child.Text:find("Success") or child.Text:find("Caught") or child.Text:find("Got it")) then
@@ -157,12 +160,11 @@ local function waitForCatchingSuccess(timeout)
                 end
             end
         else
-            -- ถ้า CatchingBar หายไป อาจหมายถึงการจับปลาเสร็จสิ้น
             print("CatchingBar disappeared - assuming success")
             return true
         end
         
-        wait(0.1) -- ตรวจสอบทุก 0.1 วินาที
+        wait(0.1)
     end
     
     print("Timeout waiting for catching success")
@@ -179,7 +181,6 @@ local function teleportToPosition(position, speed)
     local distance = (position - currentPosition).Magnitude
     local time = distance / speed
     
-    -- สร้าง Tween
     local tweenInfo = TweenInfo.new(
         time,
         Enum.EasingStyle.Linear,
@@ -210,7 +211,6 @@ local function refillOxygen()
     
     teleportToPosition(oxygenRefillPosition, tweenSpeed)
     
-    -- รอจนออกซิเจนเต็ม
     while checkOxygen() < 100 do
         wait(1)
     end
@@ -229,113 +229,137 @@ local function startOxygenCheck()
             local oxygenLevel = checkOxygen()
             
             if oxygenLevel < 10 then
-                -- หยุดการจับปลาชั่วคราว
                 if currentTween then
                     currentTween:Cancel()
                     currentTween = nil
                 end
                 
-                -- ไปเติมออกซิเจน
                 refillOxygen()
             end
             
-            wait(1) -- ตรวจสอบทุก 1 วินาที
+            wait(1)
         end
     end)
     
     coroutine.resume(oxygenCheckCoroutine)
 end
 
--- ฟังก์ชันเริ่ม Auto Fishing
+-- ฟังก์ชันไล่จับปลาตามชื่อที่เลือก
 local function startAutoFishingLoop()
     while isAutoFishing do
-        if selectedFishId == "" or not workspace.Game.Fish.client:FindFirstChild(selectedFishId) then
-            Window:Notify({
-                Title = "Error",
-                Desc = "Fish not found or not selected!",
-                Time = 3
-            })
-            break
-        end
-        
-        -- หาปลา
-        local fish = workspace.Game.Fish.client:FindFirstChild(selectedFishId)
-        if not fish then
-            wait(2)
-            continue
-        end
-        
-        local fishHead = fish:FindFirstChild("Head")
-        if not fishHead then
-            wait(2)
-            continue
-        end
-        
-        -- Teleport ไปหาปลา
-        local success = teleportToPosition(fishHead.Position, tweenSpeed)
-        if not success then
-            Window:Notify({
-                Title = "Error",
-                Desc = "Failed to teleport to fish!",
-                Time = 3
-            })
-            break
-        end
-        
-        -- รอ 1 วินาที
-        wait(1)
-        
-        -- เมื่อถึงปลา: รันรีโมท StartCatching
-        local args1 = {
-            selectedFishId
-        }
-        game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("HarpoonService"):WaitForChild("RF"):WaitForChild("StartCatching"):InvokeServer(unpack(args1))
-        
-        -- รอ 2 วินาทีให้ UI ขึ้นมา
-        wait(2)
-        
-        -- ตรวจสอบว่า CatchingBar แสดงว่าจับปลาได้สำเร็จ
-        local catchingSuccess = waitForCatchingSuccess(5) -- รอสูงสุด 5 วินาที
-        
-        if catchingSuccess then
-            -- รันรีโมท SaveHotbar เมื่อจับปลาได้สำเร็จ
-            local args2 = {
-                {
-                    ["1"] = "1",
-                    ["3"] = selectedFishId,
-                    ["2"] = "36e94fbc4fcc4e38b16242dc3aea0730"
-                }
-            }
-            
-            -- พิมพ์ข้อความเพื่อตรวจสอบ
-            print("=== SAVE HOTBAR DEBUG INFO ===")
-            print("Running SaveHotbar remote...")
-            print("Selected Fish ID:", selectedFishId)
-            print("Fish Display Name:", fishDisplayNames[selectedFishId] or "Unknown")
-            print("Arguments:", args2)
-            
-            -- รันรีโมท
-            local success, result = pcall(function()
-                return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
-            end)
-            
-            if success then
-                print("SaveHotbar executed successfully!")
-                print("Result:", result)
-            else
-                print("ERROR executing SaveHotbar:", result)
+        -- อัปเดตรายการปลาที่มีชีวิตอยู่
+        local aliveFishIds = {}
+        for _, fishId in ipairs(selectedFishIds) do
+            local health = getFishHealth(fishId)
+            if health > 0 then
+                table.insert(aliveFishIds, fishId)
             end
-            print("==============================")
-        else
-            Window:Notify({
-                Title = "Catching Failed",
-                Desc = "Fish catching did not complete successfully",
-                Time = 2
-            })
         end
         
-        -- รอก่อนจับปลาตัวต่อไป
-        wait(2)
+        if #aliveFishIds == 0 then
+            Window:Notify({
+                Title = "No Active Fish",
+                Desc = "All " .. selectedFishName .. " are dead or not found",
+                Time = 3
+            })
+            wait(5)
+            
+            -- รีเฟรชรายการปลาใหม่
+            if fishNameToIds[selectedFishName] then
+                selectedFishIds = fishNameToIds[selectedFishName]
+            else
+                break
+            end
+            continue
+        end
+        
+        -- ไล่จับปลาทีละตัวตามรายการ
+        for _, fishId in ipairs(aliveFishIds) do
+            if not isAutoFishing then break end
+            
+            -- หาปลา
+            local fish = workspace.Game.Fish.client:FindFirstChild(fishId)
+            if not fish then goto continue end
+            
+            local fishHead = fish:FindFirstChild("Head")
+            if not fishHead then goto continue end
+            
+            -- ตรวจสอบเลือดก่อน
+            local health = getFishHealth(fishId)
+            if health <= 0 then goto continue end
+            
+            -- Teleport ไปหาปลา
+            local success = teleportToPosition(fishHead.Position, tweenSpeed)
+            if not success then
+                Window:Notify({
+                    Title = "Error",
+                    Desc = "Failed to teleport to fish!",
+                    Time = 3
+                })
+                break
+            end
+            
+            -- รอ 1 วินาที
+            wait(1)
+            
+            -- เมื่อถึงปลา: รันรีโมท StartCatching
+            local args1 = { fishId }
+            game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("HarpoonService"):WaitForChild("RF"):WaitForChild("StartCatching"):InvokeServer(unpack(args1))
+            
+            -- รอ 2 วินาทีให้ UI ขึ้นมา
+            wait(2)
+            
+            -- ตรวจสอบว่า CatchingBar แสดงว่าจับปลาได้สำเร็จ
+            local catchingSuccess = waitForCatchingSuccess(5)
+            
+            if catchingSuccess then
+                -- รอจนกว่าปลาจะตาย (เลือด = 0)
+                while getFishHealth(fishId) > 0 and isAutoFishing do
+                    wait(1)
+                end
+                
+                -- รันรีโมท SaveHotbar เมื่อปลาตาย
+                local args2 = {
+                    {
+                        ["1"] = "1",
+                        ["3"] = fishId,
+                        ["2"] = "36e94fbc4fcc4e38b16242dc3aea0730"
+                    }
+                }
+                
+                -- พิมพ์ข้อความเพื่อตรวจสอบ
+                print("=== FISH CATCHED ===")
+                print("Fish ID:", fishId)
+                print("Fish Name:", selectedFishName)
+                print("Health:", getFishHealth(fishId))
+                print("Running SaveHotbar...")
+                
+                local success, result = pcall(function()
+                    return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
+                end)
+                
+                if success then
+                    print("SaveHotbar executed successfully!")
+                else
+                    print("ERROR executing SaveHotbar:", result)
+                end
+                print("==================")
+            else
+                Window:Notify({
+                    Title = "Catching Failed",
+                    Desc = "Fish catching did not complete successfully",
+                    Time = 2
+                })
+            end
+            
+            -- รอสักครู่ก่อนไปหาปลาตัวต่อไป
+            wait(2)
+            
+            ::continue::
+        end
+        
+        -- รอสักครู่ก่อนเริ่มรอบใหม่
+        wait(3)
     end
 end
 
@@ -358,17 +382,30 @@ local function startAutoSelling()
     coroutine.resume(sellingCoroutine)
 end
 
--- สร้าง Dropdown สำหรับเลือกปลา (แสดงชื่อปลา)
+-- สร้าง Dropdown สำหรับเลือกปลา (แสดงชื่อปลาที่ไม่ซ้ำกัน)
 local fishDropdown = Tab:Dropdown({
-    Title = "Select Fish",
-    List = getFishList(),
+    Title = "Select Fish Type",
+    List = getUniqueFishNames(),
     Value = "",
     Callback = function(choice)
-        -- แปลงชื่อปลาเป็น ID
-        selectedFishId = getFishIdFromDisplayName(choice)
-        print("Selected Fish Display Name:", choice)
-        print("Selected Fish ID:", selectedFishId)
-        print("Fish Display Names Table:", fishDisplayNames)
+        selectedFishName = choice
+        if fishNameToIds[choice] then
+            selectedFishIds = fishNameToIds[choice]
+        else
+            selectedFishIds = {}
+        end
+        
+        print("=== FISH SELECTED ===")
+        print("Fish Name:", selectedFishName)
+        print("Fish IDs Count:", #selectedFishIds)
+        print("Fish IDs:", table.concat(selectedFishIds, ", "))
+        print("===================")
+        
+        Window:Notify({
+            Title = "Fish Selected",
+            Desc = "Selected " .. selectedFishName .. " (" .. #selectedFishIds .. " fish)",
+            Time = 3
+        })
     end
 })
 
@@ -377,20 +414,22 @@ Tab:Button({
     Title = "Refresh Fish List",
     Desc = "Update available fish",
     Callback = function()
-        fishDropdown:UpdateList(getFishList())
-        Window:Notify({
-            Title = "Refreshed",
-            Desc = "Fish list updated!",
-            Time = 3
-        })
+        local uniqueNames = getUniqueFishNames()
+        fishDropdown:UpdateList(uniqueNames)
         
         -- พิมพ์ข้อมูลปลาทั้งหมดสำหรับ debugging
-        print("=== FISH LIST DEBUG INFO ===")
-        print("Total fish count:", #getFishList())
-        for fishId, displayName in pairs(fishDisplayNames) do
-            print("Fish ID:", fishId, "| Display Name:", displayName)
+        print("=== FISH LIST DEBUG ===")
+        print("Total unique fish types:", #uniqueNames)
+        for name, ids in pairs(fishNameToIds) do
+            print("Fish Name:", name, "| Count:", #ids, "| IDs:", table.concat(ids, ", "))
         end
-        print("===========================")
+        print("======================")
+        
+        Window:Notify({
+            Title = "Refreshed",
+            Desc = "Fish list updated! Found " .. #uniqueNames .. " fish types",
+            Time = 3
+        })
     end
 })
 
@@ -429,10 +468,10 @@ local autoFishToggle = Tab:Toggle({
         isAutoFishing = v
         
         if v then
-            if selectedFishId == "" then
+            if selectedFishName == "" or #selectedFishIds == 0 then
                 Window:Notify({
                     Title = "Error",
-                    Desc = "Please select a fish first!",
+                    Desc = "Please select a fish type first!",
                     Time = 3
                 })
                 autoFishToggle:Set(false)
@@ -440,14 +479,12 @@ local autoFishToggle = Tab:Toggle({
             end
             
             -- รันรีโมท Equip 1 รอบ
-            local equipArgs = {
-                "1"
-            }
+            local equipArgs = { "1" }
             game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("Equip"):InvokeServer(unpack(equipArgs))
             
             Window:Notify({
                 Title = "Auto Fish Started",
-                Desc = "Equipped and starting to fish: " .. (fishDisplayNames[selectedFishId] or selectedFishId),
+                Desc = "Hunting " .. selectedFishName .. " (" .. #selectedFishIds .. " fish)",
                 Time = 3
             })
             
@@ -476,9 +513,7 @@ local autoFishToggle = Tab:Toggle({
             end
             
             -- รันรีโมท Equip อีกครั้งเมื่อปิด
-            local equipArgs = {
-                "1"
-            }
+            local equipArgs = { "1" }
             game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("Equip"):InvokeServer(unpack(equipArgs))
             
             Window:Notify({
@@ -526,32 +561,33 @@ local autoSellToggle = Tab:Toggle({
 
 Tab:Section({Title = "Utilities"})
 
--- ปุ่มสำหรับรันรีโมท SaveHotbar ด้วยตัวเอง (พร้อม print)
+-- ปุ่มสำหรับรันรีโมท SaveHotbar ด้วยตัวเอง
 Tab:Button({
     Title = "Save Hotbar",
-    Desc = "Run SaveHotbar remote manually with debug print",
+    Desc = "Run SaveHotbar remote manually",
     Callback = function()
-        if selectedFishId == "" then
+        if selectedFishName == "" or #selectedFishIds == 0 then
             Window:Notify({
                 Title = "Error",
-                Desc = "Please select a fish first!",
+                Desc = "Please select a fish type first!",
                 Time = 3
             })
             return
         end
         
+        -- ใช้ไอดีปลาตัวแรกในรายการ
+        local fishId = selectedFishIds[1]
         local args = {
             {
                 ["1"] = "1",
-                ["3"] = selectedFishId,
+                ["3"] = fishId,
                 ["2"] = "36e94fbc4fcc4e38b16242dc3aea0730"
             }
         }
         
-        -- พิมพ์ข้อความเพื่อตรวจสอบ
-        print("=== MANUAL SAVE HOTBAR DEBUG ===")
-        print("Selected Fish ID:", selectedFishId)
-        print("Fish Display Name:", fishDisplayNames[selectedFishId] or "Unknown")
+        print("=== MANUAL SAVE HOTBAR ===")
+        print("Fish ID:", fishId)
+        print("Fish Name:", selectedFishName)
         print("Arguments:", args)
         
         local success, result = pcall(function()
@@ -560,21 +596,58 @@ Tab:Button({
         
         if success then
             print("SaveHotbar executed successfully!")
-            print("Result:", result)
             Window:Notify({
                 Title = "Hotbar Saved",
-                Desc = "SaveHotbar remote executed successfully!",
+                Desc = "SaveHotbar remote executed for " .. selectedFishName,
                 Time = 3
             })
         else
             print("ERROR executing SaveHotbar:", result)
             Window:Notify({
                 Title = "Error",
-                Desc = "Failed to execute SaveHotbar: " .. tostring(result),
+                Desc = "Failed to execute SaveHotbar",
                 Time = 3
             })
         end
-        print("================================")
+        print("==========================")
+    end
+})
+
+-- ปุ่มตรวจสอบเลือดปลา
+Tab:Button({
+    Title = "Check Fish Health",
+    Desc = "Debug: Check health of selected fish",
+    Callback = function()
+        if selectedFishName == "" or #selectedFishIds == 0 then
+            Window:Notify({
+                Title = "Error",
+                Desc = "Please select a fish type first!",
+                Time = 3
+            })
+            return
+        end
+        
+        local healthInfo = "Fish Health for " .. selectedFishName .. ":\n"
+        local aliveCount = 0
+        
+        for i, fishId in ipairs(selectedFishIds) do
+            local health = getFishHealth(fishId)
+            if health > 0 then
+                aliveCount = aliveCount + 1
+            end
+            healthInfo = healthInfo .. "Fish " .. i .. " (" .. fishId .. "): " .. health .. " HP\n"
+        end
+        
+        print("=== FISH HEALTH CHECK ===")
+        print(healthInfo)
+        print("Alive: " .. aliveCount .. "/" .. #selectedFishIds)
+        print("========================")
+        
+        Window:Notify({
+            Title = "Fish Health",
+            Desc = healthInfo .. "\nAlive: " .. aliveCount .. "/" .. #selectedFishIds,
+            Time = 5
+        })
     end
 })
 
@@ -583,9 +656,7 @@ Tab:Button({
     Title = "Equip",
     Desc = "Run Equip remote manually",
     Callback = function()
-        local args = {
-            "1"
-        }
+        local args = { "1" }
         
         game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("Equip"):InvokeServer(unpack(args))
         
@@ -602,24 +673,23 @@ Tab:Button({
     Title = "Start Catching",
     Desc = "Run StartCatching remote manually",
     Callback = function()
-        if selectedFishId == "" then
+        if selectedFishName == "" or #selectedFishIds == 0 then
             Window:Notify({
                 Title = "Error",
-                Desc = "Please select a fish first!",
+                Desc = "Please select a fish type first!",
                 Time = 3
             })
             return
         end
         
-        local args = {
-            selectedFishId
-        }
+        local fishId = selectedFishIds[1]
+        local args = { fishId }
         
         game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("HarpoonService"):WaitForChild("RF"):WaitForChild("StartCatching"):InvokeServer(unpack(args))
         
         Window:Notify({
             Title = "Started Catching",
-            Desc = "StartCatching remote executed!",
+            Desc = "StartCatching remote executed for " .. selectedFishName,
             Time = 3
         })
     end
@@ -660,7 +730,6 @@ Tab:Button({
             local details = "CatchingBar found:\n"
             details = details .. "Visible: " .. tostring(catchingBar.Visible) .. "\n"
             
-            -- ตรวจสอบ children
             for _, child in pairs(catchingBar:GetChildren()) do
                 details = details .. child.Name .. " (" .. child.ClassName .. ")"
                 if child:IsA("GuiObject") then
@@ -693,5 +762,5 @@ Window:Notify({
 
 -- พิมพ์ข้อมูลเริ่มต้น
 print("=== AUTO FISH UI LOADED ===")
-print("Fish Display Names Table initialized")
+print("Select a fish type to start hunting")
 print("============================")
