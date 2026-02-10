@@ -201,6 +201,97 @@ local function teleportToPosition(position, speed)
     return true
 end
 
+-- ฟังก์ชันติดตามปลาไปเรื่อยๆจนกว่าจะตาย
+local function followFishUntilDead(fishId, speed)
+    local character = game.Players.LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+    
+    local humanoidRootPart = character.HumanoidRootPart
+    local fish = workspace.Game.Fish.client:FindFirstChild(fishId)
+    if not fish then return false end
+    
+    local fishHead = fish:FindFirstChild("Head")
+    if not fishHead then return false end
+    
+    print("=== START FOLLOWING FISH ===")
+    print("Fish ID:", fishId)
+    print("Starting health:", getFishHealth(fishId))
+    
+    -- ติดตามปลาไปเรื่อยๆจนกว่าปลาจะตาย
+    while getFishHealth(fishId) > 0 and isAutoFishing do
+        local fish = workspace.Game.Fish.client:FindFirstChild(fishId)
+        if not fish then break end
+        
+        local fishHead = fish:FindFirstChild("Head")
+        if not fishHead then break end
+        
+        local targetPosition = fishHead.Position
+        local currentPosition = humanoidRootPart.Position
+        local distance = (targetPosition - currentPosition).Magnitude
+        
+        -- ถ้าอยู่ไกลเกินไป ให้ teleport ไปหา
+        if distance > 50 then
+            local time = distance / speed
+            local tweenInfo = TweenInfo.new(
+                time,
+                Enum.EasingStyle.Linear,
+                Enum.EasingDirection.Out,
+                0,
+                false,
+                0
+            )
+            
+            if currentTween then
+                currentTween:Cancel()
+            end
+            
+            currentTween = game:GetService("TweenService"):Create(
+                humanoidRootPart,
+                tweenInfo,
+                {CFrame = CFrame.new(targetPosition.X, targetPosition.Y, targetPosition.Z)}
+            )
+            
+            currentTween:Play()
+            currentTween.Completed:Wait()
+        else
+            -- ถ้าอยู่ใกล้แล้ว ให้เดินตามแบบ smooth
+            local time = math.min(1, distance / speed)  -- จำกัดเวลาสูงสุดที่ 1 วินาที
+            local tweenInfo = TweenInfo.new(
+                time,
+                Enum.EasingStyle.Linear,
+                Enum.EasingDirection.Out,
+                0,
+                false,
+                0
+            )
+            
+            if currentTween then
+                currentTween:Cancel()
+            end
+            
+            currentTween = game:GetService("TweenService"):Create(
+                humanoidRootPart,
+                tweenInfo,
+                {CFrame = CFrame.new(targetPosition.X, targetPosition.Y, targetPosition.Z)}
+            )
+            
+            currentTween:Play()
+            wait(time + 0.1)  -- รอจนกว่า tween จะเสร็จ + buffer
+        end
+        
+        -- พิมพ์สถานะเลือดปลาทุก 5 วินาที
+        local health = getFishHealth(fishId)
+        print("Fish health:", health)
+        
+        wait(0.5)  -- ตรวจสอบทุก 0.5 วินาที
+    end
+    
+    print("=== FISH DIED ===")
+    print("Fish ID:", fishId)
+    print("Final health:", getFishHealth(fishId))
+    return true
+end
+
 -- ฟังก์ชันเติมออกซิเจน
 local function refillOxygen()
     Window:Notify({
@@ -244,9 +335,18 @@ local function startOxygenCheck()
     coroutine.resume(oxygenCheckCoroutine)
 end
 
--- ฟังก์ชันไล่จับปลาตามชื่อที่เลือก
+-- ฟังก์ชันเริ่ม Auto Fishing (รุ่นใหม่ - ติดตามปลาจนตาย)
 local function startAutoFishingLoop()
     while isAutoFishing do
+        if selectedFishName == "" or #selectedFishIds == 0 then
+            Window:Notify({
+                Title = "Error",
+                Desc = "Please select a fish type first!",
+                Time = 3
+            })
+            break
+        end
+        
         -- อัปเดตรายการปลาที่มีชีวิตอยู่
         local aliveFishIds = {}
         for _, fishId in ipairs(selectedFishIds) do
@@ -288,7 +388,12 @@ local function startAutoFishingLoop()
             local health = getFishHealth(fishId)
             if health <= 0 then goto continue end
             
-            -- Teleport ไปหาปลา
+            print("=== STARTING TO CATCH FISH ===")
+            print("Fish ID:", fishId)
+            print("Fish Name:", selectedFishName)
+            print("Initial health:", health)
+            
+            -- Teleport ไปหาปลาเริ่มต้น
             local success = teleportToPosition(fishHead.Position, tweenSpeed)
             if not success then
                 Window:Notify({
@@ -306,51 +411,59 @@ local function startAutoFishingLoop()
             local args1 = { fishId }
             game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("HarpoonService"):WaitForChild("RF"):WaitForChild("StartCatching"):InvokeServer(unpack(args1))
             
+            print("StartCatching remote executed for fish:", fishId)
+            
             -- รอ 2 วินาทีให้ UI ขึ้นมา
             wait(2)
             
-            -- ตรวจสอบว่า CatchingBar แสดงว่าจับปลาได้สำเร็จ
-            local catchingSuccess = waitForCatchingSuccess(5)
+            -- ติดตามปลาไปเรื่อยๆจนกว่าปลาจะตาย
+            followFishUntilDead(fishId, tweenSpeed)
             
-            if catchingSuccess then
-                -- รอจนกว่าปลาจะตาย (เลือด = 0)
-                while getFishHealth(fishId) > 0 and isAutoFishing do
-                    wait(1)
-                end
-                
-                -- รันรีโมท SaveHotbar เมื่อปลาตาย
-                local args2 = {
-                    {
-                        ["1"] = "1",
-                        ["3"] = fishId,
-                        ["2"] = "36e94fbc4fcc4e38b16242dc3aea0730"
-                    }
+            -- หลังจากปลาตายแล้ว รันรีโมท SaveHotbar
+            local args2 = {
+                {
+                    ["1"] = "1",
+                    ["3"] = fishId,
+                    ["2"] = "36e94fbc4fcc4e38b16242dc3aea0730"
                 }
+            }
+            
+            print("=== RUNNING SAVE HOTBAR ===")
+            print("Fish caught! Running SaveHotbar...")
+            print("Fish ID for SaveHotbar:", fishId)
+            print("Arguments:", args2)
+            
+            -- รันรีโมท SaveHotbar
+            local success, result = pcall(function()
+                return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
+            end)
+            
+            if success then
+                print("SaveHotbar executed successfully!")
+                print("Result:", result)
                 
-                -- พิมพ์ข้อความเพื่อตรวจสอบ
-                print("=== FISH CATCHED ===")
-                print("Fish ID:", fishId)
-                print("Fish Name:", selectedFishName)
-                print("Health:", getFishHealth(fishId))
-                print("Running SaveHotbar...")
+                -- แจ้งเตือนผู้ใช้
+                Window:Notify({
+                    Title = "Fish Caught!",
+                    Desc = selectedFishName .. " has been caught and saved!",
+                    Time = 3
+                })
+            else
+                print("ERROR executing SaveHotbar:", result)
                 
-                local success, result = pcall(function()
+                -- ลองอีกครั้งถ้าไม่สำเร็จ
+                wait(1)
+                local retrySuccess, retryResult = pcall(function()
                     return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
                 end)
                 
-                if success then
-                    print("SaveHotbar executed successfully!")
+                if retrySuccess then
+                    print("SaveHotbar retry successful!")
                 else
-                    print("ERROR executing SaveHotbar:", result)
+                    print("SaveHotbar retry failed:", retryResult)
                 end
-                print("==================")
-            else
-                Window:Notify({
-                    Title = "Catching Failed",
-                    Desc = "Fish catching did not complete successfully",
-                    Time = 2
-                })
             end
+            print("=======================")
             
             -- รอสักครู่ก่อนไปหาปลาตัวต่อไป
             wait(2)
@@ -763,4 +876,4 @@ Window:Notify({
 -- พิมพ์ข้อมูลเริ่มต้น
 print("=== AUTO FISH UI LOADED ===")
 print("Select a fish type to start hunting")
-print("============================")
+print("============================s")
