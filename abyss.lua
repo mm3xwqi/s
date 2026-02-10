@@ -7,7 +7,7 @@ local Window = Library:Window({
     Theme = "Dark",
     Config = {
         Keybind = Enum.KeyCode.LeftControl,
-        Size = UDim2.new(0, 500, 0, 450)
+        Size = UDim2.new(0, 500, 0, 500)
     },
     CloseUIButton = {
         Enabled = true,
@@ -22,28 +22,36 @@ Tab:Section({Title = "Fishing Settings"})
 -- ตัวแปรเก็บสถานะ
 local isAutoFishing = false
 local isAutoSelling = false
+local isFishAura = false
 local currentTween
 local selectedFishName = "" -- เก็บชื่อปลาที่เลือก
 local selectedFishIds = {} -- เก็บไอดีทั้งหมดของปลาที่มีชื่อเดียวกัน
 local fishingCoroutine
 local sellingCoroutine
+local fishAuraCoroutine
 local tweenSpeed = 100 -- ความเร็วเริ่มต้น
 local oxygenCheckCoroutine
 local oxygenRefillPosition = Vector3.new(-59, 4883, -49)
 local autoSellInterval = 10 -- วินาที
 local fishNameToIds = {} -- ตารางเก็บชื่อปลา -> ไอดีทั้งหมด
+local fishAuraMode = "Nearest" -- โหมด Fish Aura: Min HP, Max HP, Nearest
+local allFishIds = {} -- เก็บไอดีปลาทั้งหมด (สำหรับโหมด All)
 
 -- ฟังก์ชันดึงรายชื่อปลาทั้งหมด (แสดงชื่อปลาที่ไม่ซ้ำกัน)
 local function getUniqueFishNames()
-    local uniqueNames = {}
+    local uniqueNames = {"All"} -- เพิ่มตัวเลือก All
     local fishFolder = workspace.Game.Fish.client
     
     -- ล้างตารางเก่า
     fishNameToIds = {}
+    allFishIds = {}
     
     if fishFolder then
         for _, fish in pairs(fishFolder:GetChildren()) do
             if fish:IsA("Model") then
+                -- เก็บไอดีปลาทั้งหมด
+                table.insert(allFishIds, fish.Name)
+                
                 -- พยายามดึงชื่อปลาจริงจากปลา
                 local displayName = fish.Name -- เริ่มต้นด้วย ID
                 
@@ -107,6 +115,95 @@ local function getFishHealth(fishId)
     return amount.Value
 end
 
+-- ฟังก์ชันตรวจสอบระยะทาง
+local function getDistanceToFish(fishId)
+    local character = game.Players.LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return math.huge end
+    
+    local fish = workspace.Game.Fish.client:FindFirstChild(fishId)
+    if not fish then return math.huge end
+    
+    local head = fish:FindFirstChild("Head")
+    if not head then return math.huge end
+    
+    return (character.HumanoidRootPart.Position - head.Position).Magnitude
+end
+
+-- ฟังก์ชันค้นหาปลาตามเงื่อนไข Fish Aura
+local function findBestFishForAura()
+    local character = game.Players.LocalPlayer.Character
+    if not character then return nil end
+    
+    local aliveFishIds = {}
+    
+    -- ตรวจสอบว่าจะค้นหาปลาแบบไหน
+    if selectedFishName == "All" then
+        -- ใช้ปลาทั้งหมด
+        for _, fishId in ipairs(allFishIds) do
+            if getFishHealth(fishId) > 0 then
+                table.insert(aliveFishIds, fishId)
+            end
+        end
+    else
+        -- ใช้เฉพาะปลาที่เลือก
+        if fishNameToIds[selectedFishName] then
+            for _, fishId in ipairs(fishNameToIds[selectedFishName]) do
+                if getFishHealth(fishId) > 0 then
+                    table.insert(aliveFishIds, fishId)
+                end
+            end
+        end
+    end
+    
+    if #aliveFishIds == 0 then
+        return nil
+    end
+    
+    -- เลือกปลาตามโหมด
+    if fishAuraMode == "Min HP" then
+        -- หาปลาที่เลือดน้อยที่สุด
+        local bestFish = aliveFishIds[1]
+        local minHealth = getFishHealth(bestFish)
+        
+        for _, fishId in ipairs(aliveFishIds) do
+            local health = getFishHealth(fishId)
+            if health < minHealth then
+                minHealth = health
+                bestFish = fishId
+            end
+        end
+        return bestFish
+        
+    elseif fishAuraMode == "Max HP" then
+        -- หาปลาที่เลือดมากที่สุด
+        local bestFish = aliveFishIds[1]
+        local maxHealth = getFishHealth(bestFish)
+        
+        for _, fishId in ipairs(aliveFishIds) do
+            local health = getFishHealth(fishId)
+            if health > maxHealth then
+                maxHealth = health
+                bestFish = fishId
+            end
+        end
+        return bestFish
+        
+    else -- Nearest
+        -- หาปลาที่ใกล้ที่สุด
+        local bestFish = aliveFishIds[1]
+        local minDistance = getDistanceToFish(bestFish)
+        
+        for _, fishId in ipairs(aliveFishIds) do
+            local distance = getDistanceToFish(fishId)
+            if distance < minDistance then
+                minDistance = distance
+                bestFish = fishId
+            end
+        end
+        return bestFish
+    end
+end
+
 -- ฟังก์ชันตรวจสอบออกซิเจน
 local function checkOxygen()
     local character = game.Players.LocalPlayer.Character
@@ -128,48 +225,6 @@ local function checkOxygen()
     return 100
 end
 
--- ฟังก์ชันตรวจสอบ CatchingBar UI
-local function waitForCatchingSuccess(timeout)
-    local startTime = tick()
-    local maxWaitTime = timeout or 5
-    
-    while tick() - startTime < maxWaitTime do
-        local catchingBar = game:GetService("Players").LocalPlayer.PlayerGui.Main:FindFirstChild("CatchingBar")
-        
-        if catchingBar then
-            if catchingBar.Visible then
-                local successIndicator = catchingBar:FindFirstChild("Check") or 
-                                        catchingBar:FindFirstChild("Success") or
-                                        catchingBar:FindFirstChild("Tick")
-                
-                if successIndicator then
-                    if successIndicator.Visible then
-                        print("Catching successful - tick mark visible")
-                        return true
-                    end
-                else
-                    for _, child in pairs(catchingBar:GetChildren()) do
-                        if child:IsA("TextLabel") or child:IsA("TextButton") then
-                            if child.Text and (child.Text:find("Success") or child.Text:find("Caught") or child.Text:find("Got it")) then
-                                print("Catching successful - success text found")
-                                return true
-                            end
-                        end
-                    end
-                end
-            end
-        else
-            print("CatchingBar disappeared - assuming success")
-            return true
-        end
-        
-        wait(0.1)
-    end
-    
-    print("Timeout waiting for catching success")
-    return false
-end
-
 -- ฟังก์ชัน teleport ไปหาตำแหน่ง
 local function teleportToPosition(position, speed)
     local character = game.Players.LocalPlayer.Character
@@ -189,6 +244,10 @@ local function teleportToPosition(position, speed)
         0
     )
     
+    if currentTween then
+        currentTween:Cancel()
+    end
+    
     currentTween = game:GetService("TweenService"):Create(
         humanoidRootPart,
         tweenInfo,
@@ -206,18 +265,14 @@ local function followFishUntilDead(fishId, speed)
     if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
     
     local humanoidRootPart = character.HumanoidRootPart
-    local fish = workspace.Game.Fish.client:FindFirstChild(fishId)
-    if not fish then return false end
-    
-    local fishHead = fish:FindFirstChild("Head")
-    if not fishHead then return false end
     
     print("=== START FOLLOWING FISH ===")
     print("Fish ID:", fishId)
     print("Starting health:", getFishHealth(fishId))
+    print("Mode:", fishAuraMode)
     
     -- ติดตามปลาไปเรื่อยๆจนกว่าปลาจะตาย
-    while getFishHealth(fishId) > 0 and isAutoFishing do
+    while getFishHealth(fishId) > 0 and (isAutoFishing or isFishAura) do
         local fish = workspace.Game.Fish.client:FindFirstChild(fishId)
         if not fish then break end
         
@@ -278,7 +333,7 @@ local function followFishUntilDead(fishId, speed)
             wait(time + 0.1)  -- รอจนกว่า tween จะเสร็จ + buffer
         end
         
-        -- พิมพ์สถานะเลือดปลาทุก 5 วินาที
+        -- พิมพ์สถานะเลือดปลา
         local health = getFishHealth(fishId)
         print("Fish health:", health)
         
@@ -315,7 +370,7 @@ end
 -- ฟังก์ชันตรวจสอบและเติมออกซิเจน (รันในพื้นหลัง)
 local function startOxygenCheck()
     oxygenCheckCoroutine = coroutine.create(function()
-        while isAutoFishing do
+        while isAutoFishing or isFishAura do
             local oxygenLevel = checkOxygen()
             
             if oxygenLevel < 10 then
@@ -334,10 +389,10 @@ local function startOxygenCheck()
     coroutine.resume(oxygenCheckCoroutine)
 end
 
--- ฟังก์ชันเริ่ม Auto Fishing (รุ่นใหม่ - ติดตามปลาจนตาย)
+-- ฟังก์ชันเริ่ม Auto Fishing (สำหรับโหมดปกติ)
 local function startAutoFishingLoop()
     while isAutoFishing do
-        if selectedFishName == "" or #selectedFishIds == 0 then
+        if selectedFishName == "" then
             Window:Notify({
                 Title = "Error",
                 Desc = "Please select a fish type first!",
@@ -346,138 +401,236 @@ local function startAutoFishingLoop()
             break
         end
         
-        -- อัปเดตรายการปลาที่มีชีวิตอยู่
-        local aliveFishIds = {}
-        for _, fishId in ipairs(selectedFishIds) do
-            local health = getFishHealth(fishId)
-            if health > 0 then
-                table.insert(aliveFishIds, fishId)
+        -- กำหนดรายการปลาที่จะจับ
+        local targetFishIds = {}
+        if selectedFishName == "All" then
+            -- ใช้ปลาทั้งหมด
+            for _, fishId in ipairs(allFishIds) do
+                if getFishHealth(fishId) > 0 then
+                    table.insert(targetFishIds, fishId)
+                end
+            end
+        else
+            -- ใช้เฉพาะปลาที่เลือก
+            if fishNameToIds[selectedFishName] then
+                for _, fishId in ipairs(fishNameToIds[selectedFishName]) do
+                    if getFishHealth(fishId) > 0 then
+                        table.insert(targetFishIds, fishId)
+                    end
+                end
+            else
+                targetFishIds = {}
             end
         end
         
-        if #aliveFishIds == 0 then
+        if #targetFishIds == 0 then
             Window:Notify({
                 Title = "No Active Fish",
-                Desc = "All " .. selectedFishName .. " are dead or not found",
+                Desc = "No fish available for fishing",
                 Time = 3
             })
             wait(5)
+            continue
+        end
+        
+        -- ไล่จับปลาทีละตัวตามรายการ
+        for _, fishId in ipairs(targetFishIds) do
+            if not isAutoFishing then break end
             
-            -- รีเฟรชรายการปลาใหม่
-            if fishNameToIds[selectedFishName] then
-                selectedFishIds = fishNameToIds[selectedFishName]
-            else
+            -- หาปลา
+            local fish = workspace.Game.Fish.client:FindFirstChild(fishId)
+            if not fish then 
+                wait(0.5)
+                continue
+            end
+            
+            local fishHead = fish:FindFirstChild("Head")
+            if not fishHead then 
+                wait(0.5)
+                continue
+            end
+            
+            -- ตรวจสอบเลือดก่อน
+            local health = getFishHealth(fishId)
+            if health <= 0 then 
+                wait(0.5)
+                continue
+            end
+            
+            print("=== STARTING TO CATCH FISH ===")
+            print("Fish ID:", fishId)
+            print("Fish Name:", selectedFishName)
+            print("Initial health:", health)
+            
+            -- Teleport ไปหาปลาเริ่มต้น
+            local success = teleportToPosition(fishHead.Position, tweenSpeed)
+            if not success then
+                Window:Notify({
+                    Title = "Error",
+                    Desc = "Failed to teleport to fish!",
+                    Time = 3
+                })
                 break
             end
-        else
-            -- ไล่จับปลาทีละตัวตามรายการ
-            for _, fishId in ipairs(aliveFishIds) do
-                if not isAutoFishing then break end
-                
-                -- หาปลา
-                local fish = workspace.Game.Fish.client:FindFirstChild(fishId)
-                if not fish then 
-                    wait(0.5)
-                    continue
-                end
-                
-                local fishHead = fish:FindFirstChild("Head")
-                if not fishHead then 
-                    wait(0.5)
-                    continue
-                end
-                
-                -- ตรวจสอบเลือดก่อน
-                local health = getFishHealth(fishId)
-                if health <= 0 then 
-                    wait(0.5)
-                    continue
-                end
-                
-                print("=== STARTING TO CATCH FISH ===")
-                print("Fish ID:", fishId)
-                print("Fish Name:", selectedFishName)
-                print("Initial health:", health)
-                
-                -- Teleport ไปหาปลาเริ่มต้น
-                local success = teleportToPosition(fishHead.Position, tweenSpeed)
-                if not success then
-                    Window:Notify({
-                        Title = "Error",
-                        Desc = "Failed to teleport to fish!",
-                        Time = 3
-                    })
-                    break
-                end
-                
-                -- รอ 1 วินาที
-                wait(1)
-                
-                -- เมื่อถึงปลา: รันรีโมท StartCatching
-                local args1 = { fishId }
-                game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("HarpoonService"):WaitForChild("RF"):WaitForChild("StartCatching"):InvokeServer(unpack(args1))
-                
-                print("StartCatching remote executed for fish:", fishId)
-                
-                -- รอ 2 วินาทีให้ UI ขึ้นมา
-                wait(2)
-                
-                -- ติดตามปลาไปเรื่อยๆจนกว่าปลาจะตาย
-                followFishUntilDead(fishId, tweenSpeed)
-                
-                -- หลังจากปลาตายแล้ว รันรีโมท SaveHotbar
-                local args2 = {
-                    {
-                        ["1"] = "1",
-                        ["3"] = fishId,
-                        ["2"] = "36e94fbc4fcc4e38b16242dc3aea0730"
-                    }
+            
+            -- รอ 1 วินาที
+            wait(1)
+            
+            -- เมื่อถึงปลา: รันรีโมท StartCatching
+            local args1 = { fishId }
+            game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("HarpoonService"):WaitForChild("RF"):WaitForChild("StartCatching"):InvokeServer(unpack(args1))
+            
+            print("StartCatching remote executed for fish:", fishId)
+            
+            -- ติดตามปลาไปเรื่อยๆจนกว่าปลาจะตาย
+            followFishUntilDead(fishId, tweenSpeed)
+            
+            -- หลังจากปลาตายแล้ว รันรีโมท SaveHotbar
+            local args2 = {
+                {
+                    ["1"] = "1",
+                    ["3"] = fishId,
+                    ["2"] = "36e94fbc4fcc4e38b16242dc3aea0730"
                 }
+            }
+            
+            print("=== RUNNING SAVE HOTBAR ===")
+            print("Fish caught! Running SaveHotbar...")
+            print("Fish ID for SaveHotbar:", fishId)
+            print("Arguments:", args2)
+            
+            -- รันรีโมท SaveHotbar
+            local success, result = pcall(function()
+                return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
+            end)
+            
+            if success then
+                print("SaveHotbar executed successfully!")
+                print("Result:", result)
                 
-                print("=== RUNNING SAVE HOTBAR ===")
-                print("Fish caught! Running SaveHotbar...")
-                print("Fish ID for SaveHotbar:", fishId)
-                print("Arguments:", args2)
+                -- แจ้งเตือนผู้ใช้
+                Window:Notify({
+                    Title = "Fish Caught!",
+                    Desc = "Fish has been caught and saved!",
+                    Time = 3
+                })
+            else
+                print("ERROR executing SaveHotbar:", result)
                 
-                -- รันรีโมท SaveHotbar
-                local success, result = pcall(function()
+                -- ลองอีกครั้งถ้าไม่สำเร็จ
+                wait(1)
+                local retrySuccess, retryResult = pcall(function()
                     return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
                 end)
                 
-                if success then
-                    print("SaveHotbar executed successfully!")
-                    print("Result:", result)
-                    
-                    -- แจ้งเตือนผู้ใช้
-                    Window:Notify({
-                        Title = "Fish Caught!",
-                        Desc = selectedFishName .. " has been caught and saved!",
-                        Time = 3
-                    })
+                if retrySuccess then
+                    print("SaveHotbar retry successful!")
                 else
-                    print("ERROR executing SaveHotbar:", result)
-                    
-                    -- ลองอีกครั้งถ้าไม่สำเร็จ
-                    wait(1)
-                    local retrySuccess, retryResult = pcall(function()
-                        return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
-                    end)
-                    
-                    if retrySuccess then
-                        print("SaveHotbar retry successful!")
-                    else
-                        print("SaveHotbar retry failed:", retryResult)
-                    end
+                    print("SaveHotbar retry failed:", retryResult)
                 end
-                print("=======================")
-                
-                -- รอสักครู่ก่อนไปหาปลาตัวต่อไป
-                wait(2)
             end
+            print("=======================")
+            
+            -- รอสักครู่ก่อนไปหาปลาตัวต่อไป
+            wait(2)
         end
         
         -- รอสักครู่ก่อนเริ่มรอบใหม่
         wait(3)
+    end
+end
+
+-- ฟังก์ชันเริ่ม Fish Aura
+local function startFishAuraLoop()
+    while isFishAura do
+        -- ค้นหาปลาที่ดีที่สุดตามเงื่อนไข
+        local bestFishId = findBestFishForAura()
+        
+        if not bestFishId then
+            Window:Notify({
+                Title = "No Fish Found",
+                Desc = "No fish available for Fish Aura",
+                Time = 3
+            })
+            wait(5)
+            continue
+        end
+        
+        local fish = workspace.Game.Fish.client:FindFirstChild(bestFishId)
+        if not fish then
+            wait(1)
+            continue
+        end
+        
+        local fishHead = fish:FindFirstChild("Head")
+        if not fishHead then
+            wait(1)
+            continue
+        end
+        
+        -- ตรวจสอบเลือดก่อน
+        local health = getFishHealth(bestFishId)
+        if health <= 0 then
+            wait(1)
+            continue
+        end
+        
+        print("=== FISH AURA TARGET ===")
+        print("Selected fish ID:", bestFishId)
+        print("Health:", health)
+        print("Distance:", getDistanceToFish(bestFishId))
+        print("Mode:", fishAuraMode)
+        
+        -- Teleport ไปหาปลา
+        local success = teleportToPosition(fishHead.Position, tweenSpeed)
+        if not success then
+            Window:Notify({
+                Title = "Error",
+                Desc = "Failed to teleport to fish!",
+                Time = 3
+            })
+            wait(2)
+            continue
+        end
+        
+        -- รอ 1 วินาที
+        wait(1)
+        
+        -- เมื่อถึงปลา: รันรีโมท StartCatching
+        local args1 = { bestFishId }
+        game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("HarpoonService"):WaitForChild("RF"):WaitForChild("StartCatching"):InvokeServer(unpack(args1))
+        
+        print("StartCatching remote executed for fish:", bestFishId)
+        
+        -- ติดตามปลาไปเรื่อยๆจนกว่าปลาจะตาย
+        followFishUntilDead(bestFishId, tweenSpeed)
+        
+        -- หลังจากปลาตายแล้ว รันรีโมท SaveHotbar
+        local args2 = {
+            {
+                ["1"] = "1",
+                ["3"] = bestFishId,
+                ["2"] = "36e94fbc4fcc4e38b16242dc3aea0730"
+            }
+        }
+        
+        print("=== FISH AURA SAVE HOTBAR ===")
+        print("Fish caught by aura! Running SaveHotbar...")
+        
+        -- รันรีโมท SaveHotbar
+        local success, result = pcall(function()
+            return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args2))
+        end)
+        
+        if success then
+            print("SaveHotbar executed successfully!")
+        else
+            print("ERROR executing SaveHotbar:", result)
+        end
+        print("============================")
+        
+        -- รอสักครู่ก่อนค้นหาปลาตัวต่อไป
+        wait(2)
     end
 end
 
@@ -507,7 +660,9 @@ local fishDropdown = Tab:Dropdown({
     Value = "",
     Callback = function(choice)
         selectedFishName = choice
-        if fishNameToIds[choice] then
+        if choice == "All" then
+            selectedFishIds = allFishIds
+        elseif fishNameToIds[choice] then
             selectedFishIds = fishNameToIds[choice]
         else
             selectedFishIds = {}
@@ -516,12 +671,33 @@ local fishDropdown = Tab:Dropdown({
         print("=== FISH SELECTED ===")
         print("Fish Name:", selectedFishName)
         print("Fish IDs Count:", #selectedFishIds)
-        print("Fish IDs:", table.concat(selectedFishIds, ", "))
+        if #selectedFishIds <= 10 then
+            print("Fish IDs:", table.concat(selectedFishIds, ", "))
+        else
+            print("Fish IDs: (first 10)", table.concat({table.unpack(selectedFishIds, 1, 10)}, ", "), "...")
+        end
         print("===================")
         
         Window:Notify({
             Title = "Fish Selected",
             Desc = "Selected " .. selectedFishName .. " (" .. #selectedFishIds .. " fish)",
+            Time = 3
+        })
+    end
+})
+
+-- Dropdown สำหรับเลือกโหมด Fish Aura
+local fishAuraDropdown = Tab:Dropdown({
+    Title = "Fish Aura Mode",
+    List = {"Nearest", "Min HP", "Max HP"},
+    Value = "Nearest",
+    Callback = function(choice)
+        fishAuraMode = choice
+        print("Fish Aura mode set to:", fishAuraMode)
+        
+        Window:Notify({
+            Title = "Fish Aura Mode",
+            Desc = "Mode set to: " .. fishAuraMode,
             Time = 3
         })
     end
@@ -538,14 +714,15 @@ Tab:Button({
         -- พิมพ์ข้อมูลปลาทั้งหมดสำหรับ debugging
         print("=== FISH LIST DEBUG ===")
         print("Total unique fish types:", #uniqueNames)
+        print("Total fish count:", #allFishIds)
         for name, ids in pairs(fishNameToIds) do
-            print("Fish Name:", name, "| Count:", #ids, "| IDs:", table.concat(ids, ", "))
+            print("Fish Name:", name, "| Count:", #ids)
         end
         print("======================")
         
         Window:Notify({
             Title = "Refreshed",
-            Desc = "Fish list updated! Found " .. #uniqueNames .. " fish types",
+            Desc = "Fish list updated! Found " .. #uniqueNames .. " fish types, " .. #allFishIds .. " total fish",
             Time = 3
         })
     end
@@ -586,7 +763,17 @@ local autoFishToggle = Tab:Toggle({
         isAutoFishing = v
         
         if v then
-            if selectedFishName == "" or #selectedFishIds == 0 then
+            -- ปิด Fish Aura ถ้ากำลังเปิดอยู่
+            if isFishAura then
+                isFishAura = false
+                if fishAuraCoroutine then
+                    coroutine.close(fishAuraCoroutine)
+                    fishAuraCoroutine = nil
+                end
+                fishAuraToggle:Set(false)
+            end
+            
+            if selectedFishName == "" then
                 Window:Notify({
                     Title = "Error",
                     Desc = "Please select a fish type first!",
@@ -643,6 +830,82 @@ local autoFishToggle = Tab:Toggle({
     end
 })
 
+-- Toggle สำหรับ Fish Aura
+local fishAuraToggle = Tab:Toggle({
+    Title = "Fish Aura",
+    Desc = "Auto target fish based on selected mode",
+    Value = false,
+    Callback = function(v)
+        isFishAura = v
+        
+        if v then
+            -- ปิด Auto Fishing ถ้ากำลังเปิดอยู่
+            if isAutoFishing then
+                isAutoFishing = false
+                if fishingCoroutine then
+                    coroutine.close(fishingCoroutine)
+                    fishingCoroutine = nil
+                end
+                autoFishToggle:Set(false)
+            end
+            
+            if selectedFishName == "" then
+                Window:Notify({
+                    Title = "Error",
+                    Desc = "Please select a fish type first!",
+                    Time = 3
+                })
+                fishAuraToggle:Set(false)
+                return
+            end
+            
+            -- รันรีโมท Equip 1 รอบ
+            local equipArgs = { "1" }
+            game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("Equip"):InvokeServer(unpack(equipArgs))
+            
+            Window:Notify({
+                Title = "Fish Aura Started",
+                Desc = "Targeting fish with mode: " .. fishAuraMode,
+                Time = 3
+            })
+            
+            -- เริ่มตรวจสอบออกซิเจน
+            startOxygenCheck()
+            
+            -- เริ่ม Fish Aura ใน coroutine แยก
+            fishAuraCoroutine = coroutine.create(startFishAuraLoop)
+            coroutine.resume(fishAuraCoroutine)
+        else
+            -- หยุดตรวจสอบออกซิเจน
+            if oxygenCheckCoroutine then
+                coroutine.close(oxygenCheckCoroutine)
+                oxygenCheckCoroutine = nil
+            end
+            
+            -- หยุด Fish Aura
+            if currentTween then
+                currentTween:Cancel()
+                currentTween = nil
+            end
+            
+            if fishAuraCoroutine then
+                coroutine.close(fishAuraCoroutine)
+                fishAuraCoroutine = nil
+            end
+            
+            -- รันรีโมท Equip อีกครั้งเมื่อปิด
+            local equipArgs = { "1" }
+            game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("Equip"):InvokeServer(unpack(equipArgs))
+            
+            Window:Notify({
+                Title = "Fish Aura Stopped",
+                Desc = "Stopped fish aura and re-equipped",
+                Time = 3
+            })
+        end
+    end
+})
+
 Tab:Section({Title = "Auto Sell"})
 
 -- Toggle สำหรับ Auto Sell
@@ -684,7 +947,7 @@ Tab:Button({
     Title = "Save Hotbar",
     Desc = "Run SaveHotbar remote manually",
     Callback = function()
-        if selectedFishName == "" or #selectedFishIds == 0 then
+        if selectedFishName == "" then
             Window:Notify({
                 Title = "Error",
                 Desc = "Please select a fish type first!",
@@ -694,7 +957,20 @@ Tab:Button({
         end
         
         -- ใช้ไอดีปลาตัวแรกในรายการ
-        local fishId = selectedFishIds[1]
+        local fishId = ""
+        if selectedFishName == "All" and #allFishIds > 0 then
+            fishId = allFishIds[1]
+        elseif #selectedFishIds > 0 then
+            fishId = selectedFishIds[1]
+        else
+            Window:Notify({
+                Title = "Error",
+                Desc = "No fish available",
+                Time = 3
+            })
+            return
+        end
+        
         local args = {
             {
                 ["1"] = "1",
@@ -736,7 +1012,7 @@ Tab:Button({
     Title = "Check Fish Health",
     Desc = "Debug: Check health of selected fish",
     Callback = function()
-        if selectedFishName == "" or #selectedFishIds == 0 then
+        if selectedFishName == "" then
             Window:Notify({
                 Title = "Error",
                 Desc = "Please select a fish type first!",
@@ -745,25 +1021,47 @@ Tab:Button({
             return
         end
         
+        local fishIdsToCheck = {}
+        if selectedFishName == "All" then
+            fishIdsToCheck = allFishIds
+        else
+            fishIdsToCheck = selectedFishIds
+        end
+        
+        if #fishIdsToCheck == 0 then
+            Window:Notify({
+                Title = "No Fish",
+                Desc = "No fish to check",
+                Time = 3
+            })
+            return
+        end
+        
         local healthInfo = "Fish Health for " .. selectedFishName .. ":\n"
         local aliveCount = 0
         
-        for i, fishId in ipairs(selectedFishIds) do
-            local health = getFishHealth(fishId)
-            if health > 0 then
-                aliveCount = aliveCount + 1
+        for i, fishId in ipairs(fishIdsToCheck) do
+            if i <= 20 then  -- แสดงแค่ 20 ตัวแรก
+                local health = getFishHealth(fishId)
+                if health > 0 then
+                    aliveCount = aliveCount + 1
+                end
+                healthInfo = healthInfo .. fishId .. ": " .. health .. " HP\n"
             end
-            healthInfo = healthInfo .. "Fish " .. i .. " (" .. fishId .. "): " .. health .. " HP\n"
+        end
+        
+        if #fishIdsToCheck > 20 then
+            healthInfo = healthInfo .. "... and " .. (#fishIdsToCheck - 20) .. " more\n"
         end
         
         print("=== FISH HEALTH CHECK ===")
         print(healthInfo)
-        print("Alive: " .. aliveCount .. "/" .. #selectedFishIds)
+        print("Alive: " .. aliveCount .. "/" .. #fishIdsToCheck)
         print("========================")
         
         Window:Notify({
             Title = "Fish Health",
-            Desc = healthInfo .. "\nAlive: " .. aliveCount .. "/" .. #selectedFishIds,
+            Desc = healthInfo .. "\nAlive: " .. aliveCount .. "/" .. #fishIdsToCheck,
             Time = 5
         })
     end
@@ -791,7 +1089,7 @@ Tab:Button({
     Title = "Start Catching",
     Desc = "Run StartCatching remote manually",
     Callback = function()
-        if selectedFishName == "" or #selectedFishIds == 0 then
+        if selectedFishName == "" then
             Window:Notify({
                 Title = "Error",
                 Desc = "Please select a fish type first!",
@@ -800,7 +1098,20 @@ Tab:Button({
             return
         end
         
-        local fishId = selectedFishIds[1]
+        local fishId = ""
+        if selectedFishName == "All" and #allFishIds > 0 then
+            fishId = allFishIds[1]
+        elseif #selectedFishIds > 0 then
+            fishId = selectedFishIds[1]
+        else
+            Window:Notify({
+                Title = "Error",
+                Desc = "No fish available",
+                Time = 3
+            })
+            return
+        end
+        
         local args = { fishId }
         
         game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("HarpoonService"):WaitForChild("RF"):WaitForChild("StartCatching"):InvokeServer(unpack(args))
@@ -837,35 +1148,31 @@ Tab:Button({
     end
 })
 
--- ปุ่มตรวจสอบ CatchingBar
+-- ปุ่มค้นหาปลาใกล้ที่สุด (สำหรับทดสอบ Fish Aura)
 Tab:Button({
-    Title = "Check CatchingBar",
-    Desc = "Debug: Check CatchingBar UI status",
+    Title = "Find Nearest Fish",
+    Desc = "Debug: Find nearest fish manually",
     Callback = function()
-        local catchingBar = game:GetService("Players").LocalPlayer.PlayerGui.Main:FindFirstChild("CatchingBar")
-        
-        if catchingBar then
-            local details = "CatchingBar found:\n"
-            details = details .. "Visible: " .. tostring(catchingBar.Visible) .. "\n"
+        local bestFish = findBestFishForAura()
+        if bestFish then
+            local health = getFishHealth(bestFish)
+            local distance = getDistanceToFish(bestFish)
             
-            for _, child in pairs(catchingBar:GetChildren()) do
-                details = details .. child.Name .. " (" .. child.ClassName .. ")"
-                if child:IsA("GuiObject") then
-                    details = details .. " - Visible: " .. tostring(child.Visible)
-                end
-                details = details .. "\n"
-            end
+            print("=== NEAREST FISH ===")
+            print("Fish ID:", bestFish)
+            print("Health:", health)
+            print("Distance:", distance)
+            print("Mode:", fishAuraMode)
             
-            print(details)
             Window:Notify({
-                Title = "CatchingBar Status",
-                Desc = details,
+                Title = "Nearest Fish Found",
+                Desc = "Fish ID: " .. bestFish .. "\nHealth: " .. health .. "\nDistance: " .. math.floor(distance),
                 Time = 5
             })
         else
             Window:Notify({
-                Title = "CatchingBar Not Found",
-                Desc = "CatchingBar UI is not visible",
+                Title = "No Fish Found",
+                Desc = "No alive fish found",
                 Time = 3
             })
         end
@@ -874,11 +1181,12 @@ Tab:Button({
 
 Window:Notify({
     Title = "UI Loaded",
-    Desc = "Auto Fish & Auto Sell UI loaded successfully!",
+    Desc = "Auto Fish, Fish Aura & Auto Sell UI loaded successfully!",
     Time = 3
 })
 
 -- พิมพ์ข้อมูลเริ่มต้น
-print("=== AUTO FISH UI LOADED ===")
+print("=== FISHING UI LOADED ===")
 print("Select a fish type to start hunting")
-print("============================")
+print("Features: Auto Fish, Fish Aura (Nearest/Min HP/Max HP), Auto Sell")
+print("==================================")
