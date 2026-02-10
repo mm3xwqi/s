@@ -1,32 +1,48 @@
--- ลองใช้ UI Library อื่นถ้าโหลดไม่ได้
-local success, Library = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+-- โหลด UI Library ด้วยการป้องกัน error
+local Library
+local success, errorMsg = pcall(function()
+    Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
 end)
 
 if not success then
-    -- ถ้าโหลดไม่ได้ ให้ใช้ UI Library แบบง่ายๆ
-    Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua"))()
+    -- ถ้าโหลดไม่ได้ ให้พยายามโหลดจาก mirror อื่น
+    warn("ไม่สามารถโหลด UI จากลิงค์หลักได้: " .. tostring(errorMsg))
+    
+    local success2, errorMsg2 = pcall(function()
+        Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+    end)
+    
+    if not success2 then
+        error("ไม่สามารถโหลด UI Library ได้: " .. tostring(errorMsg2))
+    end
 end
 
--- หรือใช้ Library ที่เสถียรกว่า
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- ตรวจสอบว่า Library เป็น function หรือไม่
+if type(Library) ~= "function" then
+    error("UI Library โหลดมาไม่ได้เป็น function")
+end
 
-local Window = Rayfield:CreateWindow({
-    Name = "x2zu [ Stellar ]",
-    LoadingTitle = "x2zu on top",
-    LoadingSubtitle = "by x2zu",
-    ConfigurationSaving = {
-        Enabled = false,
+-- เรียกใช้ Library เพื่อสร้าง Window
+local Window = Library:Window({
+    Title = "x2zu [ Stellar ]",
+    Desc = "x2zu on top",
+    Icon = 105059922903197,
+    Theme = "Dark",
+    Config = {
+        Keybind = Enum.KeyCode.LeftControl,
+        Size = UDim2.new(0, 500, 0, 400)
     },
-    Discord = {
-        Enabled = false,
-    },
-    KeySystem = false,
+    CloseUIButton = {
+        Enabled = true,
+        Text = "x2zu"
+    }
 })
 
-local Tab = Window:CreateTab("Main", 4483362458) -- Star icon
+-- หลังจากนี้จะเป็นโค้ดเดิมทั้งหมด...
 
-Tab:CreateSection("Fish Settings")
+local Tab = Window:Tab({Title = "Main", Icon = "star"})
+
+Tab:Section({Title = "Fish Settings"})
 
 -- ตัวแปรระบบ
 local fishData = {}
@@ -66,6 +82,10 @@ local function GetFishList()
         end
     end)
     
+    if not success then
+        print("Error loading fish list:", result)
+    end
+    
     return fishList
 end
 
@@ -84,6 +104,11 @@ local function GetFishModel(fishName)
         end
         return nil
     end)
+    
+    if not success then
+        print("Error getting fish model:", result)
+        return nil
+    end
     
     return result
 end
@@ -116,6 +141,7 @@ local function CheckFishHealth(fishModel)
     end)
     
     if not success then
+        print("Error checking fish health:", healthValue)
         return 100, true
     end
     
@@ -194,14 +220,14 @@ local function ChaseFish(fishModel)
                     isChasing = false
                     break
                 end
-                task.wait(0.1)
+                wait(0.1)
             end
             
             if connection then
                 connection:Disconnect()
             end
             
-            task.wait(0.1)
+            wait(0.1)
         end
         
         isChasing = false
@@ -211,7 +237,7 @@ local function ChaseFish(fishModel)
         end
     end
     
-    task.spawn(updateChase)
+    spawn(updateChase)
     return true
 end
 
@@ -231,11 +257,10 @@ local function ShootFishUntilDead(fishName)
         local healthValue, isAlive = CheckFishHealth(fishModel)
         
         if not isAlive or healthValue <= chaseSettings.minHealth then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ปลาตายแล้ว",
-                Content = "เลือดปลาเหลือ: " .. healthValue,
-                Duration = 2,
-                Image = 4483362458
+                Desc = "เลือดปลาเหลือ: " .. healthValue,
+                Time = 2
             })
             break
         end
@@ -261,7 +286,7 @@ local function ShootFishUntilDead(fishName)
             break
         end
         
-        task.wait(chaseSettings.catchDelay)
+        wait(chaseSettings.catchDelay)
     end
     
     isCatching = false
@@ -291,6 +316,7 @@ local function GetOxygenLevel()
     end)
     
     if not success then
+        print("Error getting oxygen level:", oxygenLevel)
         return 100
     end
     
@@ -351,7 +377,7 @@ local function StartOxygenMonitor()
                     
                     local startTime = tick()
                     while autoOxygenEnabled and GetOxygenLevel() < 95 and (tick() - startTime) < 30 do
-                        task.wait(1)
+                        wait(1)
                     end
                 end
             end
@@ -359,177 +385,159 @@ local function StartOxygenMonitor()
     end)
 end
 
--- สร้าง Dropdown สำหรับเลือกปลา
-local fishDropdown = Tab:CreateDropdown({
-    Name = "เลือกปลา",
-    Options = GetFishList(),
-    CurrentOption = "",
-    Flag = "FishSelect",
+-- สร้าง UI Elements
+local fishDropdown = Tab:Dropdown({
+    Title = "เลือกปลา",
+    List = GetFishList(),
+    Value = "",
     Callback = function(choice)
         selectedFish = choice
         if choice then
             local fishModel = GetFishModel(choice)
             if fishModel then
                 local healthValue, isAlive = CheckFishHealth(fishModel)
-                Rayfield:Notify({
+                Window:Notify({
                     Title = "เลือกปลา: " .. choice,
-                    Content = "เลือดปลา: " .. healthValue .. " HP",
-                    Duration = 2,
-                    Image = 4483362458
+                    Desc = "เลือดปลา: " .. healthValue .. " HP",
+                    Time = 2
                 })
             end
         end
-    end,
+    end
 })
 
-Tab:CreateButton({
-    Name = "รีเฟรชลิสต์ปลา",
+Tab:Button({
+    Title = "รีเฟรชลิสต์ปลา",
     Callback = function()
         local newList = GetFishList()
         if #newList > 0 then
-            fishDropdown:SetOptions(newList)
-            Rayfield:Notify({
+            fishDropdown:Refresh(newList)
+            Window:Notify({
                 Title = "อัพเดทแล้ว",
-                Content = "พบปลา " .. #newList .. " ตัว",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "พบปลา " .. #newList .. " ตัว",
+                Time = 2
             })
         else
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ไม่พบปลา",
-                Content = "ตรวจสอบว่าเกมโหลดเสร็จแล้วหรือไม่",
-                Duration = 3,
-                Image = 4483362458
+                Desc = "ตรวจสอบว่าเกมโหลดเสร็จแล้วหรือไม่",
+                Time = 3
             })
         end
-    end,
+    end
 })
 
-Tab:CreateSlider({
-    Name = "ความเร็ว Tween",
-    Range = {10, 100},
-    Increment = 1,
-    Suffix = "หน่วย/วินาที",
-    CurrentValue = 30,
-    Flag = "SpeedSetting",
+Tab:Slider({
+    Title = "ความเร็ว Tween",
+    Min = 10,
+    Max = 100,
+    Value = 30,
     Callback = function(value)
         chaseSettings.speed = value
-    end,
+    end
 })
 
-Tab:CreateSlider({
-    Name = "ระยะห่าง X",
-    Range = {-10, 10},
-    Increment = 1,
-    Suffix = "หน่วย",
-    CurrentValue = 0,
-    Flag = "DistanceX",
+Tab:Slider({
+    Title = "ระยะห่าง X",
+    Min = -10,
+    Max = 10,
+    Value = 0,
     Callback = function(value)
         chaseSettings.distance = Vector3.new(value, chaseSettings.distance.Y, chaseSettings.distance.Z)
-    end,
+    end
 })
 
-Tab:CreateSlider({
-    Name = "ระยะห่าง Y",
-    Range = {-10, 10},
-    Increment = 1,
-    Suffix = "หน่วย",
-    CurrentValue = 2,
-    Flag = "DistanceY",
+Tab:Slider({
+    Title = "ระยะห่าง Y",
+    Min = -10,
+    Max = 10,
+    Value = 2,
     Callback = function(value)
         chaseSettings.distance = Vector3.new(chaseSettings.distance.X, value, chaseSettings.distance.Z)
-    end,
+    end
 })
 
-Tab:CreateSlider({
-    Name = "ระยะห่าง Z",
-    Range = {-10, 10},
-    Increment = 1,
-    Suffix = "หน่วย",
-    CurrentValue = 0,
-    Flag = "DistanceZ",
+Tab:Slider({
+    Title = "ระยะห่าง Z",
+    Min = -10,
+    Max = 10,
+    Value = 0,
     Callback = function(value)
         chaseSettings.distance = Vector3.new(chaseSettings.distance.X, chaseSettings.distance.Y, value)
-    end,
+    end
 })
 
-Tab:CreateSlider({
-    Name = "ดีเลย์การยิง",
-    Range = {0.1, 2},
-    Increment = 0.1,
-    Suffix = "วินาที",
-    CurrentValue = 0.5,
-    Flag = "CatchDelay",
+Tab:Slider({
+    Title = "ดีเลย์การยิง",
+    Desc = "วินาทีระหว่างการยิงแต่ละครั้ง",
+    Min = 0.1,
+    Max = 2,
+    Value = 0.5,
+    Precise = 1,
     Callback = function(value)
         chaseSettings.catchDelay = value
-    end,
+    end
 })
 
-Tab:CreateButton({
-    Name = "เช็คเลือดปลา",
+Tab:Button({
+    Title = "เช็คเลือดปลา",
     Callback = function()
         if not selectedFish then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ผิดพลาด",
-                Content = "กรุณาเลือกปลาก่อน!",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "กรุณาเลือกปลาก่อน!",
+                Time = 2
             })
             return
         end
         
         local fishModel = GetFishModel(selectedFish)
         if not fishModel then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ไม่พบปลา",
-                Content = "ปลา " .. selectedFish .. " หายไปแล้ว",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "ปลา " .. selectedFish .. " หายไปแล้ว",
+                Time = 2
             })
             return
         end
         
         local healthValue, isAlive = CheckFishHealth(fishModel)
-        Rayfield:Notify({
+        Window:Notify({
             Title = "เลือดปลา: " .. selectedFish,
-            Content = "HP: " .. healthValue .. " | " .. (isAlive and "ยังมีชีวิต" or "ตายแล้ว"),
-            Duration = 3,
-            Image = 4483362458
+            Desc = "HP: " .. healthValue .. " | " .. (isAlive and "ยังมีชีวิต" or "ตายแล้ว"),
+            Time = 3
         })
-    end,
+    end
 })
 
-Tab:CreateButton({
-    Name = "เริ่มติดตามปลา",
+Tab:Button({
+    Title = "เริ่มติดตามปลา",
     Callback = function()
         if not selectedFish then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ผิดพลาด",
-                Content = "กรุณาเลือกปลาก่อน!",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "กรุณาเลือกปลาก่อน!",
+                Time = 2
             })
             return
         end
         
         local fishModel = GetFishModel(selectedFish)
         if not fishModel then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ไม่พบปลา",
-                Content = "ปลา " .. selectedFish .. " หายไปแล้ว",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "ปลา " .. selectedFish .. " หายไปแล้ว",
+                Time = 2
             })
             return
         end
         
         local healthValue, isAlive = CheckFishHealth(fishModel)
         if not isAlive then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ปลาตายแล้ว",
-                Content = "ไม่สามารถติดตามปลาที่ตายแล้วได้",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "ไม่สามารถติดตามปลาที่ตายแล้วได้",
+                Time = 2
             })
             return
         end
@@ -540,56 +548,51 @@ Tab:CreateButton({
                 currentTween:Cancel()
                 currentTween = nil
             end
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "หยุดติดตาม",
-                Content = "หยุดติดตามปลาแล้ว",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "หยุดติดตามปลาแล้ว",
+                Time = 2
             })
         else
             isChasing = true
             local success = ChaseFish(fishModel)
             
             if success then
-                Rayfield:Notify({
+                Window:Notify({
                     Title = "เริ่มติดตาม",
-                    Content = "กำลังติดตามปลา: " .. selectedFish .. " (HP: " .. healthValue .. ")",
-                    Duration = 2,
-                    Image = 4483362458
+                    Desc = "กำลังติดตามปลา: " .. selectedFish .. " (HP: " .. healthValue .. ")",
+                    Time = 2
                 })
             else
                 isChasing = false
-                Rayfield:Notify({
+                Window:Notify({
                     Title = "ผิดพลาด",
-                    Content = "ไม่สามารถติดตามปลาได้",
-                    Duration = 2,
-                    Image = 4483362458
+                    Desc = "ไม่สามารถติดตามปลาได้",
+                    Time = 2
                 })
             end
         end
-    end,
+    end
 })
 
-Tab:CreateButton({
-    Name = "ยิงจนเลือดหมด",
+Tab:Button({
+    Title = "ยิงจนเลือดหมด",
     Callback = function()
         if not selectedFish then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ผิดพลาด",
-                Content = "กรุณาเลือกปลาก่อน!",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "กรุณาเลือกปลาก่อน!",
+                Time = 2
             })
             return
         end
         
         local fishModel = GetFishModel(selectedFish)
         if not fishModel then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ไม่พบปลา",
-                Content = "ปลา " .. selectedFish .. " หายไปแล้ว",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "ปลา " .. selectedFish .. " หายไปแล้ว",
+                Time = 2
             })
             return
         end
@@ -597,59 +600,54 @@ Tab:CreateButton({
         local healthValue, isAlive = CheckFishHealth(fishModel)
         
         if not isAlive then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ปลาตายแล้ว",
-                Content = "เลือดปลาเหลือ: " .. healthValue,
-                Duration = 2,
-                Image = 4483362458
+                Desc = "เลือดปลาเหลือ: " .. healthValue,
+                Time = 2
             })
             return
         end
         
-        Rayfield:Notify({
+        Window:Notify({
             Title = "เริ่มยิงปลา",
-            Content = "กำลังยิงปลา " .. selectedFish .. " (HP: " .. healthValue .. ")",
-            Duration = 2,
-            Image = 4483362458
+            Desc = "กำลังยิงปลา " .. selectedFish .. " (HP: " .. healthValue .. ")",
+            Time = 2
         })
         
-        task.spawn(function()
+        spawn(function()
             ShootFishUntilDead(selectedFish)
         end)
-    end,
+    end
 })
 
-Tab:CreateButton({
-    Name = "ติดตามและยิงจนตาย",
+Tab:Button({
+    Title = "ติดตามและยิงจนตาย",
     Callback = function()
         if not selectedFish then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ผิดพลาด",
-                Content = "กรุณาเลือกปลาก่อน!",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "กรุณาเลือกปลาก่อน!",
+                Time = 2
             })
             return
         end
         
         local fishModel = GetFishModel(selectedFish)
         if not fishModel then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ไม่พบปลา",
-                Content = "ปลา " .. selectedFish .. " หายไปแล้ว",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "ปลา " .. selectedFish .. " หายไปแล้ว",
+                Time = 2
             })
             return
         end
         
         local healthValue, isAlive = CheckFishHealth(fishModel)
         if not isAlive then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ปลาตายแล้ว",
-                Content = "ไม่สามารถติดตามปลาที่ตายแล้วได้",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "ไม่สามารถติดตามปลาที่ตายแล้วได้",
+                Time = 2
             })
             return
         end
@@ -658,16 +656,15 @@ Tab:CreateButton({
         local chaseSuccess = ChaseFish(fishModel)
         
         if chaseSuccess then
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "เริ่มติดตามและยิง",
-                Content = "กำลังติดตามและยิงปลา " .. selectedFish .. " (HP: " .. healthValue .. ")",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "กำลังติดตามและยิงปลา " .. selectedFish .. " (HP: " .. healthValue .. ")",
+                Time = 2
             })
             
-            task.wait(1.5)
+            wait(1.5)
             
-            task.spawn(function()
+            spawn(function()
                 ShootFishUntilDead(selectedFish)
                 
                 isChasing = false
@@ -676,70 +673,66 @@ Tab:CreateButton({
                     currentTween = nil
                 end
                 
-                Rayfield:Notify({
+                Window:Notify({
                     Title = "ยิงเสร็จสิ้น",
-                    Content = "ยิงปลา " .. selectedFish .. " จนเลือดหมด",
-                    Duration = 2,
-                    Image = 4483362458
+                    Desc = "ยิงปลา " .. selectedFish .. " จนเลือดหมด",
+                    Time = 2
                 })
             end)
         end
-    end,
+    end
 })
 
-Tab:CreateToggle({
-    Name = "Auto Oxygen",
-    CurrentValue = false,
-    Flag = "AutoOxygen",
-    Callback = function(value)
-        autoOxygenEnabled = value
-        if value then
+Tab:Toggle({
+    Title = "Auto Oxygen",
+    Desc = "กลับผิวน้ำเมื่อออกซิเจนต่ำ",
+    Value = false,
+    Callback = function(v)
+        autoOxygenEnabled = v
+        if v then
             StartOxygenMonitor()
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "เปิด Auto Oxygen",
-                Content = "จะกลับผิวน้ำเมื่อออกซิเจน < 10%",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "จะกลับผิวน้ำเมื่อออกซิเจน < 10%",
+                Time = 2
             })
         else
             if oxygenThread then
                 oxygenThread:Disconnect()
                 oxygenThread = nil
             end
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "ปิด Auto Oxygen",
-                Content = "ระบบ Auto Oxygen ถูกปิดแล้ว",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "ระบบ Auto Oxygen ถูกปิดแล้ว",
+                Time = 2
             })
         end
-    end,
+    end
 })
 
 local autoFarmEnabled = false
-Tab:CreateToggle({
-    Name = "Auto Farm (ยิงจนตาย)",
-    CurrentValue = false,
-    Flag = "AutoFarm",
-    Callback = function(value)
-        autoFarmEnabled = value
+Tab:Toggle({
+    Title = "Auto Farm (ยิงจนตาย)",
+    Desc = "ออโต้ติดตามและยิงปลาทั้งหมดจนเลือดหมด",
+    Value = false,
+    Callback = function(v)
+        autoFarmEnabled = v
         
-        if value then
+        if v then
             autoOxygenEnabled = true
             StartOxygenMonitor()
             
-            task.spawn(function()
+            spawn(function()
                 while autoFarmEnabled do
                     local fishList = GetFishList()
                     
                     if #fishList == 0 then
-                        Rayfield:Notify({
+                        Window:Notify({
                             Title = "ไม่พบปลา",
-                            Content = "กำลังรอให้ปลาโหลด...",
-                            Duration = 2,
-                            Image = 4483362458
+                            Desc = "กำลังรอให้ปลาโหลด...",
+                            Time = 2
                         })
-                        task.wait(5)
+                        wait(5)
                         goto continue
                     end
                     
@@ -747,7 +740,7 @@ Tab:CreateToggle({
                         if not autoFarmEnabled then break end
                         
                         if GetOxygenLevel() < 20 then
-                            task.wait(3)
+                            wait(3)
                         end
                         
                         selectedFish = fishName
@@ -765,7 +758,7 @@ Tab:CreateToggle({
                             isChasing = true
                             ChaseFish(fishModel)
                             
-                            task.wait(1.5)
+                            wait(1.5)
                             
                             ShootFishUntilDead(fishName)
                             
@@ -775,22 +768,21 @@ Tab:CreateToggle({
                                 currentTween = nil
                             end
                             
-                            task.wait(1)
+                            wait(1)
                         end
                         
                         ::next_fish::
                     end
                     
                     ::continue::
-                    task.wait(2)
+                    wait(2)
                 end
             end)
             
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "เริ่ม Auto Farm",
-                Content = "กำลังยิงปลาทั้งหมดจนเลือดหมด",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "กำลังยิงปลาทั้งหมดจนเลือดหมด",
+                Time = 2
             })
         else
             isChasing = false
@@ -807,18 +799,17 @@ Tab:CreateToggle({
                 oxygenThread = nil
             end
             
-            Rayfield:Notify({
+            Window:Notify({
                 Title = "หยุด Auto Farm",
-                Content = "หยุดการยิงปลาอัตโนมัติ",
-                Duration = 2,
-                Image = 4483362458
+                Desc = "หยุดการยิงปลาอัตโนมัติ",
+                Time = 2
             })
         end
-    end,
+    end
 })
 
-Tab:CreateButton({
-    Name = "หยุดทั้งหมด",
+Tab:Button({
+    Title = "หยุดทั้งหมด",
     Callback = function()
         isChasing = false
         isCatching = false
@@ -834,21 +825,20 @@ Tab:CreateButton({
             oxygenThread = nil
         end
         
-        Rayfield:Notify({
+        Window:Notify({
             Title = "หยุดทั้งหมด",
-            Content = "หยุดการติดตามและยิงปลาแล้ว",
-            Duration = 2,
-            Image = 4483362458
+            Desc = "หยุดการติดตามและยิงปลาแล้ว",
+            Time = 2
         })
-    end,
+    end
 })
 
-Rayfield:Notify({
+Window:Notify({
     Title = "ระบบพร้อมใช้งาน",
-    Content = "Smart Fishing System Loaded",
-    Duration = 2,
-    Image = 4483362458
+    Desc = "Smart Fishing System Loaded",
+    Time = 2
 })
 
 print("=== Smart Fishing System Started ===")
 print("Made by x2zu")
+print("UI Library loaded successfully")
