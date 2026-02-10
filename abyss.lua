@@ -1,4 +1,5 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+print("HI")
 
 local Window = Library:Window({
     Title = "x2zu [ Stellar ]",
@@ -17,26 +18,28 @@ local Window = Library:Window({
 
 local Tab = Window:Tab({Title = "Main", Icon = "star"})
 
-Tab:Section({Title = "Features"})
+Tab:Section({Title = "Fish Settings"})
 
--- ตัวแปรเก็บ ID ของปลา (ตัวอย่างจากรหัสที่คุณให้)
-local fishData = {
-    ["Example Fish 1"] = {
-        fishId = "df220f0e597b485ea9b05c5483554031",
-        rodId = "9888203f88e8482e9b38218c199affba",
-        baitId = "d73b2f8a88744c1e8cf4d83dcb969e32"
-    },
-    ["Example Fish 2"] = {
-        fishId = "OTHER_FISH_ID_HERE",
-        rodId = "OTHER_ROD_ID_HERE",
-        baitId = "OTHER_BAIT_ID_HERE"
-    }
+-- ตัวแปรระบบ
+local fishData = {}
+local selectedFish = nil
+local isChasing = false
+local currentTween = nil
+local autoOxygenEnabled = false
+local oxygenThread = nil
+
+-- ตั้งค่า
+local chaseSettings = {
+    speed = 30, -- หน่วยต่อวินาที
+    distance = Vector3.new(0, 2, 0), -- ระยะห่าง XYZ
+    autoCatch = false
 }
 
--- ฟังก์ชันดึงปลาจาก workspace และพยายามดึงข้อมูล ID
+-- ฟังก์ชันดึงปลาจาก workspace
 local function GetFishList()
     local fishList = {}
     local fishFolder = workspace:FindFirstChild("Game")
+    
     if fishFolder then
         fishFolder = fishFolder:FindFirstChild("Fish")
         if fishFolder then
@@ -44,22 +47,15 @@ local function GetFishList()
             if fishFolder then
                 for _, fish in ipairs(fishFolder:GetChildren()) do
                     if fish:IsA("Model") then
-                        -- พยายามดึง ID จากปลา (อาจมีเก็บอยู่ใน Attribute หรือ Value)
                         local fishName = fish.Name
-                        
-                        -- ตรวจสอบ Attribute สำหรับ ID
                         local fishId = fish:GetAttribute("FishId") or 
                                       fish:GetAttribute("ID") or 
-                                      fishName -- ถ้าไม่มีใช้ชื่อเป็นฐาน
+                                      fishName
                         
-                        -- เก็บข้อมูลปลา
-                        if not fishData[fishName] then
-                            fishData[fishName] = {
-                                fishId = fishId,
-                                rodId = "9888203f88e8482e9b38218c199affba", -- ตัวอย่างจากโค้ด
-                                baitId = "d73b2f8a88744c1e8cf4d83dcb969e32" -- ตัวอย่างจากโค้ด
-                            }
-                        end
+                        fishData[fishName] = {
+                            model = fish,
+                            fishId = fishId
+                        }
                         
                         table.insert(fishList, fishName)
                     end
@@ -68,72 +64,103 @@ local function GetFishList()
         end
     end
     
-    -- ถ้าไม่พบปลาจาก workspace ให้ใช้ตัวอย่าง
-    if #fishList == 0 then
-        for fishName, _ in pairs(fishData) do
-            table.insert(fishList, fishName)
-        end
-    end
-    
     return fishList
 end
 
--- ฟังก์ชันหา Model ปลาจากชื่อ
-local function FindFishByName(fishName)
-    local fishFolder = workspace:FindFirstChild("Game")
-    if fishFolder then
-        fishFolder = fishFolder:FindFirstChild("Fish")
-        if fishFolder then
-            fishFolder = fishFolder:FindFirstChild("client")
-            if fishFolder then
-                return fishFolder:FindFirstChild(fishName)
-            end
-        end
+-- ฟังก์ชัน Tween ติดตามปลา
+local function ChaseFish(fishModel)
+    if not fishModel or not fishModel:IsDescendantOf(workspace) then
+        return false
     end
-    return nil
-end
-
--- ฟังก์ชัน Tween ไปหาปลา
-local function TweenToPosition(position)
-    local humanoidRootPart = game.Players.LocalPlayer.Character and 
-                            game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return false end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     if not humanoidRootPart then return false end
     
-    local targetCFrame = CFrame.new(position)
+    -- หยุด Tween เก่า
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
     
-    -- สร้าง Tween
-    local tweenInfo = TweenInfo.new(
-        3, -- ระยะเวลา
-        Enum.EasingStyle.Linear,
-        Enum.EasingDirection.InOut,
-        0,
-        false,
-        0
-    )
+    -- ฟังก์ชัน Tween ติดตามต่อเนื่อง
+    local function updateChase()
+        while isChasing and fishModel and fishModel:IsDescendantOf(workspace) do
+            local fishPrimaryPart = fishModel.PrimaryPart or 
+                                   fishModel:FindFirstChild("Head") or 
+                                   fishModel:FindFirstChild("Torso") or 
+                                   fishModel:FindFirstChild("UpperTorso")
+            
+            if not fishPrimaryPart then break end
+            
+            -- คำนวณตำแหน่งปลายทาง (รวมระยะห่าง)
+            local targetPosition = fishPrimaryPart.Position + chaseSettings.distance
+            
+            -- คำนวณระยะทางและเวลา
+            local distance = (humanoidRootPart.Position - targetPosition).Magnitude
+            local duration = distance / chaseSettings.speed
+            
+            -- สร้าง Tween
+            local tweenInfo = TweenInfo.new(
+                math.max(0.1, duration), -- ไม่น้อยกว่า 0.1 วินาที
+                Enum.EasingStyle.Linear,
+                Enum.EasingDirection.InOut,
+                0,
+                false,
+                0
+            )
+            
+            currentTween = game:GetService("TweenService"):Create(
+                humanoidRootPart,
+                tweenInfo,
+                {CFrame = CFrame.new(targetPosition)}
+            )
+            
+            currentTween:Play()
+            
+            -- รอจน Tween เสร็จหรือปลาหายไป
+            local finished = false
+            local connection
+            connection = currentTween.Completed:Connect(function()
+                finished = true
+                if connection then
+                    connection:Disconnect()
+                end
+            end)
+            
+            local startTime = tick()
+            while not finished and (tick() - startTime) < 10 and isChasing and fishModel:IsDescendantOf(workspace) do
+                wait(0.1)
+            end
+            
+            if connection then
+                connection:Disconnect()
+            end
+        end
+        
+        -- ถ้าออกจาก loop ให้หยุด chase
+        isChasing = false
+        if currentTween then
+            currentTween:Cancel()
+            currentTween = nil
+        end
+    end
     
-    local tween = game:GetService("TweenService"):Create(
-        humanoidRootPart,
-        tweenInfo,
-        {CFrame = targetCFrame}
-    )
-    
-    tween:Play()
-    tween.Completed:Wait()
-    wait(0.5)
+    -- เริ่มติดตาม
+    spawn(updateChase)
     return true
 end
 
-local function TweenToFish(fishModel)
-    if not fishModel then return false end
-    
-    local fishPrimaryPart = fishModel.PrimaryPart or fishModel:FindFirstChild("Head") or 
-                           fishModel:FindFirstChild("Torso") or fishModel:FindFirstChild("UpperTorso")
-    
-    if not fishPrimaryPart then return false end
-    
-    local targetPosition = fishPrimaryPart.Position + Vector3.new(0, 3, 0)
-    return TweenToPosition(targetPosition)
+-- ฟังก์ชันจับปลา
+local function CatchFish(fishId)
+    local args = { fishId }
+    local success, result = pcall(function()
+        return game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("HarpoonService"):WaitForChild("RF"):WaitForChild("StartCatching"):InvokeServer(unpack(args))
+    end)
+    return success, result
 end
 
 -- ฟังก์ชันเช็ค Oxygen
@@ -148,7 +175,6 @@ local function GetOxygenLevel()
                 if canvasGroup then
                     local oxygenText = canvasGroup:FindFirstChild("Oxygen")
                     if oxygenText and oxygenText:IsA("TextLabel") then
-                        -- ดึงตัวเลขจาก Text (เช่น "100%" -> 100)
                         local text = oxygenText.Text
                         local number = tonumber(text:match("%d+"))
                         return number or 100
@@ -157,16 +183,13 @@ local function GetOxygenLevel()
             end
         end
     end
-    return 100 -- ถ้าไม่เจอให้ถือว่ามีเต็ม
+    return 100
 end
 
 -- ระบบ Auto Oxygen
-local autoOxygenEnabled = false
-local oxygenThread = nil
-
 local function StartOxygenMonitor()
     if oxygenThread then
-        oxygenThread = nil
+        oxygenThread:Disconnect()
     end
     
     oxygenThread = game:GetService("RunService").Heartbeat:Connect(function()
@@ -178,60 +201,63 @@ local function StartOxygenMonitor()
             return
         end
         
-        local oxygenLevel = GetOxygenLevel()
-        
-        if oxygenLevel < 10 then
-            -- แจ้งเตือน
-            Window:Notify({
-                Title = "ออกซิเจนต่ำ",
-                Desc = "ออกซิเจนเหลือ " .. oxygenLevel .. "% กำลังกลับผิวน้ำ",
-                Time = 3
-            })
+        if GetOxygenLevel() < 10 then
+            -- หยุด chase ปัจจุบัน
+            isChasing = false
+            if currentTween then
+                currentTween:Cancel()
+                currentTween = nil
+            end
             
-            -- Tween ไปยังตำแหน่งผิวน้ำ
-            local success = TweenToPosition(Vector3.new(-59, 4883, -49))
-            
-            if success then
-                -- รอจนออกซิเจนเต็ม
-                while autoOxygenEnabled and GetOxygenLevel() < 95 do
-                    wait(1)
-                end
-                
-                if autoOxygenEnabled then
-                    Window:Notify({
-                        Title = "ออกซิเจนเต็มแล้ว",
-                        Desc = "พร้อมดำน้ำอีกครั้ง!",
-                        Time = 3
-                    })
+            -- Tween ไปผิวน้ำ
+            local player = game.Players.LocalPlayer
+            local character = player.Character
+            if character then
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart then
+                    local targetPosition = Vector3.new(-59, 4883, -49)
+                    local distance = (humanoidRootPart.Position - targetPosition).Magnitude
+                    local duration = distance / chaseSettings.speed
+                    
+                    local tweenInfo = TweenInfo.new(
+                        math.max(0.1, duration),
+                        Enum.EasingStyle.Linear,
+                        Enum.EasingDirection.InOut,
+                        0,
+                        false,
+                        0
+                    )
+                    
+                    local surfaceTween = game:GetService("TweenService"):Create(
+                        humanoidRootPart,
+                        tweenInfo,
+                        {CFrame = CFrame.new(targetPosition)}
+                    )
+                    
+                    surfaceTween:Play()
+                    surfaceTween.Completed:Wait()
+                    
+                    -- รอจนออกซิเจนเต็ม
+                    while autoOxygenEnabled and GetOxygenLevel() < 95 do
+                        wait(1)
+                    end
                 end
             end
         end
     end)
 end
 
--- ตัวแปรเก็บปลาที่เลือก
-local selectedFish = nil
-local fishDropdown = nil
-
--- สร้าง Dropdown
-fishDropdown = Tab:Dropdown({
+-- UI Elements
+local fishDropdown = Tab:Dropdown({
     Title = "เลือกปลา",
     List = GetFishList(),
     Value = "",
     Callback = function(choice)
         selectedFish = choice
-        print("เลือกปลา:", choice)
-        
-        -- แสดงข้อมูลปลาที่เลือก
-        if fishData[choice] then
-            print("Fish ID:", fishData[choice].fishId)
-            print("Rod ID:", fishData[choice].rodId)
-            print("Bait ID:", fishData[choice].baitId)
-        end
     end
 })
 
--- ปุ่มรีเฟรชลิสต์ปลา
+-- ปุ่มรีเฟรช
 Tab:Button({
     Title = "รีเฟรชลิสต์ปลา",
     Callback = function()
@@ -239,49 +265,103 @@ Tab:Button({
         Window:Notify({
             Title = "อัพเดทแล้ว",
             Desc = "อัพเดทลิสต์ปลาสำเร็จ!",
-            Time = 3
+            Time = 2
         })
     end
 })
 
--- ปุ่มไปหาปลา
+-- Slider ความเร็ว
+Tab:Slider({
+    Title = "ความเร็ว Tween",
+    Desc = "ความเร็วในการเคลื่อนที่ (หน่วย/วินาที)",
+    Min = 10,
+    Max = 100,
+    Value = 30,
+    Callback = function(value)
+        chaseSettings.speed = value
+    end
+})
+
+-- Slider ระยะห่าง X
+Tab:Slider({
+    Title = "ระยะห่าง X",
+    Desc = "ระยะห่างแกน X จากปลา",
+    Min = -10,
+    Max = 10,
+    Value = 0,
+    Callback = function(value)
+        chaseSettings.distance = Vector3.new(value, chaseSettings.distance.Y, chaseSettings.distance.Z)
+    end
+})
+
+-- Slider ระยะห่าง Y
+Tab:Slider({
+    Title = "ระยะห่าง Y",
+    Desc = "ระยะห่างแกน Y จากปลา",
+    Min = -10,
+    Max = 10,
+    Value = 2,
+    Callback = function(value)
+        chaseSettings.distance = Vector3.new(chaseSettings.distance.X, value, chaseSettings.distance.Z)
+    end
+})
+
+-- Slider ระยะห่าง Z
+Tab:Slider({
+    Title = "ระยะห่าง Z",
+    Desc = "ระยะห่างแกน Z จากปลา",
+    Min = -10,
+    Max = 10,
+    Value = 0,
+    Callback = function(value)
+        chaseSettings.distance = Vector3.new(chaseSettings.distance.X, chaseSettings.distance.Y, value)
+    end
+})
+
+-- ปุ่มเริ่มติดตาม
 Tab:Button({
-    Title = "ไปหาปลา",
-    Desc = "Tween ไปหาปลาที่เลือก",
+    Title = "เริ่มติดตามปลา",
     Callback = function()
-        if not selectedFish or selectedFish == "" then
+        if not selectedFish or not fishData[selectedFish] then
             Window:Notify({
                 Title = "ผิดพลาด",
                 Desc = "กรุณาเลือกปลาก่อน!",
-                Time = 3
+                Time = 2
             })
             return
         end
         
-        local fishModel = FindFishByName(selectedFish)
-        if not fishModel then
+        local fishModel = fishData[selectedFish].model
+        
+        if isChasing then
+            isChasing = false
+            if currentTween then
+                currentTween:Cancel()
+                currentTween = nil
+            end
             Window:Notify({
-                Title = "ผิดพลาด",
-                Desc = "ไม่พบปลา: " .. selectedFish,
-                Time = 3
+                Title = "หยุดติดตาม",
+                Desc = "หยุดติดตามปลาแล้ว",
+                Time = 2
             })
-            return
-        end
-        
-        Window:Notify({
-            Title = "กำลังเคลื่อนที่",
-            Desc = "กำลังไปหาปลา: " .. selectedFish,
-            Time = 3
-        })
-        
-        local success = TweenToFish(fishModel)
-        
-        if success then
-            Window:Notify({
-                Title = "สำเร็จ",
-                Desc = "ถึงตำแหน่งปลาแล้ว: " .. selectedFish,
-                Time = 3
-            })
+        else
+            isChasing = true
+            local success = ChaseFish(fishModel)
+            
+            if success then
+                Window:Notify({
+                    Title = "เริ่มติดตาม",
+                    Desc = "กำลังติดตามปลา: " .. selectedFish,
+                    Time = 2
+                })
+            else
+                isChasing = false
+                Window:Notify({
+                    Title = "ผิดพลาด",
+                    Desc = "ไม่พบปลาหรือปลาหายไป",
+                    Time = 2
+                })
+            end
         end
     end
 })
@@ -289,108 +369,74 @@ Tab:Button({
 -- ปุ่มจับปลา
 Tab:Button({
     Title = "จับปลา",
-    Desc = "ใช้รีโมทจับปลาที่เลือก",
     Callback = function()
-        if not selectedFish or selectedFish == "" then
+        if not selectedFish or not fishData[selectedFish] then
             Window:Notify({
                 Title = "ผิดพลาด",
                 Desc = "กรุณาเลือกปลาก่อน!",
-                Time = 3
+                Time = 2
             })
             return
         end
         
-        -- ดึงข้อมูลปลาจาก fishData
-        local data = fishData[selectedFish]
-        if not data then
-            Window:Notify({
-                Title = "ผิดพลาด",
-                Desc = "ไม่พบข้อมูล ID สำหรับปลา: " .. selectedFish,
-                Time = 3
-            })
-            return
-        end
-        
-        -- ใช้รีโมทจับปลาตามโค้ดที่คุณให้มาใหม่
-        local args = {
-            {
-                ["1"] = "1", -- Slot number
-                ["3"] = "", -- ชื่อ (ว่าง)
-                ["2"] = data.rodId, -- Rod ID
-                ["5"] = data.baitId, -- Bait ID
-                ["4"] = data.fishId -- Fish ID
-            }
-        }
-        
-        Window:Notify({
-            Title = "กำลังจับปลา",
-            Desc = "กำลังจับปลา: " .. selectedFish,
-            Time = 3
-        })
-        
-        local success, errorMsg = pcall(function()
-            game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args))
-        end)
+        local fishId = fishData[selectedFish].fishId
+        local success, result = CatchFish(fishId)
         
         if success then
             Window:Notify({
                 Title = "สำเร็จ",
-                Desc = "จับปลาสำเร็จ: " .. selectedFish,
-                Time = 3
+                Desc = "จับปลา: " .. selectedFish,
+                Time = 2
             })
-            
-            -- อัพเดท ID (ถ้ามีการเปลี่ยนแปลง)
-            -- ตัวอย่าง: อ่าน ID ใหม่จาก response หรือ attribute
         else
             Window:Notify({
                 Title = "ข้อผิดพลาด",
-                Desc = "ไม่สามารถจับปลาได้: " .. tostring(errorMsg),
-                Time = 5
+                Desc = "ไม่สามารถจับปลาได้",
+                Time = 2
             })
         end
     end
 })
 
--- Toggle สำหรับ Auto Oxygen
+-- Toggle Auto Oxygen
 Tab:Toggle({
-    Title = "Auto Oxygen Recovery",
+    Title = "Auto Oxygen",
     Desc = "กลับผิวน้ำเมื่อออกซิเจนต่ำ",
     Value = false,
     Callback = function(v)
         autoOxygenEnabled = v
-        
         if v then
-            Window:Notify({
-                Title = "เปิดใช้งาน Auto Oxygen",
-                Desc = "ระบบจะพาคุณกลับผิวน้ำเมื่อออกซิเจนต่ำกว่า 10%",
-                Time = 3
-            })
             StartOxygenMonitor()
-        else
             Window:Notify({
-                Title = "ปิดใช้งาน Auto Oxygen",
-                Desc = "ระบบ Auto Oxygen ถูกปิดแล้ว",
-                Time = 3
+                Title = "เปิด Auto Oxygen",
+                Desc = "จะกลับผิวน้ำเมื่อออกซิเจน < 10%",
+                Time = 2
             })
+        else
             if oxygenThread then
                 oxygenThread:Disconnect()
                 oxygenThread = nil
             end
+            Window:Notify({
+                Title = "ปิด Auto Oxygen",
+                Desc = "ระบบ Auto Oxygen ถูกปิดแล้ว",
+                Time = 2
+            })
         end
     end
 })
 
--- Toggle สำหรับ Auto Farm
+-- Toggle Auto Farm
 local autoFarmEnabled = false
-local autoFarmToggle = Tab:Toggle({
-    Title = "Auto Farm ปลา",
-    Desc = "ออโต้จับปลาทั้งหมด + Auto Oxygen",
+Tab:Toggle({
+    Title = "Auto Farm",
+    Desc = "ออโต้ติดตามและจับปลาทั้งหมด",
     Value = false,
     Callback = function(v)
         autoFarmEnabled = v
         
         if v then
-            -- เปิด Auto Oxygen อัตโนมัติ
+            -- เปิด Auto Oxygen
             autoOxygenEnabled = true
             StartOxygenMonitor()
             
@@ -402,41 +448,38 @@ local autoFarmToggle = Tab:Toggle({
                     for _, fishName in ipairs(fishList) do
                         if not autoFarmEnabled then break end
                         
-                        selectedFish = fishName
-                        local fishModel = FindFishByName(fishName)
-                        local data = fishData[fishName]
+                        -- เช็คออกซิเจน
+                        if GetOxygenLevel() < 20 then
+                            wait(3)
+                        end
                         
-                        if fishModel and data then
-                            -- ตรวจสอบออกซิเจนก่อน
-                            if GetOxygenLevel() < 20 then
-                                Window:Notify({
-                                    Title = "ออกซิเจนต่ำ",
-                                    Desc = "รอออกซิเจนเพิ่มขึ้นก่อนจับปลา...",
-                                    Time = 3
-                                })
-                                wait(5)
+                        selectedFish = fishName
+                        local fishInfo = fishData[fishName]
+                        
+                        if fishInfo and fishInfo.model then
+                            -- เริ่มติดตาม
+                            isChasing = true
+                            ChaseFish(fishInfo.model)
+                            
+                            -- รอให้เข้าใกล้ปลา
+                            wait(2)
+                            
+                            -- ลองจับปลา
+                            if fishInfo.model:IsDescendantOf(workspace) then
+                                local catchSuccess, _ = CatchFish(fishInfo.fishId)
+                                if catchSuccess then
+                                    wait(1) -- รอหลังจับสำเร็จ
+                                end
                             end
                             
-                            -- Tween ไปหาปลา
-                            TweenToFish(fishModel)
-                            wait(0.5)
+                            -- หยุดติดตาม
+                            isChasing = false
+                            if currentTween then
+                                currentTween:Cancel()
+                                currentTween = nil
+                            end
                             
-                            -- จับปลา
-                            local args = {
-                                {
-                                    ["1"] = "1",
-                                    ["3"] = "",
-                                    ["2"] = data.rodId,
-                                    ["5"] = data.baitId,
-                                    ["4"] = data.fishId
-                                }
-                            }
-                            
-                            pcall(function()
-                                game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("BackpackService"):WaitForChild("RF"):WaitForChild("SaveHotbar"):InvokeServer(unpack(args))
-                            end)
-                            
-                            wait(3) -- รอระหว่างจับปลาแต่ละตัว
+                            wait(1) -- รอระหว่างปลา
                         end
                     end
                     
@@ -446,12 +489,19 @@ local autoFarmToggle = Tab:Toggle({
             
             Window:Notify({
                 Title = "เริ่ม Auto Farm",
-                Desc = "กำลังจับปลาอัตโนมัติ + Auto Oxygen",
-                Time = 3
+                Desc = "กำลังจับปลาอัตโนมัติ",
+                Time = 2
             })
         else
-            -- ปิด Auto Oxygen
+            -- หยุด Auto Farm
+            isChasing = false
             autoOxygenEnabled = false
+            
+            if currentTween then
+                currentTween:Cancel()
+                currentTween = nil
+            end
+            
             if oxygenThread then
                 oxygenThread:Disconnect()
                 oxygenThread = nil
@@ -459,89 +509,15 @@ local autoFarmToggle = Tab:Toggle({
             
             Window:Notify({
                 Title = "หยุด Auto Farm",
-                Desc = "หยุดการจับปลาอัตโนมัติแล้ว",
-                Time = 3
+                Desc = "หยุดการจับปลาอัตโนมัติ",
+                Time = 2
             })
         end
-    end
-})
-
--- ปุ่มไปผิวน้ำ (Manual)
-Tab:Button({
-    Title = "ไปผิวน้ำ",
-    Desc = "Tween ไปยังตำแหน่งผิวน้ำ",
-    Callback = function()
-        Window:Notify({
-            Title = "กำลังไปผิวน้ำ",
-            Desc = "ตำแหน่ง: (-59, 4883, -49)",
-            Time = 3
-        })
-        
-        local success = TweenToPosition(Vector3.new(-59, 4883, -49))
-        
-        if success then
-            Window:Notify({
-                Title = "ถึงผิวน้ำแล้ว",
-                Desc = "รอออกซิเจนเพิ่มขึ้น...",
-                Time = 3
-            })
-        end
-    end
-})
-
--- แสดง Oxygen Level ปัจจุบัน
-Tab:Button({
-    Title = "ตรวจสอบออกซิเจน",
-    Desc = "แสดงระดับออกซิเจนปัจจุบัน",
-    Callback = function()
-        local oxygenLevel = GetOxygenLevel()
-        Window:Notify({
-            Title = "ระดับออกซิเจน",
-            Desc = "ออกซิเจนปัจจุบัน: " .. oxygenLevel .. "%",
-            Time = 3
-        })
     end
 })
 
 Window:Notify({
-    Title = "UI โหลดแล้ว",
-    Desc = "ระบบจับปลาและ Auto Oxygen พร้อมใช้งาน!",
-    Time = 3
-})
-
--- ฟังก์ชันช่วยในการดึง ID จริงจากปลา (สำหรับ Development)
-local function DebugFishInfo(fishName)
-    local fishModel = FindFishByName(fishName)
-    if fishModel then
-        print("=== Debug Info for " .. fishName .. " ===")
-        
-        -- ตรวจสอบ Attribute ทั้งหมด
-        for _, attr in pairs(fishModel:GetAttributes()) do
-            print("Attribute:", _, "=", attr)
-        end
-        
-        -- ตรวจสอบ Value
-        for _, child in pairs(fishModel:GetDescendants()) do
-            if child:IsA("StringValue") or child:IsA("IntValue") or child:IsA("ObjectValue") then
-                print("Value:", child.Name, "=", child.Value)
-            end
-        end
-    else
-        print("ไม่พบปลา:", fishName)
-    end
-end
-
--- ปุ่ม Debug สำหรับ Developer
-Tab:Button({
-    Title = "[Debug] ข้อมูลปลาที่เลือก",
-    Callback = function()
-        if selectedFish then
-            DebugFishInfo(selectedFish)
-            Window:Notify({
-                Title = "Debug Info",
-                Desc = "ตรวจสอบข้อมูลปลาใน Console (F9)",
-                Time = 3
-            })
-        end
-    end
+    Title = "ระบบพร้อมใช้งาน",
+    Desc = "Tween Chase System Loaded",
+    Time = 2
 })
