@@ -1,5 +1,5 @@
 -- ================================
--- X2ZU UI + Auto Chest Farm (Tween + Remote + Oxygen + Noclip)
+-- X2ZU UI + Auto Chest Farm
 -- ================================
 
 -- Load UI Library
@@ -10,7 +10,6 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 -- Main Window
 local Window = Library:Window({
@@ -31,7 +30,7 @@ local Window = Library:Window({
 -- Main Tab
 local Tab = Window:Tab({Title = "Main", Icon = "star"})
 
--- ========== CHEST FARM SECTION (TWEEN + REMOTE) ==========
+-- ========== CHEST FARM SECTION ==========
 Tab:Section({Title = "Chest Farm"})
 
 -- Variables
@@ -40,6 +39,7 @@ local AutoChestEnabled = false
 local AutoChestCoroutine = nil
 local NoclipEnabled = false
 local NoclipConnection = nil
+local TweenSpeed = 100  -- default speed
 
 -- Remote reference
 local UnlockChestRemote = ReplicatedStorage:WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ChestService"):WaitForChild("RF"):WaitForChild("UnlockChest")
@@ -55,14 +55,14 @@ local function getCharacter()
     return Players.LocalPlayer.Character
 end
 
--- Tween to target position at speed 100
+-- Tween to target position at current TweenSpeed
 local function tweenToPosition(targetPosition)
     local character = getCharacter()
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
 
     local distance = (targetPosition - rootPart.Position).Magnitude
-    local duration = distance / 100
+    local duration = distance / TweenSpeed  -- use slider value
 
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     local goal = {CFrame = CFrame.new(targetPosition)}
@@ -105,11 +105,10 @@ local function getOxygenPercent()
         
         if oxygenLabel and oxygenLabel:IsA("TextLabel") then
             local text = oxygenLabel.Text
-            -- Extract number from text (e.g., "75%", "50")
             local num = tonumber(text:match("%d+"))
             return num or 100
         end
-        return 100 -- default if not found
+        return 100
     end)
     return success and result or 100
 end
@@ -119,16 +118,11 @@ local function checkAndRefillOxygen()
     local oxygen = getOxygenPercent()
     if oxygen < 10 then
         Window:Notify({Title = "Oxygen Low", Desc = "Refilling oxygen...", Time = 2})
-        
-        -- Tween to oxygen station
         tweenToPosition(OXYGEN_REFILL_POS)
-        
-        -- Wait until oxygen is full (above 90%)
         repeat
             wait(0.5)
             oxygen = getOxygenPercent()
         until oxygen >= 90 or not AutoChestEnabled
-        
         Window:Notify({Title = "Oxygen Full", Desc = "Resuming chest collection", Time = 2})
         wait(0.3)
     end
@@ -158,7 +152,6 @@ local function collectChests(tierName)
         return
     end
 
-    -- Collect numbered chests
     local chests = {}
     for _, child in ipairs(tierFolder:GetChildren()) do
         if tonumber(child.Name) then
@@ -166,7 +159,6 @@ local function collectChests(tierName)
         end
     end
 
-    -- Sort by number
     table.sort(chests, function(a, b)
         return tonumber(a.Name) < tonumber(b.Name)
     end)
@@ -176,11 +168,9 @@ local function collectChests(tierName)
     for _, chest in ipairs(chests) do
         if not AutoChestEnabled then break end
 
-        -- Check oxygen before moving to next chest
         checkAndRefillOxygen()
         if not AutoChestEnabled then break end
 
-        -- 1. Get target position (prefer RewardPart, fallback to chest position)
         local targetPosition = nil
         local rewardPart = chest:FindFirstChild("Chest") and chest.Chest:FindFirstChild("Main") and chest.Chest.Main:FindFirstChild("BottomChest") and chest.Chest.Main.BottomChest:FindFirstChild("RewardPart")
         if rewardPart then
@@ -194,7 +184,6 @@ local function collectChests(tierName)
             continue
         end
 
-        -- 2. Tween to chest (noclip is already enabled globally)
         local tweenSuccess, tweenErr = pcall(function()
             tweenToPosition(targetPosition)
         end)
@@ -203,10 +192,8 @@ local function collectChests(tierName)
             continue
         end
 
-        -- 3. Wait a tiny moment to ensure proximity
         wait(0.2)
 
-        -- 4. Invoke remote to unlock chest
         local chestNumber = chest.Name
         local remoteSuccess, remoteResult = pcall(function()
             return UnlockChestRemote:InvokeServer(tierName, chestNumber)
@@ -218,7 +205,6 @@ local function collectChests(tierName)
             warn(string.format("Remote failed for %s - %s: %s", tierName, chestNumber, remoteResult))
         end
 
-        -- 5. Small delay between chests
         wait(0.3)
     end
 
@@ -241,6 +227,19 @@ Tab:Dropdown({
     end
 })
 
+-- Slider: Tween Speed
+Tab:Slider({
+    Title = "Tween Speed",
+    Desc = "Movement speed (studs per second)",
+    Min = 50,
+    Max = 500,
+    Value = 100,
+    Callback = function(v)
+        TweenSpeed = v
+        print("Tween speed set to:", TweenSpeed)
+    end
+})
+
 -- Toggle: Auto Chest
 Tab:Toggle({
     Title = "Auto Chest",
@@ -248,9 +247,9 @@ Tab:Toggle({
     Value = false,
     Callback = function(v)
         if v then
-            stopAutoChest() -- stop any previous loop
+            stopAutoChest()
             AutoChestEnabled = true
-            enableNoclip()   -- enable noclip while auto chest is on
+            enableNoclip()
             AutoChestCoroutine = coroutine.create(function()
                 collectChests(SelectedTier)
             end)
@@ -268,4 +267,4 @@ Window:Notify({
     Time = 3
 })
 
-print("✅ Auto Chest Farm (Tween + Remote + Oxygen + Noclip) ready!")
+print("✅ Auto Chest Farm ready! (Speed: " .. TweenSpeed .. ")")
