@@ -1,5 +1,5 @@
 -- ================================
--- X2ZU UI + Auto Chest Farm
+-- X2ZU UI + Auto Chest Farm (Tween + Remote + Oxygen + Noclip + Speed Slider)
 -- ================================
 
 -- Load UI Library
@@ -62,7 +62,7 @@ local function tweenToPosition(targetPosition)
     if not rootPart then return end
 
     local distance = (targetPosition - rootPart.Position).Magnitude
-    local duration = distance / TweenSpeed  -- use slider value
+    local duration = distance / TweenSpeed
 
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     local goal = {CFrame = CFrame.new(targetPosition)}
@@ -95,16 +95,22 @@ local function disableNoclip()
     end
 end
 
--- Get current oxygen percentage from GUI
+-- Get current oxygen percentage from GUI (using ContentText)
 local function getOxygenPercent()
     local success, result = pcall(function()
-        local oxygenLabel = Players.LocalPlayer.PlayerGui:FindFirstChild("Main")
-            and Players.LocalPlayer.PlayerGui.Main:FindFirstChild("Oxygen")
-            and Players.LocalPlayer.PlayerGui.Main.Oxygen:FindFirstChild("CanvasGroup")
-            and Players.LocalPlayer.PlayerGui.Main.Oxygen.CanvasGroup:FindFirstChild("Oxygen")
+        -- Navigate to the Oxygen TextLabel
+        local mainGui = Players.LocalPlayer.PlayerGui:FindFirstChild("Main")
+        if not mainGui then return 100 end
+        local oxygenFrame = mainGui:FindFirstChild("Oxygen")
+        if not oxygenFrame then return 100 end
+        local canvasGroup = oxygenFrame:FindFirstChild("CanvasGroup")
+        if not canvasGroup then return 100 end
+        local oxygenLabel = canvasGroup:FindFirstChild("Oxygen")
+        if not oxygenLabel then return 100 end
         
-        if oxygenLabel and oxygenLabel:IsA("TextLabel") then
-            local text = oxygenLabel.Text
+        -- Use ContentText property (as specified by user)
+        if oxygenLabel:IsA("TextLabel") or oxygenLabel:IsA("TextButton") then
+            local text = oxygenLabel.ContentText or oxygenLabel.Text
             local num = tonumber(text:match("%d+"))
             return num or 100
         end
@@ -116,14 +122,25 @@ end
 -- Check oxygen and refill if below 10%
 local function checkAndRefillOxygen()
     local oxygen = getOxygenPercent()
+    -- For debugging: print oxygen value
+    print("Oxygen level:", oxygen, "%")
+    
     if oxygen < 10 then
-        Window:Notify({Title = "Oxygen Low", Desc = "Refilling oxygen...", Time = 2})
+        Window:Notify({Title = "Oxygen Low", Desc = "Refilling oxygen... (" .. oxygen .. "%)", Time = 2})
+        
+        -- Tween to oxygen station
         tweenToPosition(OXYGEN_REFILL_POS)
+        
+        -- Wait until oxygen is above 90% (or loop stopped)
         repeat
             wait(0.5)
             oxygen = getOxygenPercent()
+            print("Oxygen refilling...", oxygen, "%")
         until oxygen >= 90 or not AutoChestEnabled
-        Window:Notify({Title = "Oxygen Full", Desc = "Resuming chest collection", Time = 2})
+        
+        if AutoChestEnabled then
+            Window:Notify({Title = "Oxygen Full", Desc = "Resuming chest collection", Time = 2})
+        end
         wait(0.3)
     end
 end
@@ -263,7 +280,7 @@ Tab:Toggle({
 -- ========== NOTIFICATION ==========
 Window:Notify({
     Title = "UI Loaded",
-    Desc = "Main UI loaded successfully!",
+    Desc = "Main UI loaded successfully! (Oxygen using ContentText)",
     Time = 3
 })
 
