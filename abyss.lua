@@ -1,5 +1,5 @@
 -- ================================
--- X2ZU UI + Auto Chest Farm Script
+-- X2ZU UI + Auto Chest Farm (Remote Version)
 -- ================================
 
 -- Load UI Library
@@ -24,7 +24,7 @@ local Window = Library:Window({
 -- Create Main Tab
 local Tab = Window:Tab({Title = "Main", Icon = "star"})
 
--- ========== EXAMPLE SECTION (keep for reference) ==========
+-- ========== EXAMPLE SECTION (optional) ==========
 Tab:Section({Title = "Features"})
 
 Tab:Toggle({
@@ -45,57 +45,29 @@ Tab:Dropdown({
     end
 })
 
--- ========== CHEST FARM SECTION ==========
+-- ========== CHEST FARM SECTION (REMOTE) ==========
 Tab:Section({Title = "Chest Farm"})
-
--- Services
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local Player = Players.LocalPlayer
 
 -- Variables
 local SelectedTier = "Tier 1"   -- Default tier
 local AutoChestEnabled = false
 local AutoChestCoroutine = nil
 
--- Helper: Get character safely
-local function getCharacter()
-    if not Player.Character then
-        Player.CharacterAdded:Wait()
-    end
-    return Player.Character
-end
-
--- Tween to position at 100 studs/sec
-local function tweenToPosition(targetPosition)
-    local Character = getCharacter()
-    local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
-    if not HumanoidRootPart then return end
-
-    local distance = (targetPosition - HumanoidRootPart.Position).Magnitude
-    local duration = distance / 100   -- speed = 100 studs/sec
-
-    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    local goal = {CFrame = CFrame.new(targetPosition)}
-    local tween = TweenService:Create(HumanoidRootPart, tweenInfo, goal)
-    
-    tween:Play()
-    tween.Completed:Wait()
-end
+-- Remote function reference
+local UnlockChestRemote = game:GetService("ReplicatedStorage"):WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ChestService"):WaitForChild("RF"):WaitForChild("UnlockChest")
 
 -- Stop auto chest loop
 local function stopAutoChest()
     AutoChestEnabled = false
     if AutoChestCoroutine then
-        coroutine.close(AutoChestCoroutine)   -- if Luau supports; otherwise just flag
+        coroutine.close(AutoChestCoroutine)
         AutoChestCoroutine = nil
     end
 end
 
--- Main collection function
+-- Main collection function using remote
 local function collectChests(tierName)
-    -- Check chest folder
+    -- Check chest folder exists
     local chestsFolder = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Chests")
     if not chestsFolder then
         Window:Notify({Title = "Error", Desc = "Chests folder not found!", Time = 3})
@@ -108,7 +80,7 @@ local function collectChests(tierName)
         return
     end
 
-    -- Collect numbered chests (1,2,3...)
+    -- Get all numbered chest children
     local chests = {}
     for _, child in ipairs(tierFolder:GetChildren()) do
         if tonumber(child.Name) then
@@ -121,33 +93,26 @@ local function collectChests(tierName)
         return tonumber(a.Name) < tonumber(b.Name)
     end)
 
-    Window:Notify({Title = "Auto Chest", Desc = "Starting " .. tierName .. " collection...", Time = 3})
+    Window:Notify({Title = "Auto Chest", Desc = "Starting " .. tierName .. " collection via remote...", Time = 3})
 
     for _, chest in ipairs(chests) do
         if not AutoChestEnabled then break end
 
-        -- Find RewardPart and Prompt
-        local rewardPart = chest:FindFirstChild("Chest") and chest.Chest:FindFirstChild("Main") and chest.Chest.Main:FindFirstChild("BottomChest") and chest.Chest.Main.BottomChest:FindFirstChild("RewardPart")
-        if not rewardPart then continue end
+        -- Chest number as string (e.g., "1", "2", ...)
+        local chestNumber = chest.Name
 
-        local prompt = rewardPart:FindFirstChild("Prompt")
-        if not prompt or not prompt:IsA("ProximityPrompt") then continue end
-
-        -- Tween to chest
-        local success, err = pcall(function()
-            tweenToPosition(rewardPart.Position)
+        -- Invoke remote with tier name and chest number
+        local success, result = pcall(function()
+            return UnlockChestRemote:InvokeServer(tierName, chestNumber)
         end)
-        if not success then
-            warn("Tween failed:", err)
-            continue
+
+        if success then
+            print(string.format("Unlocked %s - %s", tierName, chestNumber))
+        else
+            warn(string.format("Failed to unlock %s - %s: %s", tierName, chestNumber, result))
         end
 
-        -- Fire prompt
-        pcall(function()
-            prompt:Fire()
-        end)
-
-        wait(0.3)   -- small delay
+        wait(0.2)   -- small delay to avoid flooding
     end
 
     if AutoChestEnabled then
@@ -171,7 +136,7 @@ Tab:Dropdown({
 -- Toggle: Auto Chest
 Tab:Toggle({
     Title = "Auto Chest",
-    Desc = "Automatically collect all chests in selected tier",
+    Desc = "Automatically unlock all chests in selected tier using remote",
     Value = false,
     Callback = function(v)
         if v then
@@ -196,4 +161,4 @@ Window:Notify({
     Time = 3
 })
 
-print("✅ Auto Chest Farm ready! Select a tier and enable the toggle.")
+print("✅ Auto Chest Farm (Remote) ready! Select a tier and enable the toggle.")
