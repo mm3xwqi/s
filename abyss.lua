@@ -1,5 +1,6 @@
 -- ================================
--- X2ZU UI + Auto Chest Farm (Full Feature + Skip Opened Chests + Vehicle Noclip)
+-- X2ZU UI + Auto Chest Farm
+-- (Full Feature + Skip Opened Chests + Vehicle Noclip + Tubes Support)
 -- ================================
 
 -- Load UI Library
@@ -79,7 +80,7 @@ local function tweenToPosition(targetPosition)
     tween.Completed:Wait()
 end
 
--- ========== NOCLIP (Character + Vehicle) ==========
+-- ========== NOCLIP (Character + Vehicle – Supports boats in workspace.Game.Tubes) ==========
 local CurrentVehicle = nil
 
 local function enableNoclip()
@@ -99,19 +100,17 @@ local function enableNoclip()
             end
         end
         
-        -- Noclip vehicle if seated
+        -- Check if player is seated
         local humanoid = character:FindFirstChildOfClass("Humanoid")
         local seat = character:FindFirstChildOfClass("VehicleSeat") or character:FindFirstChildOfClass("Seat")
         local vehicleModel = nil
         
         if seat and humanoid and seat.Occupant == humanoid then
-            -- Find the actual vehicle model (parent that is a Model and not the character)
+            -- Climb up from the seat until we hit workspace, the character itself, or a reasonable container
             local parent = seat.Parent
-            while parent and parent ~= workspace do
-                if parent:IsA("Model") and parent ~= character then
-                    vehicleModel = parent
-                    break
-                end
+            while parent and parent ~= workspace and parent ~= character do
+                -- Accept any container (Model, Folder, etc.) that isn't the character
+                vehicleModel = parent
                 parent = parent.Parent
             end
         end
@@ -119,11 +118,12 @@ local function enableNoclip()
         -- Update current vehicle reference
         if vehicleModel and vehicleModel ~= CurrentVehicle then
             CurrentVehicle = vehicleModel
+            print("🚤 Vehicle detected:", CurrentVehicle:GetFullName())
         elseif not vehicleModel then
             CurrentVehicle = nil
         end
         
-        -- Apply noclip to current vehicle
+        -- Apply noclip to current vehicle (works even if it's in workspace.Game.Tubes as a Folder)
         if CurrentVehicle then
             for _, part in ipairs(CurrentVehicle:GetDescendants()) do
                 if part:IsA("BasePart") then
@@ -348,7 +348,7 @@ Tab:Slider({
 
 Tab:Toggle({
     Title = "Auto Chest",
-    Desc = "Start/Stop chest collection (with vehicle noclip)",
+    Desc = "Start/Stop chest collection (with vehicle noclip – works for boats in Tubes)",
     Value = false,
     Callback = function(v)
         if v then
@@ -366,7 +366,7 @@ Tab:Toggle({
 -- ========== NOTIFICATION ==========
 Window:Notify({
     Title = "UI Loaded",
-    Desc = "Auto Chest Farm ready! (Vehicle noclip included)",
+    Desc = "Auto Chest Farm ready! (Vehicle noclip + Tubes support)",
     Time = 3
 })
 
