@@ -1,5 +1,5 @@
 -- ================================
--- X2ZU UI + Auto Chest Farm (Full Feature)
+-- X2ZU UI + Auto Chest Farm (Full Feature + Skip Opened Chests)
 -- ================================
 
 -- Load UI Library
@@ -40,7 +40,10 @@ local AutoChestCoroutine = nil
 local NoclipEnabled = false
 local NoclipConnection = nil
 local TweenSpeed = 100
-local FarmAllTiers = false  -- new toggle for farming all tiers
+local FarmAllTiers = false
+
+-- Cache for already unlocked chests (prevents re‑farming after toggle off/on)
+local UnlockedChests = {}
 
 -- Remote reference
 local UnlockChestRemote = ReplicatedStorage:WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ChestService"):WaitForChild("RF"):WaitForChild("UnlockChest")
@@ -138,12 +141,13 @@ local function checkAndRefillOxygen()
     end
 end
 
--- Stop auto chest loop
+-- Stop auto chest loop (and disable noclip)
 local function stopAutoChest()
     AutoChestEnabled = false
     disableNoclip()
     if AutoChestCoroutine then
-        coroutine.close(AutoChestCoroutine)
+        -- Attempt to close the coroutine (if supported)
+        pcall(coroutine.close, AutoChestCoroutine)
         AutoChestCoroutine = nil
     end
 end
@@ -162,6 +166,7 @@ local function collectTier(tierName)
         return false
     end
 
+    -- Gather all numbered chests
     local chests = {}
     for _, child in ipairs(tierFolder:GetChildren()) do
         if tonumber(child.Name) then
@@ -169,6 +174,7 @@ local function collectTier(tierName)
         end
     end
 
+    -- Sort by number (ascending)
     table.sort(chests, function(a, b)
         return tonumber(a.Name) < tonumber(b.Name)
     end)
@@ -178,10 +184,19 @@ local function collectTier(tierName)
     for _, chest in ipairs(chests) do
         if not AutoChestEnabled then break end
 
+        local chestNumber = chest.Name
+        local chestKey = tierName .. "_" .. chestNumber
+
+        -- ========== SKIP ALREADY UNLOCKED CHESTS ==========
+        if UnlockedChests[chestKey] then
+            print("Skipping already unlocked chest:", tierName, chestNumber)
+            continue
+        end
+
         checkAndRefillOxygen()
         if not AutoChestEnabled then break end
 
-        -- Get target position (prefer RewardPart, fallback)
+        -- Find target position (RewardPart or fallback)
         local targetPosition = nil
         local rewardPart = chest:FindFirstChild("Chest") and chest.Chest:FindFirstChild("Main") and chest.Chest.Main:FindFirstChild("BottomChest") and chest.Chest.Main.BottomChest:FindFirstChild("RewardPart")
         if rewardPart then
@@ -207,15 +222,16 @@ local function collectTier(tierName)
         wait(0.2)
 
         -- Invoke remote to unlock chest
-        local chestNumber = chest.Name
         local remoteSuccess, remoteResult = pcall(function()
             return UnlockChestRemote:InvokeServer(tierName, chestNumber)
         end)
 
         if remoteSuccess then
-            print(string.format("Unlocked %s - %s", tierName, chestNumber))
+            print(string.format("✅ Unlocked %s - %s", tierName, chestNumber))
+            -- ========== REMEMBER THAT THIS CHEST IS NOW UNLOCKED ==========
+            UnlockedChests[chestKey] = true
         else
-            warn(string.format("Remote failed for %s - %s: %s", tierName, chestNumber, remoteResult))
+            warn(string.format("❌ Remote failed for %s - %s: %s", tierName, chestNumber, remoteResult))
         end
 
         wait(0.3)
@@ -228,18 +244,16 @@ end
 -- Main collection function (handles single tier or all tiers)
 local function collectChests()
     if FarmAllTiers then
-        -- Farm all tiers in order
         for _, tierName in ipairs(TIER_LIST) do
             if not AutoChestEnabled then break end
             Window:Notify({Title = "Auto Chest", Desc = "Moving to " .. tierName, Time = 2})
             collectTier(tierName)
-            wait(0.5) -- slight pause between tiers
+            wait(0.5)
         end
         if AutoChestEnabled then
             Window:Notify({Title = "Auto Chest", Desc = "All tiers completed!", Time = 3})
         end
     else
-        -- Farm only the selected tier
         collectTier(SelectedTier)
     end
     
@@ -294,7 +308,7 @@ Tab:Toggle({
     Value = false,
     Callback = function(v)
         if v then
-            stopAutoChest() -- clean any previous loop
+            stopAutoChest()          -- kill any existing loop
             AutoChestEnabled = true
             enableNoclip()
             AutoChestCoroutine = coroutine.create(collectChests)
@@ -308,7 +322,7 @@ Tab:Toggle({
 -- ========== NOTIFICATION ==========
 Window:Notify({
     Title = "UI Loaded",
-    Desc = "Auto Chest Farm ready! (Full features)",
+    Desc = "Auto Chest Farm ready! (Skips opened chests)",
     Time = 3
 })
 
