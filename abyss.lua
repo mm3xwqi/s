@@ -1,5 +1,5 @@
 -- ================================
--- X2ZU UI + Auto Chest Farm (Full Feature + Skip Opened Chests)
+-- X2ZU UI + Auto Chest Farm (Full Feature + Skip Opened Chests + Vehicle Noclip)
 -- ================================
 
 -- Load UI Library
@@ -42,7 +42,7 @@ local NoclipConnection = nil
 local TweenSpeed = 100
 local FarmAllTiers = false
 
--- Cache for already unlocked chests (prevents re‑farming after toggle off/on)
+-- Cache for already unlocked chests
 local UnlockedChests = {}
 
 -- Remote reference
@@ -79,13 +79,53 @@ local function tweenToPosition(targetPosition)
     tween.Completed:Wait()
 end
 
--- Noclip control
+-- ========== NOCLIP (Character + Vehicle) ==========
+local CurrentVehicle = nil
+
 local function enableNoclip()
     if NoclipEnabled then return end
     NoclipEnabled = true
+    
     NoclipConnection = RunService.Stepped:Connect(function()
-        if NoclipEnabled and Players.LocalPlayer.Character then
-            for _, part in ipairs(Players.LocalPlayer.Character:GetDescendants()) do
+        if not NoclipEnabled then return end
+        
+        local character = Players.LocalPlayer.Character
+        if not character then return end
+        
+        -- Noclip character
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+        
+        -- Noclip vehicle if seated
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local seat = character:FindFirstChildOfClass("VehicleSeat") or character:FindFirstChildOfClass("Seat")
+        local vehicleModel = nil
+        
+        if seat and humanoid and seat.Occupant == humanoid then
+            -- Find the actual vehicle model (parent that is a Model and not the character)
+            local parent = seat.Parent
+            while parent and parent ~= workspace do
+                if parent:IsA("Model") and parent ~= character then
+                    vehicleModel = parent
+                    break
+                end
+                parent = parent.Parent
+            end
+        end
+        
+        -- Update current vehicle reference
+        if vehicleModel and vehicleModel ~= CurrentVehicle then
+            CurrentVehicle = vehicleModel
+        elseif not vehicleModel then
+            CurrentVehicle = nil
+        end
+        
+        -- Apply noclip to current vehicle
+        if CurrentVehicle then
+            for _, part in ipairs(CurrentVehicle:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
@@ -100,9 +140,29 @@ local function disableNoclip()
         NoclipConnection:Disconnect()
         NoclipConnection = nil
     end
+    
+    -- Restore collision on character
+    local character = Players.LocalPlayer.Character
+    if character then
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+    
+    -- Restore collision on last known vehicle
+    if CurrentVehicle then
+        for _, part in ipairs(CurrentVehicle:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+        CurrentVehicle = nil
+    end
 end
 
--- Get current oxygen percentage from GUI (using ContentText)
+-- ========== OXYGEN SYSTEM ==========
 local function getOxygenPercent()
     local success, result = pcall(function()
         local mainGui = Players.LocalPlayer.PlayerGui:FindFirstChild("Main")
@@ -124,7 +184,6 @@ local function getOxygenPercent()
     return success and result or 100
 end
 
--- Check oxygen and refill if below 10%
 local function checkAndRefillOxygen()
     local oxygen = getOxygenPercent()
     if oxygen < 10 then
@@ -141,18 +200,16 @@ local function checkAndRefillOxygen()
     end
 end
 
--- Stop auto chest loop (and disable noclip)
+-- ========== CHEST COLLECTION ==========
 local function stopAutoChest()
     AutoChestEnabled = false
     disableNoclip()
     if AutoChestCoroutine then
-        -- Attempt to close the coroutine (if supported)
         pcall(coroutine.close, AutoChestCoroutine)
         AutoChestCoroutine = nil
     end
 end
 
--- Collect chests in a specific tier
 local function collectTier(tierName)
     local chestsFolder = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Chests")
     if not chestsFolder then
@@ -166,7 +223,6 @@ local function collectTier(tierName)
         return false
     end
 
-    -- Gather all numbered chests
     local chests = {}
     for _, child in ipairs(tierFolder:GetChildren()) do
         if tonumber(child.Name) then
@@ -174,7 +230,6 @@ local function collectTier(tierName)
         end
     end
 
-    -- Sort by number (ascending)
     table.sort(chests, function(a, b)
         return tonumber(a.Name) < tonumber(b.Name)
     end)
@@ -187,7 +242,6 @@ local function collectTier(tierName)
         local chestNumber = chest.Name
         local chestKey = tierName .. "_" .. chestNumber
 
-        -- ========== SKIP ALREADY UNLOCKED CHESTS ==========
         if UnlockedChests[chestKey] then
             print("Skipping already unlocked chest:", tierName, chestNumber)
             continue
@@ -196,7 +250,6 @@ local function collectTier(tierName)
         checkAndRefillOxygen()
         if not AutoChestEnabled then break end
 
-        -- Find target position (RewardPart or fallback)
         local targetPosition = nil
         local rewardPart = chest:FindFirstChild("Chest") and chest.Chest:FindFirstChild("Main") and chest.Chest.Main:FindFirstChild("BottomChest") and chest.Chest.Main.BottomChest:FindFirstChild("RewardPart")
         if rewardPart then
@@ -210,7 +263,6 @@ local function collectTier(tierName)
             continue
         end
 
-        -- Tween to chest
         local tweenSuccess, tweenErr = pcall(function()
             tweenToPosition(targetPosition)
         end)
@@ -221,14 +273,12 @@ local function collectTier(tierName)
 
         wait(0.2)
 
-        -- Invoke remote to unlock chest
         local remoteSuccess, remoteResult = pcall(function()
             return UnlockChestRemote:InvokeServer(tierName, chestNumber)
         end)
 
         if remoteSuccess then
             print(string.format("✅ Unlocked %s - %s", tierName, chestNumber))
-            -- ========== REMEMBER THAT THIS CHEST IS NOW UNLOCKED ==========
             UnlockedChests[chestKey] = true
         else
             warn(string.format("❌ Remote failed for %s - %s: %s", tierName, chestNumber, remoteResult))
@@ -241,7 +291,6 @@ local function collectTier(tierName)
     return true
 end
 
--- Main collection function (handles single tier or all tiers)
 local function collectChests()
     if FarmAllTiers then
         for _, tierName in ipairs(TIER_LIST) do
@@ -264,8 +313,6 @@ local function collectChests()
 end
 
 -- ========== UI ELEMENTS ==========
-
--- Dropdown: Select Tier
 Tab:Dropdown({
     Title = "Select Tier",
     Desc = "Choose which tier to collect (ignored if Farm All is on)",
@@ -277,7 +324,6 @@ Tab:Dropdown({
     end
 })
 
--- Toggle: Farm All Tiers
 Tab:Toggle({
     Title = "Farm All Tiers",
     Desc = "Automatically farm Tier 1 → Tier 2 → Tier 3",
@@ -288,7 +334,6 @@ Tab:Toggle({
     end
 })
 
--- Slider: Tween Speed
 Tab:Slider({
     Title = "Tween Speed",
     Desc = "Movement speed (studs per second)",
@@ -301,14 +346,13 @@ Tab:Slider({
     end
 })
 
--- Toggle: Auto Chest (Main toggle)
 Tab:Toggle({
     Title = "Auto Chest",
-    Desc = "Start/Stop chest collection",
+    Desc = "Start/Stop chest collection (with vehicle noclip)",
     Value = false,
     Callback = function(v)
         if v then
-            stopAutoChest()          -- kill any existing loop
+            stopAutoChest()
             AutoChestEnabled = true
             enableNoclip()
             AutoChestCoroutine = coroutine.create(collectChests)
@@ -322,7 +366,7 @@ Tab:Toggle({
 -- ========== NOTIFICATION ==========
 Window:Notify({
     Title = "UI Loaded",
-    Desc = "Auto Chest Farm ready! (Skips opened chests)",
+    Desc = "Auto Chest Farm ready! (Vehicle noclip included)",
     Time = 3
 })
 
