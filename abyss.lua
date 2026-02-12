@@ -1,5 +1,5 @@
 -- ================================
--- X2ZU UI + Auto Chest Farm (Tween + Remote + Oxygen + Noclip + Speed Slider)
+-- X2ZU UI + Auto Chest Farm (Full Feature)
 -- ================================
 
 -- Load UI Library
@@ -39,13 +39,17 @@ local AutoChestEnabled = false
 local AutoChestCoroutine = nil
 local NoclipEnabled = false
 local NoclipConnection = nil
-local TweenSpeed = 100  -- default speed
+local TweenSpeed = 100
+local FarmAllTiers = false  -- new toggle for farming all tiers
 
 -- Remote reference
 local UnlockChestRemote = ReplicatedStorage:WaitForChild("common"):WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services"):WaitForChild("ChestService"):WaitForChild("RF"):WaitForChild("UnlockChest")
 
 -- Oxygen refill position
 local OXYGEN_REFILL_POS = Vector3.new(-59, 4883, -49)
+
+-- Tier list for farming all
+local TIER_LIST = {"Tier 1", "Tier 2", "Tier 3"}
 
 -- Get character safely
 local function getCharacter()
@@ -98,7 +102,6 @@ end
 -- Get current oxygen percentage from GUI (using ContentText)
 local function getOxygenPercent()
     local success, result = pcall(function()
-        -- Navigate to the Oxygen TextLabel
         local mainGui = Players.LocalPlayer.PlayerGui:FindFirstChild("Main")
         if not mainGui then return 100 end
         local oxygenFrame = mainGui:FindFirstChild("Oxygen")
@@ -108,7 +111,6 @@ local function getOxygenPercent()
         local oxygenLabel = canvasGroup:FindFirstChild("Oxygen")
         if not oxygenLabel then return 100 end
         
-        -- Use ContentText property (as specified by user)
         if oxygenLabel:IsA("TextLabel") or oxygenLabel:IsA("TextButton") then
             local text = oxygenLabel.ContentText or oxygenLabel.Text
             local num = tonumber(text:match("%d+"))
@@ -122,22 +124,13 @@ end
 -- Check oxygen and refill if below 10%
 local function checkAndRefillOxygen()
     local oxygen = getOxygenPercent()
-    -- For debugging: print oxygen value
-    print("Oxygen level:", oxygen, "%")
-    
     if oxygen < 10 then
         Window:Notify({Title = "Oxygen Low", Desc = "Refilling oxygen... (" .. oxygen .. "%)", Time = 2})
-        
-        -- Tween to oxygen station
         tweenToPosition(OXYGEN_REFILL_POS)
-        
-        -- Wait until oxygen is above 90% (or loop stopped)
         repeat
             wait(0.5)
             oxygen = getOxygenPercent()
-            print("Oxygen refilling...", oxygen, "%")
         until oxygen >= 90 or not AutoChestEnabled
-        
         if AutoChestEnabled then
             Window:Notify({Title = "Oxygen Full", Desc = "Resuming chest collection", Time = 2})
         end
@@ -155,18 +148,18 @@ local function stopAutoChest()
     end
 end
 
--- Main collection: tween to each chest, then invoke remote
-local function collectChests(tierName)
+-- Collect chests in a specific tier
+local function collectTier(tierName)
     local chestsFolder = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Chests")
     if not chestsFolder then
         Window:Notify({Title = "Error", Desc = "Chests folder not found!", Time = 3})
-        return
+        return false
     end
 
     local tierFolder = chestsFolder:FindFirstChild(tierName)
     if not tierFolder then
         Window:Notify({Title = "Error", Desc = tierName .. " not found!", Time = 3})
-        return
+        return false
     end
 
     local chests = {}
@@ -188,6 +181,7 @@ local function collectChests(tierName)
         checkAndRefillOxygen()
         if not AutoChestEnabled then break end
 
+        -- Get target position (prefer RewardPart, fallback)
         local targetPosition = nil
         local rewardPart = chest:FindFirstChild("Chest") and chest.Chest:FindFirstChild("Main") and chest.Chest.Main:FindFirstChild("BottomChest") and chest.Chest.Main.BottomChest:FindFirstChild("RewardPart")
         if rewardPart then
@@ -201,6 +195,7 @@ local function collectChests(tierName)
             continue
         end
 
+        -- Tween to chest
         local tweenSuccess, tweenErr = pcall(function()
             tweenToPosition(targetPosition)
         end)
@@ -211,6 +206,7 @@ local function collectChests(tierName)
 
         wait(0.2)
 
+        -- Invoke remote to unlock chest
         local chestNumber = chest.Name
         local remoteSuccess, remoteResult = pcall(function()
             return UnlockChestRemote:InvokeServer(tierName, chestNumber)
@@ -225,22 +221,56 @@ local function collectChests(tierName)
         wait(0.3)
     end
 
+    Window:Notify({Title = "Auto Chest", Desc = "Finished " .. tierName .. " collection.", Time = 3})
+    return true
+end
+
+-- Main collection function (handles single tier or all tiers)
+local function collectChests()
+    if FarmAllTiers then
+        -- Farm all tiers in order
+        for _, tierName in ipairs(TIER_LIST) do
+            if not AutoChestEnabled then break end
+            Window:Notify({Title = "Auto Chest", Desc = "Moving to " .. tierName, Time = 2})
+            collectTier(tierName)
+            wait(0.5) -- slight pause between tiers
+        end
+        if AutoChestEnabled then
+            Window:Notify({Title = "Auto Chest", Desc = "All tiers completed!", Time = 3})
+        end
+    else
+        -- Farm only the selected tier
+        collectTier(SelectedTier)
+    end
+    
     if AutoChestEnabled then
-        Window:Notify({Title = "Auto Chest", Desc = "Finished " .. tierName .. " collection.", Time = 3})
         AutoChestEnabled = false
         disableNoclip()
     end
 end
 
+-- ========== UI ELEMENTS ==========
+
 -- Dropdown: Select Tier
 Tab:Dropdown({
     Title = "Select Tier",
-    Desc = "Choose which tier to collect",
-    List = {"Tier 1", "Tier 2", "Tier 3"},
+    Desc = "Choose which tier to collect (ignored if Farm All is on)",
+    List = TIER_LIST,
     Value = "Tier 1",
     Callback = function(choice)
         SelectedTier = choice
         print("Selected tier:", SelectedTier)
+    end
+})
+
+-- Toggle: Farm All Tiers
+Tab:Toggle({
+    Title = "Farm All Tiers",
+    Desc = "Automatically farm Tier 1 → Tier 2 → Tier 3",
+    Value = false,
+    Callback = function(v)
+        FarmAllTiers = v
+        print("Farm All Tiers:", v)
     end
 })
 
@@ -257,19 +287,17 @@ Tab:Slider({
     end
 })
 
--- Toggle: Auto Chest
+-- Toggle: Auto Chest (Main toggle)
 Tab:Toggle({
     Title = "Auto Chest",
-    Desc = "Tween to chests then unlock via remote (with oxygen refill & noclip)",
+    Desc = "Start/Stop chest collection",
     Value = false,
     Callback = function(v)
         if v then
-            stopAutoChest()
+            stopAutoChest() -- clean any previous loop
             AutoChestEnabled = true
             enableNoclip()
-            AutoChestCoroutine = coroutine.create(function()
-                collectChests(SelectedTier)
-            end)
+            AutoChestCoroutine = coroutine.create(collectChests)
             coroutine.resume(AutoChestCoroutine)
         else
             stopAutoChest()
@@ -280,8 +308,8 @@ Tab:Toggle({
 -- ========== NOTIFICATION ==========
 Window:Notify({
     Title = "UI Loaded",
-    Desc = "Main UI loaded successfully! (Oxygen using ContentText)",
+    Desc = "Auto Chest Farm ready! (Full features)",
     Time = 3
 })
 
-print("✅ Auto Chest Farm ready! (Speed: " .. TweenSpeed .. ")")
+print("✅ Auto Chest Farm fully loaded! Speed: " .. TweenSpeed .. ", All Tiers: " .. tostring(FarmAllTiers))
