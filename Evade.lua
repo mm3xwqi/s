@@ -47,7 +47,7 @@ task.spawn(function()
                 for _, target in ipairs(currentTickets) do
                     pcall(function()
                         if target and target.Parent then
-                            hrp.Position = target.Position + Vector3.new(0, -5, 0)
+                            hrp.Position = target.Position + Vector3.new(0, -10, 0)
                             task.wait(Collect)
                         end
                     end)
@@ -60,7 +60,7 @@ task.spawn(function()
                 end
 
                 hrp.Position = FixedSafePos
-                hrp.Velocity = Vector3.new(0, -5, 0)
+                hrp.Velocity = Vector3.new(0, -10, 0)
             end
         end
         task.wait(recolectando and ScanCooldown or SafeZoneCD)
