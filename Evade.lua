@@ -60,7 +60,7 @@ task.spawn(function()
                 end
 
                 hrp.Position = FixedSafePos
-                hrp.Velocity = Vector3.new(0, 0, 0)
+                hrp.Velocity = Vector3.new(0, -5, 0)
             end
         end
         task.wait(recolectando and ScanCooldown or SafeZoneCD)
