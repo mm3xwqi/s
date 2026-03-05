@@ -1,15 +1,9 @@
---[[V1.4
-+ Removed SafeZone search by ingame part
-+ Changed safezone to now just teleport you up the map
-+ Fixed Mapchange crashing logic
-]]
-
 --[[
 local Collect = 0.3 
 local ScanCooldown = 0.5
 local SafeZoneCD = 0.1 -- Mantiene el personaje anclado en la posición fija
 ]]
-local FixedSafePos = Vector3.new(-7.570, 380.103, 86.898)
+local FixedSafePos = Vector3.new(-7.570, 200, 86.898)
 
 local player = game.Players.LocalPlayer
 local esperandoTickets = false
