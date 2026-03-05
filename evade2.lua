@@ -2157,7 +2157,7 @@ local CONFIG = {
         autoStrafe   = false,
         strafeSens   = 2,    -- mouse delta X magnitude threshold to trigger A/D
     },
-     = {
+      {
         enabled        = false,
         skyX           = -7.570,
         skyY           = 380.103,
