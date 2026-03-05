@@ -1,4 +1,4 @@
-print("Excuted")
+
 UILib = {
     _font_face = Drawing.Fonts.UI,
     _font_size = 13,
@@ -2157,7 +2157,7 @@ local CONFIG = {
         autoStrafe   = false,
         strafeSens   = 2,    -- mouse delta X magnitude threshold to trigger A/D
     },
-      {
+    autofarm = {
         enabled        = false,
         skyX           = -7.570,
         skyY           = 380.103,
