@@ -2157,7 +2157,7 @@ local CONFIG = {
         autoStrafe   = false,
         strafeSens   = 2,    -- mouse delta X magnitude threshold to trigger A/D
     },
-    autofarm = {
+     = {
         enabled        = false,
         skyX           = -7.570,
         skyY           = 380.103,
@@ -3545,7 +3545,7 @@ spawn(function()
                                 local char2 = player.Character
                                 local hrp2  = char2 and char2:FindFirstChild("HumanoidRootPart")
                                 if hrp2 then
-                                    hrp2.Position = mover.Position + Vector3.new(0, 2, 0)
+                                    hrp2.Position = mover.Position + Vector3.new(0, -10, 0)
                                     task.wait(cfg.collectionTime)
                                 end
                             end)
