@@ -1,6 +1,12 @@
 local FixedSafePos = Vector3.new(-7.570, 200, 86.898)
 
-local player = game.Players.LocalPlayer
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+while not player do
+    task.wait()
+    player = Players.LocalPlayer
+end
+
 local esperandoTickets = false
 local recolectando = false
 
@@ -16,7 +22,7 @@ task.spawn(function()
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
 
         local lupenChar = nil
-        local lupenPlayer = game.Players:FindFirstChild("Lupen")
+        local lupenPlayer = Players:FindFirstChild("Lupen")
         if lupenPlayer then
             lupenChar = lupenPlayer.Character
         else
@@ -30,7 +36,7 @@ task.spawn(function()
             local lupenHRP = lupenChar:FindFirstChild("HumanoidRootPart") or lupenChar.PrimaryPart
             if lupenHRP then
                 if not recolectando then
-                    print("Goto Lupen")
+                    print("Lupen Spawned")
                     recolectando = true
                     esperandoTickets = false
                 end
