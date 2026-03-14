@@ -9,32 +9,33 @@ local player = game.Players.LocalPlayer
 local esperandoTickets = false
 local recolectando = false
 
-print("TICKET FARM")
+print("TICKET FARM - TARGET: Lupen")
 
 task.spawn(function()
     while true do
         local character = player.Character
         local hrp = character and character:FindFirstChild("HumanoidRootPart")
 
-        local gameFolder = workspace:FindFirstChild("Game")
-        local effects = gameFolder and gameFolder:FindFirstChild("Effects")
-        local ticketsFolder = effects and effects:FindFirstChild("Tickets")
+        -- เปลี่ยนเป้าหมายเป็น Game.Players.Lupen
+        local lupenFolder = game.Workspace.Game.Players:FindFirstChild("Lupen")
 
         if hrp then
             local currentTickets = {}
 
-            if ticketsFolder then
-                local allTickets = ticketsFolder:GetChildren()
-                for _, t in ipairs(allTickets) do
-                    local mover = t:FindFirstChild("Mover")
+            if lupenFolder then
+                -- ค้นหา child แต่ละตัวใน Lupen แล้วหา Mover ข้างใน
+                local allItems = lupenFolder:GetChildren()
+                for _, item in ipairs(allItems) do
+                    local mover = item:FindFirstChild("Mover")
                     if mover and mover:IsA("BasePart") then
                         table.insert(currentTickets, mover)
                     end
                 end
             end
+
             if #currentTickets > 0 then
                 if not recolectando then
-                    print("--- Tickets found!")
+                    print("--- Found items in Lupen!")
                     recolectando = true
                     esperandoTickets = false
                 end
@@ -42,13 +43,13 @@ task.spawn(function()
                     pcall(function()
                         if target and target.Parent then
                             hrp.Position = target.Position + Vector3.new(0, -10, 0)
-                            task.wait(Collect)
+                            task.wait(Collect)  -- ตัวแปร Collect ต้องถูกกำหนดไว้ภายนอก
                         end
                     end)
                 end
             else
                 if not esperandoTickets then
-                    print("--- No tickets, returning to Fixed Safe Zone...")
+                    print("--- No items in Lupen, returning to Fixed Safe Zone...")
                     esperandoTickets = true
                     recolectando = false
                 end
@@ -57,6 +58,6 @@ task.spawn(function()
                 hrp.Velocity = Vector3.new(0, -10, 0)
             end
         end
-        task.wait(recolectando and ScanCooldown or SafeZoneCD)
+        task.wait(recolectando and ScanCooldown or SafeZoneCD)  -- ตัวแปร ScanCooldown, SafeZoneCD ต้องถูกกำหนดไว้ภายนอก
     end
 end)
