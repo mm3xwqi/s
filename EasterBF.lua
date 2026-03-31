@@ -1,27 +1,28 @@
-local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/Rain-Design/Unnamed/main/Library.lua'))()
-Library.Theme = "Dark"
-local Flags = Library.Flags
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/UI-Interface/CustomFIeld/main/RayField.lua'))()
 
 -- [[ UI INITIALIZATION ]] --
-local Window = Library:Window({
-    Text = "Easter Event Farm"
+local Window = Rayfield:CreateWindow({
+   Name = "Easter Event Farm | FrostByte",
+   LoadingTitle = "FrostByte Interface",
+   LoadingSubtitle = "by Arrays",
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = "FrostByteFarm",
+      FileName = "Config"
+   },
+   Discord = {
+      Enabled = false,
+      Invite = "",
+      RememberJoins = false
+   },
+   KeySystem = false
 })
 
-local MainTab = Window:Tab({
-    Text = "Main"
-})
+local MainTab = Window:CreateTab("Main", 4483362458)
+local SettingsTab = Window:CreateTab("Settings")
 
-local SettingsTab = Window:Tab({
-    Text = "Settings"
-})
-
-local FarmSection = MainTab:Section({
-    Text = "Farming"
-})
-
-local ConfigSection = SettingsTab:Section({
-    Text = "Configuration"
-})
+local FarmSection = MainTab:CreateSection("Farming", false)
+local ConfigSection = SettingsTab:CreateSection("Configuration", false)
 
 -- [[ GLOBAL SETTINGS ]] --
 _G.AutoFarmEnabled = false
@@ -63,16 +64,23 @@ local ExcludedMaps = {
     ["MiniSky"] = true,
     ["RaidMap"] = true,
     ["WaterBase-Plane"] = true,
-    ["IndraIsland"] = true
+    ["IndraIsland"] = true,
+    ["EventInstances"] = true -- เพิ่มการป้องกัน Folder นี้
 }
 
 -- [[ CORE FUNCTIONS ]] --
 local function getNextIsland()
     local islands = {}
     for _, island in ipairs(workspace.Map:GetChildren()) do
-        if not ExcludedMaps[island.Name] then table.insert(islands, island) end
+        -- แก้ไข: เพิ่ม island:IsA("Model") เพื่อให้แน่ใจว่าเป็นโมเดลเกาะ ไม่ใช่โฟลเดอร์
+        if island:IsA("Model") and not ExcludedMaps[island.Name] then 
+            table.insert(islands, island) 
+        end
     end
-    return islands[math.random(1, #islands)]
+    if #islands > 0 then
+        return islands[math.random(1, #islands)]
+    end
+    return nil
 end
 
 local function toggleGhostShip(mode)
@@ -304,47 +312,56 @@ end
 
 -- [[ UI ELEMENTS ]] --
 
-FarmSection:Toggle({
-    Text = "Enable Auto Farm",
-    Callback = function(state)
-        _G.AutoFarmEnabled = state
-        if state then 
-            StartFarming() 
-        else 
-            if _G.CurrentTween then _G.CurrentTween:Cancel() end 
-        end
-    end
+MainTab:CreateToggle({
+   Name = "Enable Auto Farm",
+   CurrentValue = false,
+   Flag = "AutoFarm",
+   SectionParent = FarmSection,
+   Callback = function(Value)
+      _G.AutoFarmEnabled = Value
+      if Value then 
+          StartFarming() 
+      else 
+          if _G.CurrentTween then _G.CurrentTween:Cancel() end 
+      end
+   end,
 })
 
-FarmSection:Toggle({
-    Text = "Enable Quest Delivery",
-    Callback = function(state)
-        _G.QuestModeEnabled = state
-    end
+MainTab:CreateToggle({
+   Name = "Enable Quest Delivery",
+   CurrentValue = false,
+   Flag = "QuestMode",
+   SectionParent = FarmSection,
+   Callback = function(Value)
+      _G.QuestModeEnabled = Value
+   end,
 })
 
-ConfigSection:Slider({
-    Text = "Tween Speed",
-    Default = 350,
-    Minimum = 100,
-    Maximum = 800,
-    Callback = function(v)
-        SPEED = v
-    end
+SettingsTab:CreateSlider({
+   Name = "Tween Speed",
+   Range = {100, 800},
+   Increment = 10,
+   Suffix = "Speed",
+   CurrentValue = 350,
+   Flag = "SpeedSlider",
+   SectionParent = ConfigSection,
+   Callback = function(Value)
+      SPEED = Value
+   end,
 })
 
-ConfigSection:Slider({
-    Text = "Chest Wait Time (ms)",
-    Default = 0,
-    Minimum = 0,
-    Maximum = 200,
-    Callback = function(v)
-        _G.ChestWaitTime = v / 100
-    end
+SettingsTab:CreateSlider({
+   Name = "Chest Wait Time (ms)",
+   Range = {0, 200},
+   Increment = 1,
+   Suffix = "ms",
+   CurrentValue = 0,
+   Flag = "WaitSlider",
+   SectionParent = ConfigSection,
+   Callback = function(Value)
+      _G.ChestWaitTime = Value / 100
+   end,
 })
-
--- Start by selecting Main Tab
-MainTab:Select()
 
 -- Noclip logic
 game:GetService("RunService").Stepped:Connect(noclip)
