@@ -1,7 +1,27 @@
-local UILibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/vaxtalastus-web/Casserus-UI-Library-RBX/refs/heads/main/source.lua"))()
-local MyWindow = UILibrary:CreateWindow("Easter Event Farm")
-local mainTab = MyWindow:CreateTab("Main")
-local settingsTab = MyWindow:CreateTab("Settings")
+local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/Rain-Design/Unnamed/main/Library.lua'))()
+Library.Theme = "Dark"
+local Flags = Library.Flags
+
+-- [[ UI INITIALIZATION ]] --
+local Window = Library:Window({
+    Text = "Easter Event Farm"
+})
+
+local MainTab = Window:Tab({
+    Text = "Main"
+})
+
+local SettingsTab = Window:Tab({
+    Text = "Settings"
+})
+
+local FarmSection = MainTab:Section({
+    Text = "Farming"
+})
+
+local ConfigSection = SettingsTab:Section({
+    Text = "Configuration"
+})
 
 -- [[ GLOBAL SETTINGS ]] --
 _G.AutoFarmEnabled = false
@@ -10,7 +30,7 @@ _G.CurrentTween = nil
 _G.TargetIsland = nil
 _G.ChestBlacklist = {} 
 _G.ShardBlacklist = {} 
-_G.ChestWaitTime = 0
+_G.ChestWaitTime = 0   
 _G.InGhostShip = false
 
 local SPEED = 350 
@@ -21,6 +41,20 @@ local FRIENDLY_POS = Vector3.new(-3053, 240, -10144)
 local GHOST_SHIP_IN = Vector3.new(923.213, 126.976, 32852.832)
 local GHOST_SHIP_OUT = Vector3.new(-6508.558, 89.035, -132.840)
 local DRESSROSA_POS = Vector3.new(-286.9859619140625, 306.13739013671875, 597.88623046875)
+
+-- [[ Special islands ]] --
+local SPECIAL_ISLANDS = {
+    DarkbeardArena = Vector3.new(2284.909, 15.538, 905.477),
+    SnowMountain    = Vector3.new(0, 0, 0),
+    IceCastle       = Vector3.new(0, 0, 0),
+    Mini1           = Vector3.new(0, 0, 0),
+}
+
+local EXIT_REMOTE_ISLANDS = {
+    Mini2 = true,
+    GraveIsland = true,
+    CircleIsland = true,
+}
 
 local ExcludedMaps = {
     ["FortBuilderPlacedSurfaces"] = true,
@@ -51,14 +85,28 @@ local function toggleGhostShip(mode)
         remote:InvokeServer("requestEntrance", GHOST_SHIP_OUT)
         _G.InGhostShip = false
     end
-    task.wait(1.5)
+    task.wait(2)
 end
 
 local function teleportToDressrosa()
     local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") and game:GetService("ReplicatedStorage").Remotes:FindFirstChild("CommF_")
     if remote then
         remote:InvokeServer("requestEntrance", DRESSROSA_POS)
-        task.wait(1)
+        task.wait(2)
+    end
+end
+
+local function teleportToSpecialIsland(islandName)
+    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") and game:GetService("ReplicatedStorage").Remotes:FindFirstChild("CommF_")
+    if not remote then return end
+
+    if EXIT_REMOTE_ISLANDS[islandName] then
+        remote:InvokeServer("requestEntrance", GHOST_SHIP_OUT)
+        _G.InGhostShip = false
+        task.wait(2)
+    elseif SPECIAL_ISLANDS[islandName] then
+        remote:InvokeServer("requestEntrance", SPECIAL_ISLANDS[islandName])
+        task.wait(2)
     end
 end
 
@@ -129,8 +177,8 @@ local function StartFarming()
             if not rootPart then task.wait(0.5) continue end
 
             local eggInHand = getSpecialEgg()
+            local deliveredEgg = false 
             
-            -- [[ Priority 1: Quest Delivery ]] --
             if _G.QuestModeEnabled and eggInHand then
                 if _G.InGhostShip then toggleGhostShip("exit") end
                 local humanoid = character:FindFirstChild("Humanoid")
@@ -141,34 +189,29 @@ local function StartFarming()
                     repeat task.wait(0.1) until (rootPart.Position - FRIENDLY_POS).Magnitude < 10 or not eggInHand.Parent
                     if eggInHand.Parent == character then
                         game:GetService("ReplicatedStorage").Modules.Net["RF/EasterServiceRF"]:InvokeServer("NPC.TravelingQuest", workspace.NPCs:FindFirstChild("Forgotten Quest Giver"))
+                        deliveredEgg = true
                     end
                 else
                     local optionButton = player.PlayerGui.Main.Dialogue:FindFirstChild("Option1")
-                    
-                    -- แก้ไขส่วน Falling Sky Egg: Current Y + 150
                     if string.find(eggInHand.Name, "Falling") then
                         local currentPos = rootPart.Position
                         rootPart.CFrame = CFrame.new(currentPos.X, currentPos.Y + 150, currentPos.Z)
-                        task.wait(0.5) -- รอให้ตัวละครวาร์ปขึ้นไปนิ่งๆ ก่อนกด
-                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do 
-                            clickButton(optionButton) 
-                            task.wait(0.2) 
-                        end
-                        
+                        task.wait(0.5)
+                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do clickButton(optionButton) task.wait(0.2) end
+                        deliveredEgg = true
                     elseif string.find(eggInHand.Name, "Thirsty") then
                         moveTo(THIRSTY_POS)
                         repeat task.wait(0.1) until (rootPart.Position - THIRSTY_POS).Magnitude < 12 or not eggInHand.Parent
                         while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do clickButton(optionButton) task.wait(0.2) end
-                        
+                        deliveredEgg = true
                     elseif string.find(eggInHand.Name, "Molten") then
                         moveTo(MOLTEN_POS)
                         repeat task.wait(0.1) until (rootPart.Position - MOLTEN_POS).Magnitude < 12 or not eggInHand.Parent
                         while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do clickButton(optionButton) task.wait(0.2) end
+                        deliveredEgg = true
                     end
                 end
-                task.wait(1)
-
-            -- [[ Priority 2: Shards & Firefly Check ]] --
+                if deliveredEgg then task.wait(5) else task.wait(1) end
             else
                 local allShards = {}
                 for _, v in ipairs(workspace:GetChildren()) do
@@ -185,7 +228,6 @@ local function StartFarming()
                         local d = (rootPart.Position - sPos).Magnitude
                         if d < dist then dist = d closestShard = s end
                     end
-
                     if closestShard then
                         local targetPos = closestShard:IsA("Model") and closestShard:GetPivot().Position or closestShard.Position
                         moveTo(targetPos)
@@ -195,7 +237,6 @@ local function StartFarming()
                             task.wait(0.1)
                         end
                     end
-                -- [[ Priority 3: Indra Egg / Chests ]] --
                 else
                     local eggTarget = nil
                     local chestTarget = nil
@@ -227,22 +268,25 @@ local function StartFarming()
                         if (rootPart.Position - chestTarget:GetPivot().Position).Magnitude < 7 then
                             _G.ChestBlacklist[chestTarget] = true 
                             rootPart.CFrame = CFrame.new(chestTarget:GetPivot().Position)
+                            if _G.ChestWaitTime > 0 then task.wait(_G.ChestWaitTime) end
                         end
                     else
-                        -- [[ Priority 4: Island Switching & Auto-Exit GhostShip ]] --
                         if _G.InGhostShip then
                             toggleGhostShip("exit")
                             _G.TargetIsland = nil 
                         else
-                            if not _G.TargetIsland then 
-                                _G.TargetIsland = getNextIsland()
-                            end
+                            if not _G.TargetIsland then _G.TargetIsland = getNextIsland() end
                             if _G.TargetIsland then
-                                if _G.TargetIsland.Name == "GhostShipInterior" then
+                                local islandName = _G.TargetIsland.Name
+                                if islandName == "GhostShipInterior" then
                                     if not _G.InGhostShip then toggleGhostShip("enter") end
-                                elseif _G.TargetIsland.Name == "Dressrosa" then
+                                    _G.TargetIsland = nil
+                                elseif islandName == "Dressrosa" then
                                     teleportToDressrosa()
-                                    _G.TargetIsland = nil 
+                                    _G.TargetIsland = nil
+                                elseif SPECIAL_ISLANDS[islandName] or EXIT_REMOTE_ISLANDS[islandName] then
+                                    teleportToSpecialIsland(islandName)
+                                    _G.TargetIsland = nil
                                 else
                                     local islandPos = _G.TargetIsland:GetPivot().Position + Vector3.new(0, 80, 0)
                                     moveTo(islandPos)
@@ -258,13 +302,49 @@ local function StartFarming()
     end)
 end
 
--- [[ UI Setup ]] --
-mainTab:CreateToggle("Enable Auto Farm", function(state)
-    _G.AutoFarmEnabled = state
-    if state then StartFarming() else if _G.CurrentTween then _G.CurrentTween:Cancel() end end
-end)
-mainTab:CreateToggle("Enable Quest Delivery", function(state) _G.QuestModeEnabled = state end)
-settingsTab:CreateSlider("Tween Speed", 100, 800, 350, function(v) SPEED = v end)
-settingsTab:CreateSlider("Chest Wait Time (ms)", 0, 200, 0, function(v) _G.ChestWaitTime = v / 100 end)
+-- [[ UI ELEMENTS ]] --
 
+FarmSection:Toggle({
+    Text = "Enable Auto Farm",
+    Callback = function(state)
+        _G.AutoFarmEnabled = state
+        if state then 
+            StartFarming() 
+        else 
+            if _G.CurrentTween then _G.CurrentTween:Cancel() end 
+        end
+    end
+})
+
+FarmSection:Toggle({
+    Text = "Enable Quest Delivery",
+    Callback = function(state)
+        _G.QuestModeEnabled = state
+    end
+})
+
+ConfigSection:Slider({
+    Text = "Tween Speed",
+    Default = 350,
+    Minimum = 100,
+    Maximum = 800,
+    Callback = function(v)
+        SPEED = v
+    end
+})
+
+ConfigSection:Slider({
+    Text = "Chest Wait Time (ms)",
+    Default = 0,
+    Minimum = 0,
+    Maximum = 200,
+    Callback = function(v)
+        _G.ChestWaitTime = v / 100
+    end
+})
+
+-- Start by selecting Main Tab
+MainTab:Select()
+
+-- Noclip logic
 game:GetService("RunService").Stepped:Connect(noclip)
