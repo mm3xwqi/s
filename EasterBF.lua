@@ -14,7 +14,6 @@ _G.ChestWaitTime = 0
 _G.InGhostShip = false
 
 local SPEED = 350 
-local SKY_Y = 250
 local THIRSTY_POS = Vector3.new(-1188, 10, 1296)
 local MOLTEN_POS = Vector3.new(-5227, 287, -5497)
 local FRIENDLY_POS = Vector3.new(-3053, 240, -10144)
@@ -52,10 +51,9 @@ local function toggleGhostShip(mode)
         remote:InvokeServer("requestEntrance", GHOST_SHIP_OUT)
         _G.InGhostShip = false
     end
-    task.wait(1)
+    task.wait(1.5)
 end
 
--- ฟังก์ชันวาร์ปไป Dressrosa
 local function teleportToDressrosa()
     local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") and game:GetService("ReplicatedStorage").Remotes:FindFirstChild("CommF_")
     if remote then
@@ -119,7 +117,7 @@ local function StartFarming()
         
         task.spawn(function()
             while _G.AutoFarmEnabled do 
-                task.wait(10)
+                task.wait(15)
                 _G.ChestBlacklist = {} 
                 _G.ShardBlacklist = {}
             end
@@ -146,13 +144,22 @@ local function StartFarming()
                     end
                 else
                     local optionButton = player.PlayerGui.Main.Dialogue:FindFirstChild("Option1")
+                    
+                    -- แก้ไขส่วน Falling Sky Egg: Current Y + 150
                     if string.find(eggInHand.Name, "Falling") then
-                        rootPart.CFrame = CFrame.new(rootPart.Position.X, SKY_Y, rootPart.Position.Z)
-                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do clickButton(optionButton) task.wait(0.2) end
+                        local currentPos = rootPart.Position
+                        rootPart.CFrame = CFrame.new(currentPos.X, currentPos.Y + 150, currentPos.Z)
+                        task.wait(0.5) -- รอให้ตัวละครวาร์ปขึ้นไปนิ่งๆ ก่อนกด
+                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do 
+                            clickButton(optionButton) 
+                            task.wait(0.2) 
+                        end
+                        
                     elseif string.find(eggInHand.Name, "Thirsty") then
                         moveTo(THIRSTY_POS)
                         repeat task.wait(0.1) until (rootPart.Position - THIRSTY_POS).Magnitude < 12 or not eggInHand.Parent
                         while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do clickButton(optionButton) task.wait(0.2) end
+                        
                     elseif string.find(eggInHand.Name, "Molten") then
                         moveTo(MOLTEN_POS)
                         repeat task.wait(0.1) until (rootPart.Position - MOLTEN_POS).Magnitude < 12 or not eggInHand.Parent
@@ -188,15 +195,6 @@ local function StartFarming()
                             task.wait(0.1)
                         end
                     end
-                    
-                    if #allShards == 1 and dist < 15 then 
-                        local waitTime = 0
-                        repeat
-                            task.wait(0.5)
-                            waitTime = waitTime + 0.5
-                        until getSpecialEgg() or waitTime >= 10 or not _G.AutoFarmEnabled
-                    end
-
                 -- [[ Priority 3: Indra Egg / Chests ]] --
                 else
                     local eggTarget = nil
@@ -231,22 +229,25 @@ local function StartFarming()
                             rootPart.CFrame = CFrame.new(chestTarget:GetPivot().Position)
                         end
                     else
-                        -- [[ Priority 4: Island Switching ]] --
-                        if not _G.TargetIsland then 
-                            _G.TargetIsland = getNextIsland()
-                            if _G.InGhostShip and _G.TargetIsland.Name ~= "GhostShipInterior" then toggleGhostShip("exit") end
-                        end
-                        if _G.TargetIsland then
-                            if _G.TargetIsland.Name == "GhostShipInterior" then
-                                if not _G.InGhostShip then toggleGhostShip("enter") end
-                            -- ตรวจสอบเงื่อนไข Dressrosa
-                            elseif _G.TargetIsland.Name == "Dressrosa" then
-                                teleportToDressrosa()
-                                _G.TargetIsland = nil -- รีเซ็ตเพื่อให้เริ่มสแกนหาของในเกาะใหม่ทันที
-                            else
-                                local islandPos = _G.TargetIsland:GetPivot().Position + Vector3.new(0, 80, 0)
-                                moveTo(islandPos)
-                                if (rootPart.Position - islandPos).Magnitude < 30 then _G.TargetIsland = nil end
+                        -- [[ Priority 4: Island Switching & Auto-Exit GhostShip ]] --
+                        if _G.InGhostShip then
+                            toggleGhostShip("exit")
+                            _G.TargetIsland = nil 
+                        else
+                            if not _G.TargetIsland then 
+                                _G.TargetIsland = getNextIsland()
+                            end
+                            if _G.TargetIsland then
+                                if _G.TargetIsland.Name == "GhostShipInterior" then
+                                    if not _G.InGhostShip then toggleGhostShip("enter") end
+                                elseif _G.TargetIsland.Name == "Dressrosa" then
+                                    teleportToDressrosa()
+                                    _G.TargetIsland = nil 
+                                else
+                                    local islandPos = _G.TargetIsland:GetPivot().Position + Vector3.new(0, 80, 0)
+                                    moveTo(islandPos)
+                                    if (rootPart.Position - islandPos).Magnitude < 50 then _G.TargetIsland = nil end
+                                end
                             end
                         end
                     end
