@@ -223,8 +223,46 @@ settingsTab:CreateSlider("Tween Speed", 100, 800, 300, function(value)
     SPEED = value
 end)
 
-settingsTab:CreateSlider("Sky Height (Y)", 100, 500, 250, function(value)
+settingsTab:CreateSlider("Sky Height (falling sky egg)", 100, 500, 250, function(value)
     SKY_Y = value
+end)
+
+settingsTab:CreateButton("del chest (visible)", function()
+    for _, v in ipairs(workspace.ChestModels:GetDescendants()) do
+    pcall(function()
+        if v:IsA("BasePart") then
+            v.Transparency = 1
+            v.CanCollide = false
+        end
+        if v:IsA("ParticleEmitter") or v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
+            v.Enabled = false
+        end
+        if v:IsA("BillboardGui") or v:IsA("SurfaceGui") then
+            v.Enabled = false
+        end
+        if v:IsA("Decal") or v:IsA("Texture") then
+            v.Transparency = 1
+        end
+    end)
+end
+
+workspace.ChestModels.DescendantAdded:Connect(function(v)
+    pcall(function()
+        if v:IsA("BasePart") then
+            v.Transparency = 1
+            v.CanCollide = false
+        end
+        if v:IsA("ParticleEmitter") or v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
+            v.Enabled = false
+        end
+        if v:IsA("BillboardGui") or v:IsA("SurfaceGui") then
+            v.Enabled = false
+        end
+        if v:IsA("Decal") or v:IsA("Texture") then
+            v.Transparency = 1
+        end
+    end)
+end)
 end)
 
 -- [[ NOCLIP LOOP ]] --
