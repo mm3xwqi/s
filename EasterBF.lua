@@ -1,10 +1,23 @@
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/UI-Interface/CustomFIeld/main/RayField.lua'))()
+-- โหลด Rayfield UI พร้อมตรวจสอบข้อผิดพลาด
+local RayfieldLoaded, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://raw.githubusercontent.com/UI-Interface/CustomFIeld/main/RayField.lua'))()
+end)
 
--- [[ UI INITIALIZATION ]] --
+if not RayfieldLoaded then
+    warn("Rayfield โหลดไม่สำเร็จ ระบบจะทำงานโดยไม่มี UI")
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Error",
+        Text = "Rayfield โหลดไม่สำเร็จ ตรวจสอบการเชื่อมต่อหรือตั้งค่า Http Requests",
+        Duration = 5
+    })
+    return
+end
+
+-- ===== UI INITIALIZATION =====
 local Window = Rayfield:CreateWindow({
    Name = "Easter Event Farm | FrostByte",
    LoadingTitle = "FrostByte Interface",
-   LoadingSubtitle = "by Arrays",
+   LoadingSubtitle = "by Arrays (Mobile Ready)",
    ConfigurationSaving = {
       Enabled = false,
       FolderName = "FrostByteFarm",
@@ -23,8 +36,9 @@ local SettingsTab = Window:CreateTab("Settings")
 
 local FarmSection = MainTab:CreateSection("Farming", false)
 local ConfigSection = SettingsTab:CreateSection("Configuration", false)
+local StatusSection = SettingsTab:CreateSection("Status", false)
 
--- [[ GLOBAL SETTINGS ]] --
+-- ===== GLOBAL VARIABLES =====
 _G.AutoFarmEnabled = false
 _G.QuestModeEnabled = false 
 _G.CurrentTween = nil
@@ -43,12 +57,13 @@ local GHOST_SHIP_IN = Vector3.new(923.213, 126.976, 32852.832)
 local GHOST_SHIP_OUT = Vector3.new(-6508.558, 89.035, -132.840)
 local DRESSROSA_POS = Vector3.new(-286.9859619140625, 306.13739013671875, 597.88623046875)
 
--- [[ Special islands ]] --
+-- Special islands
 local SPECIAL_ISLANDS = {
     DarkbeardArena = Vector3.new(2284.909, 15.538, 905.477),
     SnowMountain    = Vector3.new(0, 0, 0),
     IceCastle       = Vector3.new(0, 0, 0),
     Mini1           = Vector3.new(0, 0, 0),
+    GhostShip       = Vector3.new(0, 0, 0)
 }
 
 local EXIT_REMOTE_ISLANDS = {
@@ -65,14 +80,16 @@ local ExcludedMaps = {
     ["RaidMap"] = true,
     ["WaterBase-Plane"] = true,
     ["IndraIsland"] = true,
-    ["EventInstances"] = true -- เพิ่มการป้องกัน Folder นี้
+    ["EventInstances"] = true
 }
 
--- [[ CORE FUNCTIONS ]] --
+-- ตัวแปรสำหรับเก็บเป้าหมายปัจจุบัน (ใช้เพื่ออัปเดต Tween เมื่อเปลี่ยนความเร็ว)
+local currentTargetPos = nil
+
+-- ===== HELPER FUNCTIONS =====
 local function getNextIsland()
     local islands = {}
     for _, island in ipairs(workspace.Map:GetChildren()) do
-        -- แก้ไข: เพิ่ม island:IsA("Model") เพื่อให้แน่ใจว่าเป็นโมเดลเกาะ ไม่ใช่โฟลเดอร์
         if island:IsA("Model") and not ExcludedMaps[island.Name] then 
             table.insert(islands, island) 
         end
@@ -118,6 +135,7 @@ local function teleportToSpecialIsland(islandName)
     end
 end
 
+-- ฟังก์ชันคลิกปุ่มด้วย VirtualInputManager (ใช้ได้ทั้ง PC และมือถือ)
 local function clickButton(button)
     if button and button:IsA("GuiButton") and button.Visible then
         local VIM = game:GetService("VirtualInputManager")
@@ -131,6 +149,30 @@ local function clickButton(button)
     end
 end
 
+-- ฟังก์ชันสร้าง Tween ใหม่ (ใช้เมื่อเปลี่ยนความเร็ว)
+local function createTween(targetPos)
+    local character = game.Players.LocalPlayer.Character
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if not rootPart or not targetPos then return end
+    if _G.CurrentTween then 
+        _G.CurrentTween:Cancel() 
+    end
+    local distance = (targetPos - rootPart.Position).Magnitude
+    if distance < 3 then return end
+    _G.CurrentTween = game:GetService("TweenService"):Create(
+        rootPart, 
+        TweenInfo.new(distance / SPEED, Enum.EasingStyle.Linear), 
+        {CFrame = CFrame.new(targetPos)}
+    )
+    _G.CurrentTween:Play()
+    currentTargetPos = targetPos
+end
+
+local function moveTo(targetPos)
+    if not targetPos then return end
+    createTween(targetPos)
+end
+
 local function noclip()
     local character = game.Players.LocalPlayer.Character
     if not _G.AutoFarmEnabled or not character then return end
@@ -140,19 +182,11 @@ local function noclip()
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
     end
     for _, v in ipairs(character:GetDescendants()) do
-        if v:IsA("BasePart") then v.CanCollide = false v.Velocity = Vector3.new(0, 0, 0) end
+        if v:IsA("BasePart") then 
+            v.CanCollide = false 
+            v.Velocity = Vector3.new(0, 0, 0) 
+        end
     end
-end
-
-local function moveTo(targetPos)
-    local character = game.Players.LocalPlayer.Character
-    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-    if not rootPart or not targetPos then return end
-    local distance = (targetPos - rootPart.Position).Magnitude
-    if distance < 3 then return end
-    if _G.CurrentTween then _G.CurrentTween:Cancel() end
-    _G.CurrentTween = game:GetService("TweenService"):Create(rootPart, TweenInfo.new(distance / SPEED, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
-    _G.CurrentTween:Play()
 end
 
 local function getSpecialEgg()
@@ -166,11 +200,12 @@ local function getSpecialEgg()
     return nil
 end
 
--- [[ MAIN LOOP ]] --
+-- ===== MAIN AUTO-FARM LOOP =====
 local function StartFarming()
     task.spawn(function()
         local player = game.Players.LocalPlayer
         
+        -- ล้าง Blacklist ทุก 15 วินาที
         task.spawn(function()
             while _G.AutoFarmEnabled do 
                 task.wait(15)
@@ -182,19 +217,28 @@ local function StartFarming()
         while _G.AutoFarmEnabled do
             local character = player.Character
             local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-            if not rootPart then task.wait(0.5) continue end
+            if not rootPart then 
+                task.wait(0.5) 
+                continue 
+            end
 
             local eggInHand = getSpecialEgg()
             local deliveredEgg = false 
             
+            -- โหมดส่งไข่
             if _G.QuestModeEnabled and eggInHand then
                 if _G.InGhostShip then toggleGhostShip("exit") end
                 local humanoid = character:FindFirstChild("Humanoid")
-                if eggInHand.Parent ~= character and humanoid then humanoid:EquipTool(eggInHand) task.wait(0.3) end
+                if eggInHand.Parent ~= character and humanoid then 
+                    humanoid:EquipTool(eggInHand) 
+                    task.wait(0.3) 
+                end
                 
                 if eggInHand.Name == "Firefly Egg" or eggInHand.Name == "Friendly Neighborhood Egg" then
                     moveTo(FRIENDLY_POS)
-                    repeat task.wait(0.1) until (rootPart.Position - FRIENDLY_POS).Magnitude < 10 or not eggInHand.Parent
+                    repeat 
+                        task.wait(0.1) 
+                    until (rootPart.Position - FRIENDLY_POS).Magnitude < 10 or not eggInHand.Parent
                     if eggInHand.Parent == character then
                         game:GetService("ReplicatedStorage").Modules.Net["RF/EasterServiceRF"]:InvokeServer("NPC.TravelingQuest", workspace.NPCs:FindFirstChild("Forgotten Quest Giver"))
                         deliveredEgg = true
@@ -205,22 +249,40 @@ local function StartFarming()
                         local currentPos = rootPart.Position
                         rootPart.CFrame = CFrame.new(currentPos.X, currentPos.Y + 150, currentPos.Z)
                         task.wait(0.5)
-                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do clickButton(optionButton) task.wait(0.2) end
+                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do 
+                            clickButton(optionButton) 
+                            task.wait(0.2) 
+                        end
                         deliveredEgg = true
                     elseif string.find(eggInHand.Name, "Thirsty") then
                         moveTo(THIRSTY_POS)
-                        repeat task.wait(0.1) until (rootPart.Position - THIRSTY_POS).Magnitude < 12 or not eggInHand.Parent
-                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do clickButton(optionButton) task.wait(0.2) end
+                        repeat 
+                            task.wait(0.1) 
+                        until (rootPart.Position - THIRSTY_POS).Magnitude < 12 or not eggInHand.Parent
+                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do 
+                            clickButton(optionButton) 
+                            task.wait(0.2) 
+                        end
                         deliveredEgg = true
                     elseif string.find(eggInHand.Name, "Molten") then
                         moveTo(MOLTEN_POS)
-                        repeat task.wait(0.1) until (rootPart.Position - MOLTEN_POS).Magnitude < 12 or not eggInHand.Parent
-                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do clickButton(optionButton) task.wait(0.2) end
+                        repeat 
+                            task.wait(0.1) 
+                        until (rootPart.Position - MOLTEN_POS).Magnitude < 12 or not eggInHand.Parent
+                        while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character do 
+                            clickButton(optionButton) 
+                            task.wait(0.2) 
+                        end
                         deliveredEgg = true
                     end
                 end
-                if deliveredEgg then task.wait(5) else task.wait(1) end
+                if deliveredEgg then 
+                    task.wait(5) 
+                else 
+                    task.wait(1) 
+                end
             else
+                -- โหมดเก็บ Shard / หีบ / เปลี่ยนเกาะ
                 local allShards = {}
                 for _, v in ipairs(workspace:GetChildren()) do
                     if (v.Name == "Shard" or v:FindFirstChild("Firefly Egg")) and not _G.ShardBlacklist[v] then
@@ -234,7 +296,10 @@ local function StartFarming()
                     for _, s in ipairs(allShards) do
                         local sPos = s:IsA("Model") and s:GetPivot().Position or s.Position
                         local d = (rootPart.Position - sPos).Magnitude
-                        if d < dist then dist = d closestShard = s end
+                        if d < dist then 
+                            dist = d 
+                            closestShard = s 
+                        end
                     end
                     if closestShard then
                         local targetPos = closestShard:IsA("Model") and closestShard:GetPivot().Position or closestShard.Position
@@ -249,7 +314,10 @@ local function StartFarming()
                     local eggTarget = nil
                     local chestTarget = nil
                     for _, v in ipairs(workspace:GetChildren()) do
-                        if v:IsA("Model") and (v:FindFirstChild("indra egg") or v:FindFirstChild("_PrimaryPart")) then eggTarget = v break end
+                        if v:IsA("Model") and (v:FindFirstChild("indra egg") or v:FindFirstChild("_PrimaryPart")) then 
+                            eggTarget = v 
+                            break 
+                        end
                     end
                     if not eggTarget then
                         local folder = workspace:FindFirstChild("ChestModels")
@@ -259,7 +327,8 @@ local function StartFarming()
                                 if not _G.ChestBlacklist[v] then
                                     local p = v.PrimaryPart or v:FindFirstChildWhichIsA("BasePart")
                                     if p and (rootPart.Position - p.Position).Magnitude < nearestDist then
-                                        nearestDist = (rootPart.Position - p.Position).Magnitude chestTarget = v
+                                        nearestDist = (rootPart.Position - p.Position).Magnitude 
+                                        chestTarget = v
                                     end
                                 end
                             end
@@ -276,18 +345,24 @@ local function StartFarming()
                         if (rootPart.Position - chestTarget:GetPivot().Position).Magnitude < 7 then
                             _G.ChestBlacklist[chestTarget] = true 
                             rootPart.CFrame = CFrame.new(chestTarget:GetPivot().Position)
-                            if _G.ChestWaitTime > 0 then task.wait(_G.ChestWaitTime) end
+                            if _G.ChestWaitTime > 0 then 
+                                task.wait(_G.ChestWaitTime) 
+                            end
                         end
                     else
                         if _G.InGhostShip then
                             toggleGhostShip("exit")
                             _G.TargetIsland = nil 
                         else
-                            if not _G.TargetIsland then _G.TargetIsland = getNextIsland() end
+                            if not _G.TargetIsland then 
+                                _G.TargetIsland = getNextIsland() 
+                            end
                             if _G.TargetIsland then
                                 local islandName = _G.TargetIsland.Name
                                 if islandName == "GhostShipInterior" then
-                                    if not _G.InGhostShip then toggleGhostShip("enter") end
+                                    if not _G.InGhostShip then 
+                                        toggleGhostShip("enter") 
+                                    end
                                     _G.TargetIsland = nil
                                 elseif islandName == "Dressrosa" then
                                     teleportToDressrosa()
@@ -298,7 +373,9 @@ local function StartFarming()
                                 else
                                     local islandPos = _G.TargetIsland:GetPivot().Position + Vector3.new(0, 80, 0)
                                     moveTo(islandPos)
-                                    if (rootPart.Position - islandPos).Magnitude < 50 then _G.TargetIsland = nil end
+                                    if (rootPart.Position - islandPos).Magnitude < 50 then 
+                                        _G.TargetIsland = nil 
+                                    end
                                 end
                             end
                         end
@@ -310,8 +387,7 @@ local function StartFarming()
     end)
 end
 
--- [[ UI ELEMENTS ]] --
-
+-- ===== UI ELEMENTS =====
 MainTab:CreateToggle({
    Name = "Enable Auto Farm",
    CurrentValue = false,
@@ -322,7 +398,10 @@ MainTab:CreateToggle({
       if Value then 
           StartFarming() 
       else 
-          if _G.CurrentTween then _G.CurrentTween:Cancel() end 
+          if _G.CurrentTween then 
+              _G.CurrentTween:Cancel() 
+              currentTargetPos = nil
+          end 
       end
    end,
 })
@@ -347,21 +426,36 @@ SettingsTab:CreateSlider({
    SectionParent = ConfigSection,
    Callback = function(Value)
       SPEED = Value
+      -- ถ้ามี Tween กำลังทำงานและมีเป้าหมายเดิม ให้สร้างใหม่ด้วยความเร็วใหม่
+      if _G.CurrentTween and currentTargetPos then
+          createTween(currentTargetPos)
+      end
+      -- อัปเดตสถานะ
+      if SpeedStatusLabel then
+          SpeedStatusLabel:Set(string.format("Current Speed: %d", SPEED))
+      end
    end,
 })
 
 SettingsTab:CreateSlider({
    Name = "Chest Wait Time (ms)",
-   Range = {0, 200},
-   Increment = 1,
+   Range = {0, 2000},
+   Increment = 10,
    Suffix = "ms",
    CurrentValue = 0,
    Flag = "WaitSlider",
    SectionParent = ConfigSection,
    Callback = function(Value)
-      _G.ChestWaitTime = Value / 100
+      _G.ChestWaitTime = Value / 1000  -- แปลงเป็นวินาที
+      if WaitStatusLabel then
+          WaitStatusLabel:Set(string.format("Wait Time: %.2f sec", _G.ChestWaitTime))
+      end
    end,
 })
 
--- Noclip logic
+-- สร้าง Label สำหรับแสดงสถานะปัจจุบัน
+local SpeedStatusLabel = SettingsTab:CreateLabel("Current Speed: " .. SPEED, StatusSection)
+local WaitStatusLabel = SettingsTab:CreateLabel("Wait Time: 0.00 sec", StatusSection)
+
+-- ===== NOCLIP LOOP =====
 game:GetService("RunService").Stepped:Connect(noclip)
