@@ -1152,17 +1152,75 @@ local function stopDamageAura()
     end
 end
 
+-- ===== DAMAGE AURA PLAYERS =====
+_G.DamageAuraPlayersEnabled = false
+
+local damagePlayerAuraTask = nil
+
+local function damagePlayer(character)
+    if not character or not character.Parent then return end
+
+    local hitPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
+    if not hitPart then
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                hitPart = part
+                break
+            end
+        end
+    end
+    if not hitPart then return end
+
+    local attackArgs = { 0.4000000059604645 }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(unpack(attackArgs))
+    end)
+
+    local hitArgs = { hitPart, {}, [4] = "196f522a" }
+    pcall(function()
+        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(unpack(hitArgs))
+    end)
+end
+
+local function startDamagePlayerAura()
+    if damagePlayerAuraTask then return end
+    damagePlayerAuraTask = task.spawn(function()
+        local localPlayer = game.Players.LocalPlayer
+        while _G.DamageAuraPlayersEnabled do
+            local playersFolder = workspace:FindFirstChild("Characters")
+            if playersFolder then
+                for _, character in ipairs(playersFolder:GetChildren()) do
+                    if character and character.Parent and character ~= localPlayer.Character then
+                        damagePlayer(character)
+                        task.wait()
+                    end
+                end
+            end
+            task.wait()
+        end
+        damagePlayerAuraTask = nil
+    end)
+end
+
+local function stopDamagePlayerAura()
+    if damagePlayerAuraTask then
+        task.cancel(damagePlayerAuraTask)
+        damagePlayerAuraTask = nil
+    end
+end
+
 _G.BringMobEnabled = false
 _G.BringMobSpeed = 450
 _G.BringMobHeight = 10
 _G.BringMobMaxDistance = 500     -- ระยะสูงสุด (studs)
 _G.BringMobMaxCount = 25
 
--- ===== BRING MOB - FAST + ไม่หล่น =====
+-- ===== BRING MOB - FAST + ไม่หล่น + NOCLIP =====
 local TweenService = game:GetService("TweenService")
 local bringMobTask = nil
 local activeMobTweens = {}
-local activeMobBVs = {}        -- เก็บ BodyVelocity
+local activeMobBVs = {}
+local mobNoclipConnections = {}  -- เก็บ connection สำหรับแต่ละมอน
 
 local function stopMobControl(enemy)
     if activeMobTweens[enemy] then
@@ -1173,6 +1231,33 @@ local function stopMobControl(enemy)
         pcall(function() activeMobBVs[enemy]:Destroy() end)
         activeMobBVs[enemy] = nil
     end
+    -- หยุด noclip loop สำหรับมอนนี้
+    if mobNoclipConnections[enemy] then
+        pcall(function() mobNoclipConnections[enemy]:Disconnect() end)
+        mobNoclipConnections[enemy] = nil
+    end
+end
+
+local function enableMobNoclip(enemy)
+    -- ถ้ามี connection อยู่แล้ว ไม่ต้องสร้างใหม่
+    if mobNoclipConnections[enemy] then return end
+    
+    mobNoclipConnections[enemy] = game:GetService("RunService").Heartbeat:Connect(function()
+        if not enemy or not enemy.Parent then
+            if mobNoclipConnections[enemy] then
+                mobNoclipConnections[enemy]:Disconnect()
+                mobNoclipConnections[enemy] = nil
+            end
+            return
+        end
+        
+        -- ปิด CanCollide ของทุก part ในมอน
+        for _, part in ipairs(enemy:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
 end
 
 local function startBringMob()
@@ -1210,6 +1295,9 @@ local function startBringMob()
 
                         if distance > 8 and distance <= _G.BringMobMaxDistance then
                             stopMobControl(enemy)
+
+                            -- เปิด noclip สำหรับมอนนี้
+                            enableMobNoclip(enemy)
 
                             -- === สร้าง BodyVelocity เพื่อป้องกันการหล่น ===
                             local bv = Instance.new("BodyVelocity")
@@ -1263,8 +1351,8 @@ local function stopBringMob()
     end
     activeMobTweens = {}
     activeMobBVs = {}
+    mobNoclipConnections = {}
 end
-
 -- ===== UI =====
 local Windows = NothingLibrary.new({ Title = "Easter Event Farm", Description = "FrostByte | by Arrays (Mobile Ready)", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
 
@@ -1322,6 +1410,19 @@ ConfigSection2:NewToggle({
 })
 
 ConfigSection2:NewToggle({
+    Title = "Damage Aura (Players)",
+    Default = false,
+    Callback = function(Value)
+        _G.DamageAuraPlayersEnabled = Value
+        if Value then
+            startDamagePlayerAura()
+        else
+            stopDamagePlayerAura()
+        end
+    end
+})
+
+ConfigSection2:NewToggle({
     Title = "Bring Mob (All Mobs - Fast)",
     Default = false,
     Callback = function(Value)
@@ -1335,6 +1436,6 @@ ConfigSection2:NewToggle({
 })
 
 ConfigSection2:NewSlider({ Title = "Bring Mob Speed", Min = 200, Max = 900, Default = 450, Callback = function(v) _G.BringMobSpeed = v end })
-ConfigSection2:NewSlider({ Title = "Bring Mob Height (Y)", Min = 0, Max = 40, Default = 12, Callback = function(v) _G.BringMobHeight = v end })
+ConfigSection2:NewSlider({ Title = "Bring Mob Height (Y)", Min = -100, Max = 100, Default = 12, Callback = function(v) _G.BringMobHeight = v end })
 ConfigSection2:NewSlider({ Title = "Max Bring Distance", Min = 100, Max = 1200, Default = 600, Callback = function(v) _G.BringMobMaxDistance = v end })
 ConfigSection2:NewSlider({ Title = "Max Mobs to Bring", Min = 5, Max = 40, Default = 20, Callback = function(v) _G.BringMobMaxCount = v end })
