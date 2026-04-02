@@ -1,27 +1,51 @@
-local NothingLibrary = loadstring(game:HttpGetAsync('https://raw.githubusercontent.com/3345-c-a-t-s-u-s/NOTHING/main/source.lua'))()
+local success, NothingLibrary = pcall(function()
+    return loadstring(game:HttpGetAsync('https://raw.githubusercontent.com/3345-c-a-t-s-u-s/NOTHING/main/source.lua'))()
+end)
+
+if not success or type(NothingLibrary) ~= "table" then
+    warn("Failed to load NothingLibrary")
+    return
+end
+
 local Notification = NothingLibrary.Notification()
 
 -- ===== GLOBAL VARIABLES =====
 _G.AutoFarmEnabled = false
-_G.QuestModeEnabled = false 
+_G.QuestModeEnabled = false
 _G.AutoJumpEnabled = true
 _G.CurrentTween = nil
 _G.TargetIsland = nil
-_G.ChestBlacklist = {} 
-_G.ShardBlacklist = {} 
+_G.ChestBlacklist = {}
+_G.ShardBlacklist = {}
 _G.FruitBlacklist = {}
 _G.ChestWaitTime = 0
-_G.FarmMode = "random"   
+_G.FarmMode = "random"
 
--- Circle state variables
-_G.CurrentCircleIsland = nil
-_G.CurrentCircleIndex = 1
-_G.CurrentCircleRound = 1
+_G.AutoEquipEnabled = false
+_G.SelectedWeaponType = "Melee"
 
-local SPEED = 350 
+_G.FarmAuraEnabled = false
+_G.FarmAuraHeight = 50
+_G.BringMobEnabled = false
+_G.BringMobMaxDistance = 500
+
+-- Auto Farm Boss
+_G.AutoFarmBossEnabled = false
+_G.SelectedBossName = nil
+
+-- ค่า Default
+local BRING_MOB_SPEED = 450
+local BRING_MOB_HEIGHT = 0
+local SPEED = 350
 local THIRSTY_POS = Vector3.new(-1188, 10, 1296)
 local MOLTEN_POS = Vector3.new(-5227, 200, -5497)
 local FRIENDLY_POS = Vector3.new(-3053, 240, -10144)
+local TweenService = game:GetService("TweenService")
+
+-- Circle state
+_G.CurrentCircleIsland = nil
+_G.CurrentCircleIndex = 1
+_G.CurrentCircleRound = 1
 
 local ExcludedMaps = {
     ["FortBuilderPlacedSurfaces"] = true,
@@ -37,7 +61,107 @@ local ExcludedMaps = {
     ["Group"] = true,
 }
 
--- ===== CUSTOM ROUTES =====
+-- ===== UTILITY FUNCTIONS =====
+local function getToolTip(tool)
+    if not tool then return nil end
+    local success, tip = pcall(function() return tool.ToolTip end)
+    if success and tip and tip ~= "" then return tip end
+    local tipChild = tool:FindFirstChild("ToolTip")
+    if tipChild then
+        if tipChild:IsA("StringValue") or tipChild:IsA("ObjectValue") then
+            return tipChild.Value
+        elseif type(tipChild.Value) == "string" then
+            return tipChild.Value
+        end
+    end
+    local attrTip = tool:GetAttribute("ToolTip")
+    if attrTip then return attrTip end
+    return tool.Name
+end
+
+local function findToolByType(weaponType)
+    local player = game.Players.LocalPlayer
+    local backpack = player.Backpack
+    local character = player.Character
+    local function matchesType(tool)
+        local tip = getToolTip(tool)
+        if tip then
+            local tipLower = string.lower(tip)
+            local typeLower = string.lower(weaponType)
+            if string.find(tipLower, typeLower) then return true end
+        end
+        return false
+    end
+    for _, tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") and matchesType(tool) then return tool end
+    end
+    if character then
+        for _, tool in ipairs(character:GetChildren()) do
+            if tool:IsA("Tool") and matchesType(tool) then return tool end
+        end
+    end
+    return nil
+end
+
+local function equipWeapon(weaponType)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    local toolToEquip = findToolByType(weaponType)
+    if toolToEquip then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            if toolToEquip.Parent == player.Backpack then
+                toolToEquip.Parent = character
+                task.wait(0.1)
+            end
+            humanoid:EquipTool(toolToEquip)
+            Notification.new({ Title = "Auto Equip", Description = "Equipped " .. toolToEquip.Name, Duration = 2 })
+        end
+    else
+        Notification.new({ Title = "Auto Equip", Description = "No " .. weaponType .. " tool found!", Duration = 2 })
+    end
+end
+
+local autoEquipTask = nil
+local function startAutoEquip()
+    if autoEquipTask then return end
+    autoEquipTask = task.spawn(function()
+        while _G.AutoEquipEnabled do
+            local character = game.Players.LocalPlayer.Character
+            local currentlyEquipped = nil
+            if character then
+                for _, tool in ipairs(character:GetChildren()) do
+                    if tool:IsA("Tool") and tool.Parent == character then
+                        currentlyEquipped = tool
+                        break
+                    end
+                end
+            end
+            if not currentlyEquipped then
+                equipWeapon(_G.SelectedWeaponType)
+                task.wait(0.5)
+            else
+                local currentTip = getToolTip(currentlyEquipped)
+                local expectedType = _G.SelectedWeaponType
+                if not currentTip or not string.find(string.lower(currentTip), string.lower(expectedType)) then
+                    currentlyEquipped.Parent = game.Players.LocalPlayer.Backpack
+                    task.wait(0.2)
+                    equipWeapon(expectedType)
+                end
+            end
+            task.wait(1)
+        end
+        autoEquipTask = nil
+    end)
+end
+
+local function stopAutoEquip()
+    _G.AutoEquipEnabled = false
+    if autoEquipTask then task.cancel(autoEquipTask) autoEquipTask = nil end
+end
+
+-- ===== ROUTES =====
 local IslandRoutes = {
     ForgottenIsland = {Vector3.new(-2792.612, 6.151, -9489.092), Vector3.new(-3319.633, 6.156, -9406.701), Vector3.new(-3723.911, 6.156, -9899.021), Vector3.new(-4394.900, 122.851, -10715.470), Vector3.new(-3951.024, 123.336, -11537.139), Vector3.new(-3087.306, 281.155, -10971.061), Vector3.new(-2619.042, 317.928, -10402.976), Vector3.new(-2512.719, 6.156, -9541.841), Vector3.new(-2792.603, 6.153, -9498.146)},
     Dressrosa = {Vector3.new(-382.166, 73.071, 217.102), Vector3.new(-281.807, 73.071, 215.005), Vector3.new(-281.125, 73.002, 395.918), Vector3.new(-490.960, 73.002, 386.886), Vector3.new(-225.164, 370.002, 547.916), Vector3.new(-228.155, 370.002, 822.693), Vector3.new(-560.809, 370.002, 820.613), Vector3.new(-562.119, 370.002, 549.666), Vector3.new(-184.705, 73.002, 1608.106), Vector3.new(-976.461, 73.051, 1526.228), Vector3.new(-1038.249, 73.002, 776.786), Vector3.new(-1871.038, 73.002, 448.122), Vector3.new(-2230.802, 73.000, -263.154), Vector3.new(-1279.016, 73.200, -764.401), Vector3.new(-207.002, 73.000, -955.060), Vector3.new(867.520, 73.002, -537.579), Vector3.new(1290.360, 73.002, 448.933), Vector3.new(1294.695, 227.001, 679.579), Vector3.new(1313.344, 73.002, 913.958), Vector3.new(1120.239, 73.002, 1597.852), Vector3.new(638.665, 73.001, 1771.723), Vector3.new(43.028, 73.001, 1719.230), Vector3.new(8.190, 118.202, 1241.055), Vector3.new(-490.229, 118.202, 1244.256)},
@@ -71,15 +195,20 @@ local function isCharacterAlive()
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
     local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return false end
-    return humanoid.Health > 0
+    return humanoid and humanoid.Health > 0
+end
+
+local function isEnemyAlive(enemy)
+    if not enemy or not enemy.Parent then return false end
+    local humanoid = enemy:FindFirstChildOfClass("Humanoid")
+    return humanoid and humanoid.Health > 0
 end
 
 local function getNextIsland()
     local islands = {}
     for _, island in ipairs(workspace.Map:GetChildren()) do
-        if island:IsA("Model") and not ExcludedMaps[island.Name] then 
-            table.insert(islands, island) 
+        if island:IsA("Model") and not ExcludedMaps[island.Name] then
+            table.insert(islands, island)
         end
     end
     if #islands > 0 then
@@ -94,7 +223,7 @@ local function clickButton(button)
         local pos = button.AbsolutePosition
         local size = button.AbsoluteSize
         local centerX = pos.X + (size.X / 2)
-        local centerY = pos.Y + (size.Y / 2) + 58 
+        local centerY = pos.Y + (size.Y / 2) + 58
         VIM:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
         task.wait(0.05)
         VIM:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
@@ -128,9 +257,8 @@ local function hasPriorityTarget()
     return false
 end
 
--- ===== FIX: getPosition always returns Vector3 =====
 local function getPosition(obj)
-    if not obj or not obj.Parent then return nil end  -- return nil so callers can guard
+    if not obj or not obj.Parent then return nil end
     if typeof(obj) == "Vector3" then return obj end
     if obj:IsA("Model") then
         local ok, pos = pcall(function() return obj:GetPivot().Position end)
@@ -144,7 +272,6 @@ local function getPosition(obj)
     end
 end
 
--- ===== JUMP FUNCTION =====
 local function doJump()
     local VIM = game:GetService("VirtualInputManager")
     VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
@@ -152,15 +279,14 @@ local function doJump()
     VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
 end
 
--- ===== GET CLOSEST COLLECTIBLE =====
+-- ===== COLLECTIBLE =====
 local function getClosestCollectible()
     local player = game.Players.LocalPlayer
     local rootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return nil end
-
     local closest = nil
     local closestDist = math.huge
-
+    -- Fruit
     local fruitFolder = workspace:FindFirstChild("Fruit ")
     if fruitFolder then
         for _, fruit in ipairs(fruitFolder:GetChildren()) do
@@ -176,7 +302,7 @@ local function getClosestCollectible()
             end
         end
     end
-
+    -- Shard
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and (v.Name == "Shard" or v.Name == "EasterShard") and not _G.ShardBlacklist[v] then
             local pos = getPosition(v)
@@ -189,7 +315,7 @@ local function getClosestCollectible()
             end
         end
     end
-
+    -- Egg
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and v:IsA("Model") and (v:FindFirstChild("indra egg") or v:FindFirstChild("_PrimaryPart")) then
             local pos = getPosition(v)
@@ -202,7 +328,7 @@ local function getClosestCollectible()
             end
         end
     end
-
+    -- Chest
     local folder = workspace:FindFirstChild("ChestModels")
     if folder then
         for _, v in ipairs(folder:GetChildren()) do
@@ -221,7 +347,6 @@ local function getClosestCollectible()
             end
         end
     end
-
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj.Parent and (obj.Name == "EasterChest" or obj.Name == "Chest") and not _G.ChestBlacklist[obj] then
             local p = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
@@ -237,7 +362,6 @@ local function getClosestCollectible()
             end
         end
     end
-
     return closest
 end
 
@@ -246,47 +370,34 @@ local function moveTo(targetPos, targetInstance, targetType, dynamic, enableJump
     if dynamic == nil then dynamic = true end
     if enableJump == nil then enableJump = false end
     if not targetPos and not targetInstance then return false end
-
-    -- Resolve initial position from instance if targetPos not given
     if not targetPos and targetInstance then
         local p = getPosition(targetInstance)
         if p then targetPos = p end
     end
-
     local character = game.Players.LocalPlayer.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
-
     local old = hrp:FindFirstChild("Lock")
     if old then old:Destroy() end
-
     local bv = Instance.new("BodyVelocity")
     bv.Name = "Lock"
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.Parent = hrp
-
     local checkTimer = 0
     local interrupted = false
     local lastJumpTime = 0
-
     while _G.AutoFarmEnabled do
         local hrpNow = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if not hrpNow then break end
-
         if _G.QuestModeEnabled and getSpecialEgg() and targetType ~= "Quest" then break end
-
-        -- Update target position from instance if available
         if targetInstance and targetInstance.Parent then
             local p = getPosition(targetInstance)
             if p then targetPos = p end
         end
-
         if not targetPos then break end
-
         local dist = (hrpNow.Position - targetPos).Magnitude
         if dist < 3 then break end
-
         if enableJump and _G.AutoJumpEnabled and dist < 15 then
             local now = tick()
             if now - lastJumpTime > 0.3 then
@@ -294,7 +405,6 @@ local function moveTo(targetPos, targetInstance, targetType, dynamic, enableJump
                 lastJumpTime = now
             end
         end
-
         if dynamic then
             checkTimer = checkTimer + task.wait()
             if checkTimer >= 0.2 then
@@ -312,17 +422,12 @@ local function moveTo(targetPos, targetInstance, targetType, dynamic, enableJump
         else
             task.wait()
         end
-
         if not _G.AutoFarmEnabled then break end
-
         bv.Velocity = (targetPos - hrpNow.Position).Unit * SPEED
     end
-
-    -- FIX: stop and destroy cleanly, no stutter
     pcall(function() bv.Velocity = Vector3.new(0, 0, 0) end)
     task.wait(0.05)
     pcall(function() bv:Destroy() end)
-
     return interrupted
 end
 
@@ -330,27 +435,22 @@ end
 local function hoverMoveTo(target, hoverY, isHovering, enableJump)
     if enableJump == nil then enableJump = false end
     if not target then return false end
-
     local character = game.Players.LocalPlayer.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
-
     local oldBV = hrp:FindFirstChild("HoverBV")
     if oldBV then oldBV:Destroy() end
     local oldBP = hrp:FindFirstChild("HoverBP")
     if oldBP then oldBP:Destroy() end
-
     local bv = Instance.new("BodyVelocity")
     bv.Name = "HoverBV"
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.Parent = hrp
-
     local bp = Instance.new("BodyPosition")
     bp.Name = "HoverBP"
     bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bp.P = 10000
-    -- ตำแหน่งของ target โดยตรงไม่บวก Y
     local targetPosition
     if typeof(target) == "Vector3" then
         targetPosition = target
@@ -363,27 +463,21 @@ local function hoverMoveTo(target, hoverY, isHovering, enableJump)
         bp.Position = Vector3.new(hrp.Position.X, hrp.Position.Y, hrp.Position.Z)
     end
     bp.Parent = hrp
-
     local result = false
     local lastJumpTime = 0
-
     while _G.AutoFarmEnabled and isHovering and hrp.Parent do
-        -- ตรงนี้ก็ใช้ตำแหน่งของ target โดยตรง
         local currentTargetPos
         if typeof(target) == "Vector3" then
             currentTargetPos = target
         elseif typeof(target) == "Instance" then
             currentTargetPos = getPosition(target)
         end
-
-        if not currentTargetPos then break end  -- target gone, exit cleanly
-
+        if not currentTargetPos then break end
         local dist = (hrp.Position - currentTargetPos).Magnitude
         if dist < 3 then
             result = true
             break
         end
-
         if enableJump and _G.AutoJumpEnabled and dist < 15 then
             local now = tick()
             if now - lastJumpTime > 0.3 then
@@ -391,17 +485,13 @@ local function hoverMoveTo(target, hoverY, isHovering, enableJump)
                 lastJumpTime = now
             end
         end
-
         local direction = (currentTargetPos - hrp.Position).Unit
         direction = Vector3.new(direction.X, 0, direction.Z)
         bv.Velocity = direction * SPEED
         bp.Position = Vector3.new(hrp.Position.X, hoverY, hrp.Position.Z)
-
         task.wait()
     end
-
-    -- FIX: clean stop
-    pcall(function() bv.Velocity = Vector3.new(0, 0, 0) end)
+    pcall(function() bv:Velocity = Vector3.new(0, 0, 0) end)
     pcall(function() bv:Destroy() end)
     pcall(function() bp:Destroy() end)
     return result
@@ -418,69 +508,53 @@ local function processFruit(fruitTool)
         return game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("CommF_"):InvokeServer(unpack(args))
     end)
     if not success then
-        Notification.new({ Title = "Fruit", Description = "Failed to store " .. fruitName, Duration = 2, Icon = "rbxassetid://8997385628" })
+        Notification.new({ Title = "Fruit", Description = "Failed to store " .. fruitName, Duration = 2 })
     else
-        Notification.new({ Title = "Fruit", Description = "Stored " .. fruitName, Duration = 2, Icon = "rbxassetid://8997385628" })
+        Notification.new({ Title = "Fruit", Description = "Stored " .. fruitName, Duration = 2 })
     end
 end
 
--- ===== DELIVER FALLING SKY EGG =====
+-- ===== EGG DELIVERY (ย่อ) =====
 local function deliverFallingSkyEgg(eggInHand)
     local player = game.Players.LocalPlayer
     local character = player.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-
     local optionButton = player.PlayerGui.Main.Dialogue:FindFirstChild("Option1")
-
-    -- Equip the egg
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if eggInHand.Parent ~= character and humanoid then
         humanoid:EquipTool(eggInHand)
         task.wait(0.3)
     end
-
-    -- Hover at current position + 200 studs up
     local hoverY = hrp.Position.Y + 100
     local dropPos = Vector3.new(hrp.Position.X, hoverY, hrp.Position.Z)
-
-    -- Create holding mechanisms (no horizontal movement)
     local bv = Instance.new("BodyVelocity")
     bv.Name = "HoldBV"
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.Parent = hrp
-
     local bp = Instance.new("BodyPosition")
     bp.Name = "HoldBP"
     bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bp.P = 10000
     bp.Position = dropPos
     bp.Parent = hrp
-
-    -- Click to drop the egg
     local elapsed = 0
     local timeout = 10
     while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character and elapsed < timeout do
         clickButton(optionButton)
         task.wait(0.2)
         elapsed = elapsed + 0.2
-        bp.Position = dropPos   -- keep locked
+        bp.Position = dropPos
     end
-
-    -- Wait for the egg to fall and land (give it 10 seconds)
     local landWait = 0
     while landWait < 10 and _G.AutoFarmEnabled do
         task.wait(0.5)
         landWait = landWait + 0.5
         bp.Position = dropPos
     end
-
-    -- Clean up the holding mechanism
     pcall(function() bv:Destroy() end)
     pcall(function() bp:Destroy() end)
-
-    -- Now find the landed egg on the ground and collect it
     local landedEgg = nil
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and v:IsA("Model") and (v:FindFirstChild("indra egg") or v:FindFirstChild("_PrimaryPart")) then
@@ -488,50 +562,38 @@ local function deliverFallingSkyEgg(eggInHand)
             break
         end
     end
-
     if landedEgg then
-        Notification.new({ Title = "Quest", Description = "Collecting landed egg", Duration = 2, Icon = "rbxassetid://8997385628" })
+        Notification.new({ Title = "Quest", Description = "Collecting landed egg", Duration = 2 })
         moveTo(getPosition(landedEgg), landedEgg, "Egg", false, true)
     end
 end
 
--- ===== DELIVER EGG AND WAIT FOR EGG SPAWN (Thirsty) =====
 local function deliverEggAndWaitForEgg(targetPos, eggInHand, optionButton)
-    -- First, move to the drop location (ground level)
     moveTo(targetPos, nil, "Quest", false, false)
-
     local player = game.Players.LocalPlayer
     local character = player.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-
-    -- Lock position at the drop point (X, Y, Z)
     local dropPos = hrp.Position
     local bv = Instance.new("BodyVelocity")
     bv.Name = "HoldBV"
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    bv.Velocity = Vector3.new(0, 0, 0)   -- no movement
+    bv.Velocity = Vector3.new(0, 0, 0)
     bv.Parent = hrp
-
     local bp = Instance.new("BodyPosition")
     bp.Name = "HoldBP"
     bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bp.P = 10000
     bp.Position = dropPos
     bp.Parent = hrp
-
-    -- Click the dialogue button repeatedly to drop the egg
     local elapsed = 0
     local timeout = 10
     while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character and elapsed < timeout do
         clickButton(optionButton)
         task.wait(0.2)
         elapsed = elapsed + 0.2
-        -- Keep refreshing the locked position
         bp.Position = dropPos
     end
-
-    -- Wait for the new egg to appear (15 seconds max)
     local waitStart = tick()
     local waitDuration = 15
     local eggSpawned = false
@@ -544,14 +606,10 @@ local function deliverEggAndWaitForEgg(targetPos, eggInHand, optionButton)
         end
         if eggSpawned then break end
         task.wait(0.5)
-        bp.Position = dropPos  -- stay locked
+        bp.Position = dropPos
     end
-
-    -- Clean up the holding mechanism
     pcall(function() bv:Destroy() end)
     pcall(function() bp:Destroy() end)
-
-    -- Collect the spawned egg (without any extra hovering)
     if eggSpawned then
         local closestEgg = nil
         local closestDist = math.huge
@@ -571,37 +629,30 @@ local function deliverEggAndWaitForEgg(targetPos, eggInHand, optionButton)
             end
         end
         if closestEgg then
-            Notification.new({ Title = "Quest", Description = "Collecting spawned egg", Duration = 2, Icon = "rbxassetid://8997385628" })
+            Notification.new({ Title = "Quest", Description = "Collecting spawned egg", Duration = 2 })
             moveTo(getPosition(closestEgg), closestEgg, "Egg", false, true)
         end
     end
 end
 
--- ===== DELIVER EGG WITH MOVE (Molten) =====
 local function deliverEggWithMove(targetPos, eggInHand, optionButton)
     moveTo(targetPos, nil, "Quest", false, false)
-
     local player = game.Players.LocalPlayer
     local character = player.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-
-    -- Lock position at the drop point
     local dropPos = hrp.Position
     local bv = Instance.new("BodyVelocity")
     bv.Name = "HoldBV"
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.Parent = hrp
-
     local bp = Instance.new("BodyPosition")
     bp.Name = "HoldBP"
     bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bp.P = 10000
     bp.Position = dropPos
     bp.Parent = hrp
-
-    -- Click the dialogue button repeatedly to give the egg
     local elapsed = 0
     local timeout = 10
     while _G.AutoFarmEnabled and _G.QuestModeEnabled and eggInHand.Parent == character and elapsed < timeout do
@@ -610,8 +661,6 @@ local function deliverEggWithMove(targetPos, eggInHand, optionButton)
         elapsed = elapsed + 0.2
         bp.Position = dropPos
     end
-
-    -- Wait for any target to spawn (shards, eggs, etc.)
     local waitStart = tick()
     local waitDuration = 10
     local targetSpawned = false
@@ -623,44 +672,34 @@ local function deliverEggWithMove(targetPos, eggInHand, optionButton)
         task.wait(0.5)
         bp.Position = dropPos
     end
-
     pcall(function() bv:Destroy() end)
     pcall(function() bp:Destroy() end)
-
-    -- If targets appeared, collect them normally
     if targetSpawned then
-        Notification.new({ Title = "Quest", Description = "Targets spawned, collecting!", Duration = 2, Icon = "rbxassetid://8997385628" })
-        -- Keep collecting until none remain (using the existing collectTargets)
+        Notification.new({ Title = "Quest", Description = "Targets spawned, collecting!", Duration = 2 })
         while _G.AutoFarmEnabled and collectTargets() do task.wait(0.1) end
     end
 end
 
--- ===== FRIENDLY EGG =====
 local function deliverFriendlyEgg(eggInHand)
     local player = game.Players.LocalPlayer
     local character = player.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-
     local npc = workspace.NPCs:FindFirstChild("Forgotten Quest Giver")
     local targetPos = npc and getPosition(npc) or FRIENDLY_POS
     if not targetPos then targetPos = FRIENDLY_POS end
     moveTo(targetPos, nil, "Quest", false, false)
-
     hrp = character and character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-
     local bp = Instance.new("BodyPosition")
     bp.Name = "QuestFloat"
     bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bp.P = 10000
     bp.Position = hrp.Position
     bp.Parent = hrp
-
     if eggInHand.Parent == character then
         game:GetService("ReplicatedStorage").Modules.Net["RF/EasterServiceRF"]:InvokeServer("NPC.TravelingQuest", workspace.NPCs:FindFirstChild("Forgotten Quest Giver"))
     end
-
     task.wait(5)
     pcall(function() bp:Destroy() end)
 end
@@ -668,7 +707,6 @@ end
 -- ===== NOCLIP =====
 local noclipLoop = nil
 local Clip = true
-
 local function enableNoclip()
     Clip = false
     if noclipLoop then noclipLoop:Disconnect() end
@@ -683,7 +721,6 @@ local function enableNoclip()
         end
     end)
 end
-
 local function disableNoclip()
     Clip = true
     if noclipLoop then noclipLoop:Disconnect() noclipLoop = nil end
@@ -691,7 +728,6 @@ end
 
 -- ===== ANTI SIT =====
 local antiSitTask = nil
-
 local function enableAntiSit()
     if antiSitTask then return end
     antiSitTask = task.spawn(function()
@@ -708,7 +744,6 @@ local function enableAntiSit()
         end
     end)
 end
-
 local function disableAntiSit()
     if antiSitTask then
         task.cancel(antiSitTask)
@@ -720,14 +755,13 @@ end
 local function notifyOnce(target, title, description)
     if lastNotifiedTarget ~= target then
         lastNotifiedTarget = target
-        Notification.new({ Title = title, Description = description, Duration = 2, Icon = "rbxassetid://8997385628" })
+        Notification.new({ Title = title, Description = description, Duration = 2 })
     end
 end
 
 -- ===== CHECK HAS TARGET =====
 local function hasAnyTarget()
     if _G.QuestModeEnabled and getSpecialEgg() then return false end
-
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and (v.Name == "Shard" or v.Name == "EasterShard") and not _G.ShardBlacklist[v] then return true end
     end
@@ -756,11 +790,10 @@ end
 local function collectTargets()
     if not isCharacterAlive() then return false end
     if _G.QuestModeEnabled and getSpecialEgg() then return false end
-
     local player = game.Players.LocalPlayer
     local rootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return false end
-
+    -- Fruit
     local fruitFolder = workspace:FindFirstChild("Fruit ")
     if fruitFolder then
         local closestFruit, closestFruitDist = nil, math.huge
@@ -802,7 +835,7 @@ local function collectTargets()
             end
         end
     end
-
+    -- Shard
     local closestShard, closestShardDist = nil, math.huge
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and (v.Name == "Shard" or v.Name == "EasterShard") and not _G.ShardBlacklist[v] then
@@ -825,7 +858,7 @@ local function collectTargets()
             return true
         end
     end
-
+    -- Egg
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and v:IsA("Model") and (v:FindFirstChild("indra egg") or v:FindFirstChild("_PrimaryPart")) then
             local pos = getPosition(v)
@@ -836,7 +869,7 @@ local function collectTargets()
             end
         end
     end
-
+    -- Chest
     local folder = workspace:FindFirstChild("ChestModels")
     if folder then
         local nearestDist = math.huge
@@ -865,7 +898,6 @@ local function collectTargets()
             return true
         end
     end
-
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj.Parent and (obj.Name == "EasterChest" or obj.Name == "Chest") and not _G.ChestBlacklist[obj] then
             local p = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
@@ -907,11 +939,11 @@ local function generateBoundingBoxRoute(island)
     local rx = (maxX - minX) / 2 + offset
     local rz = (maxZ - minZ) / 2 + offset
     return {
-        Vector3.new(cx,      patrolY, cz - rz),
+        Vector3.new(cx, patrolY, cz - rz),
         Vector3.new(cx + rx, patrolY, cz - rz),
         Vector3.new(cx + rx, patrolY, cz),
         Vector3.new(cx + rx, patrolY, cz + rz),
-        Vector3.new(cx,      patrolY, cz + rz),
+        Vector3.new(cx, patrolY, cz + rz),
         Vector3.new(cx - rx, patrolY, cz + rz),
         Vector3.new(cx - rx, patrolY, cz),
         Vector3.new(cx - rx, patrolY, cz - rz),
@@ -922,34 +954,28 @@ end
 local function circleStep(route)
     if not route or #route == 0 then return false end
     if not isCharacterAlive() then return "dead" end
-
     if _G.CurrentCircleIndex > #route then
         _G.CurrentCircleRound = _G.CurrentCircleRound + 1
         _G.CurrentCircleIndex = 1
         if _G.CurrentCircleRound > 2 then 
-            return "finished" 
+            return "finished"
         else
-            Notification.new({ Title = "Circle", Description = string.format("Starting round %d on %s", _G.CurrentCircleRound, _G.CurrentCircleIsland.Name), Duration = 3, Icon = "rbxassetid://8997385628" })
+            Notification.new({ Title = "Circle", Description = string.format("Starting round %d on %s", _G.CurrentCircleRound, _G.CurrentCircleIsland.Name), Duration = 3 })
         end
     end
-
     local waypoint = route[_G.CurrentCircleIndex]
     if not waypoint then return false end
-
-    Notification.new({ Title = "Circle", Description = string.format("Moving to waypoint %d/%d (Round %d) on %s", _G.CurrentCircleIndex, #route, _G.CurrentCircleRound, _G.CurrentCircleIsland.Name), Duration = 2, Icon = "rbxassetid://8997385628" })
-
+    Notification.new({ Title = "Circle", Description = string.format("Moving to waypoint %d/%d (Round %d) on %s", _G.CurrentCircleIndex, #route, _G.CurrentCircleRound, _G.CurrentCircleIsland.Name), Duration = 2 })
     local interrupted = moveTo(waypoint, nil, "Waypoint", true, false)
-    
     if interrupted then
         while collectTargets() do task.wait(0.1) end
         return "continue"
     end
-    
     if hasAnyTarget() then return "target_found" end
-    
     _G.CurrentCircleIndex = _G.CurrentCircleIndex + 1
     return "continue"
 end
+
 -- ===== MAIN AUTO-FARM LOOP =====
 local function StartFarming()
     task.spawn(function()
@@ -957,20 +983,15 @@ local function StartFarming()
         task.spawn(function()
             while _G.AutoFarmEnabled do task.wait(15) _G.ChestBlacklist = {} _G.ShardBlacklist = {} end
         end)
-
         while _G.AutoFarmEnabled do
-            -- Wait until character is alive
             while not isCharacterAlive() and _G.AutoFarmEnabled do
                 lastNotifiedTarget = nil
-                -- FIX: Also reset island state while dead to avoid leftover state
                 _G.CurrentCircleIsland = nil
                 _G.CurrentCircleIndex = 1
                 _G.CurrentCircleRound = 1
                 task.wait(2)
             end
             if not _G.AutoFarmEnabled then break end
-
-            -- FIX: Wait for character to fully load after respawn
             local character = player.Character
             local hrp = character and character:FindFirstChild("HumanoidRootPart")
             local loadAttempts = 0
@@ -981,14 +1002,10 @@ local function StartFarming()
                 loadAttempts = loadAttempts + 1
             end
             if not hrp then
-                -- If still no HRP, skip this iteration
                 task.wait(1)
                 continue
             end
-
             local eggInHand = getSpecialEgg()
-
-            -- If we have an egg but Quest Mode is off, kill the player to drop it (prevents getting stuck)
             if eggInHand and not _G.QuestModeEnabled then
                 if character then
                     local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -999,9 +1016,7 @@ local function StartFarming()
                     end
                 end
             end
-
             if _G.QuestModeEnabled and eggInHand then
-                -- FIX: Ensure the dialogue GUI is available before delivering
                 local gui = player.PlayerGui:FindFirstChild("Main")
                 local dialogue = gui and gui:FindFirstChild("Dialogue")
                 local optionButton = dialogue and dialogue:FindFirstChild("Option1")
@@ -1013,21 +1028,17 @@ local function StartFarming()
                     optionButton = dialogue and dialogue:FindFirstChild("Option1")
                     attempts = attempts + 1
                 end
-
-                -- Re-check character again after waiting
                 character = player.Character
                 hrp = character and character:FindFirstChild("HumanoidRootPart")
                 if not hrp then
                     task.wait(1)
                     continue
                 end
-
                 local humanoid = character:FindFirstChild("Humanoid")
                 if eggInHand.Parent ~= character and humanoid then
                     humanoid:EquipTool(eggInHand)
                     task.wait(0.3)
                 end
-
                 if eggInHand.Name == "Firefly Egg" or eggInHand.Name == "Friendly Neighborhood Egg" then
                     notifyOnce(eggInHand, "Quest", "Give " .. eggInHand.Name)
                     deliverFriendlyEgg(eggInHand)
@@ -1043,13 +1054,11 @@ local function StartFarming()
                 else
                     task.wait(1)
                 end
-
                 task.wait(1.5)
                 _G.CurrentCircleIsland = nil
                 while _G.AutoFarmEnabled and collectTargets() do task.wait(0.1) end
                 continue
             end
-
             if not _G.CurrentCircleIsland or not _G.CurrentCircleIsland.Parent then
                 _G.CurrentCircleIsland = getNextIsland()
                 if not _G.CurrentCircleIsland then task.wait(1) continue end
@@ -1063,15 +1072,13 @@ local function StartFarming()
                         while _G.AutoFarmEnabled and collectTargets() do task.wait(0.1) end
                     end
                 end
-                Notification.new({ Title = "Circle", Description = string.format("Starting circle on %s (Round 1)", _G.CurrentCircleIsland.Name), Duration = 3, Icon = "rbxassetid://8997385628" })
+                Notification.new({ Title = "Circle", Description = string.format("Starting circle on %s (Round 1)", _G.CurrentCircleIsland.Name), Duration = 3 })
             end
-
             if _G.FarmMode == "random" then
                 if hasAnyTarget() then collectTargets() else _G.CurrentCircleIsland = nil end
                 task.wait(0.1)
                 continue
             end
-
             local route = getRouteForIsland(_G.CurrentCircleIsland.Name)
             if not route or #route == 0 then route = generateBoundingBoxRoute(_G.CurrentCircleIsland) end
             if not route or #route == 0 then
@@ -1079,30 +1086,50 @@ local function StartFarming()
                 task.wait(0.5)
                 continue
             end
-
             local result = circleStep(route)
             if result == "target_found" then
                 while _G.AutoFarmEnabled and collectTargets() do task.wait(0.1) end
                 _G.CurrentCircleIndex = _G.CurrentCircleIndex + 1
             elseif result == "finished" then
                 _G.CurrentCircleIsland = nil
-                Notification.new({ Title = "Circle", Description = "No targets found after 2 rounds, moving to next island", Duration = 3, Icon = "rbxassetid://8997385628" })
+                Notification.new({ Title = "Circle", Description = "No targets found after 2 rounds, moving to next island", Duration = 3 })
             end
             task.wait(0.1)
         end
     end)
 end
 
+local function getClosestEnemy()
+    local player = game.Players.LocalPlayer
+    local rootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil end
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+    local closest = nil
+    local closestDist = math.huge
+    for _, enemy in ipairs(enemies:GetChildren()) do
+        if enemy and enemy.Parent and isEnemyAlive(enemy) then
+            local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChildWhichIsA("BasePart")
+            if hrp then
+                local dist = (rootPart.Position - hrp.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = {enemy = enemy, part = hrp, dist = dist}
+                end
+            end
+        end
+    end
+    return closest
+end
+
 -- ===== DAMAGE AURA =====
 _G.DamageAuraEnabled = false
-
 local damageAuraTask = nil
-
 local function damageEnemy(enemy)
     if not enemy or not enemy.Parent then return end
-
-    -- Find a suitable part to hit (prefer HumanoidRootPart, then Head, else any BasePart)
-    local hitPart = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Head")
+    local humanoid = enemy:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return end
+    local hitPart = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Head") or enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("LowerTorso")
     if not hitPart then
         for _, part in ipairs(enemy:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -1112,76 +1139,83 @@ local function damageEnemy(enemy)
         end
     end
     if not hitPart then return end
-
-    -- Fire RegisterAttack
-    local attackArgs = { 0.4000000059604645 }
-    pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(unpack(attackArgs))
-    end)
-
-    -- Fire RegisterHit with the actual enemy part and the correct ID
-    local hitArgs = { hitPart, {}, [4] = "196f522a" }
-    pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(unpack(hitArgs))
-    end)
+    local repStorage = game:GetService("ReplicatedStorage")
+    local modules = repStorage:FindFirstChild("Modules")
+    if modules then
+        local net = modules:FindFirstChild("Net")
+        if net then
+            local attackRemote = net:FindFirstChild("RE/RegisterAttack")
+            local hitRemote = net:FindFirstChild("RE/RegisterHit")
+            if attackRemote and hitRemote then
+                pcall(function()
+                    attackRemote:FireServer(0.5)
+                    hitRemote:FireServer(hitPart, {}, "196f522a")
+                end)
+            end
+        end
+    end
 end
-
 local function startDamageAura()
     if damageAuraTask then return end
     damageAuraTask = task.spawn(function()
         while _G.DamageAuraEnabled do
             local enemies = workspace:FindFirstChild("Enemies")
             if enemies then
+                local aliveEnemies = {}
                 for _, enemy in ipairs(enemies:GetChildren()) do
-                    if enemy and enemy.Parent then
-                        damageEnemy(enemy)
-                        task.wait()  -- small delay between enemies
+                    if enemy and enemy.Parent and isEnemyAlive(enemy) then
+                        table.insert(aliveEnemies, enemy)
+                    end
+                end
+                if #aliveEnemies > 0 then
+                    local numToHit = math.random(1, math.max(1, math.floor(#aliveEnemies / 2)))
+                    for i = 1, numToHit do
+                        local randIndex = math.random(1, #aliveEnemies)
+                        local target = aliveEnemies[randIndex]
+                        if target then
+                            damageEnemy(target)
+                        end
+                        table.remove(aliveEnemies, randIndex)
+                        if #aliveEnemies == 0 then break end
                     end
                 end
             end
-            task.wait()  -- wait before scanning again
+            task.wait(0.05)
         end
         damageAuraTask = nil
     end)
 end
-
 local function stopDamageAura()
-    if damageAuraTask then
-        task.cancel(damageAuraTask)
-        damageAuraTask = nil
-    end
+    if damageAuraTask then task.cancel(damageAuraTask) damageAuraTask = nil end
 end
 
--- ===== DAMAGE AURA PLAYERS =====
 _G.DamageAuraPlayersEnabled = false
-
 local damagePlayerAuraTask = nil
-
 local function damagePlayer(character)
     if not character or not character.Parent then return end
-
-    local hitPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
+    local hitPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("LowerTorso")
     if not hitPart then
         for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                hitPart = part
-                break
-            end
+            if part:IsA("BasePart") then hitPart = part break end
         end
     end
     if not hitPart then return end
-
-    local attackArgs = { 0.4000000059604645 }
-    pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack"):FireServer(unpack(attackArgs))
-    end)
-
-    local hitArgs = { hitPart, {}, [4] = "196f522a" }
-    pcall(function()
-        game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit"):FireServer(unpack(hitArgs))
-    end)
+    local repStorage = game:GetService("ReplicatedStorage")
+    local modules = repStorage:FindFirstChild("Modules")
+    if modules then
+        local net = modules:FindFirstChild("Net")
+        if net then
+            local attackRemote = net:FindFirstChild("RE/RegisterAttack")
+            local hitRemote = net:FindFirstChild("RE/RegisterHit")
+            if attackRemote and hitRemote then
+                pcall(function()
+                    attackRemote:FireServer(0.5)
+                    hitRemote:FireServer(hitPart, {}, "196f522a")
+                end)
+            end
+        end
+    end
 end
-
 local function startDamagePlayerAura()
     if damagePlayerAuraTask then return end
     damagePlayerAuraTask = task.spawn(function()
@@ -1192,175 +1226,445 @@ local function startDamagePlayerAura()
                 for _, character in ipairs(playersFolder:GetChildren()) do
                     if character and character.Parent and character ~= localPlayer.Character then
                         damagePlayer(character)
-                        task.wait()
+                        task.wait(0.02)
                     end
                 end
             end
-            task.wait()
+            task.wait(0.1)
         end
         damagePlayerAuraTask = nil
     end)
 end
-
 local function stopDamagePlayerAura()
-    if damagePlayerAuraTask then
-        task.cancel(damagePlayerAuraTask)
-        damagePlayerAuraTask = nil
-    end
+    if damagePlayerAuraTask then task.cancel(damagePlayerAuraTask) damagePlayerAuraTask = nil end
 end
 
-_G.BringMobEnabled = false
-_G.BringMobSpeed = 450
-_G.BringMobHeight = 10
-_G.BringMobMaxDistance = 500     -- ระยะสูงสุด (studs)
-_G.BringMobMaxCount = 25
-
--- ===== BRING MOB - FAST + ไม่หล่น + NOCLIP =====
-local TweenService = game:GetService("TweenService")
-local bringMobTask = nil
-local activeMobTweens = {}
-local activeMobBVs = {}
-local mobNoclipConnections = {}  -- เก็บ connection สำหรับแต่ละมอน
-
-local function stopMobControl(enemy)
-    if activeMobTweens[enemy] then
-        pcall(function() activeMobTweens[enemy]:Cancel() end)
-        activeMobTweens[enemy] = nil
-    end
-    if activeMobBVs[enemy] then
-        pcall(function() activeMobBVs[enemy]:Destroy() end)
-        activeMobBVs[enemy] = nil
-    end
-    -- หยุด noclip loop สำหรับมอนนี้
-    if mobNoclipConnections[enemy] then
-        pcall(function() mobNoclipConnections[enemy]:Disconnect() end)
-        mobNoclipConnections[enemy] = nil
-    end
-end
-
-local function enableMobNoclip(enemy)
-    -- ถ้ามี connection อยู่แล้ว ไม่ต้องสร้างใหม่
-    if mobNoclipConnections[enemy] then return end
-    
-    mobNoclipConnections[enemy] = game:GetService("RunService").Heartbeat:Connect(function()
-        if not enemy or not enemy.Parent then
-            if mobNoclipConnections[enemy] then
-                mobNoclipConnections[enemy]:Disconnect()
-                mobNoclipConnections[enemy] = nil
-            end
-            return
-        end
-        
-        -- ปิด CanCollide ของทุก part ในมอน
-        for _, part in ipairs(enemy:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
+-- ===== FARM AURA =====
+local farmAuraTask = nil
+local farmAuraActive = false
+local function startFarmAura()
+    if farmAuraTask then return end
+    farmAuraActive = true
+    enableNoclip()
+    farmAuraTask = task.spawn(function()
+        while farmAuraActive do
+            local player = game.Players.LocalPlayer
+            local character = player.Character
+            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            if not hrp then task.wait(0.5) continue end
+            local oldBV = hrp:FindFirstChild("FarmAuraBV")
+            if oldBV then oldBV:Destroy() end
+            local target = getClosestEnemy()
+            if target then
+                local targetPos = Vector3.new(target.part.Position.X, target.part.Position.Y + _G.FarmAuraHeight, target.part.Position.Z)
+                local dist = (hrp.Position - targetPos).Magnitude
+                if dist > 2 then
+                    local bv = Instance.new("BodyVelocity")
+                    bv.Name = "FarmAuraBV"
+                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                    local dir = (targetPos - hrp.Position).Unit
+                    local speed = math.clamp(dist * 8, 20, SPEED)
+                    bv.Velocity = dir * speed
+                    bv.Parent = hrp
+                else
+                    local bv = Instance.new("BodyVelocity")
+                    bv.Name = "FarmAuraBV"
+                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                    bv.Parent = hrp
+                end
+                task.wait(0.05)
+            else
+                task.wait(0.2)
             end
         end
     end)
 end
+local function stopFarmAura()
+    farmAuraActive = false
+    if farmAuraTask then task.cancel(farmAuraTask) farmAuraTask = nil end
+    disableNoclip()
+    local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local bv = hrp:FindFirstChild("FarmAuraBV")
+        if bv then bv:Destroy() end
+    end
+end
 
+-- ===== BRING MOB =====
+local bringMobTask = nil
+local mobArrivedSet = {}
+_G.BringMobTweens = {}
+local function setMobNoclip(enemy, enabled)
+    if not enemy or not enemy.Parent then return end
+    for _, part in ipairs(enemy:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not enabled
+        end
+    end
+end
+local function releaseMob(enemy)
+    if not enemy or not enemy.Parent then return end
+    if _G.BringMobTweens[enemy] then
+        pcall(function() _G.BringMobTweens[enemy]:Cancel() end)
+        _G.BringMobTweens[enemy] = nil
+    end
+    local humanoid = enemy:FindFirstChildOfClass("Humanoid")
+    if humanoid then humanoid.PlatformStand = false end
+    setMobNoclip(enemy, false)
+    local hrp = enemy:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local bv = hrp:FindFirstChild("BringMobBV")
+        if bv then pcall(function() bv:Destroy() end) end
+        local bp = hrp:FindFirstChild("BringMobBP")
+        if bp then pcall(function() bp:Destroy() end) end
+    end
+end
+local function getEnemyLevel(enemy)
+    if not enemy then return nil end
+    local data = enemy:FindFirstChild("Data")
+    if data then
+        local lvl = data:FindFirstChild("Level")
+        if lvl and lvl.Value then return lvl.Value end
+    end
+    local attr = enemy:GetAttribute("Level")
+    if attr then return attr end
+    local lvlObj = enemy:FindFirstChild("Level")
+    if lvlObj and lvlObj.Value then return lvlObj.Value end
+    local name = enemy.Name
+    local num = tonumber(name:match("%d+"))
+    if num then return num end
+    return nil
+end
 local function startBringMob()
     if bringMobTask then return end
-
+    mobArrivedSet = {}
+    _G.BringMobTweens = {}
+    Notification.new({ Title = "Bring Mob", Description = "Starting", Duration = 2 })
     bringMobTask = task.spawn(function()
         while _G.BringMobEnabled do
-            local playerRoot = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if not playerRoot then 
-                task.wait(0.5) 
-                continue 
+            local player = game.Players.LocalPlayer
+            local character = player.Character
+            local playerRoot = character and character:FindFirstChild("HumanoidRootPart")
+            if not playerRoot then task.wait(0.5) continue end
+            local enemiesFolder = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace:FindFirstChild("Enemy")
+            if not enemiesFolder then
+                Notification.new({ Title = "Bring Mob", Description = "No enemies folder!", Duration = 3 })
+                task.wait(3)
+                continue
             end
-
-            local enemiesFolder = workspace:FindFirstChild("Enemies")
-            if not enemiesFolder then 
-                task.wait(1) 
-                continue 
-            end
-
-            -- ล้างตัวที่หายไป
-            for enemy, _ in pairs(activeMobTweens) do
-                if not enemy or not enemy.Parent then
-                    stopMobControl(enemy)
+            for enemy, _ in pairs(mobArrivedSet) do
+                if not enemy or not enemy.Parent or not isEnemyAlive(enemy) then
+                    releaseMob(enemy)
+                    mobArrivedSet[enemy] = nil
                 end
             end
-
-            local broughtCount = 0
+            local pullingEnemy = nil
+            for enemy, tween in pairs(_G.BringMobTweens) do
+                if tween and tween.PlaybackState ~= Enum.PlaybackState.Completed then
+                    pullingEnemy = enemy
+                    break
+                end
+            end
+            if pullingEnemy then
+                task.wait(0.1)
+                continue
+            end
+            local targetEnemy = nil
+            local targetDist = math.huge
             for _, enemy in ipairs(enemiesFolder:GetChildren()) do
-                if broughtCount >= _G.BringMobMaxCount then break end
-                
-                if enemy and enemy.Parent then
-                    local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChildWhichIsA("BasePart")
-                    if hrp then
-                        local distance = (playerRoot.Position - hrp.Position).Magnitude
-
-                        if distance > 8 and distance <= _G.BringMobMaxDistance then
-                            stopMobControl(enemy)
-
-                            -- เปิด noclip สำหรับมอนนี้
-                            enableMobNoclip(enemy)
-
-                            -- === สร้าง BodyVelocity เพื่อป้องกันการหล่น ===
-                            local bv = Instance.new("BodyVelocity")
-                            bv.Name = "BringMobAntiFall"
-                            bv.MaxForce = Vector3.new(4000, 4000, 4000)
-                            bv.Velocity = Vector3.new(0, 0, 0)
-                            bv.Parent = hrp
-                            activeMobBVs[enemy] = bv
-
-                            -- Tween หลัก (ดึงเร็ว)
-                            local tweenTime = math.clamp(distance / _G.BringMobSpeed, 0.08, 0.25)
-
-                            local tweenInfo = TweenInfo.new(
-                                tweenTime,
-                                Enum.EasingStyle.Linear,
-                                Enum.EasingDirection.Out
-                            )
-
-                            local targetPos = playerRoot.Position + Vector3.new(0, _G.BringMobHeight, 0)
-                            local targetCFrame = CFrame.new(targetPos) * CFrame.new(0, 0, -5)
-
-                            local goal = { CFrame = targetCFrame }
-
-                            local tween = TweenService:Create(hrp, tweenInfo, goal)
-                            activeMobTweens[enemy] = tween
-                            tween:Play()
-
-                            broughtCount += 1
-                        else
-                            stopMobControl(enemy)
-                        end
+                if not enemy or not enemy.Parent then continue end
+                if not isEnemyAlive(enemy) then continue end
+                local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChildWhichIsA("BasePart")
+                if hrp then
+                    local dist = (playerRoot.Position - hrp.Position).Magnitude
+                    if dist < targetDist then
+                        targetDist = dist
+                        targetEnemy = enemy
                     end
                 end
             end
-
-            task.wait(0.05)
+            if not targetEnemy then
+                task.wait(1)
+                continue
+            end
+            local targetHrp = targetEnemy:FindFirstChild("HumanoidRootPart") or targetEnemy:FindFirstChildWhichIsA("BasePart")
+            if not targetHrp then
+                task.wait(0.5)
+                continue
+            end
+            local centerPos = targetHrp.Position
+            local playerLevel = 9999
+            local dataLevel = player:FindFirstChild("Data")
+            if dataLevel and dataLevel:FindFirstChild("Level") then
+                playerLevel = dataLevel.Level.Value
+            end
+            local closestOther = nil
+            local closestDist = _G.BringMobMaxDistance + 1
+            for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+                if enemy == targetEnemy then continue end
+                if not enemy or not enemy.Parent then continue end
+                if not isEnemyAlive(enemy) then
+                    if mobArrivedSet[enemy] then
+                        releaseMob(enemy)
+                        mobArrivedSet[enemy] = nil
+                    end
+                    continue
+                end
+                if mobArrivedSet[enemy] then continue end
+                if _G.BringMobTweens[enemy] then continue end
+                local enemyLevel = getEnemyLevel(enemy) or 0
+                if enemyLevel >= playerLevel then continue end
+                local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChildWhichIsA("BasePart")
+                if not hrp then continue end
+                local dist = (centerPos - hrp.Position).Magnitude
+                if dist <= _G.BringMobMaxDistance and dist < closestDist then
+                    closestDist = dist
+                    closestOther = enemy
+                end
+            end
+            if closestOther then
+                local otherHrp = closestOther:FindFirstChild("HumanoidRootPart") or closestOther:FindFirstChildWhichIsA("BasePart")
+                if not otherHrp then
+                    mobArrivedSet[closestOther] = true
+                    task.wait(0.2)
+                    continue
+                end
+                setMobNoclip(closestOther, true)
+                local humanoid = closestOther:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.PlatformStand = true
+                    otherHrp.Anchored = false
+                end
+                local pullTargetPos = centerPos + Vector3.new(0, BRING_MOB_HEIGHT, 0)
+                local distance = (otherHrp.Position - pullTargetPos).Magnitude
+                local tweenTime = math.clamp(distance / BRING_MOB_SPEED, 0.2, 3)
+                local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+                local tween = TweenService:Create(otherHrp, tweenInfo, { CFrame = CFrame.new(pullTargetPos) })
+                _G.BringMobTweens[closestOther] = tween
+                tween:Play()
+                Notification.new({ Title = "Bring Mob", Description = "Pulling " .. closestOther.Name, Duration = 2 })
+                local startWait = tick()
+                while tween.PlaybackState ~= Enum.PlaybackState.Completed and tick() - startWait < 5 do
+                    task.wait(0.05)
+                end
+                local finalDist = (otherHrp.Position - centerPos).Magnitude
+                if finalDist <= 10 then
+                    Notification.new({ Title = "Bring Mob", Description = closestOther.Name .. " arrived", Duration = 1 })
+                else
+                    Notification.new({ Title = "Bring Mob", Description = "Pull failed", Duration = 2 })
+                end
+                releaseMob(closestOther)
+                mobArrivedSet[closestOther] = true
+                _G.BringMobTweens[closestOther] = nil
+                task.wait(0.5)
+            else
+                task.wait(1)
+            end
         end
+        for enemy, _ in pairs(_G.BringMobTweens) do releaseMob(enemy) end
+        for enemy, _ in pairs(mobArrivedSet) do releaseMob(enemy) end
+        mobArrivedSet = {}
+        _G.BringMobTweens = {}
+        bringMobTask = nil
+        Notification.new({ Title = "Bring Mob", Description = "Stopped", Duration = 2 })
+    end)
+end
+local function stopBringMob()
+    _G.BringMobEnabled = false
+    if bringMobTask then task.cancel(bringMobTask) bringMobTask = nil end
+    local enemiesFolder = workspace:FindFirstChild("Enemies")
+    if enemiesFolder then
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+            releaseMob(enemy)
+            pcall(function() enemy:SetAttribute("BringMobTracked", nil) end)
+        end
+    end
+    for enemy, _ in pairs(mobArrivedSet) do
+        releaseMob(enemy)
+        pcall(function() enemy:SetAttribute("BringMobTracked", nil) end)
+    end
+    mobArrivedSet = {}
+    _G.BringMobTweens = {}
+end
 
-        stopBringMob()
+-- ===== AUTO FARM BOSS (ใหม่ ปลอดภัย) =====
+local function cleanBossName(name)
+    if not name then return "" end
+    local cleaned = name:gsub("%[Boss%]", ""):gsub("%[Lv[.]?%s*%d+%]", ""):gsub("%[Level%s*%d+%]", ""):gsub("%(.*%)", "")
+    cleaned = cleaned:gsub("^%s+", ""):gsub("%s+$", "")
+    return cleaned
+end
+
+local function getBossListFromSpawns()
+    local list = {}
+    local ok, origin = pcall(function() return workspace:FindFirstChild("_WorldOrigin") end)
+    if not ok or not origin then return list end
+    local ok2, spawns = pcall(function() return origin:FindFirstChild("EnemySpawns") end)
+    if not ok2 or not spawns then return list end
+    for _, spawn in ipairs(spawns:GetChildren()) do
+        if spawn:IsA("Model") and string.find(spawn.Name, "%[Boss%]") then
+            local clean = cleanBossName(spawn.Name)
+            if clean ~= "" then table.insert(list, clean) end
+        end
+    end
+    return list
+end
+
+local function getBossSpawnPosition(bossName)
+    local ok, origin = pcall(function() return workspace:FindFirstChild("_WorldOrigin") end)
+    if not ok or not origin then return nil end
+    local ok2, spawns = pcall(function() return origin:FindFirstChild("EnemySpawns") end)
+    if not ok2 or not spawns then return nil end
+    local cleanTarget = cleanBossName(bossName)
+    for _, spawn in ipairs(spawns:GetChildren()) do
+        if spawn:IsA("Model") then
+            local cleanSpawn = cleanBossName(spawn.Name)
+            if cleanSpawn == cleanTarget then
+                return getPosition(spawn)
+            end
+        end
+    end
+    return nil
+end
+
+local function findAliveBoss(bossName)
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+    local cleanTarget = cleanBossName(bossName)
+    for _, enemy in ipairs(enemies:GetChildren()) do
+        if enemy:IsA("Model") and isEnemyAlive(enemy) then
+            local enemyClean = cleanBossName(enemy.Name)
+            if enemyClean == cleanTarget then
+                return enemy
+            end
+        end
+    end
+    return nil
+end
+
+local autoFarmBossTask = nil
+local function startAutoFarmBoss()
+    if autoFarmBossTask then return end
+    if not _G.SelectedBossName or _G.SelectedBossName == "" then
+        Notification.new({ Title = "Auto Boss", Description = "No boss selected", Duration = 2 })
+        return
+    end
+    autoFarmBossTask = task.spawn(function()
+        local bossName = _G.SelectedBossName
+        local spawnPos = getBossSpawnPosition(bossName)
+        if not spawnPos then
+            Notification.new({ Title = "Auto Boss", Description = "Spawn not found for " .. bossName, Duration = 2 })
+            _G.AutoFarmBossEnabled = false
+            autoFarmBossTask = nil
+            return
+        end
+        while _G.AutoFarmBossEnabled do
+            -- 1. เดินทางไปจุดเกิด
+            local character = game.Players.LocalPlayer.Character
+            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            if hrp and (hrp.Position - spawnPos).Magnitude > 10 then
+                Notification.new({ Title = "Auto Boss", Description = "Moving to spawn: " .. bossName, Duration = 2 })
+                moveTo(spawnPos, nil, "BossSpawn", false, true)
+            end
+            -- 2. รอให้บอสเกิด
+            local boss = nil
+            local waitTime = 0
+            while _G.AutoFarmBossEnabled and not boss do
+                boss = findAliveBoss(bossName)
+                if not boss then
+                    task.wait(1)
+                    waitTime = waitTime + 1
+                    if waitTime > 60 then
+                        Notification.new({ Title = "Auto Boss", Description = "Boss not spawning, retrying...", Duration = 2 })
+                        break
+                    end
+                end
+            end
+            if not boss then
+                task.wait(2)
+                goto continue
+            end
+            Notification.new({ Title = "Auto Boss", Description = bossName .. " found! Engaging.", Duration = 2 })
+            -- 3. ไล่ตามและโจมตี (บินเหนือหัว)
+            local followTask = task.spawn(function()
+                while _G.AutoFarmBossEnabled and boss and boss.Parent and isEnemyAlive(boss) do
+                    local char = game.Players.LocalPlayer.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    local bossRoot = boss:FindFirstChild("HumanoidRootPart") or boss:FindFirstChildWhichIsA("BasePart")
+                    if not hrp or not bossRoot then
+                        task.wait(0.1)
+                        continue
+                    end
+                    local height = _G.FarmAuraHeight or 50
+                    local targetPos = bossRoot.Position + Vector3.new(0, height, 0)
+                    local dist = (hrp.Position - targetPos).Magnitude
+                    local bv = hrp:FindFirstChild("BossFollowBV")
+                    if not bv then
+                        bv = Instance.new("BodyVelocity")
+                        bv.Name = "BossFollowBV"
+                        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                        bv.Parent = hrp
+                    end
+                    if dist > 3 then
+                        local dir = (targetPos - hrp.Position).Unit
+                        local speed = math.clamp(dist * 6, 30, SPEED)
+                        bv.Velocity = dir * speed
+                    else
+                        bv.Velocity = Vector3.new(0, 0, 0)
+                    end
+                    damageEnemy(boss)
+                    task.wait(0.05)
+                end
+            end)
+            while _G.AutoFarmBossEnabled and boss and boss.Parent and isEnemyAlive(boss) do
+                task.wait(0.5)
+            end
+            task.cancel(followTask)
+            local char = game.Players.LocalPlayer.Character
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local bv = hrp:FindFirstChild("BossFollowBV")
+                    if bv then bv:Destroy() end
+                end
+            end
+            if boss and not isEnemyAlive(boss) then
+                Notification.new({ Title = "Auto Boss", Description = bossName .. " defeated. Waiting for respawn.", Duration = 2 })
+                task.wait(5)
+            else
+                task.wait(2)
+            end
+            ::continue::
+        end
+        autoFarmBossTask = nil
+        _G.AutoFarmBossEnabled = false
+        Notification.new({ Title = "Auto Boss", Description = "Stopped", Duration = 2 })
     end)
 end
 
-local function stopBringMob()
-    if bringMobTask then
-        task.cancel(bringMobTask)
-        bringMobTask = nil
+local function stopAutoFarmBoss()
+    _G.AutoFarmBossEnabled = false
+    if autoFarmBossTask then
+        task.cancel(autoFarmBossTask)
+        autoFarmBossTask = nil
     end
-
-    for enemy, _ in pairs(activeMobTweens) do
-        stopMobControl(enemy)
+    local char = game.Players.LocalPlayer.Character
+    if char then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local bv = hrp:FindFirstChild("BossFollowBV")
+            if bv then bv:Destroy() end
+        end
     end
-    activeMobTweens = {}
-    activeMobBVs = {}
-    mobNoclipConnections = {}
 end
--- ===== UI =====
-local Windows = NothingLibrary.new({ Title = "Easter Event Farm", Description = "FrostByte | by Arrays (Mobile Ready)", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
+
+-- ===== UI สร้างทันที (ไม่มี task.wait ขัดจังหวะ) =====
+local Windows = NothingLibrary.new({ Title = "Easter Event Farm", Description = "FrostByte | by Arrays", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
 
 local MainTab = Windows:NewTab({ Title = "Main", Description = "Auto Farm Controls", Icon = "rbxassetid://4483362458" })
 local FarmSection = MainTab:NewSection({ Title = "Farming", Icon = "rbxassetid://7743869054", Position = "Left" })
-
 FarmSection:NewDropdown({ Title = "Farm Mode", Data = {"Random", "Circle"}, Default = "Random", Callback = function(Value) _G.FarmMode = Value == "Random" and "random" or "circle" end })
-
 FarmSection:NewToggle({ Title = "Enable Auto Farm", Default = false, Callback = function(Value) 
     _G.AutoFarmEnabled = Value 
     if Value then 
@@ -1372,7 +1676,6 @@ FarmSection:NewToggle({ Title = "Enable Auto Farm", Default = false, Callback = 
         _G.CurrentCircleIsland = nil
         disableNoclip() 
         disableAntiSit()
-        -- FIX: destroy any leftover movers so stutter stops immediately
         local character = game.Players.LocalPlayer.Character
         if character then
             local hrp = character:FindFirstChild("HumanoidRootPart")
@@ -1385,57 +1688,89 @@ FarmSection:NewToggle({ Title = "Enable Auto Farm", Default = false, Callback = 
         end
     end 
 end })
-
 FarmSection:NewToggle({ Title = "Enable Quest Delivery", Default = false, Callback = function(Value) _G.QuestModeEnabled = Value lastNotifiedTarget = nil end })
 
 local SettingsTab = Windows:NewTab({ Title = "Settings", Description = "Configuration", Icon = "rbxassetid://7733960981" })
 local ConfigSection = SettingsTab:NewSection({ Title = "Configuration", Icon = "rbxassetid://7743869054", Position = "Left" })
-local ConfigSection2 = SettingsTab:NewSection({ Title = "Combat", Icon = "rbxassetid://7743869054", Position = "Right" })
-
 ConfigSection:NewSlider({ Title = "Tween Speed", Min = 100, Max = 400, Default = 300, Callback = function(Value) SPEED = Value end })
 ConfigSection:NewSlider({ Title = "Chest Wait Time (ms)", Min = 10, Max = 500, Default = 10, Callback = function(Value) _G.ChestWaitTime = Value / 1000 end })
 ConfigSection:NewToggle({ Title = "Auto Jump", Default = true, Callback = function(Value) _G.AutoJumpEnabled = Value end })
 
-ConfigSection2:NewToggle({
-    Title = "Damage Aura",
-    Default = false,
-    Callback = function(Value)
-        _G.DamageAuraEnabled = Value
-        if Value then
-            startDamageAura()
-        else
-            stopDamageAura()
-        end
-    end
-})
+local CombatSection = SettingsTab:NewSection({ Title = "Combat", Icon = "rbxassetid://7743869054", Position = "Right" })
+CombatSection:NewToggle({ Title = "Damage Aura (Enemies)", Default = false, Callback = function(Value) _G.DamageAuraEnabled = Value; if Value then startDamageAura() else stopDamageAura() end end })
+CombatSection:NewToggle({ Title = "Damage Aura (Players)", Default = false, Callback = function(Value) _G.DamageAuraPlayersEnabled = Value; if Value then startDamagePlayerAura() else stopDamagePlayerAura() end end })
 
-ConfigSection2:NewToggle({
-    Title = "Damage Aura (Players)",
-    Default = false,
-    Callback = function(Value)
-        _G.DamageAuraPlayersEnabled = Value
-        if Value then
-            startDamagePlayerAura()
-        else
-            stopDamagePlayerAura()
-        end
-    end
-})
+local AutoCombatTab = Windows:NewTab({ Title = "Auto Combat", Description = "Follow & Pull Mobs", Icon = "rbxassetid://7733960981" })
+local AutoCombatSection = AutoCombatTab:NewSection({ Title = "Auto Combat Control", Icon = "rbxassetid://7743869054", Position = "Left" })
+AutoCombatSection:NewToggle({ Title = "Farm Aura (Follow Enemy)", Default = false, Callback = function(v)
+    _G.FarmAuraEnabled = v
+    if v then startFarmAura() else stopFarmAura() end
+end })
+AutoCombatSection:NewSlider({ Title = "Follow Height (Y offset)", Min = 10, Max = 100, Default = 50, Callback = function(v) _G.FarmAuraHeight = v end })
+AutoCombatSection:NewToggle({ Title = "Bring Mob (Pull Enemies)", Default = false, Callback = function(v)
+    _G.BringMobEnabled = v
+    if v then startBringMob() else stopBringMob() end
+end })
+AutoCombatSection:NewSlider({ Title = "Max Pull Distance", Min = 100, Max = 1200, Default = 500, Callback = function(v) _G.BringMobMaxDistance = v end })
 
-ConfigSection2:NewToggle({
-    Title = "Bring Mob (All Mobs - Fast)",
-    Default = false,
-    Callback = function(Value)
-        _G.BringMobEnabled = Value
-        if Value then
-            startBringMob()
-        else
-            stopBringMob()
-        end
-    end
-})
+-- ===== AUTO FARM BOSS UI (ปลอดภัย) =====
+local BossSection = AutoCombatTab:NewSection({ Title = "Auto Farm Boss", Icon = "rbxassetid://7743869054", Position = "Right" })
 
-ConfigSection2:NewSlider({ Title = "Bring Mob Speed", Min = 200, Max = 900, Default = 450, Callback = function(v) _G.BringMobSpeed = v end })
-ConfigSection2:NewSlider({ Title = "Bring Mob Height (Y)", Min = -100, Max = 100, Default = 12, Callback = function(v) _G.BringMobHeight = v end })
-ConfigSection2:NewSlider({ Title = "Max Bring Distance", Min = 100, Max = 1200, Default = 600, Callback = function(v) _G.BringMobMaxDistance = v end })
-ConfigSection2:NewSlider({ Title = "Max Mobs to Bring", Min = 5, Max = 40, Default = 20, Callback = function(v) _G.BringMobMaxCount = v end })
+local bossNames = getBossListFromSpawns()
+_G.AutoFarmBossEnabled = false
+_G.SelectedBossName = nil
+
+if #bossNames > 0 then
+    local bossDropdown = BossSection:NewDropdown({
+        Title = "Select Boss",
+        Data = bossNames,
+        Default = bossNames[1],
+        Callback = function(selected)
+            _G.SelectedBossName = selected
+        end
+    })
+    _G.SelectedBossName = bossNames[1]
+
+    BossSection:NewToggle({ Title = "Farm Boss", Default = false, Callback = function(v)
+        _G.AutoFarmBossEnabled = v
+        if v then
+            if not _G.SelectedBossName then
+                Notification.new({ Title = "Auto Boss", Description = "Please select a boss first", Duration = 2 })
+                _G.AutoFarmBossEnabled = false
+                return
+            end
+            startAutoFarmBoss()
+        else
+            stopAutoFarmBoss()
+        end
+    end })
+else
+    BossSection:NewDropdown({
+        Title = "Select Boss",
+        Data = {"(No bosses found)"},
+        Default = "(No bosses found)",
+        Callback = function() end
+    })
+    BossSection:NewButton({ Title = "Refresh Boss List", Callback = function()
+        local newList = getBossListFromSpawns()
+        if #newList > 0 then
+            Notification.new({ Title = "Auto Boss", Description = "Found " .. #newList .. " bosses. Please re-run script.", Duration = 3 })
+        else
+            Notification.new({ Title = "Auto Boss", Description = "Still no bosses.", Duration = 2 })
+        end
+    end })
+end
+
+local EquipSection = SettingsTab:NewSection({ Title = "Auto Equip", Icon = "rbxassetid://7743869054", Position = "Right" })
+EquipSection:NewToggle({ Title = "Enable Auto Equip", Default = false, Callback = function(v)
+    _G.AutoEquipEnabled = v
+    if v then startAutoEquip() else stopAutoEquip() end
+end })
+EquipSection:NewDropdown({ Title = "Weapon Type", Data = {"Melee", "Sword", "Gun", "Fruit"}, Default = "Melee", Callback = function(v)
+    _G.SelectedWeaponType = v
+    if _G.AutoEquipEnabled then
+        equipWeapon(v)
+    end
+end })
+
+print("UI loaded successfully")
