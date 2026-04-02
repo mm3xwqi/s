@@ -3,11 +3,14 @@ local success, NothingLibrary = pcall(function()
 end)
 
 if not success or type(NothingLibrary) ~= "table" then
-    warn("Failed to load NothingLibrary")
+    warn("Failed to load NothingLibrary: " .. tostring(NothingLibrary))
     return
 end
 
 local Notification = NothingLibrary.Notification()
+
+-- forward declaration
+local collectTargets
 
 -- ===== GLOBAL VARIABLES =====
 _G.AutoFarmEnabled = false
@@ -29,11 +32,6 @@ _G.FarmAuraHeight = 50
 _G.BringMobEnabled = false
 _G.BringMobMaxDistance = 500
 
--- Auto Farm Boss
-_G.AutoFarmBossEnabled = false
-_G.SelectedBossName = nil
-
--- ค่า Default
 local BRING_MOB_SPEED = 450
 local BRING_MOB_HEIGHT = 0
 local SPEED = 350
@@ -42,7 +40,6 @@ local MOLTEN_POS = Vector3.new(-5227, 200, -5497)
 local FRIENDLY_POS = Vector3.new(-3053, 240, -10144)
 local TweenService = game:GetService("TweenService")
 
--- Circle state
 _G.CurrentCircleIsland = nil
 _G.CurrentCircleIndex = 1
 _G.CurrentCircleRound = 1
@@ -286,7 +283,6 @@ local function getClosestCollectible()
     if not rootPart then return nil end
     local closest = nil
     local closestDist = math.huge
-    -- Fruit
     local fruitFolder = workspace:FindFirstChild("Fruit ")
     if fruitFolder then
         for _, fruit in ipairs(fruitFolder:GetChildren()) do
@@ -302,7 +298,6 @@ local function getClosestCollectible()
             end
         end
     end
-    -- Shard
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and (v.Name == "Shard" or v.Name == "EasterShard") and not _G.ShardBlacklist[v] then
             local pos = getPosition(v)
@@ -315,7 +310,6 @@ local function getClosestCollectible()
             end
         end
     end
-    -- Egg
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and v:IsA("Model") and (v:FindFirstChild("indra egg") or v:FindFirstChild("_PrimaryPart")) then
             local pos = getPosition(v)
@@ -328,7 +322,6 @@ local function getClosestCollectible()
             end
         end
     end
-    -- Chest
     local folder = workspace:FindFirstChild("ChestModels")
     if folder then
         for _, v in ipairs(folder:GetChildren()) do
@@ -431,72 +424,6 @@ local function moveTo(targetPos, targetInstance, targetType, dynamic, enableJump
     return interrupted
 end
 
--- ===== HOVER MOVEMENT =====
-local function hoverMoveTo(target, hoverY, isHovering, enableJump)
-    if enableJump == nil then enableJump = false end
-    if not target then return false end
-    local character = game.Players.LocalPlayer.Character
-    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-    local oldBV = hrp:FindFirstChild("HoverBV")
-    if oldBV then oldBV:Destroy() end
-    local oldBP = hrp:FindFirstChild("HoverBP")
-    if oldBP then oldBP:Destroy() end
-    local bv = Instance.new("BodyVelocity")
-    bv.Name = "HoverBV"
-    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    bv.Velocity = Vector3.new(0, 0, 0)
-    bv.Parent = hrp
-    local bp = Instance.new("BodyPosition")
-    bp.Name = "HoverBP"
-    bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bp.P = 10000
-    local targetPosition
-    if typeof(target) == "Vector3" then
-        targetPosition = target
-    elseif typeof(target) == "Instance" then
-        targetPosition = getPosition(target)
-    end
-    if targetPosition then
-        bp.Position = Vector3.new(targetPosition.X, targetPosition.Y, targetPosition.Z)
-    else
-        bp.Position = Vector3.new(hrp.Position.X, hrp.Position.Y, hrp.Position.Z)
-    end
-    bp.Parent = hrp
-    local result = false
-    local lastJumpTime = 0
-    while _G.AutoFarmEnabled and isHovering and hrp.Parent do
-        local currentTargetPos
-        if typeof(target) == "Vector3" then
-            currentTargetPos = target
-        elseif typeof(target) == "Instance" then
-            currentTargetPos = getPosition(target)
-        end
-        if not currentTargetPos then break end
-        local dist = (hrp.Position - currentTargetPos).Magnitude
-        if dist < 3 then
-            result = true
-            break
-        end
-        if enableJump and _G.AutoJumpEnabled and dist < 15 then
-            local now = tick()
-            if now - lastJumpTime > 0.3 then
-                doJump()
-                lastJumpTime = now
-            end
-        end
-        local direction = (currentTargetPos - hrp.Position).Unit
-        direction = Vector3.new(direction.X, 0, direction.Z)
-        bv.Velocity = direction * SPEED
-        bp.Position = Vector3.new(hrp.Position.X, hoverY, hrp.Position.Z)
-        task.wait()
-    end
-    pcall(function() bv:Velocity = Vector3.new(0, 0, 0) end)
-    pcall(function() bv:Destroy() end)
-    pcall(function() bp:Destroy() end)
-    return result
-end
-
 -- ===== FRUIT PROCESSING =====
 local function processFruit(fruitTool)
     if _G.FruitBlacklist[fruitTool] then return end
@@ -514,7 +441,7 @@ local function processFruit(fruitTool)
     end
 end
 
--- ===== EGG DELIVERY (ย่อ) =====
+-- ===== EGG DELIVERY =====
 local function deliverFallingSkyEgg(eggInHand)
     local player = game.Players.LocalPlayer
     local character = player.Character
@@ -787,13 +714,12 @@ local function hasAnyTarget()
 end
 
 -- ===== COLLECT TARGETS =====
-local function collectTargets()
+collectTargets = function()
     if not isCharacterAlive() then return false end
     if _G.QuestModeEnabled and getSpecialEgg() then return false end
     local player = game.Players.LocalPlayer
     local rootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return false end
-    -- Fruit
     local fruitFolder = workspace:FindFirstChild("Fruit ")
     if fruitFolder then
         local closestFruit, closestFruitDist = nil, math.huge
@@ -835,7 +761,6 @@ local function collectTargets()
             end
         end
     end
-    -- Shard
     local closestShard, closestShardDist = nil, math.huge
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and (v.Name == "Shard" or v.Name == "EasterShard") and not _G.ShardBlacklist[v] then
@@ -858,7 +783,6 @@ local function collectTargets()
             return true
         end
     end
-    -- Egg
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Parent and v:IsA("Model") and (v:FindFirstChild("indra egg") or v:FindFirstChild("_PrimaryPart")) then
             local pos = getPosition(v)
@@ -869,7 +793,6 @@ local function collectTargets()
             end
         end
     end
-    -- Chest
     local folder = workspace:FindFirstChild("ChestModels")
     if folder then
         local nearestDist = math.huge
@@ -957,7 +880,7 @@ local function circleStep(route)
     if _G.CurrentCircleIndex > #route then
         _G.CurrentCircleRound = _G.CurrentCircleRound + 1
         _G.CurrentCircleIndex = 1
-        if _G.CurrentCircleRound > 2 then 
+        if _G.CurrentCircleRound > 2 then
             return "finished"
         else
             Notification.new({ Title = "Circle", Description = string.format("Starting round %d on %s", _G.CurrentCircleRound, _G.CurrentCircleIsland.Name), Duration = 3 })
@@ -1001,10 +924,7 @@ local function StartFarming()
                 hrp = character and character:FindFirstChild("HumanoidRootPart")
                 loadAttempts = loadAttempts + 1
             end
-            if not hrp then
-                task.wait(1)
-                continue
-            end
+            if not hrp then task.wait(1) continue end
             local eggInHand = getSpecialEgg()
             if eggInHand and not _G.QuestModeEnabled then
                 if character then
@@ -1030,10 +950,7 @@ local function StartFarming()
                 end
                 character = player.Character
                 hrp = character and character:FindFirstChild("HumanoidRootPart")
-                if not hrp then
-                    task.wait(1)
-                    continue
-                end
+                if not hrp then task.wait(1) continue end
                 local humanoid = character:FindFirstChild("Humanoid")
                 if eggInHand.Parent ~= character and humanoid then
                     humanoid:EquipTool(eggInHand)
@@ -1132,10 +1049,7 @@ local function damageEnemy(enemy)
     local hitPart = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Head") or enemy:FindFirstChild("UpperTorso") or enemy:FindFirstChild("LowerTorso")
     if not hitPart then
         for _, part in ipairs(enemy:GetDescendants()) do
-            if part:IsA("BasePart") then
-                hitPart = part
-                break
-            end
+            if part:IsA("BasePart") then hitPart = part break end
         end
     end
     if not hitPart then return end
@@ -1172,9 +1086,7 @@ local function startDamageAura()
                     for i = 1, numToHit do
                         local randIndex = math.random(1, #aliveEnemies)
                         local target = aliveEnemies[randIndex]
-                        if target then
-                            damageEnemy(target)
-                        end
+                        if target then damageEnemy(target) end
                         table.remove(aliveEnemies, randIndex)
                         if #aliveEnemies == 0 then break end
                     end
@@ -1252,30 +1164,96 @@ local function startFarmAura()
             local character = player.Character
             local hrp = character and character:FindFirstChild("HumanoidRootPart")
             if not hrp then task.wait(0.5) continue end
+
             local oldBV = hrp:FindFirstChild("FarmAuraBV")
             if oldBV then oldBV:Destroy() end
+
             local target = getClosestEnemy()
+
             if target then
+                -- มีศัตรู → ตามปกติ
                 local targetPos = Vector3.new(target.part.Position.X, target.part.Position.Y + _G.FarmAuraHeight, target.part.Position.Z)
                 local dist = (hrp.Position - targetPos).Magnitude
+                local bv = Instance.new("BodyVelocity")
+                bv.Name = "FarmAuraBV"
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                 if dist > 2 then
-                    local bv = Instance.new("BodyVelocity")
-                    bv.Name = "FarmAuraBV"
-                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                     local dir = (targetPos - hrp.Position).Unit
                     local speed = math.clamp(dist * 8, 20, SPEED)
                     bv.Velocity = dir * speed
-                    bv.Parent = hrp
                 else
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                end
+                bv.Parent = hrp
+                task.wait(0.05)
+            else
+                -- ไม่มีศัตรู → หา wander target
+                local wanderTarget = nil
+
+                local spawnFolder = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+                if spawnFolder then
+                    local spawns = spawnFolder:GetChildren()
+                    if #spawns > 0 then
+                        local randomSpawn = spawns[math.random(1, #spawns)]
+                        if randomSpawn:IsA("BasePart") then
+                            wanderTarget = randomSpawn.Position
+                        elseif randomSpawn:IsA("Model") then
+                            local ok, pos = pcall(function() return randomSpawn:GetPivot().Position end)
+                            if ok then wanderTarget = pos end
+                        end
+                    end
+                end
+
+                if not wanderTarget then
+                    local allParts = {}
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("BasePart") and obj ~= hrp then
+                            table.insert(allParts, obj)
+                        end
+                    end
+                    if #allParts > 0 then
+                        local pick = allParts[math.random(1, #allParts)]
+                        wanderTarget = pick.Position
+                    end
+                end
+
+                if wanderTarget then
+                    -- เดินไปเรื่อยๆ และเช็ค enemy ทุก tick
                     local bv = Instance.new("BodyVelocity")
                     bv.Name = "FarmAuraBV"
                     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                    bv.Velocity = Vector3.new(0, 0, 0)
                     bv.Parent = hrp
+
+                    while farmAuraActive do
+                        hrp = character and character:FindFirstChild("HumanoidRootPart")
+                        if not hrp then break end
+
+                        -- เช็ค enemy ระหว่างทาง ถ้าเจอให้หยุดแล้ว tween ไปหาเลย
+                        local foundEnemy = getClosestEnemy()
+                        if foundEnemy then
+                            local enemyPos = Vector3.new(foundEnemy.part.Position.X, foundEnemy.part.Position.Y + _G.FarmAuraHeight, foundEnemy.part.Position.Z)
+                            local dir = (enemyPos - hrp.Position).Unit
+                            local dist = (hrp.Position - enemyPos).Magnitude
+                            local speed = math.clamp(dist * 8, 20, SPEED)
+                            bv.Velocity = dir * speed
+                            task.wait(0.05)
+                            break -- ออกจาก wander loop กลับไปใช้ enemy logic ปกติ
+                        end
+
+                        local dist = (hrp.Position - wanderTarget).Magnitude
+                        if dist < 5 then break end -- ถึงจุดหมายแล้ว สุ่มใหม่
+
+                        local dir = (wanderTarget - hrp.Position).Unit
+                        local speed = math.clamp(dist * 5, 20, SPEED)
+                        bv.Velocity = dir * speed
+                        task.wait(0.1)
+                    end
+
+                    local bvClean = hrp and hrp:FindFirstChild("FarmAuraBV")
+                    if bvClean then bvClean:Destroy() end
+                else
+                    task.wait(0.5)
                 end
-                task.wait(0.05)
-            else
-                task.wait(0.2)
             end
         end
     end)
@@ -1298,9 +1276,7 @@ _G.BringMobTweens = {}
 local function setMobNoclip(enemy, enabled)
     if not enemy or not enemy.Parent then return end
     for _, part in ipairs(enemy:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = not enabled
-        end
+        if part:IsA("BasePart") then part.CanCollide = not enabled end
     end
 end
 local function releaseMob(enemy)
@@ -1331,8 +1307,7 @@ local function getEnemyLevel(enemy)
     if attr then return attr end
     local lvlObj = enemy:FindFirstChild("Level")
     if lvlObj and lvlObj.Value then return lvlObj.Value end
-    local name = enemy.Name
-    local num = tonumber(name:match("%d+"))
+    local num = tonumber(enemy.Name:match("%d+"))
     if num then return num end
     return nil
 end
@@ -1366,10 +1341,7 @@ local function startBringMob()
                     break
                 end
             end
-            if pullingEnemy then
-                task.wait(0.1)
-                continue
-            end
+            if pullingEnemy then task.wait(0.1) continue end
             local targetEnemy = nil
             local targetDist = math.huge
             for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -1378,37 +1350,23 @@ local function startBringMob()
                 local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChildWhichIsA("BasePart")
                 if hrp then
                     local dist = (playerRoot.Position - hrp.Position).Magnitude
-                    if dist < targetDist then
-                        targetDist = dist
-                        targetEnemy = enemy
-                    end
+                    if dist < targetDist then targetDist = dist targetEnemy = enemy end
                 end
             end
-            if not targetEnemy then
-                task.wait(1)
-                continue
-            end
+            if not targetEnemy then task.wait(1) continue end
             local targetHrp = targetEnemy:FindFirstChild("HumanoidRootPart") or targetEnemy:FindFirstChildWhichIsA("BasePart")
-            if not targetHrp then
-                task.wait(0.5)
-                continue
-            end
+            if not targetHrp then task.wait(0.5) continue end
             local centerPos = targetHrp.Position
             local playerLevel = 9999
             local dataLevel = player:FindFirstChild("Data")
-            if dataLevel and dataLevel:FindFirstChild("Level") then
-                playerLevel = dataLevel.Level.Value
-            end
+            if dataLevel and dataLevel:FindFirstChild("Level") then playerLevel = dataLevel.Level.Value end
             local closestOther = nil
             local closestDist = _G.BringMobMaxDistance + 1
             for _, enemy in ipairs(enemiesFolder:GetChildren()) do
                 if enemy == targetEnemy then continue end
                 if not enemy or not enemy.Parent then continue end
                 if not isEnemyAlive(enemy) then
-                    if mobArrivedSet[enemy] then
-                        releaseMob(enemy)
-                        mobArrivedSet[enemy] = nil
-                    end
+                    if mobArrivedSet[enemy] then releaseMob(enemy) mobArrivedSet[enemy] = nil end
                     continue
                 end
                 if mobArrivedSet[enemy] then continue end
@@ -1425,17 +1383,10 @@ local function startBringMob()
             end
             if closestOther then
                 local otherHrp = closestOther:FindFirstChild("HumanoidRootPart") or closestOther:FindFirstChildWhichIsA("BasePart")
-                if not otherHrp then
-                    mobArrivedSet[closestOther] = true
-                    task.wait(0.2)
-                    continue
-                end
+                if not otherHrp then mobArrivedSet[closestOther] = true task.wait(0.2) continue end
                 setMobNoclip(closestOther, true)
                 local humanoid = closestOther:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid.PlatformStand = true
-                    otherHrp.Anchored = false
-                end
+                if humanoid then humanoid.PlatformStand = true otherHrp.Anchored = false end
                 local pullTargetPos = centerPos + Vector3.new(0, BRING_MOB_HEIGHT, 0)
                 local distance = (otherHrp.Position - pullTargetPos).Magnitude
                 local tweenTime = math.clamp(distance / BRING_MOB_SPEED, 0.2, 3)
@@ -1443,11 +1394,9 @@ local function startBringMob()
                 local tween = TweenService:Create(otherHrp, tweenInfo, { CFrame = CFrame.new(pullTargetPos) })
                 _G.BringMobTweens[closestOther] = tween
                 tween:Play()
-                Notification.new({ Title = "Bring Mob", Description = "Pulling " .. closestOther.Name, Duration = 2 })
+                Notification.new({ Title = "Bring Mob", Description = "Bring " .. closestOther.Name, Duration = 2 })
                 local startWait = tick()
-                while tween.PlaybackState ~= Enum.PlaybackState.Completed and tick() - startWait < 5 do
-                    task.wait(0.05)
-                end
+                while tween.PlaybackState ~= Enum.PlaybackState.Completed and tick() - startWait < 5 do task.wait(0.05) end
                 local finalDist = (otherHrp.Position - centerPos).Magnitude
                 if finalDist <= 10 then
                     Notification.new({ Title = "Bring Mob", Description = closestOther.Name .. " arrived", Duration = 1 })
@@ -1488,193 +1437,22 @@ local function stopBringMob()
     _G.BringMobTweens = {}
 end
 
--- ===== AUTO FARM BOSS (ใหม่ ปลอดภัย) =====
-local function cleanBossName(name)
-    if not name then return "" end
-    local cleaned = name:gsub("%[Boss%]", ""):gsub("%[Lv[.]?%s*%d+%]", ""):gsub("%[Level%s*%d+%]", ""):gsub("%(.*%)", "")
-    cleaned = cleaned:gsub("^%s+", ""):gsub("%s+$", "")
-    return cleaned
-end
+-- ===== UI =====
+local Windows = NothingLibrary.new({ Title = "Easter Event", Description = "Blox fruits | by Index", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
 
-local function getBossListFromSpawns()
-    local list = {}
-    local ok, origin = pcall(function() return workspace:FindFirstChild("_WorldOrigin") end)
-    if not ok or not origin then return list end
-    local ok2, spawns = pcall(function() return origin:FindFirstChild("EnemySpawns") end)
-    if not ok2 or not spawns then return list end
-    for _, spawn in ipairs(spawns:GetChildren()) do
-        if spawn:IsA("Model") and string.find(spawn.Name, "%[Boss%]") then
-            local clean = cleanBossName(spawn.Name)
-            if clean ~= "" then table.insert(list, clean) end
-        end
-    end
-    return list
-end
-
-local function getBossSpawnPosition(bossName)
-    local ok, origin = pcall(function() return workspace:FindFirstChild("_WorldOrigin") end)
-    if not ok or not origin then return nil end
-    local ok2, spawns = pcall(function() return origin:FindFirstChild("EnemySpawns") end)
-    if not ok2 or not spawns then return nil end
-    local cleanTarget = cleanBossName(bossName)
-    for _, spawn in ipairs(spawns:GetChildren()) do
-        if spawn:IsA("Model") then
-            local cleanSpawn = cleanBossName(spawn.Name)
-            if cleanSpawn == cleanTarget then
-                return getPosition(spawn)
-            end
-        end
-    end
-    return nil
-end
-
-local function findAliveBoss(bossName)
-    local enemies = workspace:FindFirstChild("Enemies")
-    if not enemies then return nil end
-    local cleanTarget = cleanBossName(bossName)
-    for _, enemy in ipairs(enemies:GetChildren()) do
-        if enemy:IsA("Model") and isEnemyAlive(enemy) then
-            local enemyClean = cleanBossName(enemy.Name)
-            if enemyClean == cleanTarget then
-                return enemy
-            end
-        end
-    end
-    return nil
-end
-
-local autoFarmBossTask = nil
-local function startAutoFarmBoss()
-    if autoFarmBossTask then return end
-    if not _G.SelectedBossName or _G.SelectedBossName == "" then
-        Notification.new({ Title = "Auto Boss", Description = "No boss selected", Duration = 2 })
-        return
-    end
-    autoFarmBossTask = task.spawn(function()
-        local bossName = _G.SelectedBossName
-        local spawnPos = getBossSpawnPosition(bossName)
-        if not spawnPos then
-            Notification.new({ Title = "Auto Boss", Description = "Spawn not found for " .. bossName, Duration = 2 })
-            _G.AutoFarmBossEnabled = false
-            autoFarmBossTask = nil
-            return
-        end
-        while _G.AutoFarmBossEnabled do
-            -- 1. เดินทางไปจุดเกิด
-            local character = game.Players.LocalPlayer.Character
-            local hrp = character and character:FindFirstChild("HumanoidRootPart")
-            if hrp and (hrp.Position - spawnPos).Magnitude > 10 then
-                Notification.new({ Title = "Auto Boss", Description = "Moving to spawn: " .. bossName, Duration = 2 })
-                moveTo(spawnPos, nil, "BossSpawn", false, true)
-            end
-            -- 2. รอให้บอสเกิด
-            local boss = nil
-            local waitTime = 0
-            while _G.AutoFarmBossEnabled and not boss do
-                boss = findAliveBoss(bossName)
-                if not boss then
-                    task.wait(1)
-                    waitTime = waitTime + 1
-                    if waitTime > 60 then
-                        Notification.new({ Title = "Auto Boss", Description = "Boss not spawning, retrying...", Duration = 2 })
-                        break
-                    end
-                end
-            end
-            if not boss then
-                task.wait(2)
-                goto continue
-            end
-            Notification.new({ Title = "Auto Boss", Description = bossName .. " found! Engaging.", Duration = 2 })
-            -- 3. ไล่ตามและโจมตี (บินเหนือหัว)
-            local followTask = task.spawn(function()
-                while _G.AutoFarmBossEnabled and boss and boss.Parent and isEnemyAlive(boss) do
-                    local char = game.Players.LocalPlayer.Character
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    local bossRoot = boss:FindFirstChild("HumanoidRootPart") or boss:FindFirstChildWhichIsA("BasePart")
-                    if not hrp or not bossRoot then
-                        task.wait(0.1)
-                        continue
-                    end
-                    local height = _G.FarmAuraHeight or 50
-                    local targetPos = bossRoot.Position + Vector3.new(0, height, 0)
-                    local dist = (hrp.Position - targetPos).Magnitude
-                    local bv = hrp:FindFirstChild("BossFollowBV")
-                    if not bv then
-                        bv = Instance.new("BodyVelocity")
-                        bv.Name = "BossFollowBV"
-                        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                        bv.Parent = hrp
-                    end
-                    if dist > 3 then
-                        local dir = (targetPos - hrp.Position).Unit
-                        local speed = math.clamp(dist * 6, 30, SPEED)
-                        bv.Velocity = dir * speed
-                    else
-                        bv.Velocity = Vector3.new(0, 0, 0)
-                    end
-                    damageEnemy(boss)
-                    task.wait(0.05)
-                end
-            end)
-            while _G.AutoFarmBossEnabled and boss and boss.Parent and isEnemyAlive(boss) do
-                task.wait(0.5)
-            end
-            task.cancel(followTask)
-            local char = game.Players.LocalPlayer.Character
-            if char then
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local bv = hrp:FindFirstChild("BossFollowBV")
-                    if bv then bv:Destroy() end
-                end
-            end
-            if boss and not isEnemyAlive(boss) then
-                Notification.new({ Title = "Auto Boss", Description = bossName .. " defeated. Waiting for respawn.", Duration = 2 })
-                task.wait(5)
-            else
-                task.wait(2)
-            end
-            ::continue::
-        end
-        autoFarmBossTask = nil
-        _G.AutoFarmBossEnabled = false
-        Notification.new({ Title = "Auto Boss", Description = "Stopped", Duration = 2 })
-    end)
-end
-
-local function stopAutoFarmBoss()
-    _G.AutoFarmBossEnabled = false
-    if autoFarmBossTask then
-        task.cancel(autoFarmBossTask)
-        autoFarmBossTask = nil
-    end
-    local char = game.Players.LocalPlayer.Character
-    if char then
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local bv = hrp:FindFirstChild("BossFollowBV")
-            if bv then bv:Destroy() end
-        end
-    end
-end
-
--- ===== UI สร้างทันที (ไม่มี task.wait ขัดจังหวะ) =====
-local Windows = NothingLibrary.new({ Title = "Easter Event Farm", Description = "FrostByte | by Arrays", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
-
-local MainTab = Windows:NewTab({ Title = "Main", Description = "Auto Farm Controls", Icon = "rbxassetid://4483362458" })
+local MainTab = Windows:NewTab({ Title = "Main", Description = "Easter Farm", Icon = "rbxassetid://4483362458" })
 local FarmSection = MainTab:NewSection({ Title = "Farming", Icon = "rbxassetid://7743869054", Position = "Left" })
 FarmSection:NewDropdown({ Title = "Farm Mode", Data = {"Random", "Circle"}, Default = "Random", Callback = function(Value) _G.FarmMode = Value == "Random" and "random" or "circle" end })
-FarmSection:NewToggle({ Title = "Enable Auto Farm", Default = false, Callback = function(Value) 
-    _G.AutoFarmEnabled = Value 
-    if Value then 
-        StartFarming() 
-        enableNoclip() 
-        enableAntiSit() 
-    else 
+FarmSection:NewToggle({ Title = "Enable Auto Farm", Default = false, Callback = function(Value)
+    _G.AutoFarmEnabled = Value
+    if Value then
+        StartFarming()
+        enableNoclip()
+        enableAntiSit()
+    else
         lastNotifiedTarget = nil
         _G.CurrentCircleIsland = nil
-        disableNoclip() 
+        disableNoclip()
         disableAntiSit()
         local character = game.Players.LocalPlayer.Character
         if character then
@@ -1686,7 +1464,7 @@ FarmSection:NewToggle({ Title = "Enable Auto Farm", Default = false, Callback = 
                 end
             end
         end
-    end 
+    end
 end })
 FarmSection:NewToggle({ Title = "Enable Quest Delivery", Default = false, Callback = function(Value) _G.QuestModeEnabled = Value lastNotifiedTarget = nil end })
 
@@ -1700,67 +1478,6 @@ local CombatSection = SettingsTab:NewSection({ Title = "Combat", Icon = "rbxasse
 CombatSection:NewToggle({ Title = "Damage Aura (Enemies)", Default = false, Callback = function(Value) _G.DamageAuraEnabled = Value; if Value then startDamageAura() else stopDamageAura() end end })
 CombatSection:NewToggle({ Title = "Damage Aura (Players)", Default = false, Callback = function(Value) _G.DamageAuraPlayersEnabled = Value; if Value then startDamagePlayerAura() else stopDamagePlayerAura() end end })
 
-local AutoCombatTab = Windows:NewTab({ Title = "Auto Combat", Description = "Follow & Pull Mobs", Icon = "rbxassetid://7733960981" })
-local AutoCombatSection = AutoCombatTab:NewSection({ Title = "Auto Combat Control", Icon = "rbxassetid://7743869054", Position = "Left" })
-AutoCombatSection:NewToggle({ Title = "Farm Aura (Follow Enemy)", Default = false, Callback = function(v)
-    _G.FarmAuraEnabled = v
-    if v then startFarmAura() else stopFarmAura() end
-end })
-AutoCombatSection:NewSlider({ Title = "Follow Height (Y offset)", Min = 10, Max = 100, Default = 50, Callback = function(v) _G.FarmAuraHeight = v end })
-AutoCombatSection:NewToggle({ Title = "Bring Mob (Pull Enemies)", Default = false, Callback = function(v)
-    _G.BringMobEnabled = v
-    if v then startBringMob() else stopBringMob() end
-end })
-AutoCombatSection:NewSlider({ Title = "Max Pull Distance", Min = 100, Max = 1200, Default = 500, Callback = function(v) _G.BringMobMaxDistance = v end })
-
--- ===== AUTO FARM BOSS UI (ปลอดภัย) =====
-local BossSection = AutoCombatTab:NewSection({ Title = "Auto Farm Boss", Icon = "rbxassetid://7743869054", Position = "Right" })
-
-local bossNames = getBossListFromSpawns()
-_G.AutoFarmBossEnabled = false
-_G.SelectedBossName = nil
-
-if #bossNames > 0 then
-    local bossDropdown = BossSection:NewDropdown({
-        Title = "Select Boss",
-        Data = bossNames,
-        Default = bossNames[1],
-        Callback = function(selected)
-            _G.SelectedBossName = selected
-        end
-    })
-    _G.SelectedBossName = bossNames[1]
-
-    BossSection:NewToggle({ Title = "Farm Boss", Default = false, Callback = function(v)
-        _G.AutoFarmBossEnabled = v
-        if v then
-            if not _G.SelectedBossName then
-                Notification.new({ Title = "Auto Boss", Description = "Please select a boss first", Duration = 2 })
-                _G.AutoFarmBossEnabled = false
-                return
-            end
-            startAutoFarmBoss()
-        else
-            stopAutoFarmBoss()
-        end
-    end })
-else
-    BossSection:NewDropdown({
-        Title = "Select Boss",
-        Data = {"(No bosses found)"},
-        Default = "(No bosses found)",
-        Callback = function() end
-    })
-    BossSection:NewButton({ Title = "Refresh Boss List", Callback = function()
-        local newList = getBossListFromSpawns()
-        if #newList > 0 then
-            Notification.new({ Title = "Auto Boss", Description = "Found " .. #newList .. " bosses. Please re-run script.", Duration = 3 })
-        else
-            Notification.new({ Title = "Auto Boss", Description = "Still no bosses.", Duration = 2 })
-        end
-    end })
-end
-
 local EquipSection = SettingsTab:NewSection({ Title = "Auto Equip", Icon = "rbxassetid://7743869054", Position = "Right" })
 EquipSection:NewToggle({ Title = "Enable Auto Equip", Default = false, Callback = function(v)
     _G.AutoEquipEnabled = v
@@ -1768,9 +1485,20 @@ EquipSection:NewToggle({ Title = "Enable Auto Equip", Default = false, Callback 
 end })
 EquipSection:NewDropdown({ Title = "Weapon Type", Data = {"Melee", "Sword", "Gun", "Fruit"}, Default = "Melee", Callback = function(v)
     _G.SelectedWeaponType = v
-    if _G.AutoEquipEnabled then
-        equipWeapon(v)
-    end
+    if _G.AutoEquipEnabled then equipWeapon(v) end
 end })
+
+local AutoCombatTab = Windows:NewTab({ Title = "Farm Mobs", Description = "", Icon = "rbxassetid://7733960981" })
+local AutoCombatSection = AutoCombatTab:NewSection({ Title = "Auto Combat Control", Icon = "rbxassetid://7743869054", Position = "Left" })
+AutoCombatSection:NewToggle({ Title = "Farm Aura", Default = false, Callback = function(v)
+    _G.FarmAuraEnabled = v
+    if v then startFarmAura() else stopFarmAura() end
+end })
+AutoCombatSection:NewSlider({ Title = "Y offset", Min = 10, Max = 100, Default = 50, Callback = function(v) _G.FarmAuraHeight = v end })
+AutoCombatSection:NewToggle({ Title = "Bring Mob", Default = false, Callback = function(v)
+    _G.BringMobEnabled = v
+    if v then startBringMob() else stopBringMob() end
+end })
+AutoCombatSection:NewSlider({ Title = "Bring Distance", Min = 100, Max = 1200, Default = 500, Callback = function(v) _G.BringMobMaxDistance = v end })
 
 print("UI loaded successfully")
