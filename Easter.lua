@@ -63,6 +63,11 @@ local function getHumanoid(char) return char and char:FindFirstChildOfClass("Hum
 local function isAlive(m) if not m or not m.Parent then return false end local h = getHumanoid(m) return h and h.Health > 0 end
 local function isPlayerChar(m) for _, p in ipairs(Players:GetPlayers()) do if p.Character == m then return true end end return false end
 
+local function getEnemyHRP(enemy)
+    if not enemy or not enemy.Parent then return nil end
+    return enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChildWhichIsA("BasePart")
+end
+
 local function getPos(obj)
     if not obj or not obj.Parent then return nil end
     if typeof(obj) == "Vector3" then return obj end
@@ -625,21 +630,41 @@ local function getHitPart(model)
     for _, p in ipairs(model:GetDescendants()) do if p:IsA("BasePart") then return p end end
 end
 
+local function getNearbyEnemies(range)
+    local hrp = getHRP(LP.Character)
+    if not hrp then return {} end
+    local enemiesFolder = workspace:FindFirstChild("Enemies")
+    if not enemiesFolder then return {} end
+
+    local nearby = {}
+    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+        if isAlive(enemy) and not isPlayerChar(enemy) then
+            local part = getEnemyHRP(enemy)
+            if part then
+                local dx = hrp.Position.X - part.Position.X
+                local dz = hrp.Position.Z - part.Position.Z
+                local distXZ = math.sqrt(dx*dx + dz*dz)
+                if distXZ <= range then
+                    table.insert(nearby, enemy)
+                end
+            end
+        end
+    end
+    return nearby
+end
+
 local function startDamageAura()
     if damageAuraTask then return end
     damageAuraTask = task.spawn(function()
         while _G.DamageAuraEnabled do
-            local enemies = workspace:FindFirstChild("Enemies")
-            if enemies then
-                local alive = {}
-                for _, e in ipairs(enemies:GetChildren()) do if e and e.Parent and isAlive(e) then table.insert(alive, e) end end
-                if #alive > 0 then
-                    local n = math.random(1, math.max(1, math.floor(#alive/2)))
-                    for i = 1, n do
-                        local idx = math.random(1, #alive)
-                        local p = getHitPart(alive[idx]) if p then fireHit(p) end
-                        table.remove(alive, idx) if #alive == 0 then break end
-                    end
+            local nearby = getNearbyEnemies(50)
+            if #nearby > 0 then
+                local hitCount = math.random(1, math.min(2, #nearby))
+                for i = 1, hitCount do
+                    local randomIndex = math.random(1, #nearby)
+                    local target = nearby[randomIndex]
+                    local hitPart = getHitPart(target)
+                    if hitPart then fireHit(hitPart) end
                 end
             end
             task.wait(0.05)
@@ -647,7 +672,10 @@ local function startDamageAura()
         damageAuraTask = nil
     end)
 end
-local function stopDamageAura() if damageAuraTask then task.cancel(damageAuraTask) damageAuraTask = nil end end
+
+local function stopDamageAura()
+    if damageAuraTask then task.cancel(damageAuraTask) damageAuraTask = nil end
+end
 
 local function startDamagePlayerAura()
     if damagePlayerAuraTask then return end
@@ -681,13 +709,14 @@ local function startFarmAura()
             local old = hrp:FindFirstChild("FarmAuraBV") if old then old:Destroy() end
             local target = getClosestEnemy()
             if target then
-                _G.CurrentFarmTarget = target.enemy  -- อัพเดทเป้าหมายปัจจุบัน
+                _G.CurrentFarmTarget = target.enemy
                 local tp = Vector3.new(target.part.Position.X, target.part.Position.Y + _G.FarmAuraHeight, target.part.Position.Z)
                 local dist = (hrp.Position - tp).Magnitude
                 local bv = Instance.new("BodyVelocity") bv.Name="FarmAuraBV" bv.MaxForce=Vector3.new(9e9,9e9,9e9)
                 bv.Velocity = dist > 2 and (tp - hrp.Position).Unit * math.clamp(dist*8, 20, SPEED) or Vector3.zero
                 bv.Parent = hrp task.wait(0.05)
             else
+                -- (โค้ดเดิมของ farm aura เมื่อไม่มี target)
                 local wt = nil
                 local sf = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
                 if sf then
@@ -733,16 +762,14 @@ local function stopFarmAura()
     if hrp then local bv = hrp:FindFirstChild("FarmAuraBV") if bv then bv:Destroy() end end
 end
 
--- ===== BRING MOB (IMPROVED STABILITY) =====
+-- ===== BRING MOB (ล็อกตำแหน่ง + ทำงานเฉพาะตอน Farm Aura เปิด) =====
 local bringMobTask, mobArrivedSet = nil, {}
 
--- ฟังก์ชันตรวจสอบ HRP ของมอนสเตอร์อย่างปลอดภัย
 local function getEnemyHRP(enemy)
     if not enemy or not enemy.Parent then return nil end
     return enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChildWhichIsA("BasePart")
 end
 
--- ปิด collision ทุก part อย่างปลอดภัยด้วย pcall
 local function setMobNoclip(enemy, enabled)
     if not enemy or not enemy.Parent then return end
     for _, p in ipairs(enemy:GetDescendants()) do
@@ -752,7 +779,6 @@ local function setMobNoclip(enemy, enabled)
     end
 end
 
--- คืนค่าสถานะมอนสเตอร์ให้ปกติ
 local function releaseMob(enemy)
     if not enemy or not enemy.Parent then return end
     _G.BringMobTweens[enemy] = nil
@@ -770,183 +796,156 @@ local function startBringMob()
     if bringMobTask then return end
     mobArrivedSet = {}
     _G.BringMobTweens = {}
-    notify("Bring Mob", "Starting")
+    _G.BringMobOffsets = {}
+    notify("Bring Mob", "Starting (ล็อกเป้าหมาย + ทำงานเฉพาะ Farm Aura)")
 
     bringMobTask = task.spawn(function()
         local lastFarmTarget = nil
+        local targetLock = nil
 
-        while _G.BringMobEnabled do
-
-            -- รอให้มี CurrentFarmTarget ก่อน
+        while _G.BringMobEnabled and _G.FarmAuraEnabled do   -- ← เพิ่มเงื่อนไขสำคัญตรงนี้
             local farmTarget = _G.CurrentFarmTarget
             if not farmTarget or not farmTarget.Parent or not isAlive(farmTarget) then
-                _G.CurrentFarmTarget = nil
-                task.wait(0.5) continue
+                local closest = getClosestEnemy()
+                farmTarget = closest and closest.enemy or nil
+                _G.CurrentFarmTarget = farmTarget
             end
+            if not farmTarget then task.wait(0.5) continue end
 
-            -- ถ้าเป้าหมายเปลี่ยน ล้าง arrived set ทั้งหมดทันที
             if farmTarget ~= lastFarmTarget then
+                if targetLock then targetLock:Destroy() targetLock = nil end
+                if lastFarmTarget then releaseMob(lastFarmTarget) end
                 for enemy in pairs(mobArrivedSet) do releaseMob(enemy) end
+                _G.BringMobOffsets = {}
                 mobArrivedSet = {}
                 lastFarmTarget = farmTarget
+
+                local hrp = getEnemyHRP(farmTarget)
+                if hrp then
+                    targetLock = Instance.new("BodyPosition")
+                    targetLock.Name = "FarmTargetLock"
+                    targetLock.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                    targetLock.P = 20000
+                    targetLock.D = 1000
+                    targetLock.Position = hrp.Position
+                    targetLock.Parent = hrp
+                    setMobNoclip(farmTarget, true)
+                end
             end
 
             local farmTargetHrp = getEnemyHRP(farmTarget)
             if not farmTargetHrp then task.wait(0.5) continue end
-
             local centerPos = farmTargetHrp.Position
 
-            -- หาโฟลเดอร์มอนสเตอร์
-            local ef = workspace:FindFirstChild("Enemies")
-                or workspace:FindFirstChild("Mobs")
-                or workspace:FindFirstChild("Enemy")
+            local ef = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace:FindFirstChild("Enemy")
             if not ef then task.wait(3) continue end
 
-            -- ล้าง arrived set: ตายแล้ว หรือ วิ่งออกห่างกว่า 10 studs ให้ดึงใหม่
             for enemy in pairs(mobArrivedSet) do
                 if not enemy or not enemy.Parent or not isAlive(enemy) then
                     releaseMob(enemy) mobArrivedSet[enemy] = nil
                 elseif not _G.BringMobTweens[enemy] then
                     local ehrp = getEnemyHRP(enemy)
-                    if ehrp and (ehrp.Position - centerPos).Magnitude > 10 then
+                    if ehrp and (ehrp.Position - centerPos).Magnitude > 15 then
                         mobArrivedSet[enemy] = nil
                     end
                 end
             end
 
-            -- หาระดับผู้เล่น
             local playerLevel = 9999
             local dl = LP:FindFirstChild("Data")
             if dl and dl:FindFirstChild("Level") then playerLevel = dl.Level.Value end
 
-            -- รวบรวมมอนรอบๆ เป้าหมาย
-            local candidates = {}
-            for _, e in ipairs(ef:GetChildren()) do
-                if #candidates >= _G.BringMobMaxBatch then break end
-                if e == farmTarget or not e or not e.Parent then continue end
-                if isPlayerChar(e) or not isAlive(e) then
-                    if mobArrivedSet[e] then releaseMob(e) mobArrivedSet[e] = nil end
-                    continue
+            local mobBVs = _G.BringMobBVs or {}
+            _G.BringMobBVs = mobBVs
+
+            for e, bv in pairs(mobBVs) do
+                if not e or not e.Parent or not isAlive(e) then
+                    pcall(function() bv:Destroy() end)
+                    mobBVs[e] = nil
+                    releaseMob(e)
                 end
-                if mobArrivedSet[e] or _G.BringMobTweens[e] then continue end
+            end
+
+            local pullingCount = 0
+            for _ in pairs(mobBVs) do pullingCount += 1 end
+
+            for _, e in ipairs(ef:GetChildren()) do
+                if e == farmTarget or not e or not e.Parent or isPlayerChar(e) or not isAlive(e) then continue end
                 local lvl = getEnemyLevel(e) or 0
                 if lvl >= playerLevel then continue end
                 local hrp = getEnemyHRP(e)
-                if hrp and (centerPos - hrp.Position).Magnitude <= _G.BringMobMaxDistance then
-                    table.insert(candidates, e)
+                if not hrp or (centerPos - hrp.Position).Magnitude > _G.BringMobMaxDistance then continue end
+
+                if not mobBVs[e] or not mobBVs[e].Parent then
+                    if pullingCount >= _G.BringMobMaxBatch then continue end
+                    if not _G.BringMobOffsets[e] then
+                        _G.BringMobOffsets[e] = Vector3.new(math.random(-8,8), math.random(3,9), math.random(-8,8))
+                    end
+
+                    local h = getHumanoid(e)
+                    pcall(function()
+                        if h then h.PlatformStand = true end
+                        hrp.Anchored = false
+                        local old = hrp:FindFirstChild("BringMobBV")
+                        if old then old:Destroy() end
+                        local bv = Instance.new("BodyVelocity")
+                        bv.Name = "BringMobBV"
+                        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                        bv.Velocity = Vector3.zero
+                        bv.Parent = hrp
+                        mobBVs[e] = bv
+                    end)
+                    setMobNoclip(e, true)
+                    pullingCount += 1
                 end
-            end
-            if #candidates == 0 then task.wait(0.2) continue end
 
-            -- เตรียมมอนและดึงทันที ไม่มี stability wait
-            local stableList = {}
-            for _, e in ipairs(candidates) do
-                if not e or not e.Parent or not isAlive(e) then continue end
-                local h = getHumanoid(e)
-                local hrp = getEnemyHRP(e)
-                if not hrp then continue end
-                pcall(function()
-                    if h then h.PlatformStand = true end
-                    hrp.Anchored = false
-                    hrp.AssemblyLinearVelocity = Vector3.zero
-                    hrp.AssemblyAngularVelocity = Vector3.zero
-                end)
-                setMobNoclip(e, true)
-                _G.BringMobTweens[e] = true
-                table.insert(stableList, e)
-            end
-            if #stableList == 0 then task.wait(0.2) continue end
-            notify("Bring Mob", "Pulling " .. #stableList .. " mobs")
-
-            -- ใส่ BodyVelocity ใน HRP ของมอนแต่ละตัวแทน AssemblyLinearVelocity
-            -- เพราะ Humanoid จะ override AssemblyLinearVelocity ทุก frame
-            local mobBVs = {}
-            for _, e in ipairs(stableList) do
-                local hrp = getEnemyHRP(e)
-                if not hrp then continue end
-                pcall(function()
-                    local old = hrp:FindFirstChild("BringMobBV")
-                    if old then old:Destroy() end
-                    local bv = Instance.new("BodyVelocity")
-                    bv.Name = "BringMobBV"
-                    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                    bv.Velocity = Vector3.zero
-                    bv.Parent = hrp
-                    mobBVs[e] = bv
-                end)
-            end
-
-            -- วนอัพเดท velocity ของ BodyVelocity ทุก tick
-            local pullTimeout = tick() + 8
-            while _G.BringMobEnabled and tick() < pullTimeout do
-                -- อัพเดท centerPos ตามเป้าหมาย
-                local ft = _G.CurrentFarmTarget
-                if ft and ft.Parent and isAlive(ft) then
-                    local fhrp = getEnemyHRP(ft)
-                    if fhrp then centerPos = fhrp.Position end
-                else break end
-
-                local allArrived, anyAlive = true, false
-                for _, e in ipairs(stableList) do
-                    if not e or not e.Parent or not isAlive(e) then continue end
-                    anyAlive = true
-                    local hrp = getEnemyHRP(e)
-                    local bv = mobBVs[e]
-                    if not hrp or not bv or not bv.Parent then continue end
-                    local d = (hrp.Position - centerPos).Magnitude
-                    if d > 4 then
-                        allArrived = false
-                        setMobNoclip(e, true)
-                        local speed = math.clamp(d * 6, 10, BRING_MOB_SPEED)
-                        pcall(function()
-                            bv.Velocity = (centerPos - hrp.Position).Unit * speed
-                        end)
+                local bv = mobBVs[e]
+                if bv and bv.Parent then
+                    local targetPos = centerPos + (_G.BringMobOffsets[e] or Vector3.zero)
+                    local d = (hrp.Position - targetPos).Magnitude
+                    if d > 10 then
+                        bv.Velocity = (targetPos - hrp.Position).Unit * math.clamp(d * 5, 15, BRING_MOB_SPEED)
                     else
-                        pcall(function() bv.Velocity = Vector3.zero end)
+                        bv.Velocity = Vector3.zero
                     end
                 end
-                if allArrived or not anyAlive then break end
-                task.wait(0.05)
             end
 
-            -- ลบ BodyVelocity และคืนสถานะมอนทุกตัว
-            for _, e in ipairs(stableList) do
-                local bv = mobBVs[e]
-                if bv then pcall(function() bv:Destroy() end) end
-                if not e or not e.Parent then
-                    _G.BringMobTweens[e] = nil mobArrivedSet[e] = nil continue
-                end
-                releaseMob(e)
-                mobArrivedSet[e] = true
-                _G.BringMobTweens[e] = nil
-            end
-
-            notify("Bring Mob", #stableList .. " mobs arrived")
-            task.wait(0.5)
+            task.wait(0.05)
         end
 
-        -- Cleanup เมื่อหยุด
-        for e in pairs(_G.BringMobTweens) do releaseMob(e) end
+        -- Cleanup
+        if targetLock then targetLock:Destroy() targetLock = nil end
+        if _G.BringMobBVs then
+            for e, bv in pairs(_G.BringMobBVs) do
+                pcall(function() bv:Destroy() end)
+                releaseMob(e)
+            end
+            _G.BringMobBVs = {}
+        end
         for e in pairs(mobArrivedSet) do releaseMob(e) end
+        _G.BringMobOffsets = {}
         mobArrivedSet = {}
-        _G.BringMobTweens = {}
         bringMobTask = nil
-        notify("Bring Mob", "Stopped")
     end)
 end
 
 local function stopBringMob()
     _G.BringMobEnabled = false
     if bringMobTask then task.cancel(bringMobTask) bringMobTask = nil end
-    local ef = workspace:FindFirstChild("Enemies")
-    if ef then for _, e in ipairs(ef:GetChildren()) do releaseMob(e) end end
+    if _G.BringMobBVs then
+        for e, bv in pairs(_G.BringMobBVs) do
+            pcall(function() bv:Destroy() end)
+            releaseMob(e)
+        end
+        _G.BringMobBVs = {}
+    end
     for e in pairs(mobArrivedSet) do releaseMob(e) end
+    _G.BringMobOffsets = {}
     mobArrivedSet = {}
-    _G.BringMobTweens = {}
 end
-
 -- ===== UI =====
-local Windows = NothingLibrary.new({ Title = "Easter Event v1.0.1", Description = "Blox fruits | by Index", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
+local Windows = NothingLibrary.new({ Title = "Easter Event", Description = "Blox fruits | by Index", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
 
 local MainTab = Windows:NewTab({ Title = "Main", Description = "Easter Farm", Icon = "rbxassetid://4483362458" })
 local FarmSection = MainTab:NewSection({ Title = "Farming", Icon = "rbxassetid://7743869054", Position = "Left" })
@@ -978,9 +977,36 @@ EquipSection:NewDropdown({ Title = "Weapon Type", Data = {"Melee","Sword","Gun",
 
 local MobTab = Windows:NewTab({ Title = "Farm Mobs", Description = "", Icon = "rbxassetid://7733960981" })
 local MobSection = MobTab:NewSection({ Title = "Auto Combat Control", Icon = "rbxassetid://7743869054", Position = "Left" })
-MobSection:NewToggle({ Title = "Farm Aura", Default = false, Callback = function(v) _G.FarmAuraEnabled = v if v then startFarmAura() else stopFarmAura() end end })
+
+MobSection:NewToggle({ Title = "Farm Aura", Default = false, Callback = function(v)
+    _G.FarmAuraEnabled = v
+    if v then
+        startFarmAura()
+        if _G.BringMobEnabled then startBringMob() end
+    else
+        stopFarmAura()
+        if _G.BringMobEnabled then
+            stopBringMob()
+            _G.BringMobEnabled = false
+        end
+    end
+end })
+
 MobSection:NewSlider({ Title = "Y Offset", Min = 10, Max = 100, Default = 50, Callback = function(v) _G.FarmAuraHeight = v end })
-MobSection:NewToggle({ Title = "Bring Mob", Default = false, Callback = function(v) _G.BringMobEnabled = v if v then startBringMob() else stopBringMob() end end })
+MobSection:NewToggle({ Title = "Bring Mob", Default = false, Callback = function(v)
+    if v and not _G.FarmAuraEnabled then
+        notify("Bring Mob", "Enable farm aura first")
+        _G.BringMobEnabled = false
+        return
+    end
+    _G.BringMobEnabled = v
+    if v then
+        startBringMob()
+    else
+        stopBringMob()
+    end
+end })
+
 MobSection:NewSlider({ Title = "Bring Distance", Min = 100, Max = 1200, Default = 500, Callback = function(v) _G.BringMobMaxDistance = v end })
 MobSection:NewSlider({ Title = "Batch Pull Count (max 6)", Min = 1, Max = 6, Default = 3, Callback = function(v) _G.BringMobMaxBatch = v end })
 
