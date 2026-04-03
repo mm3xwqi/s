@@ -23,15 +23,14 @@ _G.AutoEquipEnabled = false
 _G.SelectedWeaponType = "Melee"
 _G.FarmAuraEnabled = false
 _G.FarmAuraHeight = 50
-_G.BringMobEnabled = false
+_G.BringMobEnabled = true
 _G.BringMobMaxDistance = 500
 _G.BringMobMaxBatch = 3
 _G.CurrentCircleIsland, _G.CurrentCircleIndex, _G.CurrentCircleRound = nil, 1, 1
 _G.BringMobTweens = {}
-_G.CurrentFarmTarget = nil  -- มอนสเตอร์เป้าหมายปัจจุบันที่ farm กำลังตี
+_G.CurrentFarmTarget = nil
 
 local BRING_MOB_SPEED = 450
-local BRING_MOB_HEIGHT = 0
 local SPEED = 350
 local THIRSTY_POS = Vector3.new(-1188, 10, 1296)
 local MOLTEN_POS = Vector3.new(-5227, 200, -5497)
@@ -178,6 +177,13 @@ local function getEnemyLevel(e)
     local a = e:GetAttribute("Level") if a then return a end
     local l = e:FindFirstChild("Level") if l and l.Value then return l.Value end
     return tonumber(e.Name:match("%d+"))
+end
+
+local function getHitPart(model)
+    for _, name in ipairs({"HumanoidRootPart","Head","UpperTorso","LowerTorso"}) do
+        local p = model:FindFirstChild(name) if p then return p end
+    end
+    for _, p in ipairs(model:GetDescendants()) do if p:IsA("BasePart") then return p end end
 end
 
 -- ===== NOCLIP =====
@@ -615,56 +621,141 @@ _G.DamageAuraEnabled = false
 _G.DamageAuraPlayersEnabled = false
 local damageAuraTask, damagePlayerAuraTask = nil, nil
 
-local function fireHit(hitPart)
+local function getMeleeRemotes()
     local net = RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net")
-    if not net then return end
+    if not net then return nil, nil end
     local atk = net:FindFirstChild("RE/RegisterAttack")
     local hit = net:FindFirstChild("RE/RegisterHit")
-    if atk and hit then pcall(function() atk:FireServer(0.5) hit:FireServer(hitPart, {}, "196f522a") end) end
+    if atk and hit then return atk, hit end
+    return nil, nil
 end
 
-local function getHitPart(model)
-    for _, name in ipairs({"HumanoidRootPart","Head","UpperTorso","LowerTorso"}) do
-        local p = model:FindFirstChild(name) if p then return p end
+local function getGunRemote()
+    return RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net") and RS.Modules.Net:FindFirstChild("RE/ShootGunEvent")
+end
+
+local function getGunHitPart(targetModel)
+    if targetModel and targetModel:FindFirstChild("Handle") then
+        return targetModel.Handle
     end
-    for _, p in ipairs(model:GetDescendants()) do if p:IsA("BasePart") then return p end end
+    return getEnemyHRP(targetModel) or getHitPart(targetModel)
 end
 
-local function getNearbyEnemies(range)
+local function getWeaponInfo()
+    local char = LP.Character
+    if not char then
+        local atk, hit = getMeleeRemotes()
+        return atk, hit, "melee"
+    end
+
+    local heldTool = nil
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") then heldTool = tool break end
+    end
+
+    if not heldTool then
+        local atk, hit = getMeleeRemotes()
+        return atk, hit, "melee"
+    end
+
+    local leftClick = heldTool:FindFirstChild("LeftClickRemote")
+    if leftClick and leftClick:IsA("RemoteEvent") then
+        return leftClick, nil, "fruit"
+    end
+
+    local toolTip = getToolTip(heldTool) or heldTool.Name
+    local lowerTip = toolTip:lower()
+    local isGun = lowerTip:find("gun") or lowerTip:find("pistol") or lowerTip:find("rifle")
+        or lowerTip:find("shotgun") or lowerTip:find("bazooka") or lowerTip:find("cannon")
+    if isGun then
+        local shootRemote = getGunRemote()
+        if shootRemote then
+            return shootRemote, nil, "gun"
+        end
+    end
+
+    local atk, hit = getMeleeRemotes()
+    return atk, hit, "melee"
+end
+
+local function fireDamage(targetPart)
+    if not targetPart or not targetPart.Parent then return end
+    local hrp = getHRP(LP.Character)
+    if not hrp then return end
+
+    local remote, hitRemote, weaponType = getWeaponInfo()
+    if not remote then return end
+
+    if weaponType == "fruit" then
+        local direction = (targetPart.Position - hrp.Position).Unit
+        remote:FireServer(direction, 1)
+    elseif weaponType == "gun" then
+        local targetModel = targetPart.Parent
+        local hitPart = getGunHitPart(targetModel)
+        if hitPart then
+            remote:FireServer(hitPart.Position, {hitPart})
+        end
+    else
+        if remote and hitRemote then
+            pcall(function()
+                remote:FireServer(0.5)
+                hitRemote:FireServer(targetPart, {}, "196f522a")
+            end)
+        end
+    end
+end
+
+local function getNearbyTargets(range)
     local hrp = getHRP(LP.Character)
     if not hrp then return {} end
     local enemiesFolder = workspace:FindFirstChild("Enemies")
     if not enemiesFolder then return {} end
-
-    local nearby = {}
+    local targets = {}
     for _, enemy in ipairs(enemiesFolder:GetChildren()) do
         if isAlive(enemy) and not isPlayerChar(enemy) then
-            local part = getEnemyHRP(enemy)
+            local part = getEnemyHRP(enemy) or getHitPart(enemy)
             if part then
-                local dx = hrp.Position.X - part.Position.X
-                local dz = hrp.Position.Z - part.Position.Z
-                local distXZ = math.sqrt(dx*dx + dz*dz)
-                if distXZ <= range then
-                    table.insert(nearby, enemy)
+                local dist = (hrp.Position - part.Position).Magnitude
+                if dist <= range then
+                    table.insert(targets, part)
                 end
             end
         end
     end
-    return nearby
+    return targets
+end
+
+local function getNearbyPlayers(range)
+    local hrp = getHRP(LP.Character)
+    if not hrp then return {} end
+    local players = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LP and plr.Character and isAlive(plr.Character) then
+            local char = plr.Character
+            local part = getHitPart(char) or getHRP(char)
+            if part then
+                local dist = (hrp.Position - part.Position).Magnitude
+                if dist <= range then
+                    table.insert(players, part)
+                end
+            end
+        end
+    end
+    return players
 end
 
 local function startDamageAura()
     if damageAuraTask then return end
+    local _, _, wt = getWeaponInfo()
+    notify("Damage Aura", "Auto detected: " .. (wt == "fruit" and "Fruit M1" or (wt == "gun" and "Gun" or "Melee")))
     damageAuraTask = task.spawn(function()
         while _G.DamageAuraEnabled do
-            local nearby = getNearbyEnemies(50)
-            if #nearby > 0 then
-                local hitCount = math.random(1, math.min(2, #nearby))
+            local targets = getNearbyTargets(50)
+            if #targets > 0 then
+                local hitCount = math.random(1, math.min(2, #targets))
                 for i = 1, hitCount do
-                    local randomIndex = math.random(1, #nearby)
-                    local target = nearby[randomIndex]
-                    local hitPart = getHitPart(target)
-                    if hitPart then fireHit(hitPart) end
+                    local targetPart = targets[math.random(1, #targets)]
+                    fireDamage(targetPart)
                 end
             end
             task.wait(0.05)
@@ -681,13 +772,11 @@ local function startDamagePlayerAura()
     if damagePlayerAuraTask then return end
     damagePlayerAuraTask = task.spawn(function()
         while _G.DamageAuraPlayersEnabled do
-            local cf = workspace:FindFirstChild("Characters")
-            if cf then
-                for _, c in ipairs(cf:GetChildren()) do
-                    if c and c.Parent and c ~= LP.Character then
-                        local p = getHitPart(c) if p then fireHit(p) end
-                        task.wait(0.02)
-                    end
+            local targets = getNearbyPlayers(50)
+            if #targets > 0 then
+                for _, targetPart in ipairs(targets) do
+                    fireDamage(targetPart)
+                    task.wait(0.02)
                 end
             end
             task.wait(0.1)
@@ -695,7 +784,10 @@ local function startDamagePlayerAura()
         damagePlayerAuraTask = nil
     end)
 end
-local function stopDamagePlayerAura() if damagePlayerAuraTask then task.cancel(damagePlayerAuraTask) damagePlayerAuraTask = nil end end
+
+local function stopDamagePlayerAura()
+    if damagePlayerAuraTask then task.cancel(damagePlayerAuraTask) damagePlayerAuraTask = nil end
+end
 
 -- ===== FARM AURA =====
 local farmAuraTask, farmAuraActive = nil, false
@@ -716,7 +808,6 @@ local function startFarmAura()
                 bv.Velocity = dist > 2 and (tp - hrp.Position).Unit * math.clamp(dist*8, 20, SPEED) or Vector3.zero
                 bv.Parent = hrp task.wait(0.05)
             else
-                -- (โค้ดเดิมของ farm aura เมื่อไม่มี target)
                 local wt = nil
                 local sf = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
                 if sf then
@@ -762,23 +853,39 @@ local function stopFarmAura()
     if hrp then local bv = hrp:FindFirstChild("FarmAuraBV") if bv then bv:Destroy() end end
 end
 
--- ===== BRING MOB (ล็อกตำแหน่ง + ทำงานเฉพาะตอน Farm Aura เปิด) =====
-local bringMobTask, mobArrivedSet = nil, {}
-
-local function getEnemyHRP(enemy)
-    if not enemy or not enemy.Parent then return nil end
-    return enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChildWhichIsA("BasePart")
+-- ===== AUTO BUSO =====
+_G.AutoBusoEnabled = true
+local autoBusoTask = nil
+local function startAutoBuso()
+    if autoBusoTask then return end
+    autoBusoTask = task.spawn(function()
+        while _G.AutoBusoEnabled do
+            local char = LP.Character
+            if char then
+                local hasBuso = char:FindFirstChild("HasBuso")
+                if not hasBuso then
+                    local remote = RS:WaitForChild("Remotes"):WaitForChild("CommF_")
+                    remote:InvokeServer("Buso")
+                    task.wait(0.3)
+                end
+            end
+            task.wait(0.5)
+        end
+        autoBusoTask = nil
+    end)
+end
+local function stopAutoBuso()
+    if autoBusoTask then task.cancel(autoBusoTask) autoBusoTask = nil end
 end
 
+-- ===== BRING MOB =====
+local bringMobTask, mobArrivedSet = nil, {}
 local function setMobNoclip(enemy, enabled)
     if not enemy or not enemy.Parent then return end
     for _, p in ipairs(enemy:GetDescendants()) do
-        if p:IsA("BasePart") then
-            pcall(function() p.CanCollide = not enabled end)
-        end
+        if p:IsA("BasePart") then pcall(function() p.CanCollide = not enabled end) end
     end
 end
-
 local function releaseMob(enemy)
     if not enemy or not enemy.Parent then return end
     _G.BringMobTweens[enemy] = nil
@@ -791,19 +898,16 @@ local function releaseMob(enemy)
         pcall(function() hrp.AssemblyAngularVelocity = Vector3.zero end)
     end
 end
-
 local function startBringMob()
     if bringMobTask then return end
     mobArrivedSet = {}
     _G.BringMobTweens = {}
     _G.BringMobOffsets = {}
-    notify("Bring Mob", "Starting (ล็อกเป้าหมาย + ทำงานเฉพาะ Farm Aura)")
-
+    notify("Bring Mob", "Starting")
     bringMobTask = task.spawn(function()
         local lastFarmTarget = nil
         local targetLock = nil
-
-        while _G.BringMobEnabled and _G.FarmAuraEnabled do   -- ← เพิ่มเงื่อนไขสำคัญตรงนี้
+        while _G.BringMobEnabled and _G.FarmAuraEnabled do
             local farmTarget = _G.CurrentFarmTarget
             if not farmTarget or not farmTarget.Parent or not isAlive(farmTarget) then
                 local closest = getClosestEnemy()
@@ -811,7 +915,6 @@ local function startBringMob()
                 _G.CurrentFarmTarget = farmTarget
             end
             if not farmTarget then task.wait(0.5) continue end
-
             if farmTarget ~= lastFarmTarget then
                 if targetLock then targetLock:Destroy() targetLock = nil end
                 if lastFarmTarget then releaseMob(lastFarmTarget) end
@@ -819,7 +922,6 @@ local function startBringMob()
                 _G.BringMobOffsets = {}
                 mobArrivedSet = {}
                 lastFarmTarget = farmTarget
-
                 local hrp = getEnemyHRP(farmTarget)
                 if hrp then
                     targetLock = Instance.new("BodyPosition")
@@ -832,32 +934,24 @@ local function startBringMob()
                     setMobNoclip(farmTarget, true)
                 end
             end
-
             local farmTargetHrp = getEnemyHRP(farmTarget)
             if not farmTargetHrp then task.wait(0.5) continue end
             local centerPos = farmTargetHrp.Position
-
             local ef = workspace:FindFirstChild("Enemies") or workspace:FindFirstChild("Mobs") or workspace:FindFirstChild("Enemy")
             if not ef then task.wait(3) continue end
-
             for enemy in pairs(mobArrivedSet) do
                 if not enemy or not enemy.Parent or not isAlive(enemy) then
                     releaseMob(enemy) mobArrivedSet[enemy] = nil
                 elseif not _G.BringMobTweens[enemy] then
                     local ehrp = getEnemyHRP(enemy)
-                    if ehrp and (ehrp.Position - centerPos).Magnitude > 15 then
-                        mobArrivedSet[enemy] = nil
-                    end
+                    if ehrp and (ehrp.Position - centerPos).Magnitude > 15 then mobArrivedSet[enemy] = nil end
                 end
             end
-
             local playerLevel = 9999
             local dl = LP:FindFirstChild("Data")
             if dl and dl:FindFirstChild("Level") then playerLevel = dl.Level.Value end
-
             local mobBVs = _G.BringMobBVs or {}
             _G.BringMobBVs = mobBVs
-
             for e, bv in pairs(mobBVs) do
                 if not e or not e.Parent or not isAlive(e) then
                     pcall(function() bv:Destroy() end)
@@ -865,23 +959,19 @@ local function startBringMob()
                     releaseMob(e)
                 end
             end
-
             local pullingCount = 0
-            for _ in pairs(mobBVs) do pullingCount += 1 end
-
+            for _ in pairs(mobBVs) do pullingCount = pullingCount + 1 end
             for _, e in ipairs(ef:GetChildren()) do
                 if e == farmTarget or not e or not e.Parent or isPlayerChar(e) or not isAlive(e) then continue end
                 local lvl = getEnemyLevel(e) or 0
                 if lvl >= playerLevel then continue end
                 local hrp = getEnemyHRP(e)
                 if not hrp or (centerPos - hrp.Position).Magnitude > _G.BringMobMaxDistance then continue end
-
                 if not mobBVs[e] or not mobBVs[e].Parent then
                     if pullingCount >= _G.BringMobMaxBatch then continue end
                     if not _G.BringMobOffsets[e] then
                         _G.BringMobOffsets[e] = Vector3.new(math.random(-8,8), math.random(3,9), math.random(-8,8))
                     end
-
                     local h = getHumanoid(e)
                     pcall(function()
                         if h then h.PlatformStand = true end
@@ -896,9 +986,8 @@ local function startBringMob()
                         mobBVs[e] = bv
                     end)
                     setMobNoclip(e, true)
-                    pullingCount += 1
+                    pullingCount = pullingCount + 1
                 end
-
                 local bv = mobBVs[e]
                 if bv and bv.Parent then
                     local targetPos = centerPos + (_G.BringMobOffsets[e] or Vector3.zero)
@@ -910,11 +999,8 @@ local function startBringMob()
                     end
                 end
             end
-
             task.wait(0.05)
         end
-
-        -- Cleanup
         if targetLock then targetLock:Destroy() targetLock = nil end
         if _G.BringMobBVs then
             for e, bv in pairs(_G.BringMobBVs) do
@@ -929,7 +1015,6 @@ local function startBringMob()
         bringMobTask = nil
     end)
 end
-
 local function stopBringMob()
     _G.BringMobEnabled = false
     if bringMobTask then task.cancel(bringMobTask) bringMobTask = nil end
@@ -944,13 +1029,15 @@ local function stopBringMob()
     _G.BringMobOffsets = {}
     mobArrivedSet = {}
 end
+
 -- ===== UI =====
 local Windows = NothingLibrary.new({ Title = "Easter Event", Description = "Blox fruits | by Index", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
 
-local MainTab = Windows:NewTab({ Title = "Main", Description = "Easter Farm", Icon = "rbxassetid://4483362458" })
-local FarmSection = MainTab:NewSection({ Title = "Farming", Icon = "rbxassetid://7743869054", Position = "Left" })
+local MainTab = Windows:NewTab({ Title = "Main", Description = "Auto Farm X Event", Icon = "rbxassetid://4483362458" })
+
+local FarmSection = MainTab:NewSection({ Title = "Easter Egg", Icon = "rbxassetid://7743869054", Position = "Left" })
 FarmSection:NewDropdown({ Title = "Farm Mode", Data = {"Random","Circle"}, Default = "Random", Callback = function(v) _G.FarmMode = v == "Random" and "random" or "circle" end })
-FarmSection:NewToggle({ Title = "Enable Auto Farm", Default = false, Callback = function(v)
+FarmSection:NewToggle({ Title = "Auto Farm (Easter Egg)", Default = false, Callback = function(v)
     _G.AutoFarmEnabled = v
     if v then StartFarming() enableNoclip() enableAntiSit()
     else
@@ -959,7 +1046,52 @@ FarmSection:NewToggle({ Title = "Enable Auto Farm", Default = false, Callback = 
         if hrp then for _, n in ipairs({"Lock","HoverBV","HoverBP","QuestFloat"}) do local o = hrp:FindFirstChild(n) if o then pcall(function() o:Destroy() end) end end end
     end
 end })
-FarmSection:NewToggle({ Title = "Enable Quest Delivery", Default = false, Callback = function(v) _G.QuestModeEnabled = v lastNotifiedTarget = nil end })
+FarmSection:NewToggle({ Title = "Quest Delivery (Egg)", Default = false, Callback = function(v) _G.QuestModeEnabled = v lastNotifiedTarget = nil end })
+
+local MobControlSection = MainTab:NewSection({ Title = "Farm Main", Icon = "rbxassetid://7743869054", Position = "Right" })
+
+_G.BringMobRequested = false
+local bringMobToggle = MobControlSection:NewToggle({ Title = "Bring Mob", Default = true, Callback = function(v)
+    if v then
+        if _G.FarmAuraEnabled then
+            _G.BringMobEnabled = true
+            _G.BringMobRequested = true
+            startBringMob()
+        else
+            _G.BringMobRequested = true
+            _G.BringMobEnabled = false
+            notify("Bring Mob", "Enable Farm Aura First")
+        end
+    else
+        _G.BringMobRequested = false
+        if _G.BringMobEnabled then
+            _G.BringMobEnabled = false
+            stopBringMob()
+        end
+    end
+end })
+
+MobControlSection:NewToggle({ Title = "Farm Aura", Default = false, Callback = function(v)
+    _G.FarmAuraEnabled = v
+    if v then
+        startFarmAura()
+        if _G.BringMobRequested and not _G.BringMobEnabled then
+            _G.BringMobEnabled = true
+            startBringMob()
+            if bringMobToggle then bringMobToggle:SetValue(true) end
+        end
+    else
+        stopFarmAura()
+        if _G.BringMobEnabled then
+            stopBringMob()
+            _G.BringMobEnabled = false
+        end
+    end
+end })
+
+MobControlSection:NewSlider({ Title = "Y Offset", Min = 10, Max = 100, Default = 50, Callback = function(v) _G.FarmAuraHeight = v end })
+MobControlSection:NewSlider({ Title = "Bring Distance", Min = 100, Max = 1200, Default = 500, Callback = function(v) _G.BringMobMaxDistance = v end })
+MobControlSection:NewSlider({ Title = "Bring Max", Min = 1, Max = 6, Default = 3, Callback = function(v) _G.BringMobMaxBatch = v end })
 
 local SettingsTab = Windows:NewTab({ Title = "Settings", Description = "Configuration", Icon = "rbxassetid://7733960981" })
 local ConfigSection = SettingsTab:NewSection({ Title = "Configuration", Icon = "rbxassetid://7743869054", Position = "Left" })
@@ -971,43 +1103,18 @@ local CombatSection = SettingsTab:NewSection({ Title = "Combat", Icon = "rbxasse
 CombatSection:NewToggle({ Title = "Damage Aura (Enemies)", Default = false, Callback = function(v) _G.DamageAuraEnabled = v if v then startDamageAura() else stopDamageAura() end end })
 CombatSection:NewToggle({ Title = "Damage Aura (Players)", Default = false, Callback = function(v) _G.DamageAuraPlayersEnabled = v if v then startDamagePlayerAura() else stopDamagePlayerAura() end end })
 
+local autoBusoToggle = CombatSection:NewToggle({
+    Title = "Auto Buso",
+    Default = true,
+    Callback = function(v)
+        _G.AutoBusoEnabled = v
+        if v then startAutoBuso() else stopAutoBuso() end
+    end
+})
+if _G.AutoBusoEnabled then startAutoBuso() end
+
 local EquipSection = SettingsTab:NewSection({ Title = "Auto Equip", Icon = "rbxassetid://7743869054", Position = "Right" })
 EquipSection:NewToggle({ Title = "Enable Auto Equip", Default = false, Callback = function(v) _G.AutoEquipEnabled = v if v then startAutoEquip() else stopAutoEquip() end end })
 EquipSection:NewDropdown({ Title = "Weapon Type", Data = {"Melee","Sword","Gun","Fruit"}, Default = "Melee", Callback = function(v) _G.SelectedWeaponType = v if _G.AutoEquipEnabled then equipWeapon(v) end end })
-
-local MobTab = Windows:NewTab({ Title = "Farm Mobs", Description = "", Icon = "rbxassetid://7733960981" })
-local MobSection = MobTab:NewSection({ Title = "Auto Combat Control", Icon = "rbxassetid://7743869054", Position = "Left" })
-
-MobSection:NewToggle({ Title = "Farm Aura", Default = false, Callback = function(v)
-    _G.FarmAuraEnabled = v
-    if v then
-        startFarmAura()
-        if _G.BringMobEnabled then startBringMob() end
-    else
-        stopFarmAura()
-        if _G.BringMobEnabled then
-            stopBringMob()
-            _G.BringMobEnabled = false
-        end
-    end
-end })
-
-MobSection:NewSlider({ Title = "Y Offset", Min = 10, Max = 100, Default = 50, Callback = function(v) _G.FarmAuraHeight = v end })
-MobSection:NewToggle({ Title = "Bring Mob", Default = false, Callback = function(v)
-    if v and not _G.FarmAuraEnabled then
-        notify("Bring Mob", "Enable farm aura first")
-        _G.BringMobEnabled = false
-        return
-    end
-    _G.BringMobEnabled = v
-    if v then
-        startBringMob()
-    else
-        stopBringMob()
-    end
-end })
-
-MobSection:NewSlider({ Title = "Bring Distance", Min = 100, Max = 1200, Default = 500, Callback = function(v) _G.BringMobMaxDistance = v end })
-MobSection:NewSlider({ Title = "Batch Pull Count (max 6)", Min = 1, Max = 6, Default = 3, Callback = function(v) _G.BringMobMaxBatch = v end })
 
 print("UI loaded successfully")
