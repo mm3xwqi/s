@@ -28,6 +28,7 @@ _G.BringMobMaxDistance = 500
 _G.BringMobMaxBatch = 3
 _G.CurrentCircleIsland, _G.CurrentCircleIndex, _G.CurrentCircleRound = nil, 1, 1
 _G.BringMobTweens = {}
+_G.CurrentFarmTarget = nil  -- มอนสเตอร์เป้าหมายปัจจุบันที่ farm กำลังตี
 
 local BRING_MOB_SPEED = 450
 local BRING_MOB_HEIGHT = 0
@@ -680,6 +681,7 @@ local function startFarmAura()
             local old = hrp:FindFirstChild("FarmAuraBV") if old then old:Destroy() end
             local target = getClosestEnemy()
             if target then
+                _G.CurrentFarmTarget = target.enemy  -- อัพเดทเป้าหมายปัจจุบัน
                 local tp = Vector3.new(target.part.Position.X, target.part.Position.Y + _G.FarmAuraHeight, target.part.Position.Z)
                 local dist = (hrp.Position - tp).Magnitude
                 local bv = Instance.new("BodyVelocity") bv.Name="FarmAuraBV" bv.MaxForce=Vector3.new(9e9,9e9,9e9)
@@ -772,55 +774,43 @@ local function startBringMob()
 
     bringMobTask = task.spawn(function()
         while _G.BringMobEnabled do
-            local c = LP.Character
-            local playerRoot = getHRP(c)
-            if not playerRoot then task.wait(0.5) continue end
+
+            -- รอให้มี CurrentFarmTarget ก่อน (มอนที่ farmAura/farm loop กำลังตีอยู่)
+            local farmTarget = _G.CurrentFarmTarget
+            if not farmTarget or not farmTarget.Parent or not isAlive(farmTarget) then
+                _G.CurrentFarmTarget = nil
+                task.wait(0.5) continue
+            end
+
+            local farmTargetHrp = getEnemyHRP(farmTarget)
+            if not farmTargetHrp then task.wait(0.5) continue end
+
+            -- centerPos = ตำแหน่งของเป้าหมายที่กำลังตี (ดึงมอนอื่นมารวมกัน)
+            local centerPos = farmTargetHrp.Position
 
             -- หาโฟลเดอร์มอนสเตอร์
             local ef = workspace:FindFirstChild("Enemies")
                 or workspace:FindFirstChild("Mobs")
                 or workspace:FindFirstChild("Enemy")
-            if not ef then
-                notify("Bring Mob", "No enemies folder!", 3)
-                task.wait(3) continue
-            end
+            if not ef then task.wait(3) continue end
 
-            -- ล้างมอนสเตอร์ที่ตายหรือหายไปแล้วออกจาก arrived set
+            -- ล้าง arrived set ที่ตายแล้ว
             for enemy in pairs(mobArrivedSet) do
                 if not enemy or not enemy.Parent or not isAlive(enemy) then
-                    releaseMob(enemy)
-                    mobArrivedSet[enemy] = nil
+                    releaseMob(enemy) mobArrivedSet[enemy] = nil
                 end
             end
-
-            -- หามอนสเตอร์ที่ใกล้ที่สุดเป็น anchor point
-            local targetEnemy, targetDist = nil, math.huge
-            for _, e in ipairs(ef:GetChildren()) do
-                if not e or not e.Parent or isPlayerChar(e) or not isAlive(e) then continue end
-                local hrp = getEnemyHRP(e)
-                if hrp then
-                    local d = (playerRoot.Position - hrp.Position).Magnitude
-                    if d < targetDist then targetDist = d targetEnemy = e end
-                end
-            end
-            if not targetEnemy then task.wait(1) continue end
-
-            local targetHrp = getEnemyHRP(targetEnemy)
-            if not targetHrp then task.wait(0.5) continue end
 
             -- หาระดับผู้เล่น
             local playerLevel = 9999
             local dl = LP:FindFirstChild("Data")
             if dl and dl:FindFirstChild("Level") then playerLevel = dl.Level.Value end
 
-            -- centerPos จะถูกอัพเดทตาม player ทุก tick (ไม่ใช้ตำแหน่งเก่า)
-            local centerPos = playerRoot.Position
-
-            -- รวบรวมมอนสเตอร์ที่จะดึง (กรองเงื่อนไขก่อน)
+            -- รวบรวมมอนสเตอร์รอบๆ เป้าหมาย ที่ยังไม่ถึงและไม่ใช่เป้าหมายเอง
             local candidates = {}
             for _, e in ipairs(ef:GetChildren()) do
                 if #candidates >= _G.BringMobMaxBatch then break end
-                if e == targetEnemy or not e or not e.Parent then continue end
+                if e == farmTarget or not e or not e.Parent then continue end
                 if isPlayerChar(e) or not isAlive(e) then
                     if mobArrivedSet[e] then releaseMob(e) mobArrivedSet[e] = nil end
                     continue
@@ -829,13 +819,14 @@ local function startBringMob()
                 local lvl = getEnemyLevel(e) or 0
                 if lvl >= playerLevel then continue end
                 local hrp = getEnemyHRP(e)
+                -- วัดระยะจาก centerPos (เป้าหมาย) ไม่ใช่จาก player
                 if hrp and (centerPos - hrp.Position).Magnitude <= _G.BringMobMaxDistance then
                     table.insert(candidates, e)
                 end
             end
             if #candidates == 0 then task.wait(1) continue end
 
-            -- ตรวจสอบ stability ด้วย interval เร็วขึ้น (0.05s x 4 = 0.2s รวม)
+            -- ตรวจ stability 4 ticks
             local stableList = {}
             for _, e in ipairs(candidates) do
                 local alive = true
@@ -847,7 +838,7 @@ local function startBringMob()
             end
             if #stableList == 0 then task.wait(0.2) continue end
 
-            -- เตรียมมอนสเตอร์ก่อนดึง
+            -- เตรียมมอนก่อนดึง
             for _, e in ipairs(stableList) do
                 local h = getHumanoid(e)
                 local hrp = getEnemyHRP(e)
@@ -863,60 +854,55 @@ local function startBringMob()
             end
             notify("Bring Mob", "Pulling " .. #stableList .. " mobs")
 
-            -- วนดึงมอนสเตอร์เข้าหา target จนถึงหรือ timeout
-            local pullTimeout = tick() + 8  -- timeout 8 วินาที ป้องกันค้าง
+            -- วนดึงมอนเข้าหา farmTarget ทุก tick
+            local pullTimeout = tick() + 8
             while _G.BringMobEnabled and tick() < pullTimeout do
-                -- อัพเดท centerPos ตาม player ทุก tick เพื่อให้ดึงมาหาเป้าหมายใหม่เสมอ
-                local currentRoot = getHRP(LP.Character)
-                if not currentRoot then break end
-                centerPos = currentRoot.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
+                -- อัพเดท centerPos ตามตำแหน่งล่าสุดของเป้าหมาย (ถ้ามอนวิ่ง/ย้าย)
+                local ft = _G.CurrentFarmTarget
+                if ft and ft.Parent and isAlive(ft) then
+                    local fhrp = getEnemyHRP(ft)
+                    if fhrp then centerPos = fhrp.Position end
+                else
+                    -- เป้าหมายตายแล้ว หยุด pull รอบนี้ทันที
+                    break
+                end
 
-                local allArrived = true
-                local anyAlive = false
+                local allArrived, anyAlive = true, false
                 for _, e in ipairs(stableList) do
                     if not e or not e.Parent or not isAlive(e) then continue end
                     anyAlive = true
                     local hrp = getEnemyHRP(e)
                     if not hrp then continue end
-
                     local d = (hrp.Position - centerPos).Magnitude
                     if d > 4 then
                         allArrived = false
-                        -- รีเซ็ต collision ทุก tick เพื่อป้องกัน physics reset มันกลับ
                         setMobNoclip(e, true)
-                        local dir = (centerPos - hrp.Position)
                         local speed = math.clamp(d * 6, 10, BRING_MOB_SPEED)
                         pcall(function()
-                            hrp.AssemblyLinearVelocity = dir.Unit * speed
+                            hrp.AssemblyLinearVelocity = (centerPos - hrp.Position).Unit * speed
                             hrp.AssemblyAngularVelocity = Vector3.zero
                         end)
                     else
-                        -- ถึงแล้ว หยุดเลย
                         pcall(function()
                             hrp.AssemblyLinearVelocity = Vector3.zero
                             hrp.AssemblyAngularVelocity = Vector3.zero
                         end)
                     end
                 end
-
                 if allArrived or not anyAlive then break end
                 task.wait(0.05)
             end
 
-            -- หยุด velocity และคืนสถานะ
+            -- คืนสถานะมอนทุกตัว
             for _, e in ipairs(stableList) do
                 if not e or not e.Parent then
-                    _G.BringMobTweens[e] = nil
-                    mobArrivedSet[e] = nil
-                    continue
+                    _G.BringMobTweens[e] = nil mobArrivedSet[e] = nil continue
                 end
                 local hrp = getEnemyHRP(e)
-                if hrp then
-                    pcall(function()
-                        hrp.AssemblyLinearVelocity = Vector3.zero
-                        hrp.AssemblyAngularVelocity = Vector3.zero
-                    end)
-                end
+                if hrp then pcall(function()
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end) end
                 releaseMob(e)
                 mobArrivedSet[e] = true
                 _G.BringMobTweens[e] = nil
