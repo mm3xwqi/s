@@ -630,27 +630,17 @@ local function startDamageAura()
         while _G.DamageAuraEnabled do
             local enemies = workspace:FindFirstChild("Enemies")
             if enemies then
-                local net = RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net")
-                if net then
-                    local atk = net:FindFirstChild("RE/RegisterAttack")
-                    local hit = net:FindFirstChild("RE/RegisterHit")
-                    if atk and hit then
-                        -- เก็บ parts ทุกตัวก่อน
-                        local hitParts = {}
-                        for _, e in ipairs(enemies:GetChildren()) do
-                            if e and e.Parent and isAlive(e) then
-                                local p = getHitPart(e)
-                                if p then table.insert(hitParts, p) end
-                            end
-                        end
-                        if #hitParts > 0 then
-                            -- ลอง fire attack ครั้งเดียว แล้วส่ง hit ทุกตัวติดกันเลย
-                            pcall(function() atk:FireServer(0.5) end)
-                            for _, p in ipairs(hitParts) do
-                                pcall(function() hit:FireServer(p, {}, "196f522a") end)
-                            end
-                        end
+                local aliveList = {}
+                for _, e in ipairs(enemies:GetChildren()) do
+                    if e and e.Parent and isAlive(e) then
+                        local p = getHitPart(e)
+                        if p then table.insert(aliveList, {enemy=e, part=p}) end
                     end
+                end
+                if #aliveList > 0 then
+                    -- สุ่มเลือกตัวนึงแล้วตี จากนั้นวนไปเรื่อยๆ
+                    local pick = aliveList[math.random(1, #aliveList)]
+                    pcall(function() fireHit(pick.part) end)
                 end
             end
             task.wait(0.05)
@@ -658,6 +648,7 @@ local function startDamageAura()
         damageAuraTask = nil
     end)
 end
+
 local function stopDamageAura() if damageAuraTask then task.cancel(damageAuraTask) damageAuraTask = nil end end
 
 local function startDamagePlayerAura()
@@ -854,16 +845,19 @@ local function startBringMob()
                     if newTarget then pullingTargetEnemy = newTarget else break end
                 end
 
-                centerPos = pullingTargetHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
-                local allArrived = true
+                -- ดึงมาหาตัวเราเลย
+                local playerHrp = getHRP(LP.Character)
+                if not playerHrp then break end
+                centerPos = playerHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
 
+                local allArrived = true
                 for _, e in ipairs(stableList) do
                     if not e or not e.Parent or not isAlive(e) then continue end
                     local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
                     if not hrp then continue end
 
                     local d = (hrp.Position - centerPos).Magnitude
-                    if d > 4 then
+                    if d > 8 then
                         allArrived = false
                         for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
 
