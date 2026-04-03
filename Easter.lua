@@ -613,22 +613,11 @@ local function startDamageAura()
         while _G.DamageAuraEnabled do
             local enemies = workspace:FindFirstChild("Enemies")
             if enemies then
-                local net = RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net")
-                if net then
-                    local atk = net:FindFirstChild("RE/RegisterAttack")
-                    local hit = net:FindFirstChild("RE/RegisterHit")
-                    if atk and hit then
-                        for _, e in ipairs(enemies:GetChildren()) do
-                            if e and e.Parent and isAlive(e) then
-                                local p = getHitPart(e)
-                                if p then
-                                    -- spawn แยก thread ให้ยิงพร้อมกันทุกตัว
-                                    task.spawn(function()
-                                        atk:FireServer(0.5)
-                                        hit:FireServer(p, {}, "196f522a")
-                                    end)
-                                end
-                            end
+                for _, e in ipairs(enemies:GetChildren()) do
+                    if e and e.Parent and isAlive(e) then
+                        local p = getHitPart(e)
+                        if p then
+                            task.spawn(function() fireHit(p) end)
                         end
                     end
                 end
