@@ -826,20 +826,10 @@ local function startBringMob()
             end
             if #candidates == 0 then task.wait(1) continue end
 
-            -- ตรวจ stability 4 ticks
+            -- เตรียมมอนและดึงทันที ไม่มี stability wait
             local stableList = {}
             for _, e in ipairs(candidates) do
-                local alive = true
-                for i = 1, 4 do
-                    task.wait(0.05)
-                    if not e or not e.Parent or not isAlive(e) then alive = false break end
-                end
-                if alive then table.insert(stableList, e) end
-            end
-            if #stableList == 0 then task.wait(0.2) continue end
-
-            -- เตรียมมอนก่อนดึง
-            for _, e in ipairs(stableList) do
+                if not e or not e.Parent or not isAlive(e) then continue end
                 local h = getHumanoid(e)
                 local hrp = getEnemyHRP(e)
                 if not hrp then continue end
@@ -851,10 +841,12 @@ local function startBringMob()
                 end)
                 setMobNoclip(e, true)
                 _G.BringMobTweens[e] = true
+                table.insert(stableList, e)
             end
+            if #stableList == 0 then task.wait(0.2) continue end
             notify("Bring Mob", "Pulling " .. #stableList .. " mobs")
 
-            -- วนดึงมอนเข้าหา farmTarget ทุก tick
+            -- วนดึงมอนเข้าหา farmTarget ทุก tick — เริ่มทันที
             local pullTimeout = tick() + 8
             while _G.BringMobEnabled and tick() < pullTimeout do
                 -- อัพเดท centerPos ตามตำแหน่งล่าสุดของเป้าหมาย (ถ้ามอนวิ่ง/ย้าย)
@@ -933,7 +925,7 @@ local function stopBringMob()
 end
 
 -- ===== UI =====
-local Windows = NothingLibrary.new({ Title = "Easter Event", Description = "Blox fruits | by Index", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
+local Windows = NothingLibrary.new({ Title = "Easter Event v1.0.0", Description = "Blox fruits | by Index", Keybind = Enum.KeyCode.LeftControl, Logo = 'http://www.roblox.com/asset/?id=18898582662' })
 
 local MainTab = Windows:NewTab({ Title = "Main", Description = "Easter Farm", Icon = "rbxassetid://4483362458" })
 local FarmSection = MainTab:NewSection({ Title = "Farming", Icon = "rbxassetid://7743869054", Position = "Left" })
