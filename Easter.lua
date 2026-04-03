@@ -774,20 +774,17 @@ local function startBringMob()
                 if isPlayerChar(e) then continue end
                 if not isAlive(e) then continue end
                 local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
-                if hrp then
-                    local d = (playerRoot.Position - hrp.Position).Magnitude
-                    if d < targetDist then targetDist = d targetEnemy = e end
-                end
+                if hrp then local d=(playerRoot.Position-hrp.Position).Magnitude if d<targetDist then targetDist=d targetEnemy=e end end
             end
             if not targetEnemy then task.wait(1) continue end
 
             local targetHrp = targetEnemy:FindFirstChild("HumanoidRootPart") or targetEnemy:FindFirstChildWhichIsA("BasePart")
             if not targetHrp then task.wait(0.5) continue end
 
+            local centerPos = targetHrp.Position
             local playerLevel = 9999
             local dl = LP:FindFirstChild("Data") if dl and dl:FindFirstChild("Level") then playerLevel = dl.Level.Value end
 
-            local centerPos = targetHrp.Position
             local pullList = {}
             for _, e in ipairs(ef:GetChildren()) do
                 if #pullList >= _G.BringMobMaxBatch then break end
@@ -797,91 +794,75 @@ local function startBringMob()
                 if mobArrivedSet[e] or _G.BringMobTweens[e] then continue end
                 local lvl = getEnemyLevel(e) or 0 if lvl >= playerLevel then continue end
                 local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
-                if hrp and (centerPos - hrp.Position).Magnitude <= _G.BringMobMaxDistance then
-                    table.insert(pullList, e)
-                end
+                if hrp and (centerPos-hrp.Position).Magnitude <= _G.BringMobMaxDistance then table.insert(pullList, e) end
             end
             if #pullList == 0 then task.wait(0.5) continue end
 
+            -- เช็ค stable 3 ครั้งเหมือนเดิม
             local stableList = {}
             for _, e in ipairs(pullList) do
-                task.wait(0.05)
-                if e and e.Parent and isAlive(e) then table.insert(stableList, e) end
+                local stable = true
+                for i = 1, 3 do
+                    task.wait(0.1)
+                    if not e or not e.Parent or not isAlive(e) then stable=false break end
+                end
+                if stable then table.insert(stableList, e) end
             end
             if #stableList == 0 then task.wait(0.2) continue end
 
-            -- เตรียม mob และเก็บ tween
-            local tweenList = {}
-            local playerHrp = getHRP(LP.Character)
-            if not playerHrp then task.wait(0.5) continue end
-            local destPos = playerHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
-
+            -- เตรียม mob
             for _, e in ipairs(stableList) do
                 local h = getHumanoid(e)
                 local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
                 if not hrp then continue end
                 if h then h.PlatformStand = true end
                 hrp.Anchored = false
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
                 for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
-
-                local dist = (hrp.Position - destPos).Magnitude
-                local tweenTime = math.clamp(dist / BRING_MOB_SPEED, 0.1, 5)
-                local tween = TweenService:Create(hrp, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = CFrame.new(destPos)})
-                _G.BringMobTweens[e] = tween
-                tween:Play()
-                table.insert(tweenList, {enemy=e, hrp=hrp, tween=tween})
+                _G.BringMobTweens[e] = true
             end
-
             notify("Bring Mob","Pulling " .. #stableList .. " mobs")
 
-            -- รอจนทุก tween เสร็จหรือถึงระยะแล้ว
+            -- ดึงมาหาตัวเราแทน targetHrp
             while _G.BringMobEnabled do
-                -- อัปเดต dest ตาม player ตลอด
-                playerHrp = getHRP(LP.Character)
+                local playerHrp = getHRP(LP.Character)
                 if not playerHrp then break end
-                destPos = playerHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
+                local destPos = playerHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
 
-                local allDone = true
-                for _, data in ipairs(tweenList) do
-                    local e, hrp, tween = data.enemy, data.hrp, data.tween
+                local allArrived = true
+                for _, e in ipairs(stableList) do
                     if not e or not e.Parent or not isAlive(e) then continue end
-                    if not hrp or not hrp.Parent then continue end
-
-                    -- noclip ทุก tick
+                    local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
+                    if not hrp then continue end
+                    -- noclip ทุก tick กัน reset
                     for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
-
                     local d = (hrp.Position - destPos).Magnitude
-                    if d > 15 then
-                        -- ยังไม่ถึง ถ้า tween หยุดแล้วให้สร้างใหม่ไปหา destPos ปัจจุบัน
-                        if tween.PlaybackState == Enum.PlaybackState.Completed or
-                           tween.PlaybackState == Enum.PlaybackState.Stopped then
-                            local newDist = (hrp.Position - destPos).Magnitude
-                            local newTime = math.clamp(newDist / BRING_MOB_SPEED, 0.1, 5)
-                            tween = TweenService:Create(hrp, TweenInfo.new(newTime, Enum.EasingStyle.Linear), {CFrame = CFrame.new(destPos)})
-                            _G.BringMobTweens[e] = tween
-                            data.tween = tween
-                            tween:Play()
-                        end
-                        allDone = false
+                    if d > 10 then
+                        allArrived = false
+                        local dir = (destPos - hrp.Position).Unit
+                        local speed = math.clamp(d * 6, 50, BRING_MOB_SPEED)
+                        hrp.AssemblyLinearVelocity = dir * speed
+                        hrp.AssemblyAngularVelocity = Vector3.zero
+                    else
+                        hrp.AssemblyLinearVelocity = Vector3.zero
+                        hrp.AssemblyAngularVelocity = Vector3.zero
                     end
                 end
-
-                if allDone then break end
+                if allArrived then break end
                 task.wait(0.05)
             end
 
             -- ปล่อยทุกตัว
-            for _, data in ipairs(tweenList) do
-                local e, hrp, tween = data.enemy, data.hrp, data.tween
-                pcall(function() tween:Cancel() end)
-                if e and e.Parent then
-                    local h = getHumanoid(e)
-                    if h then h.PlatformStand = false end
-                    for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = true end end
+            for _, e in ipairs(stableList) do
+                local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
+                if hrp then
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
                 end
-                if hrp and hrp.Parent then
-                    pcall(function() hrp.AssemblyLinearVelocity = Vector3.zero end)
-                end
+                local h = getHumanoid(e)
+                if h then h.PlatformStand = false end
+                for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = true end end
                 _G.BringMobTweens[e] = nil
                 mobArrivedSet[e] = true
             end
