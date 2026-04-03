@@ -798,7 +798,6 @@ local function startBringMob()
             end
             if #pullList == 0 then task.wait(0.5) continue end
 
-            -- เช็ค stable 3 ครั้งเหมือนเดิม
             local stableList = {}
             for _, e in ipairs(pullList) do
                 local stable = true
@@ -810,7 +809,6 @@ local function startBringMob()
             end
             if #stableList == 0 then task.wait(0.2) continue end
 
-            -- เตรียม mob
             for _, e in ipairs(stableList) do
                 local h = getHumanoid(e)
                 local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
@@ -824,18 +822,16 @@ local function startBringMob()
             end
             notify("Bring Mob","Pulling " .. #stableList .. " mobs")
 
-            -- ดึงมาหาตัวเราแทน targetHrp
+            -- ดึงมาหา targetHrp ปล่อยทันทีที่ถึง
             while _G.BringMobEnabled do
-                local playerHrp = getHRP(LP.Character)
-                if not playerHrp then break end
-                local destPos = playerHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
+                if not targetHrp or not targetHrp.Parent or not isAlive(targetEnemy) then break end
+                local destPos = targetHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
 
                 local allArrived = true
                 for _, e in ipairs(stableList) do
                     if not e or not e.Parent or not isAlive(e) then continue end
                     local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
                     if not hrp then continue end
-                    -- noclip ทุก tick กัน reset
                     for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
                     local d = (hrp.Position - destPos).Magnitude
                     if d > 10 then
