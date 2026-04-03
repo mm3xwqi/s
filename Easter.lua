@@ -813,7 +813,8 @@ local function startBringMob()
             local dl = LP:FindFirstChild("Data")
             if dl and dl:FindFirstChild("Level") then playerLevel = dl.Level.Value end
 
-            local centerPos = targetHrp.Position
+            -- centerPos จะถูกอัพเดทตาม player ทุก tick (ไม่ใช้ตำแหน่งเก่า)
+            local centerPos = playerRoot.Position
 
             -- รวบรวมมอนสเตอร์ที่จะดึง (กรองเงื่อนไขก่อน)
             local candidates = {}
@@ -865,9 +866,10 @@ local function startBringMob()
             -- วนดึงมอนสเตอร์เข้าหา target จนถึงหรือ timeout
             local pullTimeout = tick() + 8  -- timeout 8 วินาที ป้องกันค้าง
             while _G.BringMobEnabled and tick() < pullTimeout do
-                -- อัพเดท target HRP ทุก tick (ป้องกัน target ย้าย)
-                if not targetHrp or not targetHrp.Parent then break end
-                centerPos = targetHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
+                -- อัพเดท centerPos ตาม player ทุก tick เพื่อให้ดึงมาหาเป้าหมายใหม่เสมอ
+                local currentRoot = getHRP(LP.Character)
+                if not currentRoot then break end
+                centerPos = currentRoot.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
 
                 local allArrived = true
                 local anyAlive = false
