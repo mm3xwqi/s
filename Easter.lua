@@ -810,6 +810,7 @@ local function startBringMob()
             end
             if #stableList == 0 then task.wait(0.2) continue end
 
+            -- เตรียม mob
             for _, e in ipairs(stableList) do
                 local h = getHumanoid(e)
                 local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
@@ -826,6 +827,7 @@ local function startBringMob()
             local pullingTargetEnemy = targetEnemy
             local pullingTargetHrp = targetHrp
 
+            -- ดึง loop
             while _G.BringMobEnabled do
                 if not pullingTargetHrp or not pullingTargetHrp.Parent or not isAlive(pullingTargetEnemy) then
                     local newTarget, newDist = nil, math.huge
@@ -845,7 +847,6 @@ local function startBringMob()
                     if newTarget then pullingTargetEnemy = newTarget else break end
                 end
 
-                -- ดึงมาหาตัวเราเลย
                 local playerHrp = getHRP(LP.Character)
                 if not playerHrp then break end
                 centerPos = playerHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
@@ -855,16 +856,13 @@ local function startBringMob()
                     if not e or not e.Parent or not isAlive(e) then continue end
                     local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
                     if not hrp then continue end
-
                     local d = (hrp.Position - centerPos).Magnitude
                     if d > 8 then
                         allArrived = false
                         for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
-
                         local dir = (centerPos - hrp.Position).Unit
                         local speed = math.clamp(d * 6, 10, BRING_MOB_SPEED)
                         local newPos = hrp.Position + dir * math.min(speed * 0.05, d)
-
                         pcall(function() hrp.CFrame = CFrame.new(newPos) end)
                         pcall(function()
                             hrp.AssemblyLinearVelocity = dir * speed
@@ -882,13 +880,23 @@ local function startBringMob()
                 task.wait(0.05)
             end
 
+            -- ปล่อยทุกตัวและ reset ทุกอย่าง
             for _, e in ipairs(stableList) do
+                if not e or not e.Parent then continue end
                 local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
                 if hrp then
                     pcall(function() hrp.AssemblyLinearVelocity = Vector3.zero end)
                     pcall(function() hrp.AssemblyAngularVelocity = Vector3.zero end)
                 end
-                releaseMob(e) mobArrivedSet[e] = true _G.BringMobTweens[e] = nil
+                -- reset humanoid
+                local h = getHumanoid(e)
+                if h then h.PlatformStand = false end
+                -- reset CanCollide ทุก part
+                for _, p in ipairs(e:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CanCollide = true end
+                end
+                _G.BringMobTweens[e] = nil
+                mobArrivedSet[e] = true
             end
             notify("Bring Mob", #stableList .. " mobs arrived")
             task.wait(0.5)
