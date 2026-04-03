@@ -810,90 +810,77 @@ local function startBringMob()
             end
             if #stableList == 0 then task.wait(0.2) continue end
 
-            -- เตรียม mob
+            -- เตรียม mob และเก็บ tween
+            local tweenList = {}
+            local playerHrp = getHRP(LP.Character)
+            if not playerHrp then task.wait(0.5) continue end
+            local destPos = playerHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
+
             for _, e in ipairs(stableList) do
                 local h = getHumanoid(e)
                 local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
                 if not hrp then continue end
                 if h then h.PlatformStand = true end
                 hrp.Anchored = false
-                pcall(function() hrp.AssemblyLinearVelocity = Vector3.zero end)
-                pcall(function() hrp.AssemblyAngularVelocity = Vector3.zero end)
                 for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
-                _G.BringMobTweens[e] = true
+
+                local dist = (hrp.Position - destPos).Magnitude
+                local tweenTime = math.clamp(dist / BRING_MOB_SPEED, 0.1, 5)
+                local tween = TweenService:Create(hrp, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame = CFrame.new(destPos)})
+                _G.BringMobTweens[e] = tween
+                tween:Play()
+                table.insert(tweenList, {enemy=e, hrp=hrp, tween=tween})
             end
+
             notify("Bring Mob","Pulling " .. #stableList .. " mobs")
 
-            local pullingTargetEnemy = targetEnemy
-            local pullingTargetHrp = targetHrp
-
-            -- ดึง loop
+            -- รอจนทุก tween เสร็จหรือถึงระยะแล้ว
             while _G.BringMobEnabled do
-                if not pullingTargetHrp or not pullingTargetHrp.Parent or not isAlive(pullingTargetEnemy) then
-                    local newTarget, newDist = nil, math.huge
-                    local root = getHRP(LP.Character)
-                    if root then
-                        for _, e in ipairs(ef:GetChildren()) do
-                            if not e or not e.Parent then continue end
-                            if isPlayerChar(e) then continue end
-                            if not isAlive(e) then continue end
-                            local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
-                            if hrp then
-                                local d = (root.Position - hrp.Position).Magnitude
-                                if d < newDist then newDist = d newTarget = e pullingTargetHrp = hrp end
-                            end
-                        end
-                    end
-                    if newTarget then pullingTargetEnemy = newTarget else break end
-                end
-
-                local playerHrp = getHRP(LP.Character)
+                -- อัปเดต dest ตาม player ตลอด
+                playerHrp = getHRP(LP.Character)
                 if not playerHrp then break end
-                centerPos = playerHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
+                destPos = playerHrp.Position + Vector3.new(0, BRING_MOB_HEIGHT, 0)
 
-                local allArrived = true
-                for _, e in ipairs(stableList) do
+                local allDone = true
+                for _, data in ipairs(tweenList) do
+                    local e, hrp, tween = data.enemy, data.hrp, data.tween
                     if not e or not e.Parent or not isAlive(e) then continue end
-                    local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
-                    if not hrp then continue end
-                    local d = (hrp.Position - centerPos).Magnitude
-                    if d > 8 then
-                        allArrived = false
-                        for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
-                        local dir = (centerPos - hrp.Position).Unit
-                        local speed = math.clamp(d * 6, 10, BRING_MOB_SPEED)
-                        local newPos = hrp.Position + dir * math.min(speed * 0.05, d)
-                        pcall(function() hrp.CFrame = CFrame.new(newPos) end)
-                        pcall(function()
-                            hrp.AssemblyLinearVelocity = dir * speed
-                            hrp.AssemblyAngularVelocity = Vector3.zero
-                        end)
-                    else
-                        pcall(function()
-                            hrp.AssemblyLinearVelocity = Vector3.zero
-                            hrp.AssemblyAngularVelocity = Vector3.zero
-                        end)
+                    if not hrp or not hrp.Parent then continue end
+
+                    -- noclip ทุก tick
+                    for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
+
+                    local d = (hrp.Position - destPos).Magnitude
+                    if d > 15 then
+                        -- ยังไม่ถึง ถ้า tween หยุดแล้วให้สร้างใหม่ไปหา destPos ปัจจุบัน
+                        if tween.PlaybackState == Enum.PlaybackState.Completed or
+                           tween.PlaybackState == Enum.PlaybackState.Stopped then
+                            local newDist = (hrp.Position - destPos).Magnitude
+                            local newTime = math.clamp(newDist / BRING_MOB_SPEED, 0.1, 5)
+                            tween = TweenService:Create(hrp, TweenInfo.new(newTime, Enum.EasingStyle.Linear), {CFrame = CFrame.new(destPos)})
+                            _G.BringMobTweens[e] = tween
+                            data.tween = tween
+                            tween:Play()
+                        end
+                        allDone = false
                     end
                 end
 
-                if allArrived then break end
+                if allDone then break end
                 task.wait(0.05)
             end
 
-            -- ปล่อยทุกตัวและ reset ทุกอย่าง
-            for _, e in ipairs(stableList) do
-                if not e or not e.Parent then continue end
-                local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
-                if hrp then
-                    pcall(function() hrp.AssemblyLinearVelocity = Vector3.zero end)
-                    pcall(function() hrp.AssemblyAngularVelocity = Vector3.zero end)
+            -- ปล่อยทุกตัว
+            for _, data in ipairs(tweenList) do
+                local e, hrp, tween = data.enemy, data.hrp, data.tween
+                pcall(function() tween:Cancel() end)
+                if e and e.Parent then
+                    local h = getHumanoid(e)
+                    if h then h.PlatformStand = false end
+                    for _, p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = true end end
                 end
-                -- reset humanoid
-                local h = getHumanoid(e)
-                if h then h.PlatformStand = false end
-                -- reset CanCollide ทุก part
-                for _, p in ipairs(e:GetDescendants()) do
-                    if p:IsA("BasePart") then p.CanCollide = true end
+                if hrp and hrp.Parent then
+                    pcall(function() hrp.AssemblyLinearVelocity = Vector3.zero end)
                 end
                 _G.BringMobTweens[e] = nil
                 mobArrivedSet[e] = true
