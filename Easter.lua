@@ -604,6 +604,23 @@ local function StartFarming()
     end)
 end
 
+local damageAuraTask, damagePlayerAuraTask = nil, nil
+
+local function getHitPart(model)
+    for _, name in ipairs({"HumanoidRootPart","Head","UpperTorso","LowerTorso"}) do
+        local p = model:FindFirstChild(name) if p then return p end
+    end
+    for _, p in ipairs(model:GetDescendants()) do if p:IsA("BasePart") then return p end end
+end
+
+local function fireHit(hitPart)
+    local net = RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net")
+    if not net then return end
+    local atk = net:FindFirstChild("RE/RegisterAttack")
+    local hit = net:FindFirstChild("RE/RegisterHit")
+    if atk and hit then pcall(function() atk:FireServer(0.5) hit:FireServer(hitPart, {}, "196f522a") end) end
+end
+
 -- ===== DAMAGE AURA =====
 _G.DamageAuraEnabled = false
 _G.DamageAuraPlayersEnabled = false
