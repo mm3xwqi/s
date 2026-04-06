@@ -1480,12 +1480,13 @@ end
 
 -- UI
 local Window=WindUI:CreateWindow({
-    Title="Easter Farm",Icon="solar:star-bold-duotone",Folder="EasterFarm",
+    Title="Blox Fruit | By Index",Icon="solar:star-bold-duotone",Folder="EasterFarm",
     NewElements=true,Topbar={Height=44,ButtonsType="Mac"},
-    OpenButton={Title="Easter Farm",Enabled=true,Draggable=true,OnlyMobile=false,
+    OpenButton={Title="Blox Fruit | By Index",Enabled=true,Draggable=true,OnlyMobile=false,
     StrokeThickness=0,CornerRadius=UDim.new(1,0),
     Color=ColorSequence.new(Color3.fromHex("#ff9f3d"),Color3.fromHex("#ff5c5c"))}
 })
+
 local FarmTab=Window:Tab({Title="Auto Farm",Icon="solar:egg-bold-duotone"})
 local ES=FarmTab:Section({Title="Easter Egg",Box=true,BoxBorder=true,Opened=true})
 ES:Dropdown({Title="Farm Mode",Values={"Random","Circle"},Value=_G.FarmMode=="circle" and 2 or 1,Callback=function(v) _G.FarmMode=(v=="Random") and "random" or "circle" saveSettings() end})
