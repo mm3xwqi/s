@@ -1486,19 +1486,6 @@ local Window=WindUI:CreateWindow({
     StrokeThickness=0,CornerRadius=UDim.new(1,0),
     Color=ColorSequence.new(Color3.fromHex("#ff9f3d"),Color3.fromHex("#ff5c5c"))}
 })
-
-local UIS=game:GetService("UserInputService")
-if UIS.TouchEnabled and not UIS.KeyboardEnabled then
-    local sg=Instance.new("ScreenGui") sg.Name="EasterFarmMobileBtn" sg.ResetOnSpawn=false sg.ZIndexBehavior=Enum.ZIndexBehavior.Sibling sg.DisplayOrder=999 sg.Parent=LP.PlayerGui
-    local btn=Instance.new("TextButton") btn.Size=UDim2.new(0,80,0,80) btn.Position=UDim2.new(0,12,0.5,-40) btn.BackgroundColor3=Color3.fromHex("#ff7a30") btn.TextColor3=Color3.new(1,1,1) btn.Text="E" btn.TextSize=32 btn.Font=Enum.Font.GothamBold btn.ZIndex=10 btn.Parent=sg
-    local c2=Instance.new("UICorner") c2.CornerRadius=UDim.new(1,0) c2.Parent=btn
-    local st=Instance.new("UIStroke") st.Color=Color3.fromHex("#ffffff") st.Thickness=2 st.Transparency=0.5 st.Parent=btn
-    local dragging,dragStart,startPos=false,nil,nil
-    btn.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then dragging=true dragStart=i.Position startPos=btn.Position end end)
-    btn.InputChanged:Connect(function(i) if dragging and i.UserInputType==Enum.UserInputType.Touch then local d=i.Position-dragStart btn.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y) end end)
-    btn.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch then local d=i.Position-dragStart local m=math.abs(d.X)+math.abs(d.Y) dragging=false if m<10 then Window:Toggle() end end end)
-end
-
 local FarmTab=Window:Tab({Title="Auto Farm",Icon="solar:egg-bold-duotone"})
 local ES=FarmTab:Section({Title="Easter Egg",Box=true,BoxBorder=true,Opened=true})
 ES:Dropdown({Title="Farm Mode",Values={"Random","Circle"},Value=_G.FarmMode=="circle" and 2 or 1,Callback=function(v) _G.FarmMode=(v=="Random") and "random" or "circle" saveSettings() end})
