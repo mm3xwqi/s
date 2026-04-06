@@ -326,10 +326,36 @@ local function fireEntranceForEnemy(name)
         local n=(s.Name:match("^(.-)%s*%[") or s.Name):match("^%s*(.-)%s*$")
         if n==name then local p=s:IsA("BasePart") and s.Position or s:GetPivot().Position tgt=vector.create(p.X,p.Y,p.Z) break end
     end end
-    if not tgt or (cur-tgt).Magnitude<=1000 then return end
+    if not tgt then return end
+    if (cur-tgt).Magnitude<=1000 then return end
     local best,bestD=nil,math.huge
     for _,ep in pairs(EntranceMap) do local d=(ep-tgt).Magnitude if d<bestD then bestD=d best=ep end end
-    if best and bestD<(cur-tgt).Magnitude-50 then invoke("requestEntrance",best) task.wait(0.8) end
+    if best and bestD<(cur-tgt).Magnitude-50 then
+        invoke("requestEntrance",best) task.wait(0.8)
+        -- ตรวจซ้ำว่ามาถึงยัง ถ้ายังให้ยิงอีก
+        local att=0
+        while att<5 do
+            hrp=getHRP(LP.Character) if not hrp then break end
+            local newCur=vector.create(hrp.Position.X,hrp.Position.Y,hrp.Position.Z)
+            if (newCur-tgt).Magnitude<=1000 then break end
+            invoke("requestEntrance",best) task.wait(1.2) att+=1
+        end
+    end
+end
+local function ensureOnCorrectIsland(targetPos)
+    if not targetPos then return end
+    local maxAtt=5
+    for i=1,maxAtt do
+        local hrp=getHRP(LP.Character) if not hrp then return end
+        local cur=vector.create(hrp.Position.X,hrp.Position.Y,hrp.Position.Z)
+        local tp=vector.create(targetPos.X,targetPos.Y,targetPos.Z)
+        if (cur-tp).Magnitude<=1000 then return end
+        -- หา entrance ที่ใกล้ target ที่สุด
+        local best,bestD=nil,math.huge
+        for _,ep in pairs(EntranceMap) do local d=(ep-tp).Magnitude if d<bestD then bestD=d best=ep end end
+        if best then invoke("requestEntrance",best) task.wait(1.5)
+        else break end
+    end
 end
 
 local enemyDropdownRef=nil
@@ -596,9 +622,34 @@ end
 local function deliverThirstyEgg(egg)
     local c=LP.Character local hrp=getHRP(c) if not hrp then return end
     local btn=(LP.PlayerGui:FindFirstChild("Main") and LP.PlayerGui.Main:FindFirstChild("Dialogue") and LP.PlayerGui.Main.Dialogue:FindFirstChild("Option1"))
+
+    -- ออกจากเกาะก่อน (ไปกลางทะเล) เพื่อให้หา water part ได้ง่ายขึ้น
+    hrp=getHRP(LP.Character) if not hrp then return end
+    local openSeaPos=Vector3.new(hrp.Position.X+200,hrp.Position.Y,hrp.Position.Z+200)
+    do
+        local bvOut=makeBV(hrp,"ThirstyOutBV")
+        local moved=false
+        local t0=tick()
+        while tick()-t0<5 do
+            hrp=getHRP(LP.Character) if not hrp then break end
+            if (hrp.Position-openSeaPos).Magnitude<30 then moved=true break end
+            bvOut.Velocity=(openSeaPos-hrp.Position).Unit*SPEED task.wait(0.05)
+        end
+        pcall(function() bvOut.Velocity=Vector3.zero end) pcall(function() bvOut:Destroy() end)
+    end
+    task.wait(0.3)
+
+    -- หา water ที่ใกล้ที่สุดหลังออกจากเกาะแล้ว
+    hrp=getHRP(LP.Character) if not hrp then return end
     local closestWater,cd=nil,math.huge
-    for _,obj in ipairs(workspace:GetDescendants()) do if obj.Name=="WaterBase-Plane" and obj:IsA("BasePart") then local d=(hrp.Position-obj.Position).Magnitude if d<cd then cd=d closestWater=obj end end end
+    for _,obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name=="WaterBase-Plane" and obj:IsA("BasePart") then
+            local d=(hrp.Position-obj.Position).Magnitude
+            if d<cd then cd=d closestWater=obj end
+        end
+    end
     if not closestWater then return end
+
     hrp=getHRP(LP.Character) if not hrp then return end
     local tp=Vector3.new(closestWater.Position.X,closestWater.Position.Y+100,closestWater.Position.Z)
     snapY(tp) hrp=getHRP(LP.Character) if not hrp then return end
@@ -613,7 +664,7 @@ local function deliverThirstyEgg(egg)
     pcall(function() bv.Velocity=Vector3.zero end) task.wait(0.1) pcall(function() bv:Destroy() end)
     hrp=getHRP(LP.Character) if not hrp then return end
     holdInPlace(hrp,hrp.Position,function(bp)
-        local function getHP() if closestWater and closestWater.Parent then return Vector3.new(closestWater.Position.X,closestWater.Position.Y+20,closestWater.Position.Z) end return bp.Position end
+        local function getHP() if closestWater and closestWater.Parent then return Vector3.new(closestWater.Position.X,closestWater.Position.Y+100,closestWater.Position.Z) end return bp.Position end
         bp.Position=getHP() local elapsed,spawned=0,false
         while _G.AutoFarmEnabled and _G.QuestModeEnabled and egg.Parent==c and elapsed<10 do bp.Position=getHP() clickBtn(btn) task.wait(0.2) elapsed+=0.2 end
         local ws=tick()
@@ -1254,12 +1305,14 @@ local function huntMob(mobName)
     local bv=makeBV(hrp,"LevelFarmBV")
     local arrived=false local currentTarget=nil local lastEntrance=0
 
-    local function tryEntrance(targetPos)
-        local h=getHRP(LP.Character) if not h then return end
-        if (h.Position-targetPos).Magnitude>1000 and tick()-lastEntrance>3 then
-            bv.Velocity=Vector3.zero fireEntrance(targetPos) lastEntrance=tick() task.wait(0.8)
-        end
+local function tryEntrance(targetPos)
+    local h=getHRP(LP.Character) if not h then return end
+    if (h.Position-targetPos).Magnitude>1000 and tick()-lastEntrance>3 then
+        bv.Velocity=Vector3.zero
+        ensureOnCorrectIsland(targetPos)  -- ← เปลี่ยนจาก fireEntrance เป็นนี้
+        lastEntrance=tick() task.wait(0.5)
     end
+end
 
     while _G.AutoFarmLevelEnabled do
         local curLv=getPlayerLevel() local curQd=getQuestForLevel(curLv)
@@ -1576,7 +1629,6 @@ OffsetS:Slider({Title="Custom Z",Step=1,Value={Min=-50,Max=50,Default=_G.PlayerO
 local BringS=SetTab:Section({Title="Bring Mob",Box=true,BoxBorder=true,Opened=true})
 BringS:Slider({Title="Bring Distance",Step=50,Value={Min=100,Max=1500,Default=_G.BringMobMaxDistance},Callback=function(v) _G.BringMobMaxDistance=v saveSettings() end}) BringS:Space()
 BringS:Slider({Title="Max Mobs",Step=1,Value={Min=1,Max=10,Default=_G.BringMobMaxBatch},Callback=function(v) _G.BringMobMaxBatch=v saveSettings() end}) BringS:Space()
-BringS:Dropdown({Title="Mob Offset Mode",Values={"Random","Custom"},Value=_G.BringMobOffsetMode=="custom" and 2 or 1,Callback=function(v) _G.BringMobOffsetMode=v=="Random" and "random" or "custom" saveSettings() end})
 
 local EqS=SetTab:Section({Title="Auto Equip",Box=true,BoxBorder=true,Opened=true})
 local weaponTypes={"Melee","Sword","Gun","Fruit"}
