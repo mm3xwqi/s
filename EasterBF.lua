@@ -55,7 +55,6 @@ else
             end)
         end
     }
-    warn("WindUI failed to load, using fallback notifications.")
 end
 
 local RunService = game:GetService("RunService")
@@ -542,29 +541,29 @@ end
 
 local function fireDamage(part)
     if not part or not part.Parent then return end
-    local hrp=getHRP(LP.Character) if not hrp then return end
+    local hrp = getHRP(LP.Character) if not hrp then return end
     if S.VIMClickEnabled then
         pcall(function()
             VU:CaptureController()
             VU:ClickButton1(Vector2.new())
         end)
     end
-    local net=RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net")
+    local net = RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net")
     if not net then return end
-    local char=LP.Character
-    local held=char and (function()
-        for _,t in ipairs(char:GetChildren()) do if t:IsA("Tool") then return t end end
+    local char = LP.Character
+    local held = char and (function()
+        for _, t in ipairs(char:GetChildren()) do if t:IsA("Tool") then return t end end
     end)()
     if held then
-        local lc=held:FindFirstChild("LeftClickRemote")
+        local lc = held:FindFirstChild("LeftClickRemote")
         if lc and lc:IsA("RemoteEvent") then
-            pcall(function() lc:FireServer((part.Position-hrp.Position).Unit,1) end) return
+            pcall(function() lc:FireServer((part.Position - hrp.Position).Unit, 1) end) return
         end
     end
-    local regAtk=net:FindFirstChild("RE/RegisterAttack")
-    local regHit=net:FindFirstChild("RE/RegisterHit")
+    local regAtk = net:FindFirstChild("RE/RegisterAttack")
+    local regHit = net:FindFirstChild("RE/RegisterHit")
     if regAtk and regHit then
-        pcall(function() regAtk:FireServer(0.5) regHit:FireServer(part,{},"196f522a") end)
+        pcall(function() regAtk:FireServer(0.5) regHit:FireServer(part, {}, "196f522a") end)
     end
 end
 
@@ -1655,13 +1654,11 @@ local function redeemCode(code)
     return pcall(function() RS.Remotes.Redeem:InvokeServer(code) end)
 end
 local function redeemAllCodes()
-    notify("Redeem", "Redeeming all codes...", 3)
     local success, failed = 0, 0
     for _, code in ipairs(REDEEM_CODES) do
         if redeemCode(code) then success = success + 1 else failed = failed + 1 end
         task.wait(0.5)
     end
-    notify("Redeem", "Done! " .. success .. " success / " .. failed .. " failed", 5)
 end
 
 local autoRandomFruitTask = nil
@@ -2327,14 +2324,12 @@ local function tyrantPhase2()
     end
 
     if not equipGuitarNow() then
-        warn("[Tyrant] Skull Guitar not found in inventory!")
         if wasAutoEquip then S.AutoEquipEnabled = true startAutoEquip() end
         return tyrantTask ~= nil
     end
 
     local trees = getGuitarTrees()
     if #trees == 0 then
-        warn("[Tyrant] No guitar trees found!")
         if wasAutoEquip then S.AutoEquipEnabled = true startAutoEquip() end
         return tyrantTask ~= nil
     end
@@ -2504,7 +2499,7 @@ local function tweenToTyrantQuestNPC()
             hrp = getHRP(LP.Character) if not hrp then return false end
             if (hrp.Position - TYRANT_QUEST_NPC_POS).Magnitude > 2000 then
                 invoke("requestEntrance", best)
-                task.wait(1)
+                task.wait(3)
                 hrp = getHRP(LP.Character) if not hrp then return false end
             end
         end
@@ -2670,15 +2665,11 @@ local function stopTyrantFarm()
             local o = hrp:FindFirstChild(n) if o then destroyBV(o) end
         end
     end
-
-    local hum = getHum(LP.Character)
-    if hum then hum.PlatformStand = false end
     S.CurrentFarmTarget = nil S.BringMobEnabled = false stopBringMob()
     if bringMobToggleRef then bringMobToggleRef:Set(false) end
     saveSettings()
 end
 
---  UI
 local Window = WindUI:CreateWindow({
     Title = "Blox Fruit | By Index", Icon = "solar:star-bold-duotone",
     Folder = "MainFarm", NewElements = true,
@@ -2753,7 +2744,7 @@ do
         end
     end}) SS:Space()
     SS:Button({Title = "Refresh Enemy List", Callback = function()
-        refreshEnemyDropdown() notify("Refresh", "Enemy list updated", 2)
+        refreshEnemyDropdown()
     end})
 end
 
@@ -2811,7 +2802,7 @@ do
         S.AutoBusoEnabled = v saveSettings()
         if v then startAutoBuso() else stopAutoBuso() end
     end}) LCS:Space()
-    LCS:Toggle({Title = "Auto Click", Value = S.VIMClickEnabled, Callback = function(v)
+    LCS:Toggle({Title = "Auto Click (safe Damage aura)", Value = S.VIMClickEnabled, Callback = function(v)
         S.VIMClickEnabled = v saveSettings()
     end}) LCS:Space()
 end
@@ -2962,19 +2953,191 @@ do
     end}) BringS:Space()
 end
 
+do
+    local fpsBoostEnabled = false
+    local storedEffects = {}
+    local fpsBoostConn = nil
+    local fpsContainer = nil
+    local fpsV2Enabled = false
+    local fpsV2Conn = nil
+    local fpsCapEnabled = false
+    local fpsCapTask = nil
+    local currentFpsCap = 60
+
+    local FpsS = SetTab:Section({Title = "FPS Boost", Box = true, BoxBorder = true, Opened = true})
+
+    local function shouldRemove(child)
+        return not (
+            (child:IsA("Folder") and child.Name == "SoulGuitar") or
+            (child:IsA("ModuleScript") and child.Name == "TreeBreak")
+        )
+    end
+
+    local function enableFpsBoost()
+        if not fpsContainer then return end
+        storedEffects = {}
+        for _, child in ipairs(fpsContainer:GetChildren()) do
+            if shouldRemove(child) then
+                table.insert(storedEffects, child:Clone())
+                pcall(function() child:Destroy() end)
+            end
+        end
+        fpsBoostConn = fpsContainer.ChildAdded:Connect(function(child)
+            task.wait()
+            if fpsBoostEnabled and shouldRemove(child) then
+                pcall(function() child:Destroy() end)
+            end
+        end)
+    end
+
+    local function disableFpsBoost()
+        if fpsBoostConn then fpsBoostConn:Disconnect() fpsBoostConn = nil end
+        if not fpsContainer then return end
+        for _, clone in ipairs(storedEffects) do
+            pcall(function() clone.Parent = fpsContainer end)
+        end
+        storedEffects = {}
+    end
+
+    FpsS:Toggle({Title = "FPS Boost V1 (Clear Effects) (Lots of bugs game issue not script)", Value = false, Callback = function(v)
+        fpsBoostEnabled = v
+        if v then
+            if not fpsContainer then
+                task.spawn(function()
+                    local ok, c = pcall(function()
+                        return RS:WaitForChild("Effect", 10):WaitForChild("Container", 10)
+                    end)
+                    if ok and c then
+                        fpsContainer = c
+                        if fpsBoostEnabled then enableFpsBoost() end
+                    else
+                        fpsBoostEnabled = false
+                    end
+                end)
+            else
+                enableFpsBoost()
+            end
+        else
+            disableFpsBoost()
+        end
+    end}) FpsS:Space()
+
+    local function enableFpsV2()
+        local Terrain = workspace:FindFirstChildWhichIsA("Terrain")
+        local Lighting = game:GetService("Lighting")
+        if Terrain then
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveSpeed = 0
+            Terrain.WaterReflectance = 0
+            Terrain.WaterTransparency = 1
+        end
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.FogStart = 9e9
+        pcall(function() settings().Rendering.QualityLevel = 1 end)
+        for _, v in pairs(game:GetDescendants()) do
+            pcall(function()
+                if v:IsA("BasePart") then
+                    v.CastShadow = false
+                    v.Material = Enum.Material.Plastic
+                    v.Reflectance = 0
+                    v.BackSurface = Enum.SurfaceType.SmoothNoOutlines
+                    v.BottomSurface = Enum.SurfaceType.SmoothNoOutlines
+                    v.FrontSurface = Enum.SurfaceType.SmoothNoOutlines
+                    v.LeftSurface = Enum.SurfaceType.SmoothNoOutlines
+                    v.RightSurface = Enum.SurfaceType.SmoothNoOutlines
+                    v.TopSurface = Enum.SurfaceType.SmoothNoOutlines
+                elseif v:IsA("Decal") then
+                    v.Transparency = 1
+                    v.Texture = ""
+                elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                    v.Lifetime = NumberRange.new(0)
+                end
+            end)
+        end
+        for _, v in pairs(Lighting:GetDescendants()) do
+            pcall(function()
+                if v:IsA("PostEffect") then v.Enabled = false end
+            end)
+        end
+        fpsV2Conn = workspace.DescendantAdded:Connect(function(child)
+            task.spawn(function()
+                if not fpsV2Enabled then return end
+                if child:IsA("ForceField") or child:IsA("Sparkles") or child:IsA("Smoke") or child:IsA("Fire") or child:IsA("Beam") then
+                    RunService.Heartbeat:Wait()
+                    pcall(function() child:Destroy() end)
+                elseif child:IsA("BasePart") then
+                    pcall(function() child.CastShadow = false end)
+                end
+            end)
+        end)
+    end
+
+    local function disableFpsV2()
+        if fpsV2Conn then fpsV2Conn:Disconnect() fpsV2Conn = nil end
+        local Lighting = game:GetService("Lighting")
+        Lighting.GlobalShadows = true
+        Lighting.FogEnd = 100000
+        Lighting.FogStart = 0
+        pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic end)
+        for _, v in pairs(Lighting:GetDescendants()) do
+            pcall(function()
+                if v:IsA("PostEffect") then v.Enabled = true end
+            end)
+        end
+    end
+
+    FpsS:Toggle({Title = "FPS Boost V2 (Low Graphics)", Value = false, Callback = function(v)
+        fpsV2Enabled = v
+        if v then enableFpsV2() else disableFpsV2() end
+    end}) FpsS:Space()
+
+    local function applyFpsCap(cap)
+        if fpsCapTask then task.cancel(fpsCapTask) fpsCapTask = nil end
+        if cap <= 0 then return end
+        fpsCapTask = task.spawn(function()
+            local step = 1 / cap
+            while fpsCapEnabled do
+                local t = tick()
+                RunService.RenderStepped:Wait()
+                local elapsed = tick() - t
+                if elapsed < step then
+                    task.wait(step - elapsed)
+                end
+            end
+            fpsCapTask = nil
+        end)
+    end
+
+    FpsS:Toggle({Title = "FPS Cap", Value = false, Callback = function(v)
+        fpsCapEnabled = v
+        if v then
+            applyFpsCap(currentFpsCap)
+        else
+            if fpsCapTask then task.cancel(fpsCapTask) fpsCapTask = nil end
+        end
+    end}) FpsS:Space()
+
+    FpsS:Slider({Title = "FPS Cap Value", Step = 5, Value = {Min = 1, Max = 1000, Default = 120}, Callback = function(v)
+        currentFpsCap = v
+        if fpsCapEnabled then
+            if fpsCapTask then task.cancel(fpsCapTask) fpsCapTask = nil end
+            applyFpsCap(v)
+        end
+    end}) FpsS:Space()
+end
+
 local RedeemTab = Window:Tab({Title = "Redeem", Icon = "solar:ticket-bold-duotone"})
 do
     local RS2 = RedeemTab:Section({Title = "Codes", Box = true, BoxBorder = true, Opened = true})
     RS2:Button({Title = "Redeem All", Callback = function() task.spawn(redeemAllCodes) end}) RS2:Space()
     for _, code in ipairs(REDEEM_CODES) do
         RS2:Button({Title = code, Callback = function()
-            local ok = redeemCode(code)
-            notify("Redeem", code .. (ok and " OK" or " failed/used"), 3)
+            redeemCode(code)
         end})
     end
 end
 
---  Startup
 if S.AutoBusoEnabled then startAutoBuso() end
 if S.DamageAuraEnabled then startDamageAura() end
 if S.AutoEquipEnabled then startAutoEquip() end
