@@ -36,6 +36,89 @@ if issyn then
     end))
 end
 
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PerformanceGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local displayFrame = Instance.new("Frame")
+displayFrame.Size = UDim2.new(0, 250, 0, 100)
+displayFrame.Position = UDim2.new(0, 10, 0, 10)
+displayFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+displayFrame.BackgroundTransparency = 0.4
+displayFrame.BorderSizePixel = 0
+displayFrame.Active = true
+displayFrame.Draggable = true
+displayFrame.Parent = ScreenGui
+
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(1, -20, 0, 40)
+fpsLabel.Position = UDim2.new(0, 10, 0, 10)
+fpsLabel.TextColor3 = Color3.new(1, 1, 1)
+fpsLabel.TextStrokeTransparency = 0.7
+fpsLabel.TextSize = 24
+fpsLabel.Font = Enum.Font.SourceSansBold
+fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.Text = "FPS: Loading..."
+fpsLabel.Parent = displayFrame
+local pingLabel = Instance.new("TextLabel")
+pingLabel.Size = UDim2.new(1, -20, 0, 40)
+pingLabel.Position = UDim2.new(0, 10, 0, 50)
+pingLabel.TextColor3 = Color3.new(1, 1, 1)
+pingLabel.TextStrokeTransparency = 0.7
+pingLabel.TextSize = 24
+pingLabel.Font = Enum.Font.SourceSansBold
+pingLabel.TextXAlignment = Enum.TextXAlignment.Left
+pingLabel.BackgroundTransparency = 1
+pingLabel.Text = "Ping: Loading..."
+pingLabel.Parent = displayFrame
+
+local fps = 0
+local lastTime = tick()
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    fps = math.floor(1 / (tick() - lastTime))
+    lastTime = tick()
+    fpsLabel.Text = "FPS: " .. tostring(fps)
+end)
+
+local function getPing()
+    local player = game.Players.LocalPlayer
+    local ping = player:GetNetworkPing() * 1000
+    return math.floor(ping)
+end
+
+game:GetService("RunService").Stepped:Connect(function()
+    local ping = getPing()
+    pingLabel.Text = "Ping: " .. tostring(ping) .. " ms"
+end)
+
+game:GetService("RunService").Stepped:Connect(function()
+    if fps < 30 then
+        fpsLabel.TextColor3 = Color3.new(1, 0, 0)
+    else
+        fpsLabel.TextColor3 = Color3.new(0, 1, 0)
+    end
+
+    if getPing() > 200 then
+        pingLabel.TextColor3 = Color3.new(1, 0, 0)
+    else
+        pingLabel.TextColor3 = Color3.new(0, 1, 0)
+    end
+end)
+
+local function savePosition()
+    local pos = displayFrame.Position
+end
+
+displayFrame.MouseLeave:Connect(savePosition)
+displayFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        savePosition()
+    end
+end)
+
 local WindUI
 do
     local success, ui = pcall(function()
@@ -66,7 +149,6 @@ local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
--- ===== CONSOLIDATED TASK HANDLES =====
 local Tasks = {
     elite=nil, damageAura=nil, buso=nil, equip=nil,
     grabFruit=nil, farmAura=nil, farmSelect=nil, farmLevel=nil,
@@ -74,7 +156,6 @@ local Tasks = {
     storeFruit=nil, dungeon=nil, autoRetry=nil, tyrant=nil, bringMob=nil,
 }
 
--- ===== CONSOLIDATED FLAGS =====
 local F = {
     eliteInterrupt=false, eliteEnabled=false,
     farmAura=false, fruitGrabbing=false,
@@ -82,7 +163,6 @@ local F = {
     cleaningUp=false, clip=true,
 }
 
--- ===== CONSOLIDATED REFS =====
 local Refs = {
     bringMobToggle=nil, elite=nil, randomFruit=nil,
     enemyDropdown=nil, noclip=nil, spawnWatch=nil, mobNoclip=nil,
@@ -759,17 +839,8 @@ local function stopBringMob()
     F.cleaningUp = false
 end
 
--- ===== AUTO ELITE =====
 local ELITE_NAMES = {"Diablo","Urban","Deandre"}
 local ELITE_QUEST_POS = Vector3.new(-5417,314,-2825)
-
-local function findEliteInRS()
-    for _, name in ipairs(ELITE_NAMES) do
-        local found = RS:FindFirstChild(name, true)
-        if found then return found, name end
-    end
-    return nil, nil
-end
 
 local function findEliteEnemy(name)
     local ef = workspace:FindFirstChild("Enemies") if not ef then return nil end
@@ -795,17 +866,19 @@ local function isQuestActive()
     return ok and v==true
 end
 
-local function doEliteHunt(eliteName)
-    notify("Auto Elite","Found: "..eliteName.." - Going to accept quest",5)
+local function doEliteHunt()
     local hrp = getHRP(LP.Character) if not hrp then return end
     enableNoclip()
-    if (hrp.Position-ELITE_QUEST_POS).Magnitude > 1000 then
+
+    if (hrp.Position - ELITE_QUEST_POS).Magnitude > 1000 then
         local best, bestD = nil, math.huge
         for _, ep in pairs(EntranceMap) do
-            local d = (ep-ELITE_QUEST_POS).Magnitude if d < bestD then bestD=d best=ep end
+            local d = (ep - ELITE_QUEST_POS).Magnitude
+            if d < bestD then bestD=d best=ep end
         end
         if best then invoke("requestEntrance", best) task.wait(1.5) end
     end
+
     hrp = getHRP(LP.Character) if not hrp then return end
     snapY(ELITE_QUEST_POS)
     hrp = getHRP(LP.Character) if not hrp then return end
@@ -815,50 +888,88 @@ local function doEliteHunt(eliteName)
         if not F.eliteEnabled then bv.Velocity=Vector3.zero break end
         if not isAlive(LP.Character) then bv.Velocity=Vector3.zero break end
         hrp = getHRP(LP.Character) if not hrp then break end
-        local d = (hrp.Position-ELITE_QUEST_POS).Magnitude
+        local d = (hrp.Position - ELITE_QUEST_POS).Magnitude
         if d < 8 then bv.Velocity=Vector3.zero break end
-        bv.Velocity = (ELITE_QUEST_POS-hrp.Position).Unit * math.clamp(d*8,40,SPEED)
+        bv.Velocity = (ELITE_QUEST_POS - hrp.Position).Unit * math.clamp(d*8, 40, SPEED)
         task.wait(0.05)
     end
     destroyBV(bv)
-    task.wait(0.3)
-    invoke("EliteHunter"); task.wait(0.6)
-    if not isQuestActive() then invoke("EliteHunter") task.wait(0.6) end
-    notify("Auto Elite","Quest accepted - Hunting "..eliteName,4)
+
+    invoke("EliteHunter")
+    task.wait(0.2)
+    if not isQuestActive() then
+        invoke("EliteHunter")
+        task.wait(0.2)
+    end
+
+    local mobName = ""
+    local ok, t = pcall(function()
+        return LP.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text
+    end)
+    if ok and t and t ~= "" then
+        mobName = t:match("Defeat%s+(.-)%s*%(") or t:match("Defeat%s+(.+)$") or ""
+        mobName = mobName:match("^%s*(.-)%s*$") or ""
+    end
+
+    if mobName == "" then
+        for _, name in ipairs(ELITE_NAMES) do
+            if RS:FindFirstChild(name) then mobName = name break end
+        end
+    end
+
+    if mobName == "" then return end
+    notify("Auto Elite", "Hunting: " .. mobName, 4)
+
     local huntStart = tick()
-    while F.eliteEnabled and tick()-huntStart < 180 do
+    while F.eliteEnabled and tick()-huntStart < 300 do
         if not isAlive(LP.Character) then
             while not isAlive(LP.Character) and F.eliteEnabled do task.wait(0.5) end
-            task.wait(1.5) continue
+            task.wait(1) continue
         end
+
         hrp = getHRP(LP.Character) if not hrp then break end
-        if not isQuestActive() then notify("Auto Elite",eliteName.." hunt complete!",4) break end
-        local target = findEliteEnemy(eliteName)
-        if not target then task.wait(1) continue end
-        if (hrp.Position-target.part.Position).Magnitude > 1000 then
-            fireEntrance(target.part.Position) task.wait(0.8)
+
+        if not isQuestActive() then
+            notify("Auto Elite", mobName .. " defeated!", 4)
+            break
+        end
+
+        if not RS:FindFirstChild(mobName) then task.wait(1) continue end
+
+        local target = findEliteEnemy(mobName)
+        if not target then task.wait(0.5) continue end
+
+        if (hrp.Position - target.part.Position).Magnitude > 1000 then
+            fireEntrance(target.part.Position)
+            task.wait(0.8)
             hrp = getHRP(LP.Character) if not hrp then continue end
         end
+
         snapY(target.part.Position)
         hrp = getHRP(LP.Character) if not hrp then continue end
+
         local bv2 = makeBV(hrp, "EliteHuntBV")
-        while F.eliteEnabled and target.enemy and target.enemy.Parent and isAlive(target.enemy) do
+        while F.eliteEnabled
+            and target.enemy and target.enemy.Parent
+            and isAlive(target.enemy) do
             if not isAlive(LP.Character) then bv2.Velocity=Vector3.zero break end
             if not isQuestActive() then bv2.Velocity=Vector3.zero break end
             hrp = getHRP(LP.Character) if not hrp then break end
-            local p2 = target.enemy:FindFirstChild("HumanoidRootPart") or target.enemy:FindFirstChildWhichIsA("BasePart")
+            local p2 = target.enemy:FindFirstChild("HumanoidRootPart")
+                or target.enemy:FindFirstChildWhichIsA("BasePart")
             if not p2 then break end
             local tp = getPlayerTarget(p2.Position)
-            local d = (hrp.Position-tp).Magnitude
+            local d = (hrp.Position - tp).Magnitude
             if d < 8 then
-                bv2.Velocity=Vector3.zero
+                bv2.Velocity = Vector3.zero
                 for _, pt in ipairs(getNearbyEnemiesFiltered(50)) do fireDamage(pt) end
             else
-                bv2.Velocity=(tp-hrp.Position).Unit*math.clamp(d*8,30,SPEED)
+                bv2.Velocity = (tp - hrp.Position).Unit * math.clamp(d*8, 30, SPEED)
             end
             task.wait(0.05)
         end
-        destroyBV(bv2) task.wait(0.3)
+        destroyBV(bv2)
+        task.wait(0.1)
     end
 end
 
@@ -866,14 +977,19 @@ local function startAutoElite()
     if Tasks.elite then return end
     Tasks.elite = task.spawn(function()
         while F.eliteEnabled do
-            local eliteObj, eliteName = findEliteInRS()
-            if eliteObj and eliteName then
+            local eliteFound = false
+            for _, name in ipairs(ELITE_NAMES) do
+                if RS:FindFirstChild(name) then eliteFound = true break end
+            end
+
+            if eliteFound then
                 F.eliteInterrupt = true
-                task.wait(0.5)
-                doEliteHunt(eliteName)
+                doEliteHunt()
                 F.eliteInterrupt = false
-                task.wait(2)
-            else task.wait(3) end
+                task.wait(1)
+            else
+                task.wait(3)
+            end
         end
         Tasks.elite = nil
     end)
@@ -883,7 +999,6 @@ local function stopAutoElite()
     if Tasks.elite then task.cancel(Tasks.elite) Tasks.elite=nil end
 end
 
--- ===== DAMAGE AURA =====
 local function startDamageAura()
     if Tasks.damageAura then return end
     Tasks.damageAura = task.spawn(function()
@@ -1916,12 +2031,6 @@ local function findNearestExit()
     return nil
 end
 
--- ==========================================================
--- FIX 1: tweenToExitAndTouch
---   - ชะลอเมื่อใกล้ประตู (d < 15) เพื่อไม่กระเด็นเกิน
---   - หยุด tween ทันทีถ้ามอนสเปวน (แปลว่าเข้าห้องใหม่แล้ว)
---   - พอถึงประตูแล้วหยุด velocity เฉยๆ ไม่ต้อง tween ต่อ
--- ==========================================================
 local function tweenToExitAndTouch(exitInfo)
     if not exitInfo then return false end
     if isDungeonCardScreenVisible() then return false end
@@ -1936,13 +2045,11 @@ local function tweenToExitAndTouch(exitInfo)
             bv.Velocity=Vector3.zero; dungeonAnchor(); destroyBV(bv); return false
         end
         if not isAlive(LP.Character) then bv.Velocity=Vector3.zero; break end
-        -- หยุดทันทีถ้ามอนเกิดแล้ว (เข้าห้องถัดไปแล้ว)
         if #getDungeonEnemies() > 0 then
             bv.Velocity=Vector3.zero; dungeonAnchor(); destroyBV(bv); return false
         end
         hrp = getHRP(LP.Character) if not hrp then break end
         local d = (hrp.Position-tp).Magnitude
-        -- ถึงประตูแล้ว: หยุด velocity รอเกม teleport
         if d < 5 then
             bv.Velocity=Vector3.zero
             dungeonAnchor(); destroyBV(bv)
@@ -1953,7 +2060,6 @@ local function tweenToExitAndTouch(exitInfo)
         if tick()-t0 > 15 then
             dungeonAnchor(); destroyBV(bv); task.wait(0.3); dungeonRelease(); return true
         end
-        -- ชะลอความเร็วเมื่อใกล้ประตูเพื่อไม่กระเด็นออก
         local spd
         if d < 15 then
             spd = math.clamp(d * 2.5, 8, 28)
@@ -1978,10 +2084,6 @@ local function startAutoDungeon()
         end
         if not Tasks.bringMob then startMobNoclip() startBringMob(nil) end
 
-        -- ==========================================================
-        -- FIX 2: ติดตาม exit object ที่เข้าไปแล้ว + cooldown
-        --   กันไม่ให้วนกลับไปเข้าประตูเดิมซ้ำๆ
-        -- ==========================================================
         local lastUsedExitObj = nil
         local lastExitTime = 0
 
@@ -1995,7 +2097,6 @@ local function startAutoDungeon()
             local propPriority = findDungeonProp()
             local enemies = getDungeonEnemies()
             if #enemies > 0 then
-                -- มีมอน: รีเซ็ต exit tracking เพราะเข้าห้องใหม่แล้ว
                 lastUsedExitObj = nil
                 local hrp = getHRP(LP.Character) if not hrp then task.wait(0.5) continue end
                 local attackTarget = propPriority
@@ -2081,10 +2182,6 @@ local function startAutoDungeon()
                     stopMobNoclip()
                 end
                 local exitInfo = findNearestExit()
-                -- ==========================================================
-                -- ป้องกันการวนเข้าประตูเดิม: ข้ามถ้าเป็นประตูที่เพิ่งเข้าไป
-                -- หรือถ้า cooldown ยังไม่หมด (2 วิหลังจากเข้าประตู)
-                -- ==========================================================
                 if exitInfo and (exitInfo.obj == lastUsedExitObj or tick() - lastExitTime < 2) then
                     exitInfo = nil
                 end
@@ -2100,13 +2197,11 @@ local function startAutoDungeon()
                                 local old=hrpAfter:FindFirstChild(bvName) if old then destroyBV(old) end
                             end
                         end
-                        -- รอให้ teleport เสร็จก่อน แล้วค่อย poll
                         task.wait(1.5)
                         local pollStart = tick()
                         while S.AutoDungeonEnabled and tick()-pollStart < 15 do
                             if isDungeonCardScreenVisible() then break end
                             if #getDungeonEnemies() > 0 then
-                                -- เข้าห้องใหม่แล้ว รีเซ็ต exit tracking
                                 lastUsedExitObj = nil
                                 break
                             end
@@ -2157,7 +2252,6 @@ local function stopAutoDungeon()
     saveSettings()
 end
 
--- ===== TYRANT =====
 local TYRANT_MOBS = {"Isle Champion","Serpent Hunter","Skull Slayer","Sun-kissed Warrior"}
 local TYRANT_START_POS = Vector3.new(-16256,153,1400)
 local TYRANT_QUEST_NPC_POS = Vector3.new(-16666,106,1577)
@@ -2385,15 +2479,11 @@ local function getGuitarTrees()
     return trees
 end
 
--- ==========================================================
--- FIX 3: tyrantPhase2 - ปิด BringMob ช่วงกีต้า แล้วเปิดคืน
--- ==========================================================
 local function tyrantPhase2()
     if not goToStartPos() then return false end
     local wasAutoEquip = S.AutoEquipEnabled
     if wasAutoEquip then S.AutoEquipEnabled=false stopAutoEquip() end
 
-    -- ปิด BringMob ช่วงกีต้าเท่านั้น
     local wasBringMob = S.BringMobEnabled
     if wasBringMob then
         S.BringMobEnabled = false
@@ -2424,97 +2514,105 @@ local function tyrantPhase2()
         pcall(function() invoke("GuitarActivate", treePos) end)
     end
 
-    if not equipGuitarNow() then
+    local function restoreState()
         if wasAutoEquip then S.AutoEquipEnabled=true startAutoEquip() end
-        -- เปิด BringMob คืนเพราะออกจาก phase2 แล้ว
         if wasBringMob then
             S.BringMobEnabled=true
             startMobNoclip()
             startBringMob(nil)
+            if Refs.bringMobToggle then task.delay(0.1, function() Refs.bringMobToggle:Set(true) end) end
         end
+    end
+
+    if not equipGuitarNow() then
+        restoreState()
         return Tasks.tyrant ~= nil
     end
 
     local trees = getGuitarTrees()
     if #trees==0 then
-        if wasAutoEquip then S.AutoEquipEnabled=true startAutoEquip() end
-        if wasBringMob then
-            S.BringMobEnabled=true
-            startMobNoclip()
-            startBringMob(nil)
-        end
+        restoreState()
         return Tasks.tyrant ~= nil
     end
 
     local hrp = getHRP(LP.Character)
     if not hrp then
-        if wasAutoEquip then S.AutoEquipEnabled=true startAutoEquip() end
-        if wasBringMob then
-            S.BringMobEnabled=true
-            startMobNoclip()
-            startBringMob(nil)
-        end
+        restoreState()
         return false
     end
 
     local bv = makeBV(hrp, "TyrantGuitarBV")
+    local tIdx = 1
     while not findTyrant() do
         if not Tasks.tyrant then destroyBV(bv) break end
         while F.eliteInterrupt and Tasks.tyrant do bv.Velocity=Vector3.zero; task.wait(0.5) end
         if not Tasks.tyrant then destroyBV(bv) break end
-        local freshTrees=getGuitarTrees() if #freshTrees > 0 then trees=freshTrees end
-        for tIdx, treePos in ipairs(trees) do
-            if not Tasks.tyrant or findTyrant() then bv.Velocity=Vector3.zero; break end
-            if not isAlive(LP.Character) then
-                bv.Velocity=Vector3.zero
-                while not isAlive(LP.Character) do
-                    if not Tasks.tyrant then
-                        destroyBV(bv)
-                        if wasAutoEquip then S.AutoEquipEnabled=true startAutoEquip() end
-                        if wasBringMob then S.BringMobEnabled=true startMobNoclip() startBringMob(nil) end
-                        return false
-                    end
-                    task.wait(0.5)
+
+        local freshTrees = getGuitarTrees()
+        if #freshTrees > 0 then trees = freshTrees end
+        if #trees == 0 then task.wait(0.5) continue end
+        if tIdx > #trees then tIdx = 1 end
+
+        local treePos = trees[tIdx]
+
+        if not isAlive(LP.Character) then
+            bv.Velocity = Vector3.zero
+            while not isAlive(LP.Character) do
+                if not Tasks.tyrant then
+                    destroyBV(bv)
+                    restoreState()
+                    return false
                 end
-                task.wait(3) equipGuitarNow()
-                hrp=getHRP(LP.Character) if not hrp then break end
-                local oldBV=hrp:FindFirstChild("TyrantGuitarBV") if oldBV then oldBV:Destroy() end
-                bv=makeBV(hrp,"TyrantGuitarBV")
+                task.wait(0.5)
             end
-            local char=LP.Character
-            if char and not char:FindFirstChild("Skull Guitar") then bv.Velocity=Vector3.zero equipGuitarNow() end
-            snapY(treePos) hrp=getHRP(LP.Character) if not hrp then break end
-            local reachedTree=false
-            while not reachedTree do
-                if not Tasks.tyrant or findTyrant() then bv.Velocity=Vector3.zero; break end
-                while F.eliteInterrupt and Tasks.tyrant do bv.Velocity=Vector3.zero; task.wait(0.5) end
-                if not isAlive(LP.Character) then bv.Velocity=Vector3.zero; break end
-                hrp=getHRP(LP.Character) if not hrp then break end
-                local d=(hrp.Position-treePos).Magnitude
-                if d < 8 then bv.Velocity=Vector3.zero; reachedTree=true
-                else bv.Velocity=(treePos-hrp.Position).Unit*math.clamp(d*7,40,SPEED) end
-                task.wait(0.05)
-            end
-            if not reachedTree then continue end
-            if findTyrant() or not Tasks.tyrant then break end
-            for shot=1,6 do
-                if not Tasks.tyrant or findTyrant() then break end
-                fireGuitarAt(treePos) task.wait(0.4)
-            end
+            task.wait(3)
+            equipGuitarNow()
+            hrp = getHRP(LP.Character) if not hrp then break end
+            local oldBV = hrp:FindFirstChild("TyrantGuitarBV")
+            if oldBV then oldBV:Destroy() end
+            bv = makeBV(hrp, "TyrantGuitarBV")
         end
+
+        local char = LP.Character
+        if char and not char:FindFirstChild("Skull Guitar") then
+            bv.Velocity = Vector3.zero
+            equipGuitarNow()
+        end
+
+        snapY(treePos)
+        hrp = getHRP(LP.Character) if not hrp then break end
+
+        local reachedTree = false
+        while not reachedTree do
+            if not Tasks.tyrant or findTyrant() then bv.Velocity=Vector3.zero; break end
+            while F.eliteInterrupt and Tasks.tyrant do bv.Velocity=Vector3.zero; task.wait(0.5) end
+            if not isAlive(LP.Character) then bv.Velocity=Vector3.zero; break end
+            hrp = getHRP(LP.Character) if not hrp then break end
+            local d = (hrp.Position - treePos).Magnitude
+            if d < 8 then
+                bv.Velocity = Vector3.zero
+                reachedTree = true
+            else
+                bv.Velocity = (treePos - hrp.Position).Unit * math.clamp(d*7, 40, SPEED)
+            end
+            task.wait(0.05)
+        end
+
+        if not reachedTree then
+            tIdx = (tIdx % #trees) + 1
+            continue
+        end
+
+        if findTyrant() or not Tasks.tyrant then break end
+
+        fireGuitarAt(treePos)
         task.wait(0.1)
+
+        tIdx = (tIdx % #trees) + 1
     end
     destroyBV(bv)
 
-    if wasAutoEquip then S.AutoEquipEnabled=true startAutoEquip() end
-    -- เปิด BringMob คืนหลังเล่นกีต้าเสร็จ
-    if wasBringMob then
-        S.BringMobEnabled=true
-        startMobNoclip()
-        startBringMob(nil)
-        if Refs.bringMobToggle then task.delay(0.1, function() Refs.bringMobToggle:Set(true) end) end
-    end
-
+    restoreState()
     return Tasks.tyrant ~= nil
 end
 
@@ -2632,10 +2730,10 @@ end
 
 local function acceptTyrantQuest(idx)
     pcall(function() RS.Remotes.CommF_:InvokeServer("StartQuest","TikiQuest3",idx) end)
-    task.wait(0.5)
+    task.wait(0.1)
     if not isQuestActive() then
         pcall(function() RS.Remotes.CommF_:InvokeServer("StartQuest","TikiQuest3",idx) end)
-        task.wait(0.5)
+        task.wait(0.1)
     end
 end
 
@@ -2646,35 +2744,63 @@ local function startTyrantFarm()
         enableNoclip()
         if S.BringMobEnabled and not Tasks.bringMob then F.tyrantBring=true startBringMob(nil) end
         local questIdx=1
+
         local function waitAndAcceptQuest()
             while F.eliteInterrupt and Tasks.tyrant do task.wait(0.5) end
             if not isQuestActive() then
                 if tweenToTyrantQuestNPC() and Tasks.tyrant then
-                    task.wait(0.3) acceptTyrantQuest(questIdx)
+                    acceptTyrantQuest(questIdx)
                 end
             end
         end
+
+        local function resumeAfterQuest()
+            if not Tasks.tyrant then return false end
+            local existingTyrant = findTyrant()
+            if existingTyrant and existingTyrant.enemy and existingTyrant.enemy.Parent and isAlive(existingTyrant.enemy) then
+                notify("Tyrant","Resuming boss fight after quest accepted",3)
+                local p3ok, bossKilled = tyrantPhase3()
+                if not p3ok or not Tasks.tyrant then return false end
+                if bossKilled then
+                    questIdx=(questIdx==1) and 2 or 1
+                    waitAndAcceptQuest()
+                    if not Tasks.tyrant then return false end
+                end
+                return true
+            end
+            if not allEyesActivated() then
+                return false
+            end
+            return false
+        end
+
         while Tasks.tyrant do
             while F.eliteInterrupt and Tasks.tyrant do task.wait(0.5) end
             if not Tasks.tyrant then break end
             while not isAlive(LP.Character) and Tasks.tyrant do task.wait(0.5) end
             if not Tasks.tyrant then break end
-            task.wait(2)
             if not isAlive(LP.Character) then continue end
             waitAndAcceptQuest()
             if not Tasks.tyrant then break end
+
+            if resumeAfterQuest() then continue end
+
             if not goToStartPos() then break end
             if not tyrantPhase1() or not Tasks.tyrant then break end
             if not isQuestActive() then
                 questIdx=(questIdx==1) and 2 or 1
                 waitAndAcceptQuest()
-                if not Tasks.tyrant then break end continue
+                if not Tasks.tyrant then break end
+                if resumeAfterQuest() then continue end
+                continue
             end
             if not tyrantPhase2() or not Tasks.tyrant then break end
             if not isQuestActive() then
                 questIdx=(questIdx==1) and 2 or 1
                 waitAndAcceptQuest()
-                if not Tasks.tyrant then break end continue
+                if not Tasks.tyrant then break end
+                if resumeAfterQuest() then continue end
+                continue
             end
             local tyrantBoss=findTyrant()
             if not tyrantBoss then
@@ -2692,7 +2818,9 @@ local function startTyrantFarm()
             if not isQuestActive() then
                 questIdx=(questIdx==1) and 2 or 1
                 waitAndAcceptQuest()
-                if not Tasks.tyrant then break end continue
+                if not Tasks.tyrant then break end
+                if resumeAfterQuest() then continue end
+                continue
             end
             if tyrantBoss and tyrantBoss.enemy and tyrantBoss.enemy.Parent then
                 if S.BringMobEnabled then
@@ -2704,7 +2832,9 @@ local function startTyrantFarm()
                 if bossKilled then
                     questIdx=(questIdx==1) and 2 or 1
                     waitAndAcceptQuest()
-                    if not Tasks.tyrant then break end continue
+                    if not Tasks.tyrant then break end
+                    if resumeAfterQuest() then continue end
+                    continue
                 end
             end
             local qWait=tick()
@@ -2715,7 +2845,9 @@ local function startTyrantFarm()
             if not isQuestActive() then
                 questIdx=(questIdx==1) and 2 or 1
                 waitAndAcceptQuest()
-                if not Tasks.tyrant then break end continue
+                if not Tasks.tyrant then break end
+                if resumeAfterQuest() then continue end
+                continue
             end
             questIdx=(questIdx==1) and 2 or 1
         end
@@ -2748,7 +2880,6 @@ local function stopTyrantFarm()
     saveSettings()
 end
 
--- ===== UI =====
 local Window = WindUI:CreateWindow({
     Title="Blox Fruit | By Index", Icon="solar:star-bold-duotone",
     Folder="MainFarm", NewElements=true,
@@ -3052,7 +3183,7 @@ do
         for _, clone in ipairs(storedEffects) do pcall(function() clone.Parent=fpsContainer end) end
         storedEffects={}
     end
-    FpsS:Toggle({Title="FPS Boost V1 (Clear Effects)", Value=false, Callback=function(v)
+    FpsS:Toggle({Title="FPS Boost V1 (Clear Effects) (Lots of bugs game issue not script) (Not recommended)", Value=false, Callback=function(v)
         fpsBoostEnabled=v
         if v then
             if not fpsContainer then
@@ -3135,7 +3266,6 @@ do
     end
 end
 
--- ===== STARTUP =====
 if S.AutoBusoEnabled then startAutoBuso() end
 if S.DamageAuraEnabled then startDamageAura() end
 if S.AutoEquipEnabled then startAutoEquip() end
