@@ -647,7 +647,7 @@ local function fireDamage(part)
     local regAtk = net:FindFirstChild("RE/RegisterAttack")
     local regHit = net:FindFirstChild("RE/RegisterHit")
     if regAtk and regHit then
-        pcall(function() regAtk:FireServer(0.5) regHit:FireServer(part, {}, "196f522a") end)
+        pcall(function() regAtk:FireServer(0.01) regHit:FireServer(part, {}, "196f522a") end)
     end
 end
 
@@ -3164,7 +3164,7 @@ do
     local fpsBoostEnabled=false; local storedEffects={}; local fpsBoostConn=nil; local fpsContainer=nil
     local fpsV2Enabled=false; local fpsV2Conn=nil; local fpsCapEnabled=false; local currentFpsCap=120
     local function shouldRemove(child)
-        return not ((child:IsA("Folder") and child.Name=="SoulGuitar") or (child:IsA("ModuleScript") and child.Name=="TreeBreak"))
+        return not ((child:IsA("ModuleScript") and child.Name=="TreeBreak"))
     end
     local function enableFpsBoost()
         if not fpsContainer then return end
