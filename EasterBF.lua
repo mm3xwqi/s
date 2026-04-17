@@ -16,9 +16,36 @@ do
         local oldIdx = mt.__index
         local oldNew = mt.__newindex
         local oldNC = mt.__namecall
+        
         mt.__index = newc(function(s, k) return oldIdx(s, k) end)
         mt.__newindex = newc(function(s, k, v) return oldNew(s, k, v) end)
-        mt.__namecall = newc(function(s, ...) return oldNC(s, ...) end)
+        
+        mt.__namecall = newc(function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
+            
+            if method == "FireServer" and S.AutoSkill.SilentAim then
+                local char = LP.Character
+                if char then
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    if tool and (self.Parent == tool or self:IsDescendantOf(tool)) then
+                        -- ใช้ cache จาก getClosestEnemy
+                        local closest = getClosestEnemy() -- ฟังก์ชันนี้มี cache ในตัวแล้ว
+                        if closest and closest.part then
+                            for i, v in ipairs(args) do
+                                if typeof(v) == "Vector3" then
+                                    args[i] = closest.part.Position
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            return oldNC(self, unpack(args))
+        end)
+        
         setreadonly(mt, true)
     end
 end
@@ -62,6 +89,7 @@ fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
 fpsLabel.BackgroundTransparency = 1
 fpsLabel.Text = "FPS: Loading..."
 fpsLabel.Parent = displayFrame
+
 local pingLabel = Instance.new("TextLabel")
 pingLabel.Size = UDim2.new(1, -20, 0, 40)
 pingLabel.Position = UDim2.new(0, 10, 0, 50)
@@ -141,6 +169,12 @@ do
     end
 end
 
+local enemyCache = {
+    data = nil,
+    lastUpdate = 0,
+    updateInterval = 0.3,
+}
+
 local RunService = game:GetService("RunService")
 local VIM = game:GetService("VirtualInputManager")
 local VU = game:GetService("VirtualUser")
@@ -154,6 +188,7 @@ local Tasks = {
     grabFruit=nil, farmAura=nil, farmSelect=nil, farmLevel=nil,
     stat={}, randomFruit=nil, awakening=nil, raceAbil=nil,
     storeFruit=nil, dungeon=nil, autoRetry=nil, tyrant=nil, bringMob=nil,
+    autoSkill = nil,
 }
 
 local F = {
@@ -186,6 +221,17 @@ local S = {
     AutoAwakeningEnabled=false, AutoRaceAbilEnabled=false,
     AutoStoreFruitEnabled=false, AutoDungeonEnabled=false, DungeonCardPriority={},
     DoubleQuestEnabled=false, VIMClickEnabled=false, AutoEliteEnabled=false,
+    AutoSkill = {
+        Enabled = false,
+        SilentAim = false,
+        Keys = {
+            Z = {Enabled = false, HoldTime = 0.1, Cooldown = 2.0, LastUsed = 0},
+            X = {Enabled = false, HoldTime = 0.1, Cooldown = 2.0, LastUsed = 0},
+            C = {Enabled = false, HoldTime = 0.1, Cooldown = 2.0, LastUsed = 0},
+            V = {Enabled = false, HoldTime = 0.1, Cooldown = 2.0, LastUsed = 0},
+            F = {Enabled = false, HoldTime = 0.1, Cooldown = 2.0, LastUsed = 0},
+        }
+    },
 }
 local SPEED = 350
 local lastNotifiedTarget = nil
@@ -218,7 +264,15 @@ local function saveSettings()
             AutoDungeonEnabled=S.AutoDungeonEnabled, DoubleQuestEnabled=S.DoubleQuestEnabled,
             VIMClickEnabled=S.VIMClickEnabled, AutoEliteEnabled=S.AutoEliteEnabled,
             DungeonCardPriorityJSON=dcpOk and dcpJson or "[]",
+            -- AutoSkill settings
+            AutoSkillEnabled = S.AutoSkill.Enabled,
+            AutoSkillSilentAim = S.AutoSkill.SilentAim,
         }
+        for k, v in pairs(S.AutoSkill.Keys) do
+            d["AutoSkill_"..k.."_Enabled"] = v.Enabled
+            d["AutoSkill_"..k.."_Hold"] = v.HoldTime
+            d["AutoSkill_"..k.."_CD"] = v.Cooldown
+        end
         writefile(SETTINGS_KEY .. "_main.json", HttpService:JSONEncode(d))
     end)
 end
@@ -255,6 +309,16 @@ do
     S.AutoRandomFruitEnabled=gs("AutoRandomFruitEnabled",false); S.AutoDungeonEnabled=gs("AutoDungeonEnabled",false)
     S.DoubleQuestEnabled=gs("DoubleQuestEnabled",false); S.VIMClickEnabled=gs("VIMClickEnabled",false)
     S.AutoEliteEnabled=gs("AutoEliteEnabled",false); SPEED=gs("SPEED",350)
+    
+    -- Load AutoSkill settings
+    S.AutoSkill.Enabled = gs("AutoSkillEnabled", false)
+    S.AutoSkill.SilentAim = gs("AutoSkillSilentAim", false)
+    for _, k in ipairs({"Z","X","C","V","F"}) do
+        S.AutoSkill.Keys[k].Enabled = gs("AutoSkill_"..k.."_Enabled", false)
+        S.AutoSkill.Keys[k].HoldTime = gs("AutoSkill_"..k.."_Hold", 0.1)
+        S.AutoSkill.Keys[k].Cooldown = gs("AutoSkill_"..k.."_CD", 2.0)
+    end
+    
     local dcpStr = gs("DungeonCardPriorityJSON",nil)
     if dcpStr and dcpStr ~= "" then
         local ok3, dcp = pcall(HttpService.JSONDecode, HttpService, dcpStr)
@@ -270,6 +334,18 @@ local function isAlive(m)
     if not m or not m.Parent then return false end
     local h = getHum(m)
     return h and h.Health > 0
+end
+local function isPropDead(e)
+    if not e or not e.Parent then return true end
+    local h = getHum(e)
+    if h then return h.Health <= 0 end
+    local healthVal = e:FindFirstChild("Health")
+    if healthVal and (healthVal:IsA("NumberValue") or healthVal:IsA("IntValue")) then
+        return healthVal.Value <= 0
+    end
+    local hrpE = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
+    if not hrpE then return true end
+    return false
 end
 local function isPC(m)
     for _, p in ipairs(Players:GetPlayers()) do if p.Character == m then return true end end
@@ -309,6 +385,47 @@ local function snapY(targetPos)
     end
 end
 local function cleanName(n) return (n:match("^(.-)%s*%[") or n):match("^%s*(.-)%s*$") end
+
+local function pressKey(key, holdDuration)
+    holdDuration = holdDuration or 0.1
+    local keyCode = Enum.KeyCode[key]
+    pcall(function()
+        VIM:SendKeyEvent(true, keyCode, false, game)
+        if holdDuration > 0 then
+            task.wait(holdDuration)
+        end
+        VIM:SendKeyEvent(false, keyCode, false, game)
+    end)
+end
+
+local function startAutoSkill()
+    if Tasks.autoSkill then return end
+    Tasks.autoSkill = task.spawn(function()
+        while S.AutoSkill.Enabled do
+            for key, data in pairs(S.AutoSkill.Keys) do
+                if data.Enabled then
+                    local now = tick()
+                    if now - data.LastUsed >= data.Cooldown then
+                        data.LastUsed = now
+                        task.spawn(function()
+                            pressKey(key, data.HoldTime)
+                        end)
+                    end
+                end
+            end
+            task.wait(0.1)
+        end
+        Tasks.autoSkill = nil
+    end)
+end
+
+local function stopAutoSkill()
+    S.AutoSkill.Enabled = false
+    if Tasks.autoSkill then
+        task.cancel(Tasks.autoSkill)
+        Tasks.autoSkill = nil
+    end
+end
 
 local function dungeonAnchor()
     local hrp = getHRP(LP.Character) if not hrp then return end
@@ -652,19 +769,54 @@ local function fireDamage(part)
 end
 
 local function getClosestEnemy()
-    local hrp = getHRP(LP.Character) if not hrp then return nil end
-    local ef = workspace:FindFirstChild("Enemies") if not ef then return nil end
-    local cl, cd = nil, math.huge
+    local now = tick()
+    if enemyCache.data and (now - enemyCache.lastUpdate) < enemyCache.updateInterval then
+        -- ตรวจสอบว่า enemy ใน cache ยังมีชีวิตอยู่หรือไม่ (แบบรวดเร็ว)
+        local cached = enemyCache.data
+        if cached and cached.enemy and cached.enemy.Parent and isAlive(cached.enemy) then
+            return cached
+        end
+    end
+    
+    -- คำนวณใหม่เมื่อเลยเวลาหรือ enemy เดิมตาย
+    local hrp = getHRP(LP.Character)
+    if not hrp then 
+        enemyCache.data = nil
+        return nil 
+    end
+    
+    local ef = workspace:FindFirstChild("Enemies")
+    if not ef then 
+        enemyCache.data = nil
+        return nil 
+    end
+    
+    local closestEnemy = nil
+    local closestPart = nil
+    local closestDist = math.huge
+    
     for _, e in ipairs(ef:GetChildren()) do
         if e and e.Parent and isAlive(e) then
             local p = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
             if p then
-                local d = (hrp.Position-p.Position).Magnitude
-                if d < cd then cd=d cl={enemy=e, part=p, dist=d} end
+                local d = (hrp.Position - p.Position).Magnitude
+                if d < closestDist then
+                    closestDist = d
+                    closestEnemy = e
+                    closestPart = p
+                end
             end
         end
     end
-    return cl
+    
+    if closestEnemy then
+        enemyCache.data = {enemy = closestEnemy, part = closestPart, dist = closestDist}
+        enemyCache.lastUpdate = now
+        return enemyCache.data
+    else
+        enemyCache.data = nil
+        return nil
+    end
 end
 
 local mobData = {}
@@ -1990,9 +2142,9 @@ local function getDungeonEnemies()
     local list = {}
     for _, e in ipairs(ef:GetChildren()) do
         if e and e.Parent and not isPC(e) then
-            if cleanName(e.Name)=="Blank Buddy" then continue end
+            if cleanName(e.Name)=="Blank Buddy" or cleanName(e.Name)=="Player" then continue end
             local isProp = (e.Name=="PropHitboxPlaceholder")
-            if isProp or isAlive(e) then
+            if isAlive(e) then
                 local p = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChildWhichIsA("BasePart")
                 if p then table.insert(list,{enemy=e, part=p, isProp=isProp}) end
             end
@@ -2000,6 +2152,7 @@ local function getDungeonEnemies()
     end
     return list
 end
+
 local function findDungeonProp()
     local ef = workspace:FindFirstChild("Enemies") if not ef then return nil end
     for _, e in ipairs(ef:GetChildren()) do
@@ -2076,6 +2229,7 @@ end
 local function startAutoDungeon()
     if Tasks.dungeon then return end
     S.AutoDungeonEnabled = true
+    saveSettings()
     Tasks.dungeon = task.spawn(function()
         enableNoclip()
         if not S.BringMobEnabled then
@@ -2086,19 +2240,72 @@ local function startAutoDungeon()
 
         local lastUsedExitObj = nil
         local lastExitTime = 0
+        local needsExitAfterDeath = false
+
+        local function doRespawnRecovery()
+            while not isAlive(LP.Character) and S.AutoDungeonEnabled do task.wait(0.5) end
+            if not S.AutoDungeonEnabled then return false end
+            task.wait(1.5)
+            enableNoclip()
+            local hrp = getHRP(LP.Character)
+            if hrp then
+                for _, n in ipairs({"DungeonFarmBV","DungeonExitBV","DungeonKillBV"}) do
+                    local o = hrp:FindFirstChild(n) if o then destroyBV(o) end
+                end
+            end
+            return true
+        end
+
+        local function handleExitAfterDeath()
+            for attempt = 1, 5 do
+                if not S.AutoDungeonEnabled then return end
+                if not isAlive(LP.Character) then
+                    if not doRespawnRecovery() then return end
+                end
+                local exitInfo = findNearestExit()
+                if not exitInfo then return end
+                notify("Dungeon", "Going to exit after death ("..attempt..")", 3)
+                local ok = tweenToExitAndTouch(exitInfo)
+                if ok then return end
+                if not isAlive(LP.Character) then
+                    if not doRespawnRecovery() then return end
+                else
+                    return
+                end
+            end
+        end
 
         while S.AutoDungeonEnabled do
             while F.eliteInterrupt and S.AutoDungeonEnabled do task.wait(0.5) end
             if not S.AutoDungeonEnabled then break end
-            while not isAlive(LP.Character) and S.AutoDungeonEnabled do task.wait(0.5) end
-            if not S.AutoDungeonEnabled then break end
+
+            if not isAlive(LP.Character) then
+                needsExitAfterDeath = true
+                if not doRespawnRecovery() then break end
+            end
+
             local hrpCheck = getHRP(LP.Character) if not hrpCheck then task.wait(0.5) continue end
+
             if isDungeonCardScreenVisible() then autoPickDungeonCard() task.wait(1) continue end
+
+            if needsExitAfterDeath then
+                needsExitAfterDeath = false
+                handleExitAfterDeath()
+                enableNoclip()
+                if S.BringMobEnabled and not Tasks.bringMob then
+                    startMobNoclip() startBringMob(nil)
+                end
+                task.wait(0.3)
+                continue
+            end
+
             local propPriority = findDungeonProp()
             local enemies = getDungeonEnemies()
+
             if #enemies > 0 then
                 lastUsedExitObj = nil
                 local hrp = getHRP(LP.Character) if not hrp then task.wait(0.5) continue end
+
                 local attackTarget = propPriority
                 if not attackTarget then
                     local closest, closestDist = nil, math.huge
@@ -2110,55 +2317,87 @@ local function startAutoDungeon()
                     end
                     if not attackTarget then attackTarget=closest end
                 end
+
                 if attackTarget then
-                    S.CurrentFarmTarget=attackTarget.enemy
+                    S.CurrentFarmTarget = attackTarget.enemy
                     dungeonRelease()
                     local bv = makeBV(hrp, "DungeonFarmBV")
-                    while S.AutoDungeonEnabled do
+                    local innerDone = false
+
+                    if attackTarget.isProp then
+                        local p2 = attackTarget.enemy:FindFirstChild("HumanoidRootPart")
+                            or attackTarget.enemy:FindFirstChildWhichIsA("BasePart")
+                        if p2 then
+                            local tp2 = getPlayerTarget(p2.Position)
+                            local t0 = tick()
+                            while tick()-t0 < 5 do
+                                if not S.AutoDungeonEnabled then innerDone=true; break end
+                                if not isAlive(LP.Character) then
+                                    needsExitAfterDeath=true; innerDone=true; break
+                                end
+                                hrp = getHRP(LP.Character) if not hrp then innerDone=true; break end
+                                local d2 = (hrp.Position-tp2).Magnitude
+                                if d2 < 8 then bv.Velocity=Vector3.zero; break end
+                                bv.Velocity=(tp2-hrp.Position).Unit*math.clamp(d2*8,30,SPEED)
+                                task.wait(0.05)
+                            end
+                            if not innerDone then
+                                bv.Velocity=Vector3.zero
+                                local stayT = tick()
+                                while tick()-stayT < 1 do
+                                    if not S.AutoDungeonEnabled or not isAlive(LP.Character) then break end
+                                    hrp = getHRP(LP.Character) if not hrp then break end
+                                    for _, pt in ipairs(getNearbyEnemiesFiltered(50)) do fireDamage(pt) end
+                                    task.wait(0.05)
+                                end
+                                innerDone=true
+                            end
+                        else
+                            innerDone=true
+                        end
+                    end
+
+                    while S.AutoDungeonEnabled and not innerDone do
                         while F.eliteInterrupt and S.AutoDungeonEnabled do
                             bv.Velocity=Vector3.zero; dungeonAnchor(); task.wait(0.5); dungeonRelease()
                         end
-                        if not S.AutoDungeonEnabled then break end
-                        if isDungeonCardScreenVisible() then bv.Velocity=Vector3.zero; dungeonAnchor(); break end
+                        if not S.AutoDungeonEnabled then innerDone=true; break end
+                        if isDungeonCardScreenVisible() then
+                            bv.Velocity=Vector3.zero; dungeonAnchor(); innerDone=true; break
+                        end
                         if not isAlive(LP.Character) then
                             bv.Velocity=Vector3.zero; dungeonAnchor()
-                            while not isAlive(LP.Character) and S.AutoDungeonEnabled do task.wait(0.5) end
-                            if not S.AutoDungeonEnabled then break end
-                            task.wait(1); dungeonRelease()
-                            hrp = getHRP(LP.Character)
-                            if hrp then
-                                local exitAfterDeath = findNearestExit()
-                                if exitAfterDeath then
-                                    notify("Dungeon","Respawned - going to exit first",3)
-                                    tweenToExitAndTouch(exitAfterDeath)
-                                end
-                            end
-                            break
+                            needsExitAfterDeath = true
+                            innerDone=true; break
                         end
-                        local newProp = findDungeonProp()
-                        if newProp and newProp.enemy~=attackTarget.enemy then
-                            bv.Velocity=Vector3.zero; dungeonAnchor(); break
+
+                        local currentHrp = getHRP(LP.Character)
+                        if not currentHrp then innerDone=true; break end
+                        if currentHrp ~= hrp then
+                            pcall(function() bv.Velocity=Vector3.zero end)
+                            pcall(function() bv:Destroy() end)
+                            hrp = currentHrp
+                            bv = makeBV(hrp, "DungeonFarmBV")
+                            dungeonRelease()
                         end
-                        hrp = getHRP(LP.Character) if not hrp then break end
-                        if attackTarget.isProp then
-                            local propHum = getHum(attackTarget.enemy)
-                            if not attackTarget.enemy.Parent
-                                or (propHum and propHum.Health <= 0)
-                                or (not propHum and not attackTarget.enemy.Parent)
-                            then
-                                bv.Velocity=Vector3.zero; dungeonAnchor(); break
-                            end
-                            local newEnemies=getDungeonEnemies()
-                            local stillHasProp=false
-                            for _, e2 in ipairs(newEnemies) do if e2.enemy==attackTarget.enemy then stillHasProp=true break end end
-                            if not stillHasProp then bv.Velocity=Vector3.zero; dungeonAnchor(); break end
-                        else
-                            if not attackTarget.enemy or not attackTarget.enemy.Parent or not isAlive(attackTarget.enemy) then
-                                bv.Velocity=Vector3.zero; dungeonAnchor(); break
+
+                        if not attackTarget.enemy or not attackTarget.enemy.Parent or not isAlive(attackTarget.enemy) then
+                            bv.Velocity=Vector3.zero; dungeonAnchor(); innerDone=true; break
+                        end
+
+                        if not attackTarget.isProp then
+                            local newProp = findDungeonProp()
+                            if newProp and newProp.enemy ~= attackTarget.enemy then
+                                bv.Velocity=Vector3.zero; dungeonAnchor(); innerDone=true; break
                             end
                         end
-                        local p2 = attackTarget.enemy:FindFirstChild("HumanoidRootPart") or attackTarget.enemy:FindFirstChildWhichIsA("BasePart")
-                        if not p2 then bv.Velocity=Vector3.zero; dungeonAnchor(); break end
+
+                        local p2 = attackTarget.enemy:FindFirstChild("HumanoidRootPart")
+                            or attackTarget.enemy:FindFirstChildWhichIsA("BasePart")
+                        if not p2 then
+                            bv.Velocity=Vector3.zero; dungeonAnchor(); innerDone=true; break
+                        end
+
                         local tp2 = getPlayerTarget(p2.Position)
                         local d2 = (hrp.Position-tp2).Magnitude
                         if d2 < 8 then
@@ -2170,8 +2409,22 @@ local function startAutoDungeon()
                         end
                         task.wait(0.05)
                     end
-                    destroyBV(bv); dungeonAnchor(); task.wait(0.1); dungeonRelease()
-                    S.CurrentFarmTarget=nil
+
+                    pcall(function() bv.Velocity=Vector3.zero end)
+                    pcall(function() bv:Destroy() end)
+                    local freshHrp = getHRP(LP.Character)
+                    if freshHrp then
+                        local leftover = freshHrp:FindFirstChild("DungeonFarmBV")
+                        if leftover then destroyBV(leftover) end
+                    end
+                    dungeonAnchor(); task.wait(0.1); dungeonRelease()
+                    S.CurrentFarmTarget = nil
+
+                    if needsExitAfterDeath then
+                        if not isAlive(LP.Character) then
+                            if not doRespawnRecovery() then break end
+                        end
+                    end
                 end
             else
                 task.wait(0.3)
@@ -2182,7 +2435,7 @@ local function startAutoDungeon()
                     stopMobNoclip()
                 end
                 local exitInfo = findNearestExit()
-                if exitInfo and (exitInfo.obj == lastUsedExitObj or tick() - lastExitTime < 2) then
+                if exitInfo and (exitInfo.obj == lastUsedExitObj or tick()-lastExitTime < 2) then
                     exitInfo = nil
                 end
                 if exitInfo then
@@ -2194,18 +2447,20 @@ local function startAutoDungeon()
                         local hrpAfter = getHRP(LP.Character)
                         if hrpAfter then
                             for _, bvName in ipairs({"DungeonFarmBV","DungeonExitBV"}) do
-                                local old=hrpAfter:FindFirstChild(bvName) if old then destroyBV(old) end
+                                local old = hrpAfter:FindFirstChild(bvName) if old then destroyBV(old) end
                             end
                         end
                         task.wait(1.5)
                         local pollStart = tick()
                         while S.AutoDungeonEnabled and tick()-pollStart < 15 do
                             if isDungeonCardScreenVisible() then break end
-                            if #getDungeonEnemies() > 0 then
-                                lastUsedExitObj = nil
-                                break
-                            end
+                            if #getDungeonEnemies() > 0 then lastUsedExitObj=nil; break end
                             task.wait(0.1)
+                        end
+                    else
+                        if not isAlive(LP.Character) then
+                            needsExitAfterDeath = true
+                            if not doRespawnRecovery() then break end
                         end
                     end
                 else
@@ -2215,7 +2470,7 @@ local function startAutoDungeon()
                             pcall(function()
                                 game:GetService("ReplicatedStorage"):WaitForChild("DungeonShared"):WaitForChild("ReturnToHub"):FireServer()
                             end)
-                            retryTimer=tick()
+                            retryTimer = tick()
                         end
                         if #getDungeonEnemies() > 0 or findNearestExit() then break end
                         task.wait(0.5)
@@ -2227,6 +2482,7 @@ local function startAutoDungeon()
                 task.wait(0.3)
             end
         end
+
         dungeonRelease(); S.CurrentFarmTarget=nil
         if S.BringMobEnabled then
             cleanupMobs()
@@ -2236,6 +2492,7 @@ local function startAutoDungeon()
         Tasks.dungeon = nil
     end)
 end
+
 local function stopAutoDungeon()
     S.AutoDungeonEnabled=false
     if Tasks.dungeon then task.cancel(Tasks.dungeon) Tasks.dungeon=nil end
@@ -2250,7 +2507,7 @@ local function stopAutoDungeon()
     if S.BringMobEnabled then stopBringMob() end
     if Refs.bringMobToggle then Refs.bringMobToggle:Set(false) end
     saveSettings()
-end
+    end
 
 local TYRANT_MOBS = {"Isle Champion","Serpent Hunter","Skull Slayer","Sun-kissed Warrior"}
 local TYRANT_START_POS = Vector3.new(-16256,153,1400)
@@ -3093,6 +3350,62 @@ do
     end})
 end
 
+local SkillTab = Window:Tab({Title="Auto Skill", Icon="solar:keyboard-bold-duotone"})
+
+do
+    local MainS = SkillTab:Section({Title="Auto Skill Settings", Box=true, BoxBorder=true, Opened=true})
+    MainS:Toggle({
+        Title="Enable Auto Skill",
+        Value=S.AutoSkill.Enabled,
+        Callback=function(v)
+            S.AutoSkill.Enabled=v
+            if v then startAutoSkill() else stopAutoSkill() end
+            saveSettings()
+        end
+    })
+    MainS:Space()
+    MainS:Toggle({
+        Title="Silent Aim (Target Nearest Enemy)",
+        Value=S.AutoSkill.SilentAim,
+        Callback=function(v)
+            S.AutoSkill.SilentAim=v
+            saveSettings()
+        end
+    })
+    MainS:Space()
+    for _, key in ipairs({"Z","X","C","V","F"}) do
+        local KeyS = SkillTab:Section({Title="Skill Key: " .. key, Box=true, BoxBorder=true, Opened=false})
+        KeyS:Toggle({
+            Title="Enable " .. key,
+            Value=S.AutoSkill.Keys[key].Enabled,
+            Callback=function(v)
+                S.AutoSkill.Keys[key].Enabled=v
+                saveSettings()
+            end
+        })
+        KeyS:Space()
+        KeyS:Slider({
+            Title="Hold Time (seconds)",
+            Step=0.05,
+            Value={Min=0.05, Max=2.0, Default=S.AutoSkill.Keys[key].HoldTime},
+            Callback=function(v)
+                S.AutoSkill.Keys[key].HoldTime=v
+                saveSettings()
+            end
+        })
+        KeyS:Space()
+        KeyS:Slider({
+            Title="Cooldown (seconds)",
+            Step=0.5,
+            Value={Min=0.5, Max=10.0, Default=S.AutoSkill.Keys[key].Cooldown},
+            Callback=function(v)
+                S.AutoSkill.Keys[key].Cooldown=v
+                saveSettings()
+            end
+        })
+    end
+end
+
 local SetTab = Window:Tab({Title="Settings", Icon="solar:settings-bold-duotone"})
 
 do
@@ -3273,6 +3586,7 @@ for s2, en in pairs(S.AutoStatEnabled) do if en then startStat(s2) end end
 if S.AutoGrabFruitEnabled then startAutoGrabFruit() end
 if S.AutoStoreFruitEnabled then startAutoStoreFruit() end
 if S.AutoRandomFruitEnabled then startAutoRandomFruit() end
+if S.AutoSkill.Enabled then startAutoSkill() end
 
 task.delay(0.5, function()
     if S.AutoAwakeningEnabled and not Tasks.awakening then startAutoAwakening() end
