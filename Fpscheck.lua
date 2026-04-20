@@ -6,7 +6,6 @@ for _, v in ipairs(LP:WaitForChild("PlayerGui"):GetChildren()) do
     if v.Name == "PerfHUD" or v.Name == "PlayerCardHUD" then v:Destroy() end
 end
 
--- ─── PERF HUD (เดิม) ─────────────────────────────────────
 local HudGui = Instance.new("ScreenGui")
 HudGui.Name = "PerfHUD"
 HudGui.ResetOnSpawn = false
@@ -97,7 +96,6 @@ RunService.Heartbeat:Connect(function()
     pingVal.Text = tostring(ping).." ms"; pingVal.TextColor3 = c
 end)
 
--- ─── PLAYER CARD HUD ─────────────────────────────────────
 local CardGui = Instance.new("ScreenGui")
 CardGui.Name = "PlayerCardHUD"
 CardGui.ResetOnSpawn = false
@@ -123,7 +121,7 @@ local function newLabel(parent, text, size, color, font, xAlign, sizeUDim, pos)
     l.TextSize = size
     l.Font = font or Enum.Font.Gotham
     l.TextXAlignment = xAlign or Enum.TextXAlignment.Left
-    l.TextStrokeTransparency = 0.4  -- เพิ่ม stroke เพื่อให้อ่านง่ายขึ้น
+    l.TextStrokeTransparency = 0.4
     l.TextStrokeColor3 = Color3.new(0,0,0)
     return l
 end
@@ -140,7 +138,7 @@ end
 local PC = newFrame(CardGui,
     UDim2.new(0,230,0,268),
     UDim2.new(0,12,0,78),
-    Color3.fromRGB(10,10,18), 0.15,  -- ทึบขึ้น อ่านง่ายขึ้น
+    Color3.fromRGB(10,10,18), 0.15,
     UDim.new(0,12))
 
 local pcStroke = Instance.new("UIStroke", PC)
@@ -149,7 +147,6 @@ pcStroke.Thickness = 0.8
 pcStroke.Transparency = 0.85
 PC.Active = true; PC.Draggable = true
 
--- ── Avatar ──
 local avFrame = newFrame(PC,
     UDim2.new(0,50,0,50),
     UDim2.new(0,10,0,10),
@@ -169,22 +166,20 @@ local ok2, thumb = pcall(function()
 end)
 if ok2 then avImg.Image = thumb end
 
--- ── Name ──
-newLabel(PC, LP.DisplayName, 15, Color3.fromRGB(255,255,255),  -- ขาวสว่าง
+newLabel(PC, LP.DisplayName, 15, Color3.fromRGB(255,255,255),
     Enum.Font.GothamBold, Enum.TextXAlignment.Left,
     UDim2.new(0,158,0,18), UDim2.new(0,66,0,10))
-newLabel(PC, "@"..LP.Name, 10, Color3.fromRGB(180,180,210),    -- สว่างขึ้น
+newLabel(PC, "@"..LP.Name, 10, Color3.fromRGB(180,180,210),
     Enum.Font.Gotham, Enum.TextXAlignment.Left,
     UDim2.new(0,158,0,14), UDim2.new(0,66,0,30))
 
 newDivH(PC, 68)
 
--- ── Info stats 2x2 ──
 local infoStats = {
-    {tag="LEVEL",     key="Level",     color=Color3.fromRGB(255,215,60)},   -- เหลืองสว่าง
-    {tag="BELI",      key="Beli",      color=Color3.fromRGB(80,235,140)},   -- เขียวสว่าง
-    {tag="FRAGMENTS", key="Fragments", color=Color3.fromRGB(120,185,255)},  -- ฟ้าสว่าง
-    {tag="RACE",      key="Race",      color=Color3.fromRGB(210,150,255)},  -- ม่วงสว่าง
+    {tag="LEVEL",     key="Level",     color=Color3.fromRGB(255,215,60)},
+    {tag="BELI",      key="Beli",      color=Color3.fromRGB(80,235,140)},
+    {tag="FRAGMENTS", key="Fragments", color=Color3.fromRGB(200,130,255)},
+    {tag="RACE",      key="Race",      color=Color3.fromRGB(210,150,255)},
 }
 local infoLabels = {}
 for i, s in ipairs(infoStats) do
@@ -192,7 +187,7 @@ for i, s in ipairs(infoStats) do
     local row = (i<=2) and 0 or 1
     local x = 10 + col*112
     local y = 76 + row*28
-    newLabel(PC, s.tag, 9, Color3.fromRGB(180,180,210),  -- tag สว่างขึ้น
+    newLabel(PC, s.tag, 9, Color3.fromRGB(180,180,210),
         Enum.Font.GothamBold, Enum.TextXAlignment.Left,
         UDim2.new(0,105,0,11), UDim2.new(0,x,0,y))
     local vl = newLabel(PC, "...", 14, s.color,
@@ -208,12 +203,10 @@ vs.BackgroundTransparency = 0.88; vs.BorderSizePixel = 0
 
 newDivH(PC, 136)
 
--- ── Combat header ──
-newLabel(PC, "COMBAT STATS", 10, Color3.fromRGB(200,200,230),  -- สว่างขึ้น
+newLabel(PC, "COMBAT STATS", 10, Color3.fromRGB(200,200,230),
     Enum.Font.GothamBold, Enum.TextXAlignment.Left,
     UDim2.new(1,-16,0,12), UDim2.new(0,10,0,142))
 
--- ── Combat rows ──
 local combatStats = {
     {tag="Melee",       icon="👊", color=Color3.fromRGB(255,175,90)},
     {tag="Defense",     icon="🛡",  color=Color3.fromRGB(120,190,255)},
@@ -226,7 +219,6 @@ local combatLabels = {}
 for i, s in ipairs(combatStats) do
     local y = 158 + (i-1)*22
 
-    -- icon
     local ico = Instance.new("TextLabel", PC)
     ico.Size = UDim2.new(0,20,0,20)
     ico.Position = UDim2.new(0,8,0,y)
@@ -237,26 +229,22 @@ for i, s in ipairs(combatStats) do
     ico.TextXAlignment = Enum.TextXAlignment.Center
     ico.TextStrokeTransparency = 1
 
-    -- tag label สว่างขึ้น
     newLabel(PC, s.tag, 12, Color3.fromRGB(220,220,240),
         Enum.Font.GothamBold, Enum.TextXAlignment.Left,
         UDim2.new(0,100,0,20), UDim2.new(0,30,0,y))
 
-    -- bar bg
     local barBg = newFrame(PC,
         UDim2.new(0,95,0,4),
         UDim2.new(0,30,0,y+17),
         Color3.fromRGB(50,50,70), 0,
         UDim.new(1,0))
 
-    -- bar fill
     local barFill = newFrame(barBg,
         UDim2.new(0,0,1,0),
         UDim2.new(0,0,0,0),
         s.color, 0,
         UDim.new(1,0))
 
-    -- value สว่างขึ้น
     local vl = newLabel(PC, "...", 12, s.color,
         Enum.Font.GothamBold, Enum.TextXAlignment.Right,
         UDim2.new(0,50,0,20), UDim2.new(0,174,0,y))
@@ -264,9 +252,18 @@ for i, s in ipairs(combatStats) do
     combatLabels[s.tag] = {label=vl, bar=barFill}
 end
 
--- ── Data updater ──
-local function fmt(v)
+local NO_ABBREV = {Beli=true, Fragments=true}
+
+local function addCommas(n)
+    local s = tostring(math.floor(n))
+    return s:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+end
+
+local function fmt(v, key)
     if type(v)=="number" then
+        if NO_ABBREV[key] then
+            return addCommas(v)
+        end
         if v>=1e6 then return string.format("%.1fM",v/1e6)
         elseif v>=1e3 then return string.format("%.1fK",v/1e3)
         else return tostring(math.floor(v)) end
@@ -281,7 +278,7 @@ local function updateData()
     if not Data then return end
     for _, k in ipairs({"Level","Beli","Fragments","Race"}) do
         local c = Data:FindFirstChild(k)
-        if c and infoLabels[k] then infoLabels[k].Text = fmt(c.Value) end
+        if c and infoLabels[k] then infoLabels[k].Text = fmt(c.Value, k) end
     end
     local Stats = Data:FindFirstChild("Stats")
     if not Stats then return end
