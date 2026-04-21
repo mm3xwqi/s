@@ -183,7 +183,7 @@ mainGui.ResetOnSpawn = false
 mainGui.Parent = lp:WaitForChild("PlayerGui")
 
 local CARD_W = 260
-local FULL_H  = 490
+local FULL_H  = 540   -- เพิ่มความสูงเพื่อรองรับปุ่ม ESP
 local MINI_H  = 56
 
 -- main card
@@ -460,6 +460,258 @@ bLabel("💰×2", 11, Color3.fromRGB(255, 200, 60), Enum.Font.GothamBold,
 	Enum.TextXAlignment.Center, UDim2.new(0, 28, 0, 16), UDim2.new(0, 8, 0, QY + 174))
 local qBeli2 = bLabel("---", 11, Color3.fromRGB(255, 200, 60), Enum.Font.GothamBold,
 	Enum.TextXAlignment.Left, UDim2.new(1, -40, 0, 16), UDim2.new(0, 38, 0, QY + 174))
+
+-- ===== ESP TOGGLE BUTTON =====
+
+local ESP_Y = QY + 200
+bDiv(ESP_Y)
+
+bLabel("👁  ESP", 10, Color3.fromRGB(255, 100, 100), Enum.Font.GothamBold,
+	Enum.TextXAlignment.Left, UDim2.new(0, 60, 0, 16), UDim2.new(0, 8, 0, ESP_Y + 10))
+
+local espEnabled = true
+
+local espBtn = Instance.new("TextButton", body)
+espBtn.Size = UDim2.new(0, 80, 0, 22)
+espBtn.Position = UDim2.new(1, -92, 0, ESP_Y + 8)
+espBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+espBtn.BorderSizePixel = 0
+espBtn.Text = "ON"
+espBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+espBtn.TextSize = 11
+espBtn.Font = Enum.Font.GothamBold
+espBtn.AutoButtonColor = false
+Instance.new("UICorner", espBtn).CornerRadius = UDim.new(0, 4)
+local espBtnSt = Instance.new("UIStroke", espBtn)
+espBtnSt.Color = Color3.fromRGB(255, 255, 255)
+espBtnSt.Thickness = 0.6
+espBtnSt.Transparency = 0.7
+
+-- ===== ESP SYSTEM =====
+
+-- สีและค่า Highlight
+local ESP_FILL_COLOR    = Color3.fromRGB(255, 60, 60)   -- สีเติมมอน (แดง)
+local ESP_OUTLINE_COLOR = Color3.fromRGB(255, 140, 140) -- สีขอบมอน
+local SELF_FILL_COLOR   = Color3.fromRGB(60, 220, 120)  -- สีเติมตัวเรา (เขียว)
+local SELF_OUTLINE_COLOR= Color3.fromRGB(140, 255, 180) -- สีขอบตัวเรา
+local BILL_DIST_COLOR   = Color3.fromRGB(255, 200, 60)  -- สีแสดงระยะทาง
+
+local espObjects = {}  -- { highlight, billboard, model }
+
+-- ลบ ESP ของมอนตัวนั้น
+local function removeESP(model)
+	if espObjects[model] then
+		if espObjects[model].highlight and espObjects[model].highlight.Parent then
+			espObjects[model].highlight:Destroy()
+		end
+		if espObjects[model].billboard and espObjects[model].billboard.Parent then
+			espObjects[model].billboard:Destroy()
+		end
+		espObjects[model] = nil
+	end
+end
+
+-- สร้าง Billboard แสดงชื่อ + ระยะห่าง
+local function makeBillboard(model)
+	local root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
+	if not root then return nil end
+
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "ESP_Billboard"
+	bb.Size = UDim2.new(0, 120, 0, 38)
+	bb.StudsOffset = Vector3.new(0, 3.5, 0)
+	bb.AlwaysOnTop = true
+	bb.Adornee = root
+	bb.Parent = root
+
+	-- พื้นหลังโปร่งใส
+	local bg = Instance.new("Frame", bb)
+	bg.Size = UDim2.new(1, 0, 1, 0)
+	bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	bg.BackgroundTransparency = 0.55
+	bg.BorderSizePixel = 0
+	Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 5)
+
+	-- ชื่อมอน
+	local nameLabel = Instance.new("TextLabel", bg)
+	nameLabel.Name = "NameLabel"
+	nameLabel.Size = UDim2.new(1, -4, 0, 18)
+	nameLabel.Position = UDim2.new(0, 2, 0, 2)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = model.Name
+	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nameLabel.TextSize = 11
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+	nameLabel.TextStrokeTransparency = 0.3
+	nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+
+	-- ระยะห่าง
+	local distLabel = Instance.new("TextLabel", bg)
+	distLabel.Name = "DistLabel"
+	distLabel.Size = UDim2.new(1, -4, 0, 14)
+	distLabel.Position = UDim2.new(0, 2, 0, 20)
+	distLabel.BackgroundTransparency = 1
+	distLabel.Text = "? studs"
+	distLabel.TextColor3 = BILL_DIST_COLOR
+	distLabel.TextSize = 10
+	distLabel.Font = Enum.Font.Gotham
+	distLabel.TextXAlignment = Enum.TextXAlignment.Center
+	distLabel.TextStrokeTransparency = 0.4
+	distLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+
+	return bb
+end
+
+-- สร้าง Highlight + Billboard ให้มอนหนึ่งตัว
+local function addESP(model)
+	if espObjects[model] then return end
+	if not model:FindFirstChildWhichIsA("Humanoid") then return end
+
+	local hl = Instance.new("Highlight")
+	hl.Name = "ESP_Highlight"
+	hl.FillColor = ESP_FILL_COLOR
+	hl.OutlineColor = ESP_OUTLINE_COLOR
+	hl.FillTransparency = 0.55
+	hl.OutlineTransparency = 0
+	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Adornee = model
+	hl.Parent = model
+
+	local bb = makeBillboard(model)
+
+	espObjects[model] = { highlight = hl, billboard = bb, model = model }
+
+	-- ลบ ESP เมื่อมอนหายไป
+	model.AncestryChanged:Connect(function()
+		if not model:IsDescendantOf(game) then
+			removeESP(model)
+		end
+	end)
+end
+
+-- Highlight ตัวเราเอง
+local selfHL = nil
+local function applySelfHighlight()
+	if selfHL and selfHL.Parent then selfHL:Destroy() end
+	local char = lp.Character
+	if not char then return end
+	local hl = Instance.new("Highlight")
+	hl.Name = "ESP_SelfHighlight"
+	hl.FillColor = SELF_FILL_COLOR
+	hl.OutlineColor = SELF_OUTLINE_COLOR
+	hl.FillTransparency = 0.65
+	hl.OutlineTransparency = 0
+	hl.DepthMode = Enum.HighlightDepthMode.Occluded  -- ไม่ทะลุกำแพง (แค่เรืองแสง)
+	hl.Adornee = char
+	hl.Parent = char
+	selfHL = hl
+end
+
+lp.CharacterAdded:Connect(function(char)
+	task.wait(0.5)
+	if espEnabled then applySelfHighlight() end
+end)
+
+-- สแกนมอนทั้งหมดที่มีอยู่แล้ว
+local function scanEnemies()
+	local enemies = workspace:FindFirstChild("Enemies")
+	if not enemies then return end
+	for _, model in ipairs(enemies:GetChildren()) do
+		if model:IsA("Model") and espEnabled then
+			addESP(model)
+		end
+	end
+end
+
+-- ฟังมอนใหม่ที่เกิด
+local function startESPListener()
+	local enemies = workspace:WaitForChild("Enemies", 10)
+	if not enemies then return end
+
+	enemies.ChildAdded:Connect(function(model)
+		task.wait(0.1)  -- รอให้ model โหลดครบ
+		if espEnabled and model:IsA("Model") then
+			addESP(model)
+		end
+	end)
+
+	enemies.ChildRemoved:Connect(function(model)
+		removeESP(model)
+	end)
+
+	scanEnemies()
+end
+
+-- ลบ ESP ทั้งหมด
+local function clearAllESP()
+	for model, _ in pairs(espObjects) do
+		removeESP(model)
+	end
+	if selfHL and selfHL.Parent then
+		selfHL:Destroy()
+		selfHL = nil
+	end
+end
+
+-- Toggle ESP
+espBtn.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	if espEnabled then
+		espBtn.Text = "ON"
+		espBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+		scanEnemies()
+		if lp.Character then applySelfHighlight() end
+	else
+		espBtn.Text = "OFF"
+		espBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+		clearAllESP()
+	end
+end)
+
+-- อัปเดตระยะห่างทุก heartbeat
+RunService.Heartbeat:Connect(function()
+	if not espEnabled then return end
+	local char = lp.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	local myPos = root.Position
+
+	for model, data in pairs(espObjects) do
+		if data.billboard and data.billboard.Parent then
+			local distLabel = data.billboard:FindFirstChild("Frame") and
+				data.billboard.Frame:FindFirstChild("DistLabel")
+			if distLabel then
+				local enemyRoot = model:FindFirstChild("HumanoidRootPart")
+				if enemyRoot then
+					local dist = math.floor((enemyRoot.Position - myPos).Magnitude)
+					distLabel.Text = tostring(dist) .. " studs"
+
+					-- สีเปลี่ยนตามระยะห่าง
+					if dist <= 30 then
+						distLabel.TextColor3 = Color3.fromRGB(255, 80, 80)   -- แดง = ใกล้มาก
+					elseif dist <= 80 then
+						distLabel.TextColor3 = Color3.fromRGB(255, 200, 60)  -- เหลือง = กลาง
+					else
+						distLabel.TextColor3 = Color3.fromRGB(160, 220, 255) -- ฟ้า = ไกล
+					end
+				end
+			end
+		else
+			-- billboard หาย ลบออกจาก table
+			espObjects[model] = nil
+		end
+	end
+end)
+
+-- เริ่มทำงาน
+task.spawn(startESPListener)
+if lp.Character then
+	task.spawn(function()
+		task.wait(0.5)
+		applySelfHighlight()
+	end)
+end
 
 -- ===== DATA UPDATER =====
 
