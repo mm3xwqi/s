@@ -10,7 +10,7 @@ end
 
 local isMobile = UIS.TouchEnabled and not UIS.KeyboardEnabled
 
-local FPS_CAP    = 25
+local FPS_CAP    = 60
 local _lastFrame = tick()
 
 local function applyFpsCap(cap)
