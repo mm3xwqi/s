@@ -29,13 +29,13 @@ local function cfgGetSub(key, sub, default)
 end
 
 for _, v in ipairs(lp:WaitForChild("PlayerGui"):GetChildren()) do
-	if v.Name == "BloxHUD" or v.Name == "BlackoutGui" then v:Destroy() end
+	if v.Name == "PerfHUD" or v.Name == "BloxHUD" or v.Name == "BlackoutGui" then v:Destroy() end
 end
 
 local isMobile = UIS.TouchEnabled and not UIS.KeyboardEnabled
 
 -- FPS cap (config only, no UI)
-local FPS_CAP = cfgGetSub("Lock Fps", "Enabled", false) and cfgGetSub("Lock Fps", "FPS", 60) or 60
+local FPS_CAP = cfgGetSub("Lock Fps", "Enabled", false) and cfgGetSub("Lock Fps", "FPS", 60) or 999
 local function applyFpsCap(cap)
 	if cap and cap > 0 then
 		if setfpscap then pcall(function() setfpscap(cap) end) return end
@@ -54,6 +54,7 @@ local function setBoost(state)
 	boostOn = state
 	local lighting = game:GetService("Lighting")
 	if state then
+		pcall(function() lp.PlayerGui.Main.Enabled = false end)
 		_origLighting = {GlobalShadows=lighting.GlobalShadows,FogEnd=lighting.FogEnd,Brightness=lighting.Brightness}
 		pcall(function() lighting.GlobalShadows=false end)
 		pcall(function() lighting.FogEnd=9e8 end)
@@ -79,6 +80,7 @@ local function setBoost(state)
 		end
 		pcall(function() settings().Rendering.EagerBulkExecution=true end)
 	else
+		if not blackoutOn then pcall(function() lp.PlayerGui.Main.Enabled = true end) end
 		pcall(function() lighting.GlobalShadows=_origLighting.GlobalShadows end)
 		pcall(function() lighting.FogEnd=_origLighting.FogEnd end)
 		pcall(function() lighting.Brightness=_origLighting.Brightness end)
@@ -154,11 +156,13 @@ local blackoutOn = false
 local function setBlackout(state)
 	blackoutOn = state
 	if state then
+		pcall(function() lp.PlayerGui.Main.Enabled = false end)
 		blackFrame.Visible = true
 		wakeBtn.Visible = true
 		blackFrame.BackgroundTransparency = 1
 		TweenSvc:Create(blackFrame, TweenInfo.new(0.4,Enum.EasingStyle.Quad), {BackgroundTransparency=0}):Play()
 	else
+		if not boostOn then pcall(function() lp.PlayerGui.Main.Enabled = true end) end
 		wakeBtn.Visible = false
 		blackFrame.BackgroundTransparency = 1
 		blackFrame.Visible = false
@@ -227,6 +231,83 @@ local function parseQuestExp(raw)
 	end
 	return nil
 end
+
+-- ── PerfHUD (FPS / PING / TIME) ─────────────────────────────────────────────
+local perfGui = Instance.new("ScreenGui")
+perfGui.Name = "PerfHUD"; perfGui.ResetOnSpawn = false
+perfGui.DisplayOrder = 10
+perfGui.IgnoreGuiInset = true; perfGui.Parent = lp:WaitForChild("PlayerGui")
+
+local ROW1_W = isMobile and 280 or 260
+local ROW1_H = isMobile and 60 or 54
+local TS_TAG = isMobile and 11 or 10
+local TS_VAL = isMobile and 19 or 17
+
+local row1 = Instance.new("Frame")
+row1.Size = UDim2.new(0,ROW1_W,0,ROW1_H)
+row1.AnchorPoint = Vector2.new(0.5,0)
+row1.Position = UDim2.new(0.5,0,0, isMobile and 80 or 150)
+row1.BackgroundColor3 = Color3.fromRGB(14,14,24)
+row1.BackgroundTransparency = 0.3
+row1.BorderSizePixel = 0
+row1.Parent = perfGui
+Instance.new("UICorner",row1).CornerRadius = UDim.new(1,0)
+local r1St = Instance.new("UIStroke",row1)
+r1St.Color = Color3.fromRGB(255,255,255); r1St.Thickness = 1; r1St.Transparency = 0.82
+
+local SEC_W = math.floor(ROW1_W/3)
+local function makeSep1(x)
+	local f = Instance.new("Frame",row1)
+	f.Size = UDim2.new(0,1,0,26); f.Position = UDim2.new(0,x,0.5,-13)
+	f.BackgroundColor3 = Color3.fromRGB(255,255,255); f.BackgroundTransparency = 0.8; f.BorderSizePixel = 0
+end
+makeSep1(SEC_W); makeSep1(SEC_W*2)
+
+local function makeSection1(tag, col)
+	local tl = Instance.new("TextLabel",row1)
+	tl.Size = UDim2.new(0,SEC_W,0,16); tl.Position = UDim2.new(0,SEC_W*col,0,6)
+	tl.BackgroundTransparency = 1; tl.Text = tag; tl.TextColor3 = Color3.fromRGB(180,180,200)
+	tl.TextSize = TS_TAG; tl.Font = Enum.Font.GothamBold; tl.TextXAlignment = Enum.TextXAlignment.Center
+	tl.TextStrokeTransparency = 0.6; tl.TextStrokeColor3 = Color3.new(0,0,0)
+	local vl = Instance.new("TextLabel",row1)
+	vl.Size = UDim2.new(0,SEC_W,0,26); vl.Position = UDim2.new(0,SEC_W*col,0,ROW1_H-32)
+	vl.BackgroundTransparency = 1; vl.Text = "---"; vl.TextSize = TS_VAL
+	vl.Font = Enum.Font.GothamBold; vl.TextXAlignment = Enum.TextXAlignment.Center
+	vl.TextStrokeTransparency = 0.5; vl.TextStrokeColor3 = Color3.new(0,0,0)
+	return vl
+end
+
+local lblFps  = makeSection1("FPS",  0); lblFps.TextColor3  = Color3.fromRGB(74,222,128)
+local lblPing = makeSection1("PING", 1); lblPing.TextColor3 = Color3.fromRGB(250,200,40)
+local lblTime = makeSection1("TIME", 2); lblTime.TextColor3 = Color3.fromRGB(192,132,252)
+
+local startTime = tick()
+RunService.Heartbeat:Connect(function()
+	local e = math.floor(tick()-startTime)
+	lblTime.Text = e>=3600
+		and string.format("%d:%02d:%02d",math.floor(e/3600),math.floor((e%3600)/60),e%60)
+		or  string.format("%02d:%02d",math.floor(e/60),e%60)
+end)
+
+local frameCount,lastTick2 = 0,tick()
+RunService.RenderStepped:Connect(function()
+	frameCount += 1
+	local now = tick()
+	if now-lastTick2 >= 0.5 then
+		local fps = math.floor(frameCount/(now-lastTick2))
+		frameCount=0; lastTick2=now
+		lblFps.Text = tostring(fps)
+		lblFps.TextColor3 = fps>=60 and Color3.fromRGB(74,222,128) or fps>=30 and Color3.fromRGB(250,200,40) or Color3.fromRGB(255,70,70)
+	end
+end)
+
+RunService.Heartbeat:Connect(function()
+	local ok,ping = pcall(function() return math.floor(lp:GetNetworkPing()*1000) end)
+	if not ok then return end
+	ping = math.max(0,ping)
+	lblPing.Text = tostring(ping).." ms"
+	lblPing.TextColor3 = ping<=80 and Color3.fromRGB(74,222,128) or ping<=200 and Color3.fromRGB(250,200,40) or Color3.fromRGB(255,70,70)
+end)
 
 -- ── BloxHUD ──────────────────────────────────────────────────────────────────
 local mainGui = Instance.new("ScreenGui")
