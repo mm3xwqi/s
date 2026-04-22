@@ -8,6 +8,28 @@ for _, v in ipairs(lp:WaitForChild("PlayerGui"):GetChildren()) do
 end
 
 -- ===================================================
+-- FPS CAP
+-- ===================================================
+
+local FPS_CAP = 60          -- เปลี่ยนตัวเลขนี้ได้เลย (30 / 60 / 144 / 0 = ไม่จำกัด)
+local _lastFrame = tick()
+
+if FPS_CAP and FPS_CAP > 0 then
+	local frameTime = 1 / FPS_CAP
+	RunService:BindToRenderStep("FpsCap", Enum.RenderPriority.First.Value + 1, function()
+		local now = tick()
+		local delta = now - _lastFrame
+		if delta < frameTime then
+			-- busy-wait แทน task.wait เพราะ task.wait ใน RenderStep ทำไม่ได้
+			-- ใช้ os.clock loop สั้น ๆ เพื่อ block frame ถัดไป
+			local waitUntil = _lastFrame + frameTime
+			while tick() < waitUntil do end
+		end
+		_lastFrame = tick()
+	end)
+end
+
+-- ===================================================
 -- HELPERS
 -- ===================================================
 
@@ -74,7 +96,7 @@ local function parseQuestExp(raw)
 end
 
 -- ===================================================
--- PERF HUD (FPS / PING / TIME) — กลางบน, ทนต่อการย่อ/ขยายจอ
+-- PERF HUD (FPS / PING / TIME)
 -- ===================================================
 
 local perfGui = Instance.new("ScreenGui")
@@ -84,9 +106,9 @@ perfGui.IgnoreGuiInset = true
 perfGui.Parent = lp:WaitForChild("PlayerGui")
 
 local card = Instance.new("Frame")
-card.Size        = UDim2.new(0, 280, 0, 54)
+card.Size        = UDim2.new(0, 340, 0, 54)   -- กว้างขึ้นเพื่อรองรับ FPS Cap
 card.AnchorPoint = Vector2.new(0.5, 0)
-card.Position    = UDim2.new(0.5, 0, 0, 150)  -- เลื่อนลงมาใต้ status bar ของเกม
+card.Position    = UDim2.new(0.5, 0, 0, 150)
 card.BackgroundColor3    = Color3.fromRGB(14,14,24)
 card.BackgroundTransparency = 0.35
 card.BorderSizePixel = 0
@@ -101,7 +123,7 @@ local function makeSep(x)
 	f.BackgroundColor3=Color3.fromRGB(255,255,255)
 	f.BackgroundTransparency=0.8; f.BorderSizePixel=0
 end
-makeSep(92); makeSep(188)
+makeSep(84); makeSep(168); makeSep(252)
 
 local function makeSection(tag, cx)
 	local tl = Instance.new("TextLabel", card)
@@ -112,18 +134,69 @@ local function makeSection(tag, cx)
 	tl.TextStrokeTransparency=0.6; tl.TextStrokeColor3=Color3.new(0,0,0)
 	local vl = Instance.new("TextLabel", card)
 	vl.Size=UDim2.new(0,80,0,26); vl.Position=UDim2.new(0,cx-40,0,22)
-	vl.BackgroundTransparency=1; vl.Text="---"; vl.TextSize=20
+	vl.BackgroundTransparency=1; vl.Text="---"; vl.TextSize=18
 	vl.Font=Enum.Font.GothamBold; vl.TextXAlignment=Enum.TextXAlignment.Center
 	vl.TextStrokeTransparency=0.5; vl.TextStrokeColor3=Color3.new(0,0,0)
 	return vl
 end
 
-local lblFps  = makeSection("FPS",  46)
-local lblPing = makeSection("PING",140)
-local lblTime = makeSection("TIME",234)
-lblFps.TextColor3  = Color3.fromRGB(74,222,128)
-lblPing.TextColor3 = Color3.fromRGB(250,200,40)
-lblTime.TextColor3 = Color3.fromRGB(192,132,252)
+local lblFps    = makeSection("FPS",    42)
+local lblPing   = makeSection("PING",  126)
+local lblTime   = makeSection("TIME",  210)
+local lblCapLbl = makeSection("CAP",   294)   -- ส่วนแสดง FPS Cap
+
+lblFps.TextColor3    = Color3.fromRGB(74,222,128)
+lblPing.TextColor3   = Color3.fromRGB(250,200,40)
+lblTime.TextColor3   = Color3.fromRGB(192,132,252)
+lblCapLbl.TextColor3 = Color3.fromRGB(100,200,255)
+lblCapLbl.Text       = (FPS_CAP and FPS_CAP > 0) and tostring(FPS_CAP) or "OFF"
+
+-- ปุ่มปรับ FPS Cap (+/-)
+local capValues = {30, 60, 90, 120, 144, 0}   -- 0 = unlimited
+local capIdx = 2   -- เริ่มที่ 60
+
+local function updateCapDisplay()
+	local v = capValues[capIdx]
+	lblCapLbl.Text = (v > 0) and tostring(v) or "∞"
+	FPS_CAP = v
+	if v > 0 then
+		-- อัปเดต frameTime ใหม่
+		RunService:UnbindFromRenderStep("FpsCap")
+		local ft = 1/v
+		RunService:BindToRenderStep("FpsCap", Enum.RenderPriority.First.Value + 1, function()
+			local now = tick()
+			if now - _lastFrame < ft then
+				local wu = _lastFrame + ft
+				while tick() < wu do end
+			end
+			_lastFrame = tick()
+		end)
+	else
+		RunService:UnbindFromRenderStep("FpsCap")
+	end
+end
+
+local capDownBtn = Instance.new("TextButton", card)
+capDownBtn.Size=UDim2.new(0,14,0,14); capDownBtn.Position=UDim2.new(0,255,0.5,-7)
+capDownBtn.BackgroundColor3=Color3.fromRGB(30,30,50); capDownBtn.BorderSizePixel=0
+capDownBtn.Text="◀"; capDownBtn.TextSize=8; capDownBtn.Font=Enum.Font.GothamBold
+capDownBtn.TextColor3=Color3.fromRGB(160,180,255); capDownBtn.AutoButtonColor=false
+Instance.new("UICorner",capDownBtn).CornerRadius=UDim.new(0,3)
+capDownBtn.MouseButton1Click:Connect(function()
+	capIdx = (capIdx - 2) % #capValues + 1
+	updateCapDisplay()
+end)
+
+local capUpBtn = Instance.new("TextButton", card)
+capUpBtn.Size=UDim2.new(0,14,0,14); capUpBtn.Position=UDim2.new(0,324,0.5,-7)
+capUpBtn.BackgroundColor3=Color3.fromRGB(30,30,50); capUpBtn.BorderSizePixel=0
+capUpBtn.Text="▶"; capUpBtn.TextSize=8; capUpBtn.Font=Enum.Font.GothamBold
+capUpBtn.TextColor3=Color3.fromRGB(160,180,255); capUpBtn.AutoButtonColor=false
+Instance.new("UICorner",capUpBtn).CornerRadius=UDim.new(0,3)
+capUpBtn.MouseButton1Click:Connect(function()
+	capIdx = capIdx % #capValues + 1
+	updateCapDisplay()
+end)
 
 local startTime = tick()
 RunService.Heartbeat:Connect(function()
@@ -160,7 +233,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ===================================================
--- MAIN HUD — ติดขวามือ ทนต่อการย่อ/ขยายจอ
+-- MAIN HUD — ติดขวามือ
 -- ===================================================
 
 local mainGui = Instance.new("ScreenGui")
@@ -170,13 +243,13 @@ mainGui.IgnoreGuiInset = true
 mainGui.Parent = lp:WaitForChild("PlayerGui")
 
 local CARD_W = 260
-local FULL_H = 490   -- ลดความสูงให้พอดีจอ
+local FULL_H = 440
 local MINI_H = 56
 
 local pc = Instance.new("Frame")
 pc.Size        = UDim2.new(0, CARD_W, 0, FULL_H)
 pc.AnchorPoint = Vector2.new(1, 0)
-pc.Position    = UDim2.new(1, -12, 0, 175)  -- ต่ำกว่า FPS card (110 + 54 + 11)
+pc.Position    = UDim2.new(1, -12, 0, 175)
 pc.BackgroundColor3    = Color3.fromRGB(10,10,18)
 pc.BackgroundTransparency = 0.15
 pc.BorderSizePixel = 0
@@ -377,230 +450,46 @@ bLabel("💰×2",11,Color3.fromRGB(255,200,60),Enum.Font.GothamBold,
 local qBeli2=bLabel("---",11,Color3.fromRGB(255,200,60),Enum.Font.GothamBold,
 	Enum.TextXAlignment.Left,UDim2.new(1,-40,0,16),UDim2.new(0,38,0,QY+174))
 
-local ESP_Y=QY+200
-bDiv(ESP_Y)
-bLabel("👁  ESP",10,Color3.fromRGB(255,100,100),Enum.Font.GothamBold,
-	Enum.TextXAlignment.Left,UDim2.new(0,60,0,16),UDim2.new(0,8,0,ESP_Y+10))
-
-local espEnabled = true
-local espBtn=Instance.new("TextButton",body)
-espBtn.Size=UDim2.new(0,80,0,22); espBtn.Position=UDim2.new(1,-92,0,ESP_Y+8)
-espBtn.BackgroundColor3=Color3.fromRGB(255,70,70); espBtn.BorderSizePixel=0
-espBtn.Text="ON"; espBtn.TextColor3=Color3.fromRGB(255,255,255)
-espBtn.TextSize=11; espBtn.Font=Enum.Font.GothamBold; espBtn.AutoButtonColor=false
-Instance.new("UICorner",espBtn).CornerRadius=UDim.new(0,4)
-local espBtnSt=Instance.new("UIStroke",espBtn)
-espBtnSt.Color=Color3.fromRGB(255,255,255); espBtnSt.Thickness=0.6; espBtnSt.Transparency=0.7
-
 -- ===================================================
--- ESP SYSTEM — ไม่กะพริบ ไม่หาย
+-- SELF HIGHLIGHT — เปิดอัตโนมัติ ไม่มี toggle
 -- ===================================================
 
-local ESP_FILL    = Color3.fromRGB(255, 60, 60)
-local ESP_OUTLINE = Color3.fromRGB(255,140,140)
-local SELF_FILL   = Color3.fromRGB(60, 220,120)
-local SELF_OUTLINE= Color3.fromRGB(140,255,180)
-local DIST_NEAR   = Color3.fromRGB(255, 80, 80)
-local DIST_MID    = Color3.fromRGB(255,200, 60)
-local DIST_FAR    = Color3.fromRGB(160,220,255)
+local SELF_FILL    = Color3.fromRGB(60, 220, 120)
+local SELF_OUTLINE = Color3.fromRGB(140, 255, 180)
 
-local espObjects = {}   -- [model] = { hl, bb, distLabel }
+local selfHL = nil
 
 local function safeDestroy(inst)
 	if inst and inst.Parent then pcall(inst.Destroy, inst) end
 end
 
-local function removeESP(model)
-	local d = espObjects[model]
-	if not d then return end
-	safeDestroy(d.hl)
-	safeDestroy(d.bb)
-	espObjects[model] = nil
-end
-
--- สร้าง billboard ชื่อ + ระยะ (ไม่มีกรอบ)
-local function makeBillboard(adornPart, displayName, nameCol)
-	local bb = Instance.new("BillboardGui")
-	bb.Name        = "ESP_BB"
-	bb.Size        = UDim2.new(0,160,0,36)
-	bb.StudsOffset = Vector3.new(0, 3.2, 0)
-	bb.AlwaysOnTop = true
-	bb.Adornee     = adornPart
-	bb.Parent      = adornPart
-
-	local nl = Instance.new("TextLabel", bb)
-	nl.Size=UDim2.new(1,0,0,18); nl.Position=UDim2.new(0,0,0,0)
-	nl.BackgroundTransparency=1
-	nl.Text=displayName
-	nl.TextColor3=nameCol or Color3.fromRGB(255,255,255)
-	nl.TextSize=12; nl.Font=Enum.Font.GothamBold
-	nl.TextXAlignment=Enum.TextXAlignment.Center
-	nl.TextStrokeTransparency=0; nl.TextStrokeColor3=Color3.new(0,0,0)
-
-	local dl = Instance.new("TextLabel", bb)
-	dl.Name="DL"
-	dl.Size=UDim2.new(1,0,0,14); dl.Position=UDim2.new(0,0,0,20)
-	dl.BackgroundTransparency=1
-	dl.Text="? studs"; dl.TextColor3=DIST_MID
-	dl.TextSize=10; dl.Font=Enum.Font.Gotham
-	dl.TextXAlignment=Enum.TextXAlignment.Center
-	dl.TextStrokeTransparency=0; dl.TextStrokeColor3=Color3.new(0,0,0)
-
-	return bb, dl
-end
-
--- เพิ่ม ESP ให้มอน
-local function addESP(model)
-	if not model or not model.Parent then return end
-	if espObjects[model] then return end
-
-	-- รอ Humanoid โหลด (timeout 3 วิ)
-	if not model:FindFirstChildWhichIsA("Humanoid") then
-		local deadline = tick()+3
-		repeat task.wait(0.05)
-		until model:FindFirstChildWhichIsA("Humanoid")
-			or not model.Parent
-			or tick() > deadline
-	end
-	if not model.Parent then return end
-	local hum = model:FindFirstChildWhichIsA("Humanoid")
-	if not hum then return end
-	if espObjects[model] then return end   -- ป้องกัน race condition
-
-	-- สร้าง Highlight
-	local hl = Instance.new("Highlight")
-	hl.Name="ESP_HL"
-	hl.FillColor=ESP_FILL; hl.OutlineColor=ESP_OUTLINE
-	hl.FillTransparency=0.55; hl.OutlineTransparency=0
-	hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
-	hl.Adornee=model; hl.Parent=model
-
-	-- สร้าง Billboard บน HumanoidRootPart
-	local root = model:FindFirstChild("HumanoidRootPart")
-		or model:FindFirstChildWhichIsA("BasePart")
-	local bb, dl = nil, nil
-	if root then
-		bb, dl = makeBillboard(root, model.Name, Color3.fromRGB(255,255,255))
-	end
-
-	espObjects[model] = { hl=hl, bb=bb, distLabel=dl }
-
-	-- ลบเมื่อมอนตาย
-	hum.Died:Connect(function()
-		task.delay(0.05, function() removeESP(model) end)
-	end)
-	-- ลบเมื่อหายออกจาก workspace
-	model.AncestryChanged:Connect(function()
-		if not model:IsDescendantOf(game) then removeESP(model) end
-	end)
-end
-
--- Highlight + Billboard ตัวเรา
-local selfHL        = nil
-local selfBillboard = nil
-
 local function applySelfHighlight(char)
-	safeDestroy(selfHL);        selfHL=nil
-	safeDestroy(selfBillboard); selfBillboard=nil
+	safeDestroy(selfHL); selfHL = nil
 	char = char or lp.Character
 	if not char then return end
 
 	local hl = Instance.new("Highlight")
-	hl.Name="ESP_SelfHL"
-	hl.FillColor=SELF_FILL; hl.OutlineColor=SELF_OUTLINE
-	hl.FillTransparency=0.65; hl.OutlineTransparency=0
-	hl.DepthMode=Enum.HighlightDepthMode.Occluded
-	hl.Adornee=char; hl.Parent=char
-	selfHL=hl
-
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if root then
-		local bb, dl = makeBillboard(root, lp.DisplayName, SELF_OUTLINE)
-		if dl then dl.Visible=false end   -- ตัวเราไม่ต้องแสดงระยะ
-		selfBillboard=bb
-	end
+	hl.Name              = "ESP_SelfHL"
+	hl.FillColor         = SELF_FILL
+	hl.OutlineColor      = SELF_OUTLINE
+	hl.FillTransparency  = 0.65
+	hl.OutlineTransparency = 0
+	hl.DepthMode         = Enum.HighlightDepthMode.Occluded
+	hl.Adornee           = char
+	hl.Parent            = char
+	selfHL = hl
 end
 
-lp.CharacterAdded:Connect(function(char)
-	task.wait(0.5)
-	if espEnabled then applySelfHighlight(char) end
-end)
-
--- scan + listener
-local espListenerStarted = false
-local function scanEnemies()
-	local folder = workspace:FindFirstChild("Enemies")
-	if not folder then return end
-	for _,m in ipairs(folder:GetChildren()) do
-		if m:IsA("Model") then task.spawn(addESP, m) end
-	end
-end
-
-local function startESPListener()
-	if espListenerStarted then return end
-	espListenerStarted=true
-	local folder = workspace:WaitForChild("Enemies",15)
-	if not folder then return end
-	folder.ChildAdded:Connect(function(m)
-		if espEnabled and m:IsA("Model") then task.spawn(addESP,m) end
-	end)
-	folder.ChildRemoved:Connect(function(m) removeESP(m) end)
-	scanEnemies()
-end
-
-local function clearAllESP()
-	for m in pairs(espObjects) do removeESP(m) end
-	safeDestroy(selfHL);        selfHL=nil
-	safeDestroy(selfBillboard); selfBillboard=nil
-end
-
-espBtn.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-	if espEnabled then
-		espBtn.Text="ON"; espBtn.BackgroundColor3=Color3.fromRGB(255,70,70)
-		scanEnemies()
-		applySelfHighlight(lp.Character)
-	else
-		espBtn.Text="OFF"; espBtn.BackgroundColor3=Color3.fromRGB(60,60,80)
-		clearAllESP()
-	end
-end)
-
--- Heartbeat อัปเดตระยะห่าง (throttle 0.1 วิ)
-local lastDU = 0
-RunService.Heartbeat:Connect(function()
-	if not espEnabled then return end
-	local now=tick()
-	if now-lastDU < 0.1 then return end
-	lastDU=now
-
-	local char = lp.Character
-	local root = char and char:FindFirstChild("HumanoidRootPart")
-	if not root then return end
-	local myPos = root.Position
-
-	for model, data in pairs(espObjects) do
-		if not model or not model.Parent then
-			espObjects[model]=nil; continue
-		end
-		local dl = data.distLabel
-		if dl and dl.Parent then
-			local er = model:FindFirstChild("HumanoidRootPart")
-			if er then
-				local dist = math.floor((er.Position-myPos).Magnitude)
-				dl.Text = tostring(dist).." studs"
-				dl.TextColor3 = dist<=30 and DIST_NEAR
-					or dist<=80 and DIST_MID
-					or DIST_FAR
-			end
-		end
-	end
-end)
-
-task.spawn(startESPListener)
+-- เปิดทันทีเมื่อ script รัน
 if lp.Character then
 	task.delay(0.5, function() applySelfHighlight(lp.Character) end)
 end
+
+-- รีเซ็ตเมื่อ respawn
+lp.CharacterAdded:Connect(function(char)
+	task.wait(0.5)
+	applySelfHighlight(char)
+end)
 
 -- ===================================================
 -- DATA UPDATER
