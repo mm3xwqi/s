@@ -1,3 +1,10 @@
+-- [ Example Config
+-- getenv = function() return {
+--    ["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 25 },
+--    ["White Screen"] = true,
+--    ["FPS Boost"] = true,
+-- } end ]
+
 local Players    = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenSvc   = game:GetService("TweenService")
@@ -7,7 +14,7 @@ local lp         = Players.LocalPlayer
 local _cfg = {}
 pcall(function()
 	local env = getenv and getenv() or {}
-	_cfg = env.SettingFarm or {}
+	_cfg = type(env) == "table" and env or {}
 end)
 
 local function cfgGet(key, default)
@@ -22,15 +29,14 @@ local function cfgGetSub(key, sub, default)
 end
 
 for _, v in ipairs(lp:WaitForChild("PlayerGui"):GetChildren()) do
-	if v.Name == "PerfHUD" or v.Name == "BloxHUD" or v.Name == "BlackoutGui" then v:Destroy() end
+	if v.Name == "BloxHUD" or v.Name == "BlackoutGui" then v:Destroy() end
 end
 
 local isMobile = UIS.TouchEnabled and not UIS.KeyboardEnabled
 
+-- FPS cap (config only, no UI)
 local FPS_CAP = cfgGetSub("Lock Fps", "Enabled", false) and cfgGetSub("Lock Fps", "FPS", 60) or 60
-
 local function applyFpsCap(cap)
-	FPS_CAP = cap
 	if cap and cap > 0 then
 		if setfpscap then pcall(function() setfpscap(cap) end) return end
 		pcall(function() settings().Rendering.FrameRateManager = Enum.FramerateManagerMode.On end)
@@ -41,11 +47,69 @@ local function applyFpsCap(cap)
 end
 applyFpsCap(FPS_CAP)
 
+-- FPS Boost (config only, no UI)
+local boostOn = false
+local _origLighting = {}
+local function setBoost(state)
+	boostOn = state
+	local lighting = game:GetService("Lighting")
+	if state then
+		_origLighting = {GlobalShadows=lighting.GlobalShadows,FogEnd=lighting.FogEnd,Brightness=lighting.Brightness}
+		pcall(function() lighting.GlobalShadows=false end)
+		pcall(function() lighting.FogEnd=9e8 end)
+		pcall(function() lighting.FogStart=9e8 end)
+		pcall(function() lighting.Brightness=1 end)
+		for _,v in ipairs(lighting:GetChildren()) do
+			if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect")
+				or v:IsA("SunRaysEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
+				pcall(function() v.Enabled=false end)
+			end
+		end
+		pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Level01 end)
+		for _,obj in ipairs(workspace:GetDescendants()) do
+			pcall(function()
+				if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+					obj.Enabled=false
+				elseif obj:IsA("Decal") or obj:IsA("Texture") then
+					obj.Transparency=1
+				elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+					obj.Enabled=false
+				end
+			end)
+		end
+		pcall(function() settings().Rendering.EagerBulkExecution=true end)
+	else
+		pcall(function() lighting.GlobalShadows=_origLighting.GlobalShadows end)
+		pcall(function() lighting.FogEnd=_origLighting.FogEnd end)
+		pcall(function() lighting.Brightness=_origLighting.Brightness end)
+		for _,v in ipairs(lighting:GetChildren()) do
+			if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect")
+				or v:IsA("SunRaysEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
+				pcall(function() v.Enabled=true end)
+			end
+		end
+		pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Automatic end)
+		for _,obj in ipairs(workspace:GetDescendants()) do
+			pcall(function()
+				if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+					obj.Enabled=true
+				elseif obj:IsA("Decal") or obj:IsA("Texture") then
+					obj.Transparency=0
+				elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+					obj.Enabled=true
+				end
+			end)
+		end
+	end
+end
+if cfgGet("FPS Boost", false) then task.defer(function() setBoost(true) end) end
+
+-- ── Blackout ────────────────────────────────────────────────────────────────
 local blackoutGui = Instance.new("ScreenGui")
 blackoutGui.Name = "BlackoutGui"
 blackoutGui.ResetOnSpawn = false
 blackoutGui.IgnoreGuiInset = true
-blackoutGui.DisplayOrder = 999
+blackoutGui.DisplayOrder = 1
 blackoutGui.Parent = lp:WaitForChild("PlayerGui")
 
 local blackFrame = Instance.new("Frame", blackoutGui)
@@ -87,7 +151,6 @@ local wakeSt = Instance.new("UIStroke", wakeBtn)
 wakeSt.Color = Color3.fromRGB(255,220,60); wakeSt.Thickness = 1.2; wakeSt.Transparency = 0.3
 
 local blackoutOn = false
-
 local function setBlackout(state)
 	blackoutOn = state
 	if state then
@@ -110,6 +173,7 @@ UIS.InputBegan:Connect(function(input, gpe)
 	if input.KeyCode == Enum.KeyCode.B then setBlackout(not blackoutOn) end
 end)
 
+-- ── Helpers ──────────────────────────────────────────────────────────────────
 local function addCommas(n)
 	return tostring(math.floor(n)):reverse():gsub("(%d%d%d)","%1,"):reverse():gsub("^,","")
 end
@@ -164,234 +228,10 @@ local function parseQuestExp(raw)
 	return nil
 end
 
-local perfGui = Instance.new("ScreenGui")
-perfGui.Name = "PerfHUD"; perfGui.ResetOnSpawn = false
-perfGui.IgnoreGuiInset = true; perfGui.Parent = lp:WaitForChild("PlayerGui")
-
-local ROW1_W = isMobile and 280 or 260
-local ROW1_H = isMobile and 60 or 54
-
-local row1 = Instance.new("Frame")
-row1.Size = UDim2.new(0,ROW1_W,0,ROW1_H)
-row1.AnchorPoint = Vector2.new(0.5,0)
-row1.Position = UDim2.new(0.5,0,0, isMobile and 80 or 150)
-row1.BackgroundColor3 = Color3.fromRGB(14,14,24)
-row1.BackgroundTransparency = 0.3
-row1.BorderSizePixel = 0
-row1.Parent = perfGui
-Instance.new("UICorner",row1).CornerRadius = UDim.new(1,0)
-local r1St = Instance.new("UIStroke",row1)
-r1St.Color = Color3.fromRGB(255,255,255); r1St.Thickness = 1; r1St.Transparency = 0.82
-
-local SEC_W = math.floor(ROW1_W/3)
-local function makeSep1(x)
-	local f = Instance.new("Frame",row1)
-	f.Size = UDim2.new(0,1,0,26); f.Position = UDim2.new(0,x,0.5,-13)
-	f.BackgroundColor3 = Color3.fromRGB(255,255,255); f.BackgroundTransparency = 0.8; f.BorderSizePixel = 0
-end
-makeSep1(SEC_W); makeSep1(SEC_W*2)
-
-local TS_TAG = isMobile and 11 or 10
-local TS_VAL = isMobile and 19 or 17
-
-local function makeSection1(tag, col)
-	local tl = Instance.new("TextLabel",row1)
-	tl.Size = UDim2.new(0,SEC_W,0,16); tl.Position = UDim2.new(0,SEC_W*col,0,6)
-	tl.BackgroundTransparency = 1; tl.Text = tag; tl.TextColor3 = Color3.fromRGB(180,180,200)
-	tl.TextSize = TS_TAG; tl.Font = Enum.Font.GothamBold; tl.TextXAlignment = Enum.TextXAlignment.Center
-	tl.TextStrokeTransparency = 0.6; tl.TextStrokeColor3 = Color3.new(0,0,0)
-	local vl = Instance.new("TextLabel",row1)
-	vl.Size = UDim2.new(0,SEC_W,0,26); vl.Position = UDim2.new(0,SEC_W*col,0,ROW1_H-32)
-	vl.BackgroundTransparency = 1; vl.Text = "---"; vl.TextSize = TS_VAL
-	vl.Font = Enum.Font.GothamBold; vl.TextXAlignment = Enum.TextXAlignment.Center
-	vl.TextStrokeTransparency = 0.5; vl.TextStrokeColor3 = Color3.new(0,0,0)
-	return vl
-end
-
-local lblFps  = makeSection1("FPS",  0); lblFps.TextColor3  = Color3.fromRGB(74,222,128)
-local lblPing = makeSection1("PING", 1); lblPing.TextColor3 = Color3.fromRGB(250,200,40)
-local lblTime = makeSection1("TIME", 2); lblTime.TextColor3 = Color3.fromRGB(192,132,252)
-
-local ROW2_H = isMobile and 52 or 46
-local ROW2_W = isMobile and 340 or 310
-
-local row2 = Instance.new("Frame")
-row2.Size = UDim2.new(0,ROW2_W,0,ROW2_H)
-row2.AnchorPoint = Vector2.new(0.5,0)
-row2.Position = UDim2.new(0.5,0,0, (isMobile and 80 or 150)+ROW1_H+6)
-row2.BackgroundColor3 = Color3.fromRGB(14,14,24)
-row2.BackgroundTransparency = 0.3
-row2.BorderSizePixel = 0
-row2.Parent = perfGui
-Instance.new("UICorner",row2).CornerRadius = UDim.new(1,0)
-local r2St = Instance.new("UIStroke",row2)
-r2St.Color = Color3.fromRGB(255,255,255); r2St.Thickness = 1; r2St.Transparency = 0.82
-
-local sepR2a = Instance.new("Frame",row2)
-sepR2a.Size = UDim2.new(0,1,0,26); sepR2a.Position = UDim2.new(1/3,0,0.5,-13)
-sepR2a.BackgroundColor3 = Color3.fromRGB(255,255,255); sepR2a.BackgroundTransparency = 0.8; sepR2a.BorderSizePixel = 0
-local sepR2b = Instance.new("Frame",row2)
-sepR2b.Size = UDim2.new(0,1,0,26); sepR2b.Position = UDim2.new(2/3,0,0.5,-13)
-sepR2b.BackgroundColor3 = Color3.fromRGB(255,255,255); sepR2b.BackgroundTransparency = 0.8; sepR2b.BorderSizePixel = 0
-
-local capLbl = Instance.new("TextLabel",row2)
-capLbl.Size = UDim2.new(1/3,0,0,16); capLbl.Position = UDim2.new(0,0,0,0)
-capLbl.BackgroundTransparency = 1; capLbl.Text = "Lock Fps"
-capLbl.TextColor3 = Color3.fromRGB(180,180,200); capLbl.TextSize = TS_TAG
-capLbl.Font = Enum.Font.GothamBold; capLbl.TextXAlignment = Enum.TextXAlignment.Center
-capLbl.TextStrokeTransparency = 0.6; capLbl.TextStrokeColor3 = Color3.new(0,0,0)
-
-local capBox = Instance.new("TextBox",row2)
-capBox.Size = UDim2.new(0, isMobile and 70 or 60, 0, isMobile and 28 or 24)
-capBox.AnchorPoint = Vector2.new(0.5,1)
-capBox.Position = UDim2.new(1/6,0,1,-6)
-capBox.BackgroundColor3 = Color3.fromRGB(22,22,38); capBox.BorderSizePixel = 0
-capBox.Text = tostring(FPS_CAP); capBox.PlaceholderText = "60"
-capBox.TextColor3 = Color3.fromRGB(100,210,255); capBox.TextSize = isMobile and 16 or 15
-capBox.Font = Enum.Font.GothamBold; capBox.TextXAlignment = Enum.TextXAlignment.Center
-capBox.ClearTextOnFocus = true
-Instance.new("UICorner",capBox).CornerRadius = UDim.new(0,5)
-local capBoxSt = Instance.new("UIStroke",capBox)
-capBoxSt.Color = Color3.fromRGB(100,180,255); capBoxSt.Thickness = 1; capBoxSt.Transparency = 0.4
-
-local function commitCap()
-	local raw = capBox.Text:gsub("%s+","")
-	local n = tonumber(raw)
-	if not n or n~=n then n=60 end
-	n = math.clamp(math.floor(n),0,999)
-	applyFpsCap(n)
-	capBox.Text = (n>0) and tostring(n) or "∞"
-end
-capBox.FocusLost:Connect(function(enter) if enter then commitCap() end end)
-
-local dimBtn = Instance.new("TextButton",row2)
-dimBtn.Size = UDim2.new(1/3,-8,0, isMobile and 36 or 30)
-dimBtn.AnchorPoint = Vector2.new(0,0.5)
-dimBtn.Position = UDim2.new(1/3,4,0.5,0)
-dimBtn.BackgroundColor3 = Color3.fromRGB(22,22,38); dimBtn.BorderSizePixel = 0
-dimBtn.Text = "Black Screen"; dimBtn.TextColor3 = Color3.fromRGB(180,180,220)
-dimBtn.TextSize = isMobile and 13 or 11; dimBtn.Font = Enum.Font.GothamBold
-dimBtn.AutoButtonColor = false
-Instance.new("UICorner",dimBtn).CornerRadius = UDim.new(0,6)
-local dimSt = Instance.new("UIStroke",dimBtn)
-dimSt.Color = Color3.fromRGB(255,255,255); dimSt.Thickness = 0.8; dimSt.Transparency = 0.7
-dimBtn.MouseButton1Click:Connect(function() setBlackout(not blackoutOn) end)
-
-local boostOn = false
-local _origLighting = {}
-
-local function setBoost(state)
-	boostOn = state
-	local lighting = game:GetService("Lighting")
-	pcall(function() lp.PlayerGui.Main.Enabled = not state end)
-	if state then
-		_origLighting = {GlobalShadows=lighting.GlobalShadows,FogEnd=lighting.FogEnd,Brightness=lighting.Brightness}
-		pcall(function() lighting.GlobalShadows=false end)
-		pcall(function() lighting.FogEnd=9e8 end)
-		pcall(function() lighting.FogStart=9e8 end)
-		pcall(function() lighting.Brightness=1 end)
-		for _,v in ipairs(lighting:GetChildren()) do
-			if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect")
-				or v:IsA("SunRaysEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
-				pcall(function() v.Enabled=false end)
-			end
-		end
-		pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Level01 end)
-		for _,obj in ipairs(workspace:GetDescendants()) do
-			pcall(function()
-				if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
-					obj.Enabled=false
-				elseif obj:IsA("Decal") or obj:IsA("Texture") then
-					obj.Transparency=1
-				elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
-					obj.Enabled=false
-				end
-			end)
-		end
-		pcall(function() settings().Rendering.EagerBulkExecution=true end)
-	else
-		pcall(function() lighting.GlobalShadows=_origLighting.GlobalShadows end)
-		pcall(function() lighting.FogEnd=_origLighting.FogEnd end)
-		pcall(function() lighting.Brightness=_origLighting.Brightness end)
-		for _,v in ipairs(lighting:GetChildren()) do
-			if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect")
-				or v:IsA("SunRaysEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
-				pcall(function() v.Enabled=true end)
-			end
-		end
-		pcall(function() settings().Rendering.QualityLevel=Enum.QualityLevel.Automatic end)
-		for _,obj in ipairs(workspace:GetDescendants()) do
-			pcall(function()
-				if obj:IsA("ParticleEmitter") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
-					obj.Enabled=true
-				elseif obj:IsA("Decal") or obj:IsA("Texture") then
-					obj.Transparency=0
-				elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
-					obj.Enabled=true
-				end
-			end)
-		end
-	end
-end
-
-local boostBtn = Instance.new("TextButton",row2)
-boostBtn.Size = UDim2.new(1/3,-8,0, isMobile and 36 or 30)
-boostBtn.AnchorPoint = Vector2.new(0,0.5)
-boostBtn.Position = UDim2.new(2/3,4,0.5,0)
-boostBtn.BackgroundColor3 = Color3.fromRGB(22,22,38); boostBtn.BorderSizePixel = 0
-boostBtn.Text = "FPS Boost"; boostBtn.TextColor3 = Color3.fromRGB(100,255,160)
-boostBtn.TextSize = isMobile and 13 or 11; boostBtn.Font = Enum.Font.GothamBold
-boostBtn.AutoButtonColor = false
-Instance.new("UICorner",boostBtn).CornerRadius = UDim.new(0,6)
-local boostSt = Instance.new("UIStroke",boostBtn)
-boostSt.Color = Color3.fromRGB(80,255,140); boostSt.Thickness = 0.8; boostSt.Transparency = 0.5
-
-boostBtn.MouseButton1Click:Connect(function()
-	setBoost(not boostOn)
-	if boostOn then
-		boostBtn.Text="Boosted ✓"; boostBtn.TextColor3=Color3.fromRGB(255,215,60); boostSt.Color=Color3.fromRGB(255,215,60)
-	else
-		boostBtn.Text="FPS Boost"; boostBtn.TextColor3=Color3.fromRGB(100,255,160); boostSt.Color=Color3.fromRGB(80,255,140)
-	end
-end)
-
-if cfgGet("FPS Boost", false) then
-	task.defer(function()
-		setBoost(true)
-		boostBtn.Text="Boosted ✓"; boostBtn.TextColor3=Color3.fromRGB(255,215,60); boostSt.Color=Color3.fromRGB(255,215,60)
-	end)
-end
-
-local startTime = tick()
-RunService.Heartbeat:Connect(function()
-	local e = math.floor(tick()-startTime)
-	lblTime.Text = e>=3600
-		and string.format("%d:%02d:%02d",math.floor(e/3600),math.floor((e%3600)/60),e%60)
-		or  string.format("%02d:%02d",math.floor(e/60),e%60)
-end)
-
-local frameCount,lastTick2 = 0,tick()
-RunService.RenderStepped:Connect(function()
-	frameCount += 1
-	local now = tick()
-	if now-lastTick2 >= 0.5 then
-		local fps = math.floor(frameCount/(now-lastTick2))
-		frameCount=0; lastTick2=now
-		lblFps.Text = tostring(fps)
-		lblFps.TextColor3 = fps>=60 and Color3.fromRGB(74,222,128) or fps>=30 and Color3.fromRGB(250,200,40) or Color3.fromRGB(255,70,70)
-	end
-end)
-
-RunService.Heartbeat:Connect(function()
-	local ok,ping = pcall(function() return math.floor(lp:GetNetworkPing()*1000) end)
-	if not ok then return end
-	ping = math.max(0,ping)
-	lblPing.Text = tostring(ping).." ms"
-	lblPing.TextColor3 = ping<=80 and Color3.fromRGB(74,222,128) or ping<=200 and Color3.fromRGB(250,200,40) or Color3.fromRGB(255,70,70)
-end)
-
+-- ── BloxHUD ──────────────────────────────────────────────────────────────────
 local mainGui = Instance.new("ScreenGui")
 mainGui.Name = "BloxHUD"; mainGui.ResetOnSpawn = false
+mainGui.DisplayOrder = 10
 mainGui.IgnoreGuiInset = true; mainGui.Parent = lp:WaitForChild("PlayerGui")
 
 local CARD_W    = isMobile and 290 or 260
