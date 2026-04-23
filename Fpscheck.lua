@@ -645,7 +645,7 @@ end
 if lp.Character then task.delay(0.5,function() applySelfHighlight(lp.Character) end) end
 lp.CharacterAdded:Connect(function(char) task.wait(0.5); applySelfHighlight(char) end)
 
-local MAX_STAT = 2550
+local MAX_STAT = 2800
 local function updateData()
 	local data = lp:FindFirstChild("Data"); if not data then return end
 	for _,k in ipairs({"Level","Beli","Fragments","Race"}) do
