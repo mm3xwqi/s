@@ -297,21 +297,23 @@ task.spawn(function()
             continue
         end
         isActivelyReviving = true
-        pcall(function()
-            while isDowned(target) do
-                if not target.Parent          then break end
-                if not hrp or not hrp.Parent  then break end
-                if isDowned(player.Character) then break end
-                if tHRP and tHRP.Parent then
-                    warp(hrp, tHRP.Position + OFFSET_UNDER)
-                end
-                interactRemote:FireServer("Revive", true, target.Name)
-                task.wait(0.05)
-            end
-        end)
-        isActivelyReviving = false
-        if _G.SafeZone and hrp and hrp.Parent then goSafe(hrp) end
-        task.wait(REVIVE_COOLDOWN)
+local reviveStart = tick()
+pcall(function()
+    while isDowned(target) do
+        if not target.Parent          then break end
+        if not hrp or not hrp.Parent  then break end
+        if isDowned(player.Character) then break end
+        if tick() - reviveStart > 5   then break end  -- ✅ เกิน 5 วิข้ามเลย
+        if tHRP and tHRP.Parent then
+            warp(hrp, tHRP.Position + OFFSET_UNDER)
+        end
+        interactRemote:FireServer("Revive", true, target.Name)
+        task.wait(0.05)
+    end
+end)
+isActivelyReviving = false
+if _G.SafeZone and hrp and hrp.Parent then goSafe(hrp) end
+task.wait(REVIVE_COOLDOWN)
     end
 end)
 
@@ -389,7 +391,7 @@ local function TPReturner()
         local Possible = true
         local ID = tostring(v.id)
         if ID == game.JobId then Possible = false end
-        if tonumber(v.playing) < 10 then Possible = false end -- ✅ ข้ามเซิฟคนน้อยกว่า 10
+        if tonumber(v.playing) < 10 then Possible = false end
         if tonumber(v.maxPlayers) > tonumber(v.playing) and Possible then
             for _, Existing in pairs(AllIDs) do
                 if num ~= 0 then
@@ -424,6 +426,7 @@ local function TPReturner()
     end
     return false
 end
+
 local function hopServer()
     if isTeleporting then return false end
     local success = false
@@ -440,22 +443,22 @@ task.spawn(function()
     while true do
         task.wait(0.5)
         if not (farmRunning and hopRunning) then continue end
+        if isTeleporting then continue end
         local ok, gui = pcall(function() return player.PlayerGui:WaitForChild("Global", 10) end)
         if not ok or not gui then continue end
         local rf = gui:FindFirstChild("Rewards")
-        if rf and rf.Visible then
-            task.wait(5)
-            while farmRunning and hopRunning and rf.Visible do
-                if not isTeleporting then hopServer() end
-                task.wait(3)
-            end
+        if not rf or not rf.Visible then continue end
+        task.wait(5)
+        while farmRunning and hopRunning and rf.Visible do
+            if not isTeleporting then hopServer() end
+            task.wait(3)
         end
     end
 end)
 
 task.spawn(function()
     while true do
-        task.wait(15)
+        task.wait(5)
         if not (farmRunning and hopRunning) then continue end
         if isTeleporting then continue end
         local ok, raw = pcall(function()
@@ -466,19 +469,25 @@ task.spawn(function()
         if not ok2 or not decoded.data then continue end
         for _, s in ipairs(decoded.data) do
             if s.id == game.JobId then
-                if s.playing >= s.maxPlayers then hopServer() end
+                if s.playing >= s.maxPlayers then
+                    while farmRunning and hopRunning do
+                        if not isTeleporting then hopServer() end
+                        task.wait(3)
+                        if not isTeleporting then break end
+                    end
+                end
                 break
             end
         end
     end
 end)
 
-mainTab:CreateToggle("AutoFarm", farmRunning, function(v) farmRunning=v; saveSettings() end)
-mainTab:CreateToggle("NPC Farm (Bee)", _G.NPC_AutoFarm, function(v) _G.NPC_AutoFarm=v; lastNPCPos=nil; lastNPCTime=nil; saveSettings() end)
+mainTab:CreateToggle("AutoFarm Ticket", farmRunning, function(v) farmRunning=v; saveSettings() end)
+mainTab:CreateToggle("Bee Farm", _G.NPC_AutoFarm, function(v) _G.NPC_AutoFarm=v; lastNPCPos=nil; lastNPCTime=nil; saveSettings() end)
 mainTab:CreateToggle("SafeZone", _G.SafeZone, function(v) _G.SafeZone=v; saveSettings() end)
 mainTab:CreateToggle("Auto Revive All", reviveRunning, function(v) reviveRunning=v; saveSettings() end)
 mainTab:CreateToggle("Revive Aura", reviveAuraRunning, function(v) reviveAuraRunning=v; saveSettings() end)
-mainTab:CreateToggle("HopServer (AutoFarm only)", hopRunning, function(v) hopRunning=v; saveSettings() end)
+mainTab:CreateToggle("HopServer With Auto Farm", hopRunning, function(v) hopRunning=v; saveSettings() end)
 mainTab:CreateButton("Hop Server", function() hopServer() end)
 configTab:CreateSlider("TP Cooldown (ms)", 0, 50, function(v) _G.TP_Cooldown=v/1000; saveSettings() end)
 configTab:CreateSlider("NPC Lead Time (x0.1)", 3, 10, function(v) NPC_LEAD_TIME=v/10; saveSettings() end)
