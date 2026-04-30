@@ -363,21 +363,138 @@ task.spawn(function()
 end)
 
 -- =============================================
---  HOP SERVER
+--  HOP SERVER (แก้ใหม่ทั้งหมด)
 -- =============================================
-local PlaceID       = game.PlaceId
-local actualHour    = os.date("!*t").hour
-local HOP_COUNTDOWN = 3
-local foundAnything = ""
+local PlaceID        = game.PlaceId
+local HOP_DELAY      = 1.5
+local RETRY_COOLDOWN = 8
+local BL_EXPIRE_SEC  = 120  -- blacklist หมดอายุใน 5 นาที
 
--- รีเซ็ต blacklist ทุกครั้งที่ script รัน
-local AllIDs = { actualHour }
-pcall(function() delfile("NotSameServers.json") end)
-pcall(function() writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs)) end)
-
+-- เก็บ blacklist เป็น {id = timestamp} แทน array ธรรมดา
+local blacklistMap = {}
+local hopStartTime = 0
 local hopNotifyFrame, hopInfoLabel, hopCountdownLabel
-local isHopUIShowing = false   -- ← flag กัน UI ซ้อน
 
+pcall(function() delfile("HopBlacklist.json") end)
+
+-- ล้าง entry ที่หมดอายุแล้ว
+local function cleanBlacklist()
+    local now = tick()
+    for id, t in pairs(blacklistMap) do
+        if now - t > BL_EXPIRE_SEC then
+            blacklistMap[id] = nil
+        end
+    end
+end
+
+local function isBlacklisted(id)
+    if not blacklistMap[id] then return false end
+    if tick() - blacklistMap[id] > BL_EXPIRE_SEC then
+        blacklistMap[id] = nil
+        return false
+    end
+    return true
+end
+
+local function getServerList(cursor)
+    local url = "https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100"
+    if cursor and cursor ~= "" then
+        url = url .. "&cursor=" .. cursor
+    end
+    local raw = game:HttpGet(url)
+    return HttpService:JSONDecode(raw)
+end
+
+-- Watchdog: reset isTeleporting อัตโนมัติถ้าค้างเกิน 12 วิ
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if state.isTeleporting and (tick() - hopStartTime) > 12 then
+            warn("[Hop] isTeleporting stuck → reset")
+            state.isTeleporting = false
+            hopStartTime = 0
+            if hopNotifyFrame then hopNotifyFrame.Visible = false end
+        end
+    end
+end)
+
+local function findAndHop()
+    if state.isTeleporting then return false end
+    cleanBlacklist()
+
+    local cursor, attempts = nil, 0
+    repeat
+        local success, data = pcall(getServerList, cursor)
+        if not success or not data or not data.data then
+            task.wait(2)
+            break
+        end
+
+        for _, server in ipairs(data.data) do
+            local id      = server.id
+            local playing = server.playing    or 0
+            local maxP    = server.maxPlayers or 0
+
+            -- buffer -2 ป้องกันห้องเต็มพอดีตอนกระโดดถึง
+            if id ~= game.JobId
+            and playing >= 1
+            and playing <= (maxP - 2)
+            and not isBlacklisted(id) then
+                blacklistMap[id] = tick()
+                state.isTeleporting = true
+                hopStartTime = tick()
+
+                if hopNotifyFrame then
+                    hopNotifyFrame.Visible = true
+                    hopInfoLabel.Text = string.format(
+                        "ย้ายไป Server %s (%d/%d)",
+                        tostring(id):sub(1, 12), playing, maxP
+                    )
+                    hopCountdownLabel.Text = "⏳ กำลังย้าย..."
+                end
+
+                task.wait(HOP_DELAY)
+
+                local ok = pcall(function()
+                    TeleportService:TeleportToPlaceInstance(PlaceID, id, player)
+                end)
+
+                if not ok then
+                    -- teleport ล้มเหลวทันที → reset แล้วหาใหม่
+                    state.isTeleporting = false
+                    hopStartTime = 0
+                    blacklistMap[id] = nil
+                    if hopNotifyFrame then hopNotifyFrame.Visible = false end
+                    return false
+                end
+
+                return true
+            end
+        end
+
+        cursor = data.nextPageCursor
+        attempts += 1
+        if attempts >= 8 then break end  -- เพิ่มจาก 5 → 8 หน้า
+    until cursor == nil or cursor == ""
+
+    return false
+end
+
+local function hopServer()
+    if state.isTeleporting then return end
+
+    local hopped = findAndHop()
+    if not hopped then
+        warn("[Hop] ไม่เจอ server ที่เหมาะสม → ล้าง blacklist แล้ว retry")
+        task.wait(RETRY_COOLDOWN)
+        blacklistMap = {}  -- reset blacklist ทั้งหมด
+        findAndHop()
+    end
+end
+
+-- =====================
+--  Hop UI
+-- =====================
 local function buildHopUI()
     local existing = player.PlayerGui:FindFirstChild("HopNotifyUI")
     if existing then existing:Destroy() end
@@ -389,254 +506,107 @@ local function buildHopUI()
     sg.Parent = player.PlayerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 440, 0, 140)
-    frame.Position = UDim2.new(0.5, -220, 0.5, -70)
-    frame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
-    frame.BackgroundTransparency = 0.05
+    frame.Size = UDim2.new(0, 380, 0, 100)
+    frame.Position = UDim2.new(0.5, -190, 0.5, -50)
+    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    frame.BackgroundTransparency = 0.1
     frame.BorderSizePixel = 0
     frame.Visible = false
     frame.Parent = sg
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 14)
-    corner.Parent = frame
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(80, 170, 255)
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(100, 200, 255)
     stroke.Thickness = 2
-    stroke.Parent = frame
 
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, 0, 0, 34)
-    titleLabel.Position = UDim2.new(0, 0, 0, 8)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = "🚀  กำลัง Hop Server..."
-    titleLabel.TextColor3 = Color3.fromRGB(80, 200, 255)
-    titleLabel.TextSize = 18
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.Parent = frame
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Position = UDim2.new(0, 0, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = "🚀 Auto Hop"
+    title.TextColor3 = Color3.fromRGB(80, 200, 255)
+    title.TextSize = 18
+    title.Font = Enum.Font.GothamBold
 
-    local infoLabel = Instance.new("TextLabel")
-    infoLabel.Size = UDim2.new(1, -20, 0, 52)
-    infoLabel.Position = UDim2.new(0, 10, 0, 44)
-    infoLabel.BackgroundTransparency = 1
-    infoLabel.Text = ""
-    infoLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
-    infoLabel.TextSize = 13
-    infoLabel.Font = Enum.Font.Gotham
-    infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-    infoLabel.TextWrapped = true
-    infoLabel.Parent = frame
+    local info = Instance.new("TextLabel", frame)
+    info.Size = UDim2.new(1, -20, 0, 40)
+    info.Position = UDim2.new(0, 10, 0, 38)
+    info.BackgroundTransparency = 1
+    info.TextColor3 = Color3.fromRGB(220, 225, 255)
+    info.TextSize = 13
+    info.Font = Enum.Font.Gotham
+    info.TextXAlignment = Enum.TextXAlignment.Left
+    info.TextWrapped = true
 
-    local cdLabel = Instance.new("TextLabel")
-    cdLabel.Size = UDim2.new(1, 0, 0, 28)
-    cdLabel.Position = UDim2.new(0, 0, 0, 104)
-    cdLabel.BackgroundTransparency = 1
-    cdLabel.Text = ""
-    cdLabel.TextColor3 = Color3.fromRGB(255, 215, 70)
-    cdLabel.TextSize = 15
-    cdLabel.Font = Enum.Font.GothamBold
-    cdLabel.Parent = frame
+    local cd = Instance.new("TextLabel", frame)
+    cd.Size = UDim2.new(1, 0, 0, 25)
+    cd.Position = UDim2.new(0, 0, 0, 75)
+    cd.BackgroundTransparency = 1
+    cd.TextColor3 = Color3.fromRGB(255, 210, 70)
+    cd.TextSize = 15
+    cd.Font = Enum.Font.GothamBold
 
-    hopNotifyFrame    = frame
-    hopInfoLabel      = infoLabel
-    hopCountdownLabel = cdLabel
+    hopNotifyFrame = frame
+    hopInfoLabel = info
+    hopCountdownLabel = cd
 end
-
 buildHopUI()
-
-local function getTimezoneStr()
-    local utcH   = os.date("!*t").hour
-    local localH = os.date("*t").hour
-    local offset = localH - utcH
-    if offset > 12  then offset = offset - 24 end
-    if offset < -12 then offset = offset + 24 end
-    return string.format("UTC%+d", offset)
-end
-
-local function showHopNotify(serverId, playing, maxP)
-    if not hopNotifyFrame then return end
-    if isHopUIShowing then return end          -- ← กัน UI ซ้อน
-    isHopUIShowing = true
-
-    local shortId = string.sub(tostring(serverId), 1, 20) .. "..."
-    hopInfoLabel.Text = string.format(
-        "🌐  Server  :  %s\n👥  Players :  %d / %d     🕒  Timezone :  %s",
-        shortId, playing, maxP, getTimezoneStr()
-    )
-    hopNotifyFrame.Visible = true
-
-    for i = HOP_COUNTDOWN, 1, -1 do
-        if not hopNotifyFrame.Visible then break end
-        hopCountdownLabel.Text = string.format("⏳  ย้ายใน  %d  วินาที...", i)
-        task.wait(1)
-    end
-
-    hopCountdownLabel.Text = "✅  กำลังเชื่อมต่อ..."
-    task.wait(1.2)
-    hopNotifyFrame.Visible = false
-    isHopUIShowing = false                     -- ← ปลด flag
-end
 
 TeleportService.TeleportInitFailed:Connect(function(plr)
     if plr ~= player then return end
     state.isTeleporting = false
-    isHopUIShowing = false                     -- ← ปลด flag เมื่อ teleport fail
+    hopStartTime = 0
     if hopNotifyFrame then hopNotifyFrame.Visible = false end
 end)
 
-local function TPReturner()
-    local Site
-    local ok = pcall(function()
-        local url = "https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Desc&limit=100"
-        if foundAnything ~= "" then url = url .. "&cursor=" .. foundAnything end
-        Site = HttpService:JSONDecode(game:HttpGet(url))
-    end)
-    if not ok or not Site or not Site.data then return false end
-
-    if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
-        foundAnything = Site.nextPageCursor
-    else
-        foundAnything = ""
-    end
-
-    for _, v in pairs(Site.data) do
-        local Possible = true
-        local ID      = tostring(v.id)
-        local playing = tonumber(v.playing)    or 0
-        local maxP    = tonumber(v.maxPlayers) or 0
-
-        if ID == game.JobId then Possible = false end
-        if playing < 2      then Possible = false end
-
-        if maxP > playing and Possible then
-            for _, Existing in pairs(AllIDs) do
-                if ID == tostring(Existing) then
-                    Possible = false
-                    break
-                end
-            end
-
-            if Possible then
-                table.insert(AllIDs, ID)
-                state.isTeleporting = true
-
-                task.spawn(function()
-                    showHopNotify(ID, playing, maxP)
-                end)
-
-                task.wait(HOP_COUNTDOWN)
-
-                pcall(function()
-                    writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs))
-                    TeleportService:TeleportToPlaceInstance(PlaceID, ID, player)
-                end)
-
-                task.delay(8, function()
-                    if state.isTeleporting then
-                        state.isTeleporting = false
-                        isHopUIShowing = false
-                        if hopNotifyFrame then hopNotifyFrame.Visible = false end
-                    end
-                end)
-                return true
-            end
-        end
-    end
-    return false
-end
-
-local function hopServer()
-    if state.isTeleporting then return false end
-    local success = false
-    pcall(function()
-        success = TPReturner()
-
-        if not success and foundAnything ~= "" then
-            success = TPReturner()
-        end
-
-        if not success then
-            AllIDs = { actualHour }
-            foundAnything = ""
-            pcall(function()
-                writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs))
-            end)
-            success = TPReturner()
-        end
-    end)
-    return success
-end
-
 -- =============================================
---  Hop Triggers
+--  เงื่อนไขการ Hop
 -- =============================================
 
--- Trigger 1: ตายในเกม → hop
--- ✅ แก้: เพิ่ม isInGame() กัน hop ตอน respawn ที่ Health ชั่วคราวเป็น 0
+-- ตายในเกม → hop
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        task.wait(0.5)
         if not (cfg.farmEnabled and cfg.hopEnabled) then continue end
         local char = getChar()
-        if not char then continue end
-        local hum = char:FindFirstChild("Humanoid")
-
-        if isInGame() and (isDowned(char) or (hum and hum.Health <= 0)) then
-            while cfg.farmEnabled and cfg.hopEnabled do
-                if not state.isTeleporting then
-                    local done = hopServer()
-                    if done then break end
-                end
+        if not char or not isInGame() then continue end
+        if isDowned(char) or (char:FindFirstChild("Humanoid") and char.Humanoid.Health <= 0) then
+            hopServer()
+            while cfg.farmEnabled and cfg.hopEnabled and state.isTeleporting do
                 task.wait(0.5)
             end
         end
     end
 end)
 
--- Trigger 2: Rewards UI ขึ้น → hop หลัง 3 วิ
--- ✅ แก้: เช็ค rf.Visible อีกรอบหลัง wait กัน hop ทั้งที่ปิดไปแล้ว
+-- เจอ Rewards UI → hop
 task.spawn(function()
     while true do
         task.wait(0.5)
         if not (cfg.farmEnabled and cfg.hopEnabled) then continue end
         if state.isTeleporting then continue end
         local gui = player.PlayerGui:FindFirstChild("Global")
-        if not gui then continue end
-        local rf = gui:FindFirstChild("Rewards")
-        if not rf or not rf.Visible then continue end
-        task.wait(3)
-        -- เช็คอีกรอบหลัง wait ว่า Rewards ยังแสดงอยู่จริง
-        if cfg.farmEnabled and cfg.hopEnabled
-        and rf and rf.Visible then
-            hopServer()
+        local rf  = gui and gui:FindFirstChild("Rewards")
+        if rf and rf.Visible then
+            task.wait(2)
+            if rf.Visible and cfg.farmEnabled and cfg.hopEnabled then
+                hopServer()
+            end
         end
     end
 end)
 
--- Trigger 3: Server เต็ม → hop
+-- Server เต็ม → hop
 task.spawn(function()
     while true do
-        task.wait(5)
+        task.wait(3)
         if not (cfg.farmEnabled and cfg.hopEnabled) then continue end
         if state.isTeleporting then continue end
-        local ok, raw = pcall(function()
-            return game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Desc&limit=100")
-        end)
+        local ok, data = pcall(getServerList, nil)
         if not ok then continue end
-        local ok2, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
-        if not ok2 or not decoded.data then continue end
-        for _, s in ipairs(decoded.data) do
-            if tostring(s.id) == game.JobId then
-                if s.playing >= s.maxPlayers then
-                    while cfg.farmEnabled and cfg.hopEnabled do
-                        if not state.isTeleporting then
-                            local done = hopServer()
-                            if done then break end
-                        end
-                        task.wait(0.5)
-                    end
-                end
+        for _, s in ipairs(data.data or {}) do
+            if s.id == game.JobId and s.playing >= s.maxPlayers then
+                hopServer()
                 break
             end
         end
@@ -646,7 +616,7 @@ end)
 -- =====================
 --  UI
 -- =====================
-local window    = library:CreateWindow("Eavde")
+local window    = library:CreateWindow("Evade")
 local mainTab   = window:CreateTab("Farm")
 local configTab = window:CreateTab("Config")
 
