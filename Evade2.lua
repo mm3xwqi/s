@@ -52,7 +52,7 @@ local function clickButton(btn)
         pcall(function()
             local absPos  = btn.AbsolutePosition
             local absSize = btn.AbsoluteSize
-            local center  = Vector2.new(absPos.X + absSize.X/2, absPos.Y + absSize.Y/2)
+            local center  = Vector2.new(absPos.X + absSize.X/2, absPos.Y + absSize.Y/2 + 50)
             VU:CaptureController()
             VU:ClickButton1(center, CFrame.new())
         end)
