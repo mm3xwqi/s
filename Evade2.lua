@@ -134,6 +134,9 @@ local function predictNPC(npcHRP)
     return pos
 end
 
+-- =====================
+--  No Collide
+-- =====================
 RunService.Stepped:Connect(function()
     local char = getChar()
     if not char then return end
@@ -142,6 +145,9 @@ RunService.Stepped:Connect(function()
     end
 end)
 
+-- =====================
+--  SafeZone Loop
+-- =====================
 RunService.Heartbeat:Connect(function()
     if not cfg.safeZone  then return end
     if state.isReviving  then return end
@@ -164,6 +170,9 @@ task.spawn(function()
     end
 end)
 
+-- =====================
+--  Farm Loop
+-- =====================
 RunService.Heartbeat:Connect(function()
     if not cfg.farmEnabled then state.isFarming = false; return end
     if state.isReviving    then state.isFarming = false; return end
@@ -203,6 +212,9 @@ RunService.Heartbeat:Connect(function()
     if cfg.safeZone then warp(hrp, state.safeTarget) end
 end)
 
+-- =====================
+--  Self Revive + Rejoin
+-- =====================
 task.spawn(function()
     while true do
         task.wait(0.3)
@@ -235,6 +247,9 @@ task.spawn(function()
     end
 end)
 
+-- =====================
+--  Auto Revive
+-- =====================
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -305,6 +320,9 @@ task.spawn(function()
     end
 end)
 
+-- =====================
+--  Revive Aura
+-- =====================
 task.spawn(function()
     while true do
         task.wait(0.05)
@@ -329,6 +347,9 @@ task.spawn(function()
     end
 end)
 
+-- =====================
+--  Anti-AFK
+-- =====================
 task.spawn(function()
     while true do
         task.wait(60)
@@ -342,19 +363,20 @@ task.spawn(function()
 end)
 
 -- =============================================
---  HOP SERVER — fixed: reset blacklist on load
+--  HOP SERVER
 -- =============================================
 local PlaceID       = game.PlaceId
 local actualHour    = os.date("!*t").hour
 local HOP_COUNTDOWN = 3
 local foundAnything = ""
 
--- รีเซ็ต blacklist ทุกครั้งที่ script รัน ไม่เอาข้อมูลเก่า
+-- รีเซ็ต blacklist ทุกครั้งที่ script รัน
 local AllIDs = { actualHour }
 pcall(function() delfile("NotSameServers.json") end)
 pcall(function() writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs)) end)
 
 local hopNotifyFrame, hopInfoLabel, hopCountdownLabel
+local isHopUIShowing = false   -- ← flag กัน UI ซ้อน
 
 local function buildHopUI()
     local existing = player.PlayerGui:FindFirstChild("HopNotifyUI")
@@ -434,25 +456,32 @@ end
 
 local function showHopNotify(serverId, playing, maxP)
     if not hopNotifyFrame then return end
+    if isHopUIShowing then return end          -- ← กัน UI ซ้อน
+    isHopUIShowing = true
+
     local shortId = string.sub(tostring(serverId), 1, 20) .. "..."
     hopInfoLabel.Text = string.format(
         "🌐  Server  :  %s\n👥  Players :  %d / %d     🕒  Timezone :  %s",
         shortId, playing, maxP, getTimezoneStr()
     )
     hopNotifyFrame.Visible = true
+
     for i = HOP_COUNTDOWN, 1, -1 do
         if not hopNotifyFrame.Visible then break end
         hopCountdownLabel.Text = string.format("⏳  ย้ายใน  %d  วินาที...", i)
         task.wait(1)
     end
+
     hopCountdownLabel.Text = "✅  กำลังเชื่อมต่อ..."
     task.wait(1.2)
     hopNotifyFrame.Visible = false
+    isHopUIShowing = false                     -- ← ปลด flag
 end
 
 TeleportService.TeleportInitFailed:Connect(function(plr)
     if plr ~= player then return end
     state.isTeleporting = false
+    isHopUIShowing = false                     -- ← ปลด flag เมื่อ teleport fail
     if hopNotifyFrame then hopNotifyFrame.Visible = false end
 end)
 
@@ -481,7 +510,6 @@ local function TPReturner()
         if playing < 2      then Possible = false end
 
         if maxP > playing and Possible then
-            -- เช็คแค่ว่าเคย hop ไปแล้วไหม ไม่มี hour logic ซ้ำซ้อน
             for _, Existing in pairs(AllIDs) do
                 if ID == tostring(Existing) then
                     Possible = false
@@ -507,6 +535,7 @@ local function TPReturner()
                 task.delay(8, function()
                     if state.isTeleporting then
                         state.isTeleporting = false
+                        isHopUIShowing = false
                         if hopNotifyFrame then hopNotifyFrame.Visible = false end
                     end
                 end)
@@ -523,12 +552,10 @@ local function hopServer()
     pcall(function()
         success = TPReturner()
 
-        -- ลอง page ถัดไปถ้ายังมี cursor
         if not success and foundAnything ~= "" then
             success = TPReturner()
         end
 
-        -- blacklist เต็มแล้ว → reset แล้วลองใหม่
         if not success then
             AllIDs = { actualHour }
             foundAnything = ""
@@ -541,6 +568,12 @@ local function hopServer()
     return success
 end
 
+-- =============================================
+--  Hop Triggers
+-- =============================================
+
+-- Trigger 1: ตายในเกม → hop
+-- ✅ แก้: เพิ่ม isInGame() กัน hop ตอน respawn ที่ Health ชั่วคราวเป็น 0
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -548,7 +581,8 @@ task.spawn(function()
         local char = getChar()
         if not char then continue end
         local hum = char:FindFirstChild("Humanoid")
-        if isDowned(char) or (hum and hum.Health <= 0) then
+
+        if isInGame() and (isDowned(char) or (hum and hum.Health <= 0)) then
             while cfg.farmEnabled and cfg.hopEnabled do
                 if not state.isTeleporting then
                     local done = hopServer()
@@ -560,6 +594,8 @@ task.spawn(function()
     end
 end)
 
+-- Trigger 2: Rewards UI ขึ้น → hop หลัง 3 วิ
+-- ✅ แก้: เช็ค rf.Visible อีกรอบหลัง wait กัน hop ทั้งที่ปิดไปแล้ว
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -570,10 +606,15 @@ task.spawn(function()
         local rf = gui:FindFirstChild("Rewards")
         if not rf or not rf.Visible then continue end
         task.wait(3)
-        if cfg.farmEnabled and cfg.hopEnabled then hopServer() end
+        -- เช็คอีกรอบหลัง wait ว่า Rewards ยังแสดงอยู่จริง
+        if cfg.farmEnabled and cfg.hopEnabled
+        and rf and rf.Visible then
+            hopServer()
+        end
     end
 end)
 
+-- Trigger 3: Server เต็ม → hop
 task.spawn(function()
     while true do
         task.wait(5)
