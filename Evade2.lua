@@ -38,13 +38,21 @@ local lastNPCTime = nil
 
 local player          = game.Players.LocalPlayer
 local RunService      = game:GetService("RunService")
-local VIM             = game:GetService("VirtualInputManager")
+local VU              = game:GetService("VirtualUser")
 local HttpService     = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local interactRemote  = game:GetService("ReplicatedStorage")
     :WaitForChild("Events")
     :WaitForChild("Character")
     :WaitForChild("Interact")
+
+local function clickButton(btn)
+    local absPos  = btn.AbsolutePosition
+    local absSize = btn.AbsoluteSize
+    local center  = Vector2.new(absPos.X + absSize.X/2, absPos.Y + absSize.Y/2)
+    VU:CaptureController()
+    VU:ClickButton1(center, CFrame.new())
+end
 
 local SAVE_FILE = "autofarm_settings.json"
 
@@ -251,12 +259,7 @@ task.spawn(function()
                     local mainMenu = player.PlayerGui.Menu.Views.Default.MainMenu
                     local btnB     = mainMenu.Center.Buttons.Frame.B
                     if not mainMenu.Visible or not btnB.Visible then return end
-                    local absPos  = btnB.AbsolutePosition
-                    local absSize = btnB.AbsoluteSize
-                    local center  = Vector2.new(absPos.X + absSize.X/2, absPos.Y + absSize.Y/2)
-                    VIM:SendMouseButtonEvent(center.X, center.Y, 0, true,  game, 0)
-                    task.wait(0.05)
-                    VIM:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 0)
+                    clickButton(btnB)
                 end)
                 task.wait(0.5)
             end
@@ -297,23 +300,23 @@ task.spawn(function()
             continue
         end
         isActivelyReviving = true
-local reviveStart = tick()
-pcall(function()
-    while isDowned(target) do
-        if not target.Parent          then break end
-        if not hrp or not hrp.Parent  then break end
-        if isDowned(player.Character) then break end
-        if tick() - reviveStart > 5   then break end  -- ✅ เกิน 5 วิข้ามเลย
-        if tHRP and tHRP.Parent then
-            warp(hrp, tHRP.Position + OFFSET_UNDER)
-        end
-        interactRemote:FireServer("Revive", true, target.Name)
-        task.wait(0.05)
-    end
-end)
-isActivelyReviving = false
-if _G.SafeZone and hrp and hrp.Parent then goSafe(hrp) end
-task.wait(REVIVE_COOLDOWN)
+        local reviveStart = tick()
+        pcall(function()
+            while isDowned(target) do
+                if not target.Parent          then break end
+                if not hrp or not hrp.Parent  then break end
+                if isDowned(player.Character) then break end
+                if tick() - reviveStart > 5   then break end
+                if tHRP and tHRP.Parent then
+                    warp(hrp, tHRP.Position + OFFSET_UNDER)
+                end
+                interactRemote:FireServer("Revive", true, target.Name)
+                task.wait(0.05)
+            end
+        end)
+        isActivelyReviving = false
+        if _G.SafeZone and hrp and hrp.Parent then goSafe(hrp) end
+        task.wait(REVIVE_COOLDOWN)
     end
 end)
 
@@ -345,12 +348,7 @@ task.spawn(function()
             local mainMenu = player.PlayerGui.Menu.Views.Default.MainMenu
             local btnB     = mainMenu.Center.Buttons.Frame.B
             if not mainMenu.Visible or not btnB.Visible then return end
-            local absPos  = btnB.AbsolutePosition
-            local absSize = btnB.AbsoluteSize
-            local center  = Vector2.new(absPos.X + absSize.X/2, absPos.Y + absSize.Y/2)
-            VIM:SendMouseButtonEvent(center.X, center.Y, 0, true,  game, 0)
-            task.wait(0.05)
-            VIM:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 0)
+            clickButton(btnB)
         end)
     end
 end)
