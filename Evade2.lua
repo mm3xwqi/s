@@ -3,7 +3,6 @@ local _, library = pcall(loadstring(game:HttpGet("https://raw.githubusercontent.
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local window    = library:CreateWindow("Eavde")
-window:Minimize()
 local mainTab   = window:CreateTab("Farm")
 local configTab = window:CreateTab("Config")
 
