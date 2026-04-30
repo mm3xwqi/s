@@ -341,19 +341,18 @@ task.spawn(function()
     end
 end)
 
+-- =============================================
+--  HOP SERVER — fixed: reset blacklist on load
+-- =============================================
 local PlaceID       = game.PlaceId
-local AllIDs        = {}
-local foundAnything = ""
 local actualHour    = os.date("!*t").hour
 local HOP_COUNTDOWN = 3
+local foundAnything = ""
 
-local fileOk = pcall(function()
-    AllIDs = HttpService:JSONDecode(readfile("NotSameServers.json"))
-end)
-if not fileOk then
-    table.insert(AllIDs, actualHour)
-    writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs))
-end
+-- รีเซ็ต blacklist ทุกครั้งที่ script รัน ไม่เอาข้อมูลเก่า
+local AllIDs = { actualHour }
+pcall(function() delfile("NotSameServers.json") end)
+pcall(function() writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs)) end)
 
 local hopNotifyFrame, hopInfoLabel, hopCountdownLabel
 
@@ -472,7 +471,6 @@ local function TPReturner()
         foundAnything = ""
     end
 
-    local num = 0
     for _, v in pairs(Site.data) do
         local Possible = true
         local ID      = tostring(v.id)
@@ -483,19 +481,12 @@ local function TPReturner()
         if playing < 2      then Possible = false end
 
         if maxP > playing and Possible then
+            -- เช็คแค่ว่าเคย hop ไปแล้วไหม ไม่มี hour logic ซ้ำซ้อน
             for _, Existing in pairs(AllIDs) do
-                if num ~= 0 then
-                    if ID == tostring(Existing) then Possible = false end
-                else
-                    if tonumber(actualHour) ~= tonumber(Existing) then
-                        pcall(function()
-                            delfile("NotSameServers.json")
-                            AllIDs = {}
-                            table.insert(AllIDs, actualHour)
-                        end)
-                    end
+                if ID == tostring(Existing) then
+                    Possible = false
+                    break
                 end
-                num = num + 1
             end
 
             if Possible then
@@ -531,7 +522,19 @@ local function hopServer()
     local success = false
     pcall(function()
         success = TPReturner()
+
+        -- ลอง page ถัดไปถ้ายังมี cursor
         if not success and foundAnything ~= "" then
+            success = TPReturner()
+        end
+
+        -- blacklist เต็มแล้ว → reset แล้วลองใหม่
+        if not success then
+            AllIDs = { actualHour }
+            foundAnything = ""
+            pcall(function()
+                writefile("NotSameServers.json", HttpService:JSONEncode(AllIDs))
+            end)
             success = TPReturner()
         end
     end)
@@ -599,6 +602,9 @@ task.spawn(function()
     end
 end)
 
+-- =====================
+--  UI
+-- =====================
 local window    = library:CreateWindow("Eavde")
 local mainTab   = window:CreateTab("Farm")
 local configTab = window:CreateTab("Config")
