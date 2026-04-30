@@ -47,11 +47,16 @@ local interactRemote  = game:GetService("ReplicatedStorage")
     :WaitForChild("Interact")
 
 local function clickButton(btn)
-    local absPos  = btn.AbsolutePosition
-    local absSize = btn.AbsoluteSize
-    local center  = Vector2.new(absPos.X + absSize.X/2, absPos.Y + absSize.Y/2)
-    VU:CaptureController()
-    VU:ClickButton1(center, CFrame.new())
+    local ok = pcall(function() btn.MouseButton1Click:Fire() end)
+    if not ok then
+        pcall(function()
+            local absPos  = btn.AbsolutePosition
+            local absSize = btn.AbsoluteSize
+            local center  = Vector2.new(absPos.X + absSize.X/2, absPos.Y + absSize.Y/2)
+            VU:CaptureController()
+            VU:ClickButton1(center, CFrame.new())
+        end)
+    end
 end
 
 local SAVE_FILE = "autofarm_settings.json"
