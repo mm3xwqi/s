@@ -452,9 +452,8 @@ task.spawn(function()
         local rf = gui:FindFirstChild("Rewards")
         if not rf or not rf.Visible then continue end
         task.wait(5)
-        while farmRunning and hopRunning and rf.Visible do
-            if not isTeleporting then hopServer() end
-            task.wait(3)
+        if farmRunning and hopRunning and not isTeleporting then
+            hopServer()
         end
     end
 end)
