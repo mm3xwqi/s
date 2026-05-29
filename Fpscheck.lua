@@ -15,10 +15,9 @@ local isMobile = UIS.TouchEnabled and not UIS.KeyboardEnabled
 local _cfg = {}
 pcall(function() local e = getenv and getenv() or {}; _cfg = type(e)=="table" and e or {} end)
 local function cfgS(k,s,d)
-    local ok, t = pcall(function() return _cfg[k] end)
-    if not ok or type(t) ~= "table" then return d end
-    local v = t[s]
-    return v == nil and d or v
+	local ok,t = pcall(function() return _cfg[k] end)
+	if not ok or type(t)~="table" then return d end
+	local v = t[s]; return v==nil and d or v
 end
 
 -- ล้าง GUI เก่า
@@ -29,16 +28,14 @@ end
 -- FPS Cap
 local FPS_CAP = 60
 pcall(function()
-    if cfgS("Lock Fps","Enabled",false) then
-        FPS_CAP = cfgS("Lock Fps","FPS",60)
-    end
+	if cfgS("Lock Fps","Enabled",false) then FPS_CAP = cfgS("Lock Fps","FPS",60) end
 end)
 local function applyFpsCap(n)
 	if setfpscap then pcall(function() setfpscap(n) end) end
 end
 applyFpsCap(FPS_CAP)
 
--- ── Helper: สร้าง ScreenGui ──────────────────────────────────────────────────
+-- ── Helper ────────────────────────────────────────────────────────────────────
 local function makeGui(name, order)
 	local g = Instance.new("ScreenGui")
 	g.Name=name; g.ResetOnSpawn=false; g.DisplayOrder=order
@@ -46,7 +43,7 @@ local function makeGui(name, order)
 	return g
 end
 
--- ── Blackout ─────────────────────────────────────────────────────────────────
+-- ── Blackout ──────────────────────────────────────────────────────────────────
 local bGui = makeGui("BlackoutGui", 1)
 local bFrame = Instance.new("Frame", bGui)
 bFrame.Size=UDim2.new(1,0,1,0); bFrame.BackgroundColor3=Color3.new(0,0,0)
@@ -65,6 +62,7 @@ local function setBlackout(s)
 	blackoutOn=s; bFrame.Visible=s; wakeBtn.Visible=s
 	bFrame.BackgroundTransparency = s and 0.001 or 1
 end
+pcall(function() if _cfg["White Screen"] then task.defer(function() setBlackout(true) end) end end)
 wakeBtn.MouseButton1Click:Connect(function() setBlackout(false) end)
 UIS.InputBegan:Connect(function(i,g)
 	if not g and i.KeyCode==Enum.KeyCode.B then setBlackout(not blackoutOn) end
@@ -124,7 +122,10 @@ local cbSt=Instance.new("UIStroke",capBox); cbSt.Color=Color3.fromRGB(100,180,25
 
 capBox.FocusLost:Connect(function(enter)
 	if not enter then return end
-	local n = math.clamp(math.floor(tonumber(capBox.Text:gsub("%s+","")) or 60), 0, 999)
+	local raw = capBox.Text:gsub("%s+",""):gsub("∞","0")
+	local n = tonumber(raw)
+	if not n or n ~= n then n = 60 end
+	n = math.clamp(math.floor(n), 0, 999)
 	applyFpsCap(n); FPS_CAP=n; capBox.Text=n>0 and tostring(n) or "∞"
 end)
 
@@ -197,7 +198,7 @@ local row3=Instance.new("Frame",pcntGui)
 row3.Size=UDim2.new(0,ROW1_W,0,ROW3_H); row3.AnchorPoint=Vector2.new(0.5,0)
 row3.Position=UDim2.new(0.5,0,0,ROW2_Y+ROW2_H+6)
 row3.BackgroundColor3=Color3.fromRGB(14,14,24); row3.BackgroundTransparency=0.3; row3.BorderSizePixel=0
-row3.Visible=false; row3.Parent=pcntGui
+row3.Visible=false
 Instance.new("UICorner",row3).CornerRadius=UDim.new(1,0)
 local r3St=Instance.new("UIStroke",row3); r3St.Color=Color3.fromRGB(255,255,255); r3St.Thickness=1; r3St.Transparency=0.82
 
@@ -271,7 +272,7 @@ Players.PlayerRemoving:Connect(function() task.wait(0.3); pcall(updatePlayerCoun
 -- ── BloxHUD Panel ─────────────────────────────────────────────────────────────
 local mainGui = makeGui("BloxHUD", 10)
 local CARD_W = isMobile and 290 or 260
-local CARD_H = isMobile and 300 or 260
+local CARD_H = isMobile and 340 or 300
 
 -- Full panel
 local pc=Instance.new("Frame",mainGui)
@@ -294,11 +295,11 @@ mini.BorderSizePixel=0; mini.ClipsDescendants=true; mini.Visible=false
 Instance.new("UICorner",mini).CornerRadius=UDim.new(0,10)
 local miniSt=Instance.new("UIStroke",mini); miniSt.Color=Color3.fromRGB(255,255,255); miniSt.Thickness=0.7; miniSt.Transparency=0.82
 
--- Collapse / Expand buttons
+-- Collapse / Expand
 local BTN_SZ = isMobile and 38 or 26
-local function makeToggleBtn(parent, txt, xPos)
+local function makeToggleBtn(parent, txt, yPos)
 	local b=Instance.new("TextButton",parent)
-	b.Size=UDim2.new(0,BTN_SZ,0,BTN_SZ-8); b.Position=UDim2.new(1,-BTN_SZ-6,0,xPos)
+	b.Size=UDim2.new(0,BTN_SZ,0,BTN_SZ-8); b.Position=UDim2.new(1,-BTN_SZ-6,0,yPos)
 	b.BackgroundColor3=Color3.fromRGB(30,30,48); b.BorderSizePixel=0
 	b.Text=txt; b.TextColor3=Color3.fromRGB(160,160,200)
 	b.TextSize=isMobile and 12 or 9; b.Font=Enum.Font.GothamBold; b.AutoButtonColor=false
@@ -306,7 +307,7 @@ local function makeToggleBtn(parent, txt, xPos)
 	Instance.new("UIStroke",b).Color=Color3.fromRGB(255,255,255)
 	return b
 end
-local collapseBtn = makeToggleBtn(pc,  "▲", 12)
+local collapseBtn = makeToggleBtn(pc,   "▲", 12)
 local expandBtn   = makeToggleBtn(mini, "▼", 7)
 
 local isMin=false
@@ -316,15 +317,9 @@ end
 collapseBtn.MouseButton1Click:Connect(function() isMin=true;  applyMin() end)
 expandBtn.MouseButton1Click:Connect(function()   isMin=false; applyMin() end)
 
--- Scrollable body
-local scroll=Instance.new("ScrollingFrame",pc)
-scroll.Size=UDim2.new(1,0,1,0); scroll.BackgroundTransparency=1; scroll.BorderSizePixel=0
-scroll.ScrollBarThickness=isMobile and 4 or 3; scroll.ScrollBarImageColor3=Color3.fromRGB(120,120,180)
-scroll.CanvasSize=UDim2.new(0,0,0,240); scroll.ScrollingDirection=Enum.ScrollingDirection.Y
-scroll.ElasticBehavior=Enum.ElasticBehavior.Never; scroll.ClipsDescendants=true
-
-local body=Instance.new("Frame",scroll)
-body.Size=UDim2.new(1,0,0,240); body.BackgroundTransparency=1; body.BorderSizePixel=0
+-- Body (no scroll)
+local body=Instance.new("Frame",pc)
+body.Size=UDim2.new(1,0,1,0); body.BackgroundTransparency=1; body.BorderSizePixel=0
 
 local function bLabel(parent,txt,ts,tc,font,xa,sz,pos)
 	local l=Instance.new("TextLabel",parent)
@@ -334,8 +329,8 @@ local function bLabel(parent,txt,ts,tc,font,xa,sz,pos)
 	l.TextStrokeTransparency=0.4; l.TextStrokeColor3=Color3.new(0,0,0)
 	return l
 end
-local function bDiv(parent, y)
-	local d=Instance.new("Frame",parent)
+local function bDiv(y)
+	local d=Instance.new("Frame",body)
 	d.Size=UDim2.new(1,-16,0,1); d.Position=UDim2.new(0,8,0,y)
 	d.BackgroundColor3=Color3.fromRGB(255,255,255); d.BackgroundTransparency=0.88; d.BorderSizePixel=0
 end
@@ -354,14 +349,14 @@ if ok then avImg.Image=th end
 
 bLabel(body,lp.DisplayName,15,Color3.fromRGB(255,255,255),Enum.Font.GothamBold,Enum.TextXAlignment.Left,UDim2.new(0,150,0,18),UDim2.new(0,66,0,10))
 bLabel(body,"@"..lp.Name,10,Color3.fromRGB(180,180,210),Enum.Font.Gotham,Enum.TextXAlignment.Left,UDim2.new(0,150,0,14),UDim2.new(0,66,0,30))
-bDiv(body,68)
+bDiv(68)
 
 -- Info stats
 local INFO={
-	{tag="LEVEL",key="Level",color=Color3.fromRGB(255,215,60)},
-	{tag="BELI",key="Beli",color=Color3.fromRGB(80,235,140)},
+	{tag="LEVEL",    key="Level",    color=Color3.fromRGB(255,215,60)},
+	{tag="BELI",     key="Beli",     color=Color3.fromRGB(80,235,140)},
 	{tag="FRAGMENTS",key="Fragments",color=Color3.fromRGB(200,130,255)},
-	{tag="RACE",key="Race",color=Color3.fromRGB(210,150,255)},
+	{tag="RACE",     key="Race",     color=Color3.fromRGB(210,150,255)},
 }
 local infoLabels={}
 for i,s in ipairs(INFO) do
@@ -372,30 +367,30 @@ for i,s in ipairs(INFO) do
 end
 local vSep=Instance.new("Frame",body); vSep.Size=UDim2.new(0,1,0,52); vSep.Position=UDim2.new(0,126,0,74)
 vSep.BackgroundColor3=Color3.fromRGB(255,255,255); vSep.BackgroundTransparency=0.88; vSep.BorderSizePixel=0
-bDiv(body,136)
+bDiv(136)
 
 -- Combat stats
 bLabel(body,"COMBAT STATS",10,Color3.fromRGB(200,200,230),Enum.Font.GothamBold,Enum.TextXAlignment.Left,UDim2.new(1,-16,0,12),UDim2.new(0,10,0,142))
 local COMBAT={
-	{tag="Melee",icon="👊",color=Color3.fromRGB(255,175,90)},
-	{tag="Defense",icon="🛡",color=Color3.fromRGB(120,190,255)},
-	{tag="Sword",icon="⚔",color=Color3.fromRGB(225,190,255)},
-	{tag="Gun",icon="🔫",color=Color3.fromRGB(90,235,150)},
+	{tag="Melee",      icon="👊",color=Color3.fromRGB(255,175,90)},
+	{tag="Defense",    icon="🛡", color=Color3.fromRGB(120,190,255)},
+	{tag="Sword",      icon="⚔", color=Color3.fromRGB(225,190,255)},
+	{tag="Gun",        icon="🔫",color=Color3.fromRGB(90,235,150)},
 	{tag="Demon Fruit",icon="🍎",color=Color3.fromRGB(255,120,150)},
 }
 local combatLabels={}
 local MAX_STAT=2800
 for i,s in ipairs(COMBAT) do
-	local y=158+(i-1)*22
+	local y=158+(i-1)*26
 	local ico=Instance.new("TextLabel",body)
 	ico.Size=UDim2.new(0,20,0,20); ico.Position=UDim2.new(0,8,0,y)
 	ico.BackgroundTransparency=1; ico.Text=s.icon; ico.TextSize=14
 	ico.Font=Enum.Font.Gotham; ico.TextXAlignment=Enum.TextXAlignment.Center; ico.TextStrokeTransparency=1
 	bLabel(body,s.tag,12,Color3.fromRGB(220,220,240),Enum.Font.GothamBold,Enum.TextXAlignment.Left,UDim2.new(0,100,0,20),UDim2.new(0,30,0,y))
-	local barBg=Instance.new("Frame",body); barBg.Size=UDim2.new(0,95,0,4); barBg.Position=UDim2.new(0,30,0,y+17)
-	barBg.BackgroundColor3=Color3.fromRGB(50,50,70); barBg.BorderSizePixel=0
-	Instance.new("UICorner",barBg).CornerRadius=UDim.new(1,0)
-	local barFill2=Instance.new("Frame",barBg); barFill2.Size=UDim2.new(0,0,1,0)
+	local barBg2=Instance.new("Frame",body); barBg2.Size=UDim2.new(0,95,0,4); barBg2.Position=UDim2.new(0,30,0,y+17)
+	barBg2.BackgroundColor3=Color3.fromRGB(50,50,70); barBg2.BorderSizePixel=0
+	Instance.new("UICorner",barBg2).CornerRadius=UDim.new(1,0)
+	local barFill2=Instance.new("Frame",barBg2); barFill2.Size=UDim2.new(0,0,1,0)
 	barFill2.BackgroundColor3=s.color; barFill2.BorderSizePixel=0
 	Instance.new("UICorner",barFill2).CornerRadius=UDim.new(1,0)
 	local vl=bLabel(body,"...",12,s.color,Enum.Font.GothamBold,Enum.TextXAlignment.Right,UDim2.new(0,50,0,20),UDim2.new(0,200,0,y))
@@ -404,20 +399,23 @@ end
 
 -- Mini panel content
 local AV_SIZE=isMobile and 30 or 26
-local miniAv=Instance.new("Frame",mini); miniAv.Size=UDim2.new(0,AV_SIZE,0,AV_SIZE); miniAv.Position=UDim2.new(0,8,0,7)
+local miniAv=Instance.new("Frame",mini)
+miniAv.Size=UDim2.new(0,AV_SIZE,0,AV_SIZE); miniAv.Position=UDim2.new(0,8,0,7)
 miniAv.BackgroundColor3=Color3.fromRGB(40,30,60); miniAv.BorderSizePixel=0
 Instance.new("UICorner",miniAv).CornerRadius=UDim.new(1,0)
 local miniAvSt=Instance.new("UIStroke",miniAv); miniAvSt.Color=Color3.fromRGB(192,132,252); miniAvSt.Thickness=1.2; miniAvSt.Transparency=0.15
-local miniAvImg=Instance.new("ImageLabel",miniAv); miniAvImg.Size=UDim2.new(1,0,1,0); miniAvImg.BackgroundTransparency=1; miniAvImg.BorderSizePixel=0
+local miniAvImg=Instance.new("ImageLabel",miniAv)
+miniAvImg.Size=UDim2.new(1,0,1,0); miniAvImg.BackgroundTransparency=1; miniAvImg.BorderSizePixel=0
 Instance.new("UICorner",miniAvImg).CornerRadius=UDim.new(1,0)
 local ok2,th2=pcall(function() return Players:GetUserThumbnailAsync(lp.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100) end)
 if ok2 then miniAvImg.Image=th2 end
 
-local TX = AV_SIZE+20
+local TX=AV_SIZE+20
 bLabel(mini,lp.DisplayName,isMobile and 13 or 12,Color3.fromRGB(255,255,255),Enum.Font.GothamBold,Enum.TextXAlignment.Left,UDim2.new(0,CARD_W-TX-BTN_SZ-8,0,isMobile and 16 or 14),UDim2.new(0,TX,0,7))
 bLabel(mini,"@"..lp.Name,isMobile and 10 or 9,Color3.fromRGB(150,130,190),Enum.Font.Gotham,Enum.TextXAlignment.Left,UDim2.new(0,CARD_W-TX-BTN_SZ-8,0,isMobile and 13 or 11),UDim2.new(0,TX,0,isMobile and 24 or 22))
 
-local miniDiv=Instance.new("Frame",mini); miniDiv.Size=UDim2.new(1,-16,0,1); miniDiv.Position=UDim2.new(0,8,0,isMobile and 40 or 36)
+local miniDiv=Instance.new("Frame",mini)
+miniDiv.Size=UDim2.new(1,-16,0,1); miniDiv.Position=UDim2.new(0,8,0,isMobile and 40 or 36)
 miniDiv.BackgroundColor3=Color3.fromRGB(255,255,255); miniDiv.BackgroundTransparency=0.88; miniDiv.BorderSizePixel=0
 
 local SCOLS={{icon="⚔",key="Level",color=Color3.fromRGB(255,215,60)},{icon="💰",key="Beli",color=Color3.fromRGB(80,235,140)},{icon="💎",key="Fragments",color=Color3.fromRGB(200,130,255)},{icon="🧬",key="Race",color=Color3.fromRGB(210,160,255)}}
@@ -425,12 +423,15 @@ local miniStatLabels={}
 local SW=math.floor(CARD_W/4)
 for i,s in ipairs(SCOLS) do
 	local sx=(i-1)*SW
-	local ico=Instance.new("TextLabel",mini); ico.Size=UDim2.new(0,14,0,14); ico.Position=UDim2.new(0,sx+4,0,isMobile and 43 or 39)
-	ico.BackgroundTransparency=1; ico.Text=s.icon; ico.TextSize=isMobile and 11 or 10; ico.Font=Enum.Font.Gotham; ico.TextXAlignment=Enum.TextXAlignment.Center; ico.TextStrokeTransparency=1
-	local vl=Instance.new("TextLabel",mini); vl.Size=UDim2.new(0,SW-20,0,14); vl.Position=UDim2.new(0,sx+19,0,isMobile and 43 or 39)
-	vl.BackgroundTransparency=1; vl.Text="..."; vl.TextSize=isMobile and 11 or 10; vl.Font=Enum.Font.GothamBold
-	vl.TextColor3=s.color; vl.TextXAlignment=Enum.TextXAlignment.Left; vl.ClipsDescendants=true
-	vl.TextStrokeTransparency=0.4; vl.TextStrokeColor3=Color3.new(0,0,0)
+	local ico=Instance.new("TextLabel",mini)
+	ico.Size=UDim2.new(0,14,0,14); ico.Position=UDim2.new(0,sx+4,0,isMobile and 43 or 39)
+	ico.BackgroundTransparency=1; ico.Text=s.icon; ico.TextSize=isMobile and 11 or 10
+	ico.Font=Enum.Font.Gotham; ico.TextXAlignment=Enum.TextXAlignment.Center; ico.TextStrokeTransparency=1
+	local vl=Instance.new("TextLabel",mini)
+	vl.Size=UDim2.new(0,SW-20,0,14); vl.Position=UDim2.new(0,sx+19,0,isMobile and 43 or 39)
+	vl.BackgroundTransparency=1; vl.Text="..."; vl.TextSize=isMobile and 11 or 10
+	vl.Font=Enum.Font.GothamBold; vl.TextColor3=s.color; vl.TextXAlignment=Enum.TextXAlignment.Left
+	vl.ClipsDescendants=true; vl.TextStrokeTransparency=0.4; vl.TextStrokeColor3=Color3.new(0,0,0)
 	miniStatLabels[s.key]=vl
 end
 
