@@ -3,11 +3,6 @@
 --    ["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 25 },
 --    ["White Screen"] = true,
 -- } end ]
-
--- Integrated Wide Glassmorphism Status Panel (520x430) - No Inventory
--- Features: Avatar, Cards, Combat Progress, Player Count, Teams, Performance, Blackout, Self Highlight, Collapse/Expand
--- Toggle with RightControl, drag via title bar
-
 local Players = game:GetService("Players")
 local StatsService = game:GetService("Stats")
 local RunService = game:GetService("RunService")
