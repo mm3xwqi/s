@@ -4,7 +4,9 @@
 --    ["White Screen"] = true,
 -- } end ]
 
+
 -- ================== Integrated Status HUD ==================
+
 local Players = game:GetService("Players")
 local StatsService = game:GetService("Stats")
 local RunService = game:GetService("RunService")
@@ -13,15 +15,25 @@ local TweenService = game:GetService("TweenService")
 local Teams = pcall(function() return game:GetService("Teams") end) and game:GetService("Teams") or nil
 
 local player = Players.LocalPlayer
+
+local pg = player:WaitForChild("PlayerGui")
+local oldGui = pg:FindFirstChild("IntegratedStatusHUD")
+if oldGui then oldGui:Destroy() end
+
+if player.Character then
+    local oldHL = player.Character:FindFirstChild("ESP_SelfHL")
+    if oldHL then oldHL:Destroy() end
+end
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "IntegratedStatusHUD"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 10
-gui.Parent = player:WaitForChild("PlayerGui")
+gui.Parent = pg
 
 -- ================== Global Settings ==================
-local MAX_PLAYERS = 12
+local MAX_PLAYERS = Players.MaxPlayers
 local COMBAT_CAP = 2800
 local FPS_CAP = 60
 
@@ -90,7 +102,7 @@ local C = {
 	OFFWHITE  = Color3.fromRGB(220, 220, 220),
 	MUTED     = Color3.fromRGB(140, 140, 140),
 	DIM       = Color3.fromRGB(80,  80,  80),
-	ACCENT    = Color3.fromRGB(255, 255, 255),   -- pure white accent
+	ACCENT    = Color3.fromRGB(255, 255, 255),
 	SUCCESS   = Color3.fromRGB(200, 255, 200),
 	WARN      = Color3.fromRGB(255, 240, 180),
 	DANGER    = Color3.fromRGB(255, 180, 180),
@@ -142,7 +154,6 @@ fullPanel.Parent = gui
 addCorner(fullPanel, 16)
 addStroke(fullPanel, C.BORDER2, 1, 0)
 
--- subtle top highlight line
 local topLine = Instance.new("Frame", fullPanel)
 topLine.Size = UDim2.new(1, 0, 0, 1)
 topLine.BackgroundColor3 = C.BORDER2
@@ -225,7 +236,6 @@ titleBar.Size = UDim2.new(1, 0, 0, 64)
 titleBar.BackgroundTransparency = 1
 titleBar.ZIndex = 2
 
--- avatar circle
 local avatar = Instance.new("ImageLabel", titleBar)
 avatar.Size = UDim2.new(0, 44, 0, 44)
 avatar.Position = UDim2.new(0, 14, 0, 10)
@@ -255,7 +265,6 @@ local lvlLabel = makeLabel(titleBar, {
 	text = "LV. 0", zindex = 3
 })
 
--- online dot
 local onlineDot = Instance.new("Frame", titleBar)
 onlineDot.Size = UDim2.new(0, 6, 0, 6)
 onlineDot.Position = UDim2.new(0, 68, 0, 48)
@@ -269,14 +278,12 @@ local onlineLabel = makeLabel(titleBar, {
 	size = 10, color = C.DIM, text = "ONLINE", zindex = 3
 })
 
--- section tag top-right
 local sectionTag = makeLabel(titleBar, {
 	sz = UDim2.new(0, 80, 0, 14), pos = UDim2.new(1, -116, 0, 44),
 	size = 10, color = C.DIM, text = "BLOX FRUITS",
 	align = Enum.TextXAlignment.Right, zindex = 3
 })
 
--- divider
 local divider = Instance.new("Frame", titleBar)
 divider.Size = UDim2.new(1, -28, 0, 1)
 divider.Position = UDim2.new(0, 14, 0, 63)
@@ -292,7 +299,6 @@ content.Position = UDim2.new(0, 14, 0, 72)
 content.BackgroundTransparency = 1
 content.ZIndex = 2
 
--- column headers
 local leftHeader = makeLabel(content, {
 	sz = UDim2.new(0, 240, 0, 14), pos = UDim2.new(0, 0, 0, 0),
 	size = 9, color = C.DIM, text = "ACCOUNT"
@@ -324,7 +330,6 @@ local function createCard(parent, x, y, label, defaultValue, isCombat)
 	})
 
 	if isCombat then
-		-- bar at bottom of card
 		local trackBg = Instance.new("Frame", card)
 		trackBg.Size = UDim2.new(1, -20, 0, 2)
 		trackBg.Position = UDim2.new(0, 10, 1, -5)
@@ -401,7 +406,7 @@ addCorner(barFill, 2)
 
 local fullBadge = Instance.new("TextLabel", pcBar)
 fullBadge.Size = UDim2.new(0, 36, 0, 14)
-fullBadge.Position = UDim2.new(0, 10, 0, 3)
+fullBadge.Position = UDim2.new(1, -46, 0, 4)
 fullBadge.BackgroundColor3 = C.WHITE
 fullBadge.BackgroundTransparency = 0
 fullBadge.Text = "FULL"
@@ -497,14 +502,17 @@ local function updatePlayerCount()
 	if ratio >= 1 then
 		barFill.BackgroundColor3 = C.DANGER
 		pcCount.TextColor3 = C.DANGER
+		pcCount.Position = UDim2.new(1, -132, 0, 4)
 		fullBadge.Visible = true
 	elseif ratio >= 0.75 then
 		barFill.BackgroundColor3 = C.WARN
 		pcCount.TextColor3 = C.WARN
+		pcCount.Position = UDim2.new(1, -90, 0, 4)
 		fullBadge.Visible = false
 	else
 		barFill.BackgroundColor3 = C.WHITE
 		pcCount.TextColor3 = C.WHITE
+		pcCount.Position = UDim2.new(1, -90, 0, 4)
 		fullBadge.Visible = false
 	end
 	barFill.Size = UDim2.new(ratio, 0, 1, 0)
@@ -555,7 +563,6 @@ local timeLabel = makeLabel(bottomBar, {
 	font = Enum.Font.GothamBold, size = 13, color = C.MUTED, text = "00:00:00"
 })
 
--- FPS cap group
 local capGroup = Instance.new("Frame", bottomBar)
 capGroup.Size = UDim2.new(0, 140, 1, 0)
 capGroup.Position = UDim2.new(1, -140, 0, 0)
@@ -564,7 +571,7 @@ capGroup.ZIndex = 3
 
 local capLbl = makeLabel(capGroup, {
 	sz = UDim2.new(0, 28, 1, 0), pos = UDim2.new(0, 0, 0, 0),
-	size = 9, color = C.DIM, text = "CAP", zindex = 4
+	size = 8, color = C.DIM, text = "FPSCAP", zindex = 5
 })
 local capBox = Instance.new("TextBox", capGroup)
 capBox.Size = UDim2.new(0, 46, 1, -8)
@@ -663,15 +670,11 @@ for i, key in ipairs(statNames) do
 end
 
 -- ================== Blackout Feature ==================
-local blackoutFrame = Instance.new("Frame", gui)
-blackoutFrame.Size = UDim2.new(1, 0, 1, 0)
-blackoutFrame.BackgroundColor3 = Color3.new(0,0,0)
-blackoutFrame.BackgroundTransparency = 1
-blackoutFrame.BorderSizePixel = 0
-blackoutFrame.Visible = false
-blackoutFrame.ZIndex = 100
+local blackoutEffect = Instance.new("ColorCorrectionEffect")
+blackoutEffect.Brightness = 0
+blackoutEffect.Parent = game:GetService("Lighting")
 
-local restoreBtn = Instance.new("TextButton", blackoutFrame)
+local restoreBtn = Instance.new("TextButton", gui)
 restoreBtn.Size = UDim2.new(0, 90, 0, 32)
 restoreBtn.AnchorPoint = Vector2.new(0.5, 1)
 restoreBtn.Position = UDim2.new(0.5, 0, 1, -30)
@@ -689,10 +692,14 @@ addCorner(restoreBtn, 6)
 local blackoutActive = false
 local function setBlackout(state)
 	blackoutActive = state
-	blackoutFrame.Visible = state
+	if state then
+		blackoutEffect.Brightness = -1
+	else
+		blackoutEffect.Brightness = 0
+	end
 	restoreBtn.Visible = state
-	blackoutFrame.BackgroundTransparency = state and 0.001 or 1
 end
+
 restoreBtn.MouseButton1Click:Connect(function() setBlackout(false) end)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
@@ -701,24 +708,27 @@ end)
 
 -- ================== Self Highlight ==================
 local selfHL = nil
+local originalProps = {}
+
 local function applyHighlight(character)
 	if selfHL and selfHL.Parent then selfHL:Destroy() end
 	selfHL = nil
 	if not character then return end
+
 	local hl = Instance.new("Highlight")
 	hl.Name = "ESP_SelfHL"
-	hl.FillColor = Color3.fromRGB(200, 200, 200)
-	hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-	hl.FillTransparency = 0.7
+	hl.FillColor = Color3.fromRGB(255, 255, 255)
+	hl.OutlineColor = Color3.fromRGB(0, 0, 0)
+	hl.FillTransparency = 0.5
 	hl.OutlineTransparency = 0
-	hl.DepthMode = Enum.HighlightDepthMode.Occluded
+	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	hl.Adornee = character
 	hl.Parent = character
 	selfHL = hl
 end
+
 if player.Character then task.delay(0.5, function() applyHighlight(player.Character) end) end
 player.CharacterAdded:Connect(function(char) task.wait(0.5); applyHighlight(char) end)
-
 -- ================== FPS / Ping / Time ==================
 local fps = 0
 local lastTime = tick()
