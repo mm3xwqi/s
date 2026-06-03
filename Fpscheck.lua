@@ -156,7 +156,7 @@ end
 
 -- ========== MAIN GUI SETUP ==========
 local gui = Instance.new("ScreenGui")
-gui.Name = "Status BF"
+gui.Name = "IntegratedStatusHUD"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 10
@@ -203,7 +203,7 @@ addStroke(loadOverlay, C.BORDER2,1,0)
 makeLabel(loadOverlay, {
     sz = UDim2.new(1,0,0,20), pos = UDim2.new(0,0,0,180),
     font = Enum.Font.GothamBold, size = 14, color = C.WHITE,
-    text = "INTEGRATED HUD", align = Enum.TextXAlignment.Center, zindex = 52,
+    text = "Status", align = Enum.TextXAlignment.Center, zindex = 52,
 })
 local loadStepLabel = makeLabel(loadOverlay, {
     sz = UDim2.new(1,-60,0,14), pos = UDim2.new(0,30,0,210),
