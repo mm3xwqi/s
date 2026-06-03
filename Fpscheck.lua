@@ -1,20 +1,16 @@
-getenv = function() return {
-    ["Remove Death Effect"] = true,
-    ["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 60 },
-    ["White Screen"] = true,
-} end
+-- getenv = function() return {
+--    ["Remove Death Effect"] = true,
+--    ["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
+--    ["White Screen"] = false,
+-- } end
 
-local config = {
-    ["Remove Death Effect"] = true,
-    ["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 60 },
-    ["White Screen"] = true,
-}
+local config = getenv()
 
-local Players = game:GetService("Players")
-local StatsService = game:GetService("Stats")
-local RunService = game:GetService("RunService")
+local Players          = game:GetService("Players")
+local StatsService     = game:GetService("Stats")
+local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local TweenService     = game:GetService("TweenService")
 local Teams = pcall(function() return game:GetService("Teams") end) and game:GetService("Teams") or nil
 
 local player = Players.LocalPlayer
@@ -34,10 +30,9 @@ gui.IgnoreGuiInset = true
 gui.DisplayOrder = 10
 gui.Parent = pg
 
--- Settings
-local MAX_PLAYERS = Players.MaxPlayers
-local COMBAT_CAP = 2800
-local FPS_CAP = config["Lock Fps"]["Enabled"] and config["Lock Fps"]["FPS"] or 60
+local MAX_PLAYERS         = Players.MaxPlayers
+local COMBAT_CAP          = 2800
+local FPS_CAP             = config["Lock Fps"]["Enabled"] and config["Lock Fps"]["FPS"] or 60
 local REMOVE_DEATH_EFFECT = config["Remove Death Effect"]
 
 if config["Lock Fps"]["Enabled"] then
@@ -45,7 +40,6 @@ if config["Lock Fps"]["Enabled"] then
     pcall(function() setfpscap(FPS_CAP) end)
 end
 
--- Data Helpers
 local function getValueByPaths(...)
     for _, path in ipairs({...}) do
         local obj = player
@@ -62,15 +56,15 @@ local function getValueByPaths(...)
 end
 
 local STAT_PATHS = {
-    Level = {"leaderstats.Level", "leaderstats.Lv.", "Data.Level"},
-    Beli = {"leaderstats.Beli", "leaderstats.Money", "Data.Beli"},
-    Fragments = {"leaderstats.Fragments", "leaderstats.Fragment", "Data.Fragments"},
-    Race = {"leaderstats.Race", "Data.Race"},
-    Melee = {"leaderstats.Melee", "Data.Stats.Melee.Level"},
-    Defense = {"leaderstats.Defense", "Data.Stats.Defense.Level"},
-    Sword = {"leaderstats.Sword", "Data.Stats.Sword.Level"},
-    Gun = {"leaderstats.Gun", "Data.Stats.Gun.Level"},
-    ["Blox Fruit"] = {"leaderstats.Blox Fruit", "leaderstats.Demon Fruit", "Data.Stats.Blox Fruit.Level", "Data.Stats.Demon Fruit.Level"},
+    Level      = {"leaderstats.Level", "leaderstats.Lv.", "Data.Level"},
+    Beli       = {"leaderstats.Beli", "leaderstats.Money", "Data.Beli"},
+    Fragments  = {"leaderstats.Fragments", "leaderstats.Fragment", "Data.Fragments"},
+    Race       = {"leaderstats.Race", "Data.Race"},
+    Melee      = {"leaderstats.Melee", "Data.Stats.Melee.Level"},
+    Defense    = {"leaderstats.Defense", "Data.Stats.Defense.Level"},
+    Sword      = {"leaderstats.Sword", "Data.Stats.Sword.Level"},
+    Gun        = {"leaderstats.Gun", "Data.Stats.Gun.Level"},
+    ["Blox Fruit"] = {"leaderstats.Blox Fruit","leaderstats.Demon Fruit","Data.Stats.Blox Fruit.Level","Data.Stats.Demon Fruit.Level"},
 }
 
 local function getStat(key)
@@ -94,10 +88,18 @@ local function formatVal(v, key)
     else return tostring(math.floor(v)) end
 end
 
--- Color Palette
+local function getEquippedItem()
+    local char = player.Character
+    if not char then return "None" end
+    for _, obj in ipairs(char:GetChildren()) do
+        if obj:IsA("Tool") then return obj.Name end
+    end
+    return "None"
+end
+
 local C = {
     BG        = Color3.fromRGB(10,  10,  10),
-    PANEL     = Color3.fromRGB(15,  15,  15),
+    PANEL     = Color3.fromRGB(0,   0,   0),
     CARD      = Color3.fromRGB(20,  20,  20),
     CARDHOVER = Color3.fromRGB(28,  28,  28),
     BORDER    = Color3.fromRGB(40,  40,  40),
@@ -112,7 +114,6 @@ local C = {
     DANGER    = Color3.fromRGB(255, 180, 180),
 }
 
--- Utility
 local function addCorner(parent, radius)
     local c = Instance.new("UICorner", parent)
     c.CornerRadius = UDim.new(0, radius or 8)
@@ -130,23 +131,22 @@ end
 local function makeLabel(parent, props)
     local lbl = Instance.new("TextLabel", parent)
     lbl.BackgroundTransparency = 1
-    lbl.Font = props.font or Enum.Font.Gotham
-    lbl.TextSize = props.size or 13
-    lbl.TextColor3 = props.color or C.OFFWHITE
-    lbl.Text = props.text or ""
-    lbl.Size = props.sz or UDim2.new(1, 0, 0, 20)
-    lbl.Position = props.pos or UDim2.new(0, 0, 0, 0)
-    lbl.TextXAlignment = props.align or Enum.TextXAlignment.Left
-    lbl.TextYAlignment = props.yalign or Enum.TextYAlignment.Center
-    lbl.TextTruncate = props.truncate or Enum.TextTruncate.None
-    lbl.ZIndex = props.zindex or 1
+    lbl.Font              = props.font   or Enum.Font.GothamBold
+    lbl.TextSize          = props.size   or 13
+    lbl.TextColor3        = props.color  or C.OFFWHITE
+    lbl.Text              = props.text   or ""
+    lbl.Size              = props.sz     or UDim2.new(1, 0, 0, 20)
+    lbl.Position          = props.pos    or UDim2.new(0, 0, 0, 0)
+    lbl.TextXAlignment    = props.align  or Enum.TextXAlignment.Left
+    lbl.TextYAlignment    = props.yalign or Enum.TextYAlignment.Center
+    lbl.TextTruncate      = props.truncate or Enum.TextTruncate.None
+    lbl.ZIndex            = props.zindex or 2
     return lbl
 end
 
--- Main Panel
 local fullPanel = Instance.new("Frame")
 fullPanel.Name = "FullPanel"
-fullPanel.Size = UDim2.new(0, 520, 0, 430)
+fullPanel.Size = UDim2.new(0, 520, 0, 470)
 fullPanel.Position = UDim2.new(0.02, 0, 0.08, 0)
 fullPanel.BackgroundColor3 = C.PANEL
 fullPanel.BackgroundTransparency = 0.06
@@ -165,7 +165,6 @@ topLine.BackgroundTransparency = 0.3
 topLine.BorderSizePixel = 0
 topLine.ZIndex = 2
 
--- Mini Panel
 local miniPanel = Instance.new("Frame")
 miniPanel.Name = "MiniPanel"
 miniPanel.Size = UDim2.new(0, 520, 0, 68)
@@ -179,7 +178,74 @@ miniPanel.Parent = gui
 addCorner(miniPanel, 16)
 addStroke(miniPanel, C.BORDER2, 1, 0)
 
--- Collapse / Expand
+local loadOverlay = Instance.new("Frame", gui)
+loadOverlay.Name = "LoadOverlay"
+loadOverlay.Size = fullPanel.Size
+loadOverlay.Position = fullPanel.Position
+loadOverlay.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+loadOverlay.BackgroundTransparency = 0
+loadOverlay.BorderSizePixel = 0
+loadOverlay.ZIndex = 50
+addCorner(loadOverlay, 16)
+addStroke(loadOverlay, C.BORDER2, 1, 0)
+
+local loadAvatar = Instance.new("ImageLabel", loadOverlay)
+loadAvatar.Size = UDim2.new(0, 52, 0, 52)
+loadAvatar.AnchorPoint = Vector2.new(0.5, 0)
+loadAvatar.Position = UDim2.new(0.5, 0, 0, 100)
+loadAvatar.BackgroundColor3 = C.CARD
+loadAvatar.BackgroundTransparency = 0
+loadAvatar.BorderSizePixel = 0
+loadAvatar.ZIndex = 52
+addCorner(loadAvatar, 26)
+addStroke(loadAvatar, C.BORDER2, 1, 0)
+
+task.spawn(function()
+    local ok, thumb = pcall(function()
+        return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+    end)
+    if ok and thumb then loadAvatar.Image = thumb end
+end)
+
+makeLabel(loadOverlay, {
+    sz = UDim2.new(1, 0, 0, 20), pos = UDim2.new(0, 0, 0, 164),
+    font = Enum.Font.GothamBold, size = 14, color = C.WHITE,
+    text = "INTEGRATED HUD", align = Enum.TextXAlignment.Center, zindex = 52,
+})
+makeLabel(loadOverlay, {
+    sz = UDim2.new(1, 0, 0, 14), pos = UDim2.new(0, 0, 0, 186),
+    font = Enum.Font.GothamBold, size = 9, color = C.DIM,
+    text = "BLOX FRUITS", align = Enum.TextXAlignment.Center, zindex = 52,
+})
+
+local loadStepLabel = makeLabel(loadOverlay, {
+    sz = UDim2.new(1, -60, 0, 14), pos = UDim2.new(0, 30, 0, 216),
+    font = Enum.Font.Gotham, size = 10, color = C.MUTED,
+    text = "Initializing...", align = Enum.TextXAlignment.Center, zindex = 52,
+})
+
+local loadTrackBg = Instance.new("Frame", loadOverlay)
+loadTrackBg.Size = UDim2.new(1, -60, 0, 2)
+loadTrackBg.Position = UDim2.new(0, 30, 0, 238)
+loadTrackBg.BackgroundColor3 = C.BORDER
+loadTrackBg.BackgroundTransparency = 0
+loadTrackBg.BorderSizePixel = 0
+loadTrackBg.ZIndex = 52
+addCorner(loadTrackBg, 1)
+
+local loadBarFill = Instance.new("Frame", loadTrackBg)
+loadBarFill.Size = UDim2.new(0, 0, 1, 0)
+loadBarFill.BackgroundColor3 = C.WHITE
+loadBarFill.BorderSizePixel = 0
+loadBarFill.ZIndex = 53
+addCorner(loadBarFill, 1)
+
+local loadPctLabel = makeLabel(loadOverlay, {
+    sz = UDim2.new(1, -60, 0, 14), pos = UDim2.new(0, 30, 0, 246),
+    font = Enum.Font.GothamBold, size = 9, color = C.DIM,
+    text = "0%", align = Enum.TextXAlignment.Right, zindex = 52,
+})
+
 local function makeToggleBtn(parent, txt, yPos)
     local btn = Instance.new("TextButton", parent)
     btn.Size = UDim2.new(0, 26, 0, 20)
@@ -216,7 +282,6 @@ end
 collapseBtn.MouseButton1Click:Connect(function() setView(true) end)
 expandBtn.MouseButton1Click:Connect(function() setView(false) end)
 
--- Draggable
 local dragging, dragStart, startPos = false, nil, nil
 fullPanel.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -226,15 +291,18 @@ end)
 UserInputService.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local d = input.Position - dragStart
-        fullPanel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X, startPos.Y.Scale, startPos.Y.Offset+d.Y)
-        miniPanel.Position = fullPanel.Position
+        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X, startPos.Y.Scale, startPos.Y.Offset+d.Y)
+        fullPanel.Position = newPos
+        miniPanel.Position = newPos
+        if loadOverlay and loadOverlay.Parent then
+            loadOverlay.Position = newPos
+        end
     end
 end)
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 end)
 
--- Title Bar
 local titleBar = Instance.new("Frame", fullPanel)
 titleBar.Size = UDim2.new(1, 0, 0, 64)
 titleBar.BackgroundTransparency = 1
@@ -276,11 +344,11 @@ onlineDot.BorderSizePixel = 0
 onlineDot.ZIndex = 3
 addCorner(onlineDot, 3)
 
-local onlineLabel = makeLabel(titleBar, {
+makeLabel(titleBar, {
     sz = UDim2.new(0, 60, 0, 14), pos = UDim2.new(0, 80, 0, 44),
     size = 10, color = C.DIM, text = "ONLINE", zindex = 3
 })
-local sectionTag = makeLabel(titleBar, {
+makeLabel(titleBar, {
     sz = UDim2.new(0, 80, 0, 14), pos = UDim2.new(1, -116, 0, 44),
     size = 10, color = C.DIM, text = "BLOX FRUITS",
     align = Enum.TextXAlignment.Right, zindex = 3
@@ -294,18 +362,17 @@ divider.BackgroundTransparency = 0
 divider.BorderSizePixel = 0
 divider.ZIndex = 2
 
--- Cards Area
 local content = Instance.new("Frame", fullPanel)
-content.Size = UDim2.new(1, -28, 0, 212)
+content.Size = UDim2.new(1, -28, 0, 252)
 content.Position = UDim2.new(0, 14, 0, 72)
 content.BackgroundTransparency = 1
 content.ZIndex = 2
 
-local leftHeader = makeLabel(content, {
+makeLabel(content, {
     sz = UDim2.new(0, 240, 0, 14), pos = UDim2.new(0, 0, 0, 0),
     size = 9, color = C.DIM, text = "ACCOUNT"
 })
-local rightHeader = makeLabel(content, {
+makeLabel(content, {
     sz = UDim2.new(0, 240, 0, 14), pos = UDim2.new(0, 252, 0, 0),
     size = 9, color = C.DIM, text = "COMBAT STATS"
 })
@@ -320,7 +387,7 @@ local function createCard(parent, x, y, label, defaultValue, isCombat)
     card.ZIndex = 3
     addCorner(card, 7)
     addStroke(card, C.BORDER, 1, 0)
-    local lbl = makeLabel(card, {
+    makeLabel(card, {
         sz = UDim2.new(0, 100, 0, 14), pos = UDim2.new(0, 10, 0, 4),
         size = 9, color = C.DIM, text = string.upper(label), zindex = 4
     })
@@ -345,12 +412,12 @@ local function createCard(parent, x, y, label, defaultValue, isCombat)
         fill.BorderSizePixel = 0
         fill.ZIndex = 6
         addCorner(fill, 1)
-        return {card=card, label=lbl, value=valLbl, barFill=fill}
+        return {card=card, value=valLbl, barFill=fill}
     end
-    return {card=card, label=lbl, value=valLbl}
+    return {card=card, value=valLbl}
 end
 
-local leftCards = {}
+local leftCards  = {}
 local rightCards = {}
 local yBase = 16
 local leftX, rightX = 0, 252
@@ -360,6 +427,7 @@ leftCards.Frag    = createCard(content, leftX, yBase+40,  "Fragments", "0")
 leftCards.Team    = createCard(content, leftX, yBase+80,  "Team",      "N/A")
 leftCards.Players = createCard(content, leftX, yBase+120, "Players",   "0/0")
 leftCards.Time    = createCard(content, leftX, yBase+160, "Runtime",   "00:00:00")
+leftCards.Equip   = createCard(content, leftX, yBase+200, "Equipped",  "None")
 
 rightCards.Melee   = createCard(content, rightX, yBase+0,   "Melee",      "0", true)
 rightCards.Defense = createCard(content, rightX, yBase+40,  "Defense",    "0", true)
@@ -367,8 +435,7 @@ rightCards.Sword   = createCard(content, rightX, yBase+80,  "Sword",      "0", t
 rightCards.Gun     = createCard(content, rightX, yBase+120, "Gun",        "0", true)
 rightCards.Fruit   = createCard(content, rightX, yBase+160, "Blox Fruit", "0", true)
 
--- Player Count Bar
-local pcBarY = 72 + 212 + 8
+local pcBarY = 72 + 252 + 8
 local pcBar = Instance.new("Frame", fullPanel)
 pcBar.Size = UDim2.new(1, -28, 0, 38)
 pcBar.Position = UDim2.new(0, 14, 0, pcBarY)
@@ -379,7 +446,7 @@ pcBar.ZIndex = 2
 addCorner(pcBar, 8)
 addStroke(pcBar, C.BORDER, 1, 0)
 
-local pcTag = makeLabel(pcBar, {
+makeLabel(pcBar, {
     sz = UDim2.new(0, 80, 0, 14), pos = UDim2.new(0, 10, 0, 4),
     size = 9, color = C.DIM, text = "PLAYERS IN SERVER", zindex = 3
 })
@@ -419,7 +486,6 @@ fullBadge.BorderSizePixel = 0
 fullBadge.ZIndex = 4
 addCorner(fullBadge, 4)
 
--- Teams Row
 local teamsY = pcBarY + 38 + 6
 local teamsRow = Instance.new("Frame", fullPanel)
 teamsRow.Size = UDim2.new(1, -28, 0, 48)
@@ -432,7 +498,7 @@ teamsRow.ZIndex = 2
 addCorner(teamsRow, 8)
 addStroke(teamsRow, C.BORDER, 1, 0)
 
-local teamTag = makeLabel(teamsRow, {
+makeLabel(teamsRow, {
     sz = UDim2.new(0, 55, 0, 14), pos = UDim2.new(0, 10, 0, 4),
     size = 9, color = C.DIM, text = "TEAMS", zindex = 3
 })
@@ -477,7 +543,7 @@ local function rebuildTeamChips()
         strip.BorderSizePixel = 0
         strip.ZIndex = 5
         addCorner(strip, 5)
-        local nm = makeLabel(chip, {
+        makeLabel(chip, {
             sz = UDim2.new(1, 0, 0, 14), pos = UDim2.new(0, 0, 0, 4),
             size = 10, color = C.MUTED,
             text = #team.Name > 8 and team.Name:sub(1,7).."…" or team.Name,
@@ -539,7 +605,6 @@ end
 Players.PlayerAdded:Connect(function() task.wait(0.5); updatePlayerCount() end)
 Players.PlayerRemoving:Connect(function() task.wait(0.3); updatePlayerCount() end)
 
--- Bottom Performance Bar
 local bottomY = teamsY + 48 + 6
 local bottomBar = Instance.new("Frame", fullPanel)
 bottomBar.Size = UDim2.new(1, -28, 0, 34)
@@ -566,10 +631,11 @@ capGroup.Position = UDim2.new(1, -140, 0, 0)
 capGroup.BackgroundTransparency = 1
 capGroup.ZIndex = 3
 
-local capLbl = makeLabel(capGroup, {
+makeLabel(capGroup, {
     sz = UDim2.new(0, 28, 1, 0), pos = UDim2.new(0, 0, 0, 0),
     size = 8, color = C.DIM, text = "FPSCAP", zindex = 5
 })
+
 local capBox = Instance.new("TextBox", capGroup)
 capBox.Size = UDim2.new(0, 46, 1, -8)
 capBox.Position = UDim2.new(0, 30, 0, 4)
@@ -617,7 +683,6 @@ end
 setCapBtn.MouseButton1Click:Connect(applyFpsCap)
 capBox.FocusLost:Connect(function(enterPressed) if enterPressed then applyFpsCap() end end)
 
--- Mini Panel Content
 local miniAvatar = Instance.new("ImageLabel", miniPanel)
 miniAvatar.Size = UDim2.new(0, 38, 0, 38)
 miniAvatar.Position = UDim2.new(0, 14, 0, 15)
@@ -646,10 +711,10 @@ local miniLvl = makeLabel(miniPanel, {
 
 local miniStats = {}
 local statNames = {"Level", "Beli", "Fragments"}
-local miniIcons  = {"LV", "G", "◈"}
+local miniIcons = {"LV", "G", "◈"}
 for i, key in ipairs(statNames) do
     local x = 240 + (i-1)*92
-    local icoLbl = makeLabel(miniPanel, {
+    makeLabel(miniPanel, {
         sz = UDim2.new(0, 20, 0, 14), pos = UDim2.new(0, x, 0, 10),
         size = 9, color = C.DIM, text = miniIcons[i],
         align = Enum.TextXAlignment.Center, zindex = 3
@@ -659,17 +724,20 @@ for i, key in ipairs(statNames) do
         font = Enum.Font.GothamBold, size = 12, color = C.WHITE,
         text = "...", truncate = Enum.TextTruncate.AtEnd, zindex = 3
     })
-    local sep = makeLabel(miniPanel, {
+    makeLabel(miniPanel, {
         sz = UDim2.new(0, 70, 0, 12), pos = UDim2.new(0, x+22, 0, 26),
         size = 8, color = C.DIM, text = string.upper(key), zindex = 3
     })
     miniStats[key] = val
 end
 
--- Blackout / White Screen
-local blackoutEffect = Instance.new("ColorCorrectionEffect")
-blackoutEffect.Brightness = 0
-blackoutEffect.Parent = game:GetService("Lighting")
+local blackoutFrame = Instance.new("Frame", gui)
+blackoutFrame.Size = UDim2.new(1, 0, 1, 0)
+blackoutFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+blackoutFrame.BackgroundTransparency = 0
+blackoutFrame.BorderSizePixel = 0
+blackoutFrame.ZIndex = 1
+blackoutFrame.Visible = false
 
 local restoreBtn = Instance.new("TextButton", gui)
 restoreBtn.Size = UDim2.new(0, 90, 0, 32)
@@ -683,13 +751,13 @@ restoreBtn.Font = Enum.Font.GothamBold
 restoreBtn.TextSize = 12
 restoreBtn.AutoButtonColor = false
 restoreBtn.Visible = false
-restoreBtn.ZIndex = 101
+restoreBtn.ZIndex = 51
 addCorner(restoreBtn, 6)
 
 local blackoutActive = false
 local function setBlackout(state)
     blackoutActive = state
-    blackoutEffect.Brightness = state and -1 or 0
+    blackoutFrame.Visible = state
     restoreBtn.Visible = state
 end
 
@@ -701,9 +769,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.B then setBlackout(not blackoutActive) end
 end)
 
--- Self Highlight
 local selfHL = nil
-
 local function applyHighlight(character)
     if selfHL and selfHL.Parent then selfHL:Destroy() end
     selfHL = nil
@@ -723,7 +789,6 @@ end
 if player.Character then task.delay(0.5, function() applyHighlight(player.Character) end) end
 player.CharacterAdded:Connect(function(char) task.wait(0.5); applyHighlight(char) end)
 
--- FPS / Ping / Time
 local fps = 0
 local lastTime = tick()
 local frameCount = 0
@@ -738,18 +803,20 @@ RunService.RenderStepped:Connect(function()
 end)
 
 local function getPing()
-    local ok, p = pcall(function() return StatsService.Network.ServerStatsItem.Data.Ping end)
-    return (ok and type(p) == "number") and math.floor(p) or 0
+    local ok, p = pcall(function()
+        return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]
+    end)
+    if ok and type(p) == "number" then return math.floor(p) end
+    return math.floor(player:GetNetworkPing() * 1000)
 end
 
 local scriptStart = tick()
 
--- Update Loop
 local function update()
     local disp = player.DisplayName
     local name = player.Name
     charLabel.Text = disp ~= name and disp.." (@"..name..")" or name
-    miniName.Text = charLabel.Text
+    miniName.Text  = charLabel.Text
 
     local lv = getStat("Level")
     lvlLabel.Text = "LV. " .. formatVal(lv, "Level")
@@ -767,6 +834,8 @@ local function update()
     local timeStr = string.format("%02d:%02d:%02d", h, m, s)
     leftCards.Time.value.Text = timeStr
     timeLabel.Text = timeStr
+
+    leftCards.Equip.value.Text = getEquippedItem()
 
     rightCards.Melee.value.Text   = formatVal(getStat("Melee"))
     rightCards.Defense.value.Text = formatVal(getStat("Defense"))
@@ -788,8 +857,8 @@ local function update()
     pingLabel.Text = "PING " .. ping .. " ms"
     pingLabel.TextColor3 = ping < 80 and C.SUCCESS or ping < 150 and C.WARN or C.DANGER
 
-    if miniStats["Level"] then miniStats["Level"].Text = formatVal(lv, "Level") end
-    if miniStats["Beli"] then miniStats["Beli"].Text = formatVal(getStat("Beli"), "Beli") end
+    if miniStats["Level"]     then miniStats["Level"].Text     = formatVal(lv, "Level") end
+    if miniStats["Beli"]      then miniStats["Beli"].Text      = formatVal(getStat("Beli"), "Beli") end
     if miniStats["Fragments"] then miniStats["Fragments"].Text = formatVal(getStat("Fragments"), "Fragments") end
 
     local curCap = 0
@@ -799,30 +868,229 @@ local function update()
     updatePlayerCount()
 end
 
-update()
-task.spawn(function() while true do update(); task.wait(0.5) end end)
+local fadeTargets = {
+    avatar, charLabel, lvlLabel, onlineDot,
+    leftCards.Beli.card,
+    leftCards.Frag.card,
+    leftCards.Team.card,
+    leftCards.Players.card,
+    leftCards.Time.card,
+    leftCards.Equip.card,
+    rightCards.Melee.card,
+    rightCards.Defense.card,
+    rightCards.Sword.card,
+    rightCards.Gun.card,
+    rightCards.Fruit.card,
+    pcBar, bottomBar,
+}
 
--- Remove Death Effect
-task.spawn(function()
-    if not REMOVE_DEATH_EFFECT then return end
-    local ok, container = pcall(function()
-        return game:GetService("ReplicatedStorage"):WaitForChild("Effect", 3)
-            and game:GetService("ReplicatedStorage").Effect:WaitForChild("Container", 3)
+local originalTransparency = {}
+local function hasProperty(inst, prop)
+    return pcall(function() return inst[prop] end)
+end
+
+local function snapshotTransparency(obj)
+    local snap = { bg = obj.BackgroundTransparency, children = {} }
+    for _, child in ipairs(obj:GetDescendants()) do
+        local cd = {}
+        if child:IsA("Frame") or child:IsA("ImageLabel") or child:IsA("TextLabel") or child:IsA("TextButton") then
+            cd.bg = child.BackgroundTransparency
+        end
+        if child:IsA("TextLabel") or child:IsA("TextButton") then
+            cd.text = child.TextTransparency
+        end
+        if child:IsA("ImageLabel") then
+            cd.img = child.ImageTransparency
+        end
+        if child:IsA("UIStroke") then
+            cd.stroke = child.Transparency
+        end
+        snap.children[child] = cd
+    end
+    return snap
+end
+
+local function hideElement(obj)
+    obj.BackgroundTransparency = 1
+    for _, child in ipairs(obj:GetDescendants()) do
+        if child:IsA("Frame") or child:IsA("ImageLabel") or child:IsA("TextLabel") or child:IsA("TextButton") then
+            child.BackgroundTransparency = 1
+        end
+        if child:IsA("TextLabel") or child:IsA("TextButton") then
+            child.TextTransparency = 1
+        end
+        if child:IsA("ImageLabel") then
+            child.ImageTransparency = 1
+        end
+        if child:IsA("UIStroke") then
+            child.Transparency = 1
+        end
+    end
+end
+
+for _, obj in ipairs(fadeTargets) do
+    originalTransparency[obj] = snapshotTransparency(obj)
+    hideElement(obj)
+end
+
+local function fadeInElement(obj)
+    local snap = originalTransparency[obj]
+    if not snap then return end
+    task.spawn(function()
+        local s = tick()
+        local DUR = 0.35
+        while true do
+            local r = math.min((tick() - s) / DUR, 1)
+            local ease = r * r * (3 - 2 * r)
+            local inv = 1 - ease
+            if obj and obj.Parent then
+                obj.BackgroundTransparency = snap.bg + (1 - snap.bg) * inv
+            end
+            for child, cd in pairs(snap.children) do
+                if child and child.Parent then
+                    if cd.bg    ~= nil then child.BackgroundTransparency = cd.bg    + (1 - cd.bg)    * inv end
+                    if cd.text  ~= nil then child.TextTransparency       = cd.text  + (1 - cd.text)  * inv end
+                    if cd.img   ~= nil then child.ImageTransparency      = cd.img   + (1 - cd.img)   * inv end
+                    if cd.stroke~= nil then child.Transparency           = cd.stroke+ (1 - cd.stroke)* inv end
+                end
+            end
+            if r >= 1 then break end
+            RunService.Heartbeat:Wait()
+        end
     end)
-    if not ok or not container then return end
-    local death = container:FindFirstChild("Death")
-    if death then death:Destroy() end
-    container.ChildAdded:Connect(function(child)
-        if child.Name == "Death" then child:Destroy() end
+end
+
+
+local LOAD_ELEMENTS = {
+    { text = "Loading account...",      key = "avatar" },
+    { text = "Loading username...",     key = "charLabel" },
+    { text = "Loading level...",        key = "lvlLabel" },
+    { text = "Loading status...",       key = "onlineDot" },
+    { text = "Loading beli...",         key = "leftCards.Beli" },
+    { text = "Loading fragments...",    key = "leftCards.Frag" },
+    { text = "Loading team...",         key = "leftCards.Team" },
+    { text = "Loading players...",      key = "leftCards.Players" },
+    { text = "Loading runtime...",      key = "leftCards.Time" },
+    { text = "Loading equipped...",     key = "leftCards.Equip" },
+    { text = "Loading melee...",        key = "rightCards.Melee" },
+    { text = "Loading defense...",      key = "rightCards.Defense" },
+    { text = "Loading sword...",        key = "rightCards.Sword" },
+    { text = "Loading gun...",          key = "rightCards.Gun" },
+    { text = "Loading blox fruit...",   key = "rightCards.Fruit" },
+    { text = "Loading player bar...",   key = "pcBar" },
+    { text = "Loading bottom bar...",   key = "bottomBar" },
+}
+
+local fadeTargetNames = {
+    avatar                = avatar,
+    charLabel             = charLabel,
+    lvlLabel              = lvlLabel,
+    onlineDot             = onlineDot,
+    ["leftCards.Beli"]    = leftCards.Beli.card,
+    ["leftCards.Frag"]    = leftCards.Frag.card,
+    ["leftCards.Team"]    = leftCards.Team.card,
+    ["leftCards.Players"] = leftCards.Players.card,
+    ["leftCards.Time"]    = leftCards.Time.card,
+    ["leftCards.Equip"]   = leftCards.Equip.card,
+    ["rightCards.Melee"]   = rightCards.Melee.card,
+    ["rightCards.Defense"] = rightCards.Defense.card,
+    ["rightCards.Sword"]   = rightCards.Sword.card,
+    ["rightCards.Gun"]     = rightCards.Gun.card,
+    ["rightCards.Fruit"]   = rightCards.Fruit.card,
+    pcBar                 = pcBar,
+    bottomBar             = bottomBar,
+}
+
+local TOTAL = #LOAD_ELEMENTS
+
+local function hbWait(n)
+    local s = tick()
+    repeat RunService.Heartbeat:Wait() until tick() - s >= n
+end
+
+local function animateStep(fromPct, toPct, dur, overlayFrom, overlayTo)
+    local s = tick()
+    while true do
+        local r = math.min((tick() - s) / dur, 1)
+        local ease = r * r * (3 - 2 * r)
+        local v = fromPct + (toPct - fromPct) * ease
+        loadBarFill.Size  = UDim2.new(v, 0, 1, 0)
+        loadPctLabel.Text = math.floor(v * 100) .. "%"
+        local oa = overlayFrom + (overlayTo - overlayFrom) * ease
+        loadOverlay.BackgroundTransparency = oa
+        for _, child in ipairs(loadOverlay:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") then
+                child.TextTransparency = math.max(0, oa - 0.3) / 0.7
+            elseif child:IsA("ImageLabel") then
+                child.ImageTransparency = math.max(0, oa - 0.3) / 0.7
+                child.BackgroundTransparency = oa
+            elseif child:IsA("Frame") then
+                child.BackgroundTransparency = oa
+            elseif child:IsA("UIStroke") then
+                child.Transparency = math.max(0, oa - 0.3) / 0.7
+            end
+        end
+        if r >= 1 then break end
+        RunService.Heartbeat:Wait()
+    end
+end
+
+task.spawn(function()
+    update()
+
+    for i, item in ipairs(LOAD_ELEMENTS) do
+        local fromPct = (i - 1) / TOTAL
+        local toPct   = i / TOTAL
+
+        loadStepLabel.Text = item.text
+
+        local obj = fadeTargetNames[item.key]
+        if obj then fadeInElement(obj) end
+
+        local overlayFrom = math.max(0, 1 - ((i - 1) / TOTAL) * 1.2)
+        local overlayTo   = math.max(0, 1 - (i / TOTAL) * 1.2)
+
+        animateStep(fromPct, toPct, 0.45, overlayFrom, overlayTo)
+        hbWait(0.05)
+    end
+
+    do
+        local startAlpha = loadOverlay.BackgroundTransparency
+        local s = tick()
+        while true do
+            local r = math.min((tick() - s) / 0.5, 1)
+            local ease = r * r * (3 - 2 * r)
+            local a = startAlpha * (1 - ease)
+            loadOverlay.BackgroundTransparency = a
+            for _, child in ipairs(loadOverlay:GetDescendants()) do
+                if child:IsA("TextLabel") or child:IsA("TextButton") then
+                    child.TextTransparency = ease
+                elseif child:IsA("ImageLabel") then
+                    child.ImageTransparency = ease
+                    child.BackgroundTransparency = a
+                elseif child:IsA("Frame") then
+                    child.BackgroundTransparency = a
+                elseif child:IsA("UIStroke") then
+                    child.Transparency = ease
+                end
+            end
+            if r >= 1 then break end
+            RunService.Heartbeat:Wait()
+        end
+    end
+
+    loadOverlay:Destroy()
+
+    task.spawn(function()
+        while true do update(); task.wait(0.1) end
     end)
 end)
 
--- Toggle GUI (RightCtrl)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.RightControl then
         local vis = not fullPanel.Visible
-        fullPanel.Visible = vis
-        miniPanel.Visible = isMini and vis
+        fullPanel.Visible = isMini and false or vis
+        miniPanel.Visible = isMini and vis or false
     end
 end)
