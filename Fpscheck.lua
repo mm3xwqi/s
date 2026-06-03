@@ -1,8 +1,10 @@
--- [ Example Config
+-- ================== Config ==================
 -- getenv = function() return {
---    ["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 25 },
---    ["White Screen"] = true,
--- } end ]
+--    ["Remove Death Effect"] = true,
+--    ["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 60 },
+--    ["White Screen"] = false,
+-- } end
+
 
 
 -- ================== Integrated Status HUD ==================
@@ -36,6 +38,7 @@ gui.Parent = pg
 local MAX_PLAYERS = Players.MaxPlayers
 local COMBAT_CAP = 2800
 local FPS_CAP = 60
+local REMOVE_DEATH_EFFECT = true
 
 -- ================== Data Helpers ==================
 local function getValueByPaths(...)
@@ -814,6 +817,23 @@ end
 
 update()
 task.spawn(function() while true do update(); task.wait(0.5) end end)
+
+-- ================== Remove Death Effect ==================
+local function removeDeathEffect()
+	if not REMOVE_DEATH_EFFECT then return end
+	local ok, container = pcall(function()
+		return game:GetService("ReplicatedStorage"):WaitForChild("Effect", 3)
+			and game:GetService("ReplicatedStorage").Effect:WaitForChild("Container", 3)
+	end)
+	if not ok or not container then return end
+	local death = container:FindFirstChild("Death")
+	if death then death:Destroy() end
+	container.ChildAdded:Connect(function(child)
+		if child.Name == "Death" then child:Destroy() end
+	end)
+end
+
+task.spawn(removeDeathEffect)
 
 -- ================== Toggle GUI (RightCtrl) ==================
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
