@@ -1,5 +1,5 @@
 -- getenv = function() return {
---	["Remove Death Effect"] = true,
+-- 	["Remove Death Effect"] = true,
 --	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
 --	["White Screen"] = false,
 --	["Boost FPS"] = false,
@@ -25,7 +25,6 @@ if config["Lock Fps"]["Enabled"] then
     pcall(function() setfpscap(FPS_CAP) end)
 end
 
--- Boost FPS
 local boostFpsActive = config["Boost FPS"]
 local hiddenParts, boostConn = {}, nil
 
@@ -55,7 +54,6 @@ end
 
 if boostFpsActive then task.spawn(function() task.wait(2); setMapVisibility(true) end) end
 
--- Remove Death Effect
 local function removeDeathEffect()
     pcall(function()
         local rs = game:GetService("ReplicatedStorage")
@@ -68,7 +66,6 @@ if config["Remove Death Effect"] then
     player.CharacterAdded:Connect(function() task.wait(0.5); removeDeathEffect() end)
 end
 
--- Stat helpers
 local function getValueByPaths(root, ...)
     for _, path in ipairs({...}) do
         local obj = root
@@ -174,7 +171,6 @@ local function getRace(p)
     return raceName, tier
 end
 
--- Colors
 local C = {
     BG=Color3.fromRGB(10,10,10), PANEL=Color3.fromRGB(0,0,0),
     CARD=Color3.fromRGB(28,28,28), CARDHOVER=Color3.fromRGB(38,38,38),
@@ -186,7 +182,6 @@ local C = {
     DIST=Color3.fromRGB(200,200,255),
 }
 
--- UI factory helpers
 local function corner(p, r) local c=Instance.new("UICorner",p); c.CornerRadius=UDim.new(0,r or 8); return c end
 local function stroke(p, col, t, tr) local s=Instance.new("UIStroke",p); s.Color=col or C.BORDER; s.Thickness=t or 1; s.Transparency=tr or 0; return s end
 local function lbl(parent, props)
@@ -211,7 +206,6 @@ local function toggleBtn(parent, txt, yPos)
     return b
 end
 
--- GUI
 local gui = Instance.new("ScreenGui")
 gui.Name="IntegratedStatusHUD"; gui.ResetOnSpawn=false; gui.IgnoreGuiInset=true
 gui.DisplayOrder=10; gui.Parent=pg
@@ -230,7 +224,6 @@ local fullPanel = makePanel(BASE_H, true)
 local miniPanel = makePanel(68, false)
 fullPanel.Active = true
 
--- Loading overlay
 local loadOverlay=Instance.new("Frame",gui)
 loadOverlay.Size=fullPanel.Size; loadOverlay.Position=fullPanel.Position
 loadOverlay.BackgroundColor3=Color3.fromRGB(8,8,8); loadOverlay.BackgroundTransparency=0.4
@@ -247,7 +240,6 @@ local loadPctLbl=lbl(loadOverlay,{sz=UDim2.new(1,-60,0,14),pos=UDim2.new(0,30,0,
 local collapseBtn=toggleBtn(fullPanel,"▲",10)
 local expandBtn=toggleBtn(miniPanel,"▼",8)
 
--- Boost button
 local boostBtn=Instance.new("TextButton",fullPanel)
 boostBtn.Size=UDim2.new(0,76,0,22); boostBtn.Position=UDim2.new(1,-116,0,9)
 boostBtn.BackgroundColor3=boostFpsActive and C.WHITE or C.CARD; boostBtn.BackgroundTransparency=0.2
@@ -273,7 +265,6 @@ end
 collapseBtn.MouseButton1Click:Connect(function() setView(true) end)
 expandBtn.MouseButton1Click:Connect(function() setView(false) end)
 
--- Drag
 local dragging, dragStart, dragStartPos = false, nil, nil
 fullPanel.InputBegan:Connect(function(inp)
     if inp.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -292,7 +283,6 @@ UIS.InputEnded:Connect(function(inp)
     if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
 end)
 
--- Title bar
 local titleBar=Instance.new("Frame",fullPanel); titleBar.Size=UDim2.new(1,0,0,66); titleBar.BackgroundTransparency=1; titleBar.ZIndex=2
 
 local avatar=Instance.new("ImageLabel",titleBar); avatar.Size=UDim2.new(0,46,0,46); avatar.Position=UDim2.new(0,14,0,10)
@@ -311,7 +301,6 @@ lbl(titleBar,{sz=UDim2.new(0,90,0,16),pos=UDim2.new(1,-118,0,47),size=11,color=C
 local divider=Instance.new("Frame",titleBar); divider.Size=UDim2.new(1,-28,0,1); divider.Position=UDim2.new(0,14,0,65)
 divider.BackgroundColor3=C.BORDER; divider.BorderSizePixel=0; divider.ZIndex=2
 
--- Content cards
 local content=Instance.new("Frame",fullPanel); content.Size=UDim2.new(1,-28,0,300)
 content.Position=UDim2.new(0,14,0,74); content.BackgroundTransparency=1; content.ZIndex=2
 lbl(content,{sz=UDim2.new(0,240,0,16),pos=UDim2.new(0,0,0,0),size=11,color=C.MUTED,text="ACCOUNT"})
@@ -343,7 +332,6 @@ local leftCards={
     Time=createCard(content,lX,yB+4*ROW,"Runtime","00:00:00"),
     Equip=createCard(content,lX,yB+5*ROW,"Equipped","None",false,16),
 }
--- Add level sublabel inside Equip card
 local equipLvlLbl = lbl(leftCards.Equip.card,{
     sz=UDim2.new(1,-20,0,14), pos=UDim2.new(0,10,0,36),
     font=Enum.Font.GothamBold, size=11, color=C.WARN,
@@ -360,7 +348,6 @@ local rightCards={
 local CARDS_H = yB + 6*ROW + 6 + 16
 content.Size = UDim2.new(1,-28,0,CARDS_H)
 
--- Player count bar
 local pcBar=Instance.new("Frame",fullPanel); pcBar.Size=UDim2.new(1,-28,0,42)
 pcBar.Position=UDim2.new(0,14,0,74+CARDS_H+8); pcBar.BackgroundColor3=C.CARD
 pcBar.BackgroundTransparency=0.1; pcBar.BorderSizePixel=0; pcBar.ZIndex=2; corner(pcBar,8); stroke(pcBar,C.BORDER,1,0)
@@ -375,14 +362,13 @@ fullBadge.BackgroundColor3=C.WHITE; fullBadge.Text="FULL"; fullBadge.TextColor3=
 fullBadge.Font=Enum.Font.GothamBold; fullBadge.TextXAlignment=Enum.TextXAlignment.Center
 fullBadge.Visible=false; fullBadge.BorderSizePixel=0; fullBadge.ZIndex=4; corner(fullBadge,4)
 
--- Player list
 local playerListContainer=Instance.new("Frame",fullPanel)
 playerListContainer.Size=UDim2.new(1,-28,0,0)
 playerListContainer.Position=UDim2.new(0,14,0, pcBar.Position.Y.Offset+42+6)
 playerListContainer.BackgroundTransparency=1; playerListContainer.BorderSizePixel=0; playerListContainer.ZIndex=2
 
 local playerRows = {}
-local ROW_H, ROW_GAP, COL_W = 58, 4, (492-4)/2
+local ROW_H, ROW_GAP, COL_W = 72, 4, (492-4)/2
 
 local function getTeamColor(p) return p.Team and p.Team.TeamColor.Color or C.DIM end
 
@@ -394,32 +380,36 @@ local function createPlayerRow(p, xOff, yOff)
     local strip=Instance.new("Frame",card); strip.Size=UDim2.new(0,3,1,-8); strip.Position=UDim2.new(0,3,0,4)
     strip.BackgroundColor3=getTeamColor(p); strip.BorderSizePixel=0; strip.ZIndex=5; corner(strip,2)
 
-    local ava=Instance.new("ImageLabel",card); ava.Size=UDim2.new(0,30,0,30); ava.Position=UDim2.new(0,9,0,8)
-    ava.BackgroundColor3=C.BORDER; ava.BorderSizePixel=0; ava.ZIndex=4; corner(ava,15); stroke(ava,C.BORDER2,1,0)
+    local ava=Instance.new("ImageLabel",card); ava.Size=UDim2.new(0,34,0,34); ava.Position=UDim2.new(0,9,0,10)
+    ava.BackgroundColor3=C.BORDER; ava.BorderSizePixel=0; ava.ZIndex=4; corner(ava,17); stroke(ava,C.BORDER2,1,0)
     task.spawn(function()
         local ok,t=pcall(function() return Players:GetUserThumbnailAsync(p.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100) end)
         if ok and t and ava and ava.Parent then ava.Image=t end
     end)
 
-    lbl(card,{sz=UDim2.new(0,96,0,16),pos=UDim2.new(0,43,0,3),size=13,color=p==player and C.SUCCESS or C.WHITE,text=p.DisplayName,truncate=Enum.TextTruncate.AtEnd,zindex=4})
-    local levelLbl=lbl(card,{sz=UDim2.new(0,50,0,16),pos=UDim2.new(0,142,0,3),size=12,color=C.OFFWHITE,text="LV ??",align=Enum.TextXAlignment.Center,zindex=4})
-    local bountyLbl=lbl(card,{sz=UDim2.new(0,48,0,16),pos=UDim2.new(0,193,0,3),size=12,color=C.WARN,text="??",align=Enum.TextXAlignment.Center,zindex=4})
-    local teamLbl=lbl(card,{sz=UDim2.new(0,96,0,13),pos=UDim2.new(0,43,0,19),font=Enum.Font.Gotham,size=10,color=C.MUTED,text=p.Team and p.Team.Name or "No Team",truncate=Enum.TextTruncate.AtEnd,zindex=4})
-    lbl(card,{sz=UDim2.new(0,50,0,11),pos=UDim2.new(0,142,0,19),font=Enum.Font.Gotham,size=8,color=C.DIM,text="LEVEL",align=Enum.TextXAlignment.Center,zindex=4})
-    lbl(card,{sz=UDim2.new(0,48,0,11),pos=UDim2.new(0,193,0,19),font=Enum.Font.Gotham,size=8,color=C.DIM,text="BOUNTY",align=Enum.TextXAlignment.Center,zindex=4})
-    local raceLbl=lbl(card,{sz=UDim2.new(1,-48,0,13),pos=UDim2.new(0,43,0,32),size=11,color=C.FRIEND,text="??",truncate=Enum.TextTruncate.AtEnd,zindex=4})
-    local spawnLbl=lbl(card,{sz=UDim2.new(0,102,0,12),pos=UDim2.new(0,43,0,45),font=Enum.Font.Gotham,size=9,color=C.MUTED,text="??",truncate=Enum.TextTruncate.AtEnd,zindex=4})
-    local distLbl=lbl(card,{sz=UDim2.new(0,94,0,12),pos=UDim2.new(0,148,0,45),size=9,color=C.DIST,text=p==player and "--" or "?",align=Enum.TextXAlignment.Right,zindex=4})
+    local nameW = COL_W - 108
+    lbl(card,{sz=UDim2.new(0,nameW,0,17),pos=UDim2.new(0,47,0,4),size=13,color=p==player and C.SUCCESS or C.WHITE,text=p.DisplayName,truncate=Enum.TextTruncate.AtEnd,zindex=4})
+    lbl(card,{sz=UDim2.new(0,nameW,0,14),pos=UDim2.new(0,47,0,20),font=Enum.Font.Gotham,size=10,color=C.DIM,text="@"..p.Name,truncate=Enum.TextTruncate.AtEnd,zindex=4})
+
+    local levelLbl=lbl(card,{sz=UDim2.new(0,52,0,16),pos=UDim2.new(1,-104,0,3),size=12,color=C.OFFWHITE,text="LV ??",align=Enum.TextXAlignment.Center,zindex=4})
+    local bountyLbl=lbl(card,{sz=UDim2.new(0,52,0,16),pos=UDim2.new(1,-52,0,3),size=12,color=C.WARN,text="??",align=Enum.TextXAlignment.Center,zindex=4})
+    lbl(card,{sz=UDim2.new(0,52,0,11),pos=UDim2.new(1,-104,0,19),font=Enum.Font.Gotham,size=8,color=C.DIM,text="LEVEL",align=Enum.TextXAlignment.Center,zindex=4})
+    lbl(card,{sz=UDim2.new(0,52,0,11),pos=UDim2.new(1,-52,0,19),font=Enum.Font.Gotham,size=8,color=C.DIM,text="BOUNTY",align=Enum.TextXAlignment.Center,zindex=4})
+
+    local teamLbl=lbl(card,{sz=UDim2.new(0,nameW+52,0,13),pos=UDim2.new(0,47,0,35),font=Enum.Font.Gotham,size=10,color=C.MUTED,text=p.Team and p.Team.Name or "No Team",truncate=Enum.TextTruncate.AtEnd,zindex=4})
+    local raceLbl=lbl(card,{sz=UDim2.new(0,nameW,0,13),pos=UDim2.new(0,47,0,49),size=11,color=C.FRIEND,text="??",truncate=Enum.TextTruncate.AtEnd,zindex=4})
+    local spawnLbl=lbl(card,{sz=UDim2.new(0,nameW,0,12),pos=UDim2.new(0,47,0,58),font=Enum.Font.Gotham,size=9,color=C.MUTED,text="??",truncate=Enum.TextTruncate.AtEnd,zindex=4})
+    local distLbl=lbl(card,{sz=UDim2.new(0,100,0,12),pos=UDim2.new(1,-104,0,58),size=9,color=C.DIST,text=p==player and "--" or "?",align=Enum.TextXAlignment.Right,zindex=4})
 
     if p==player then
-        local b=Instance.new("TextLabel",card); b.Size=UDim2.new(0,26,0,12); b.Position=UDim2.new(0,116,0,3)
+        local b=Instance.new("TextLabel",card); b.Size=UDim2.new(0,26,0,12); b.Position=UDim2.new(0,47+nameW+2,0,5)
         b.BackgroundColor3=C.SUCCESS; b.Text="YOU"; b.TextColor3=C.BG; b.TextSize=7; b.Font=Enum.Font.GothamBold
         b.TextXAlignment=Enum.TextXAlignment.Center; b.BorderSizePixel=0; b.ZIndex=6; corner(b,3)
     else
         task.spawn(function()
             local ok,isFriend=pcall(function() return player:IsFriendsWith(p.UserId) end)
             if ok and isFriend and card and card.Parent then
-                local b=Instance.new("TextLabel",card); b.Size=UDim2.new(0,34,0,12); b.Position=UDim2.new(0,116,0,3)
+                local b=Instance.new("TextLabel",card); b.Size=UDim2.new(0,34,0,12); b.Position=UDim2.new(0,47+nameW+2,0,5)
                 b.BackgroundColor3=C.FRIEND; b.Text="FRIEND"; b.TextColor3=C.BG; b.TextSize=7
                 b.Font=Enum.Font.GothamBold; b.TextXAlignment=Enum.TextXAlignment.Center; b.BorderSizePixel=0; b.ZIndex=6; corner(b,3)
             end
@@ -502,7 +492,6 @@ local function updatePlayerRow(p)
     end
 end
 
--- Teams
 local Teams; pcall(function() Teams=game:GetService("Teams") end)
 
 local teamsRow=Instance.new("Frame",fullPanel); teamsRow.Size=UDim2.new(1,-28,0,50)
@@ -576,7 +565,6 @@ local function updatePlayerCount()
     end
 end
 
--- Bottom bar
 local bottomBar=Instance.new("Frame",fullPanel); bottomBar.Name="BottomBarRef"
 bottomBar.Size=UDim2.new(1,-28,0,38); bottomBar.BackgroundTransparency=1; bottomBar.ZIndex=2
 local fpsLabel=lbl(bottomBar,{sz=UDim2.new(0,110,1,0),pos=UDim2.new(0,0,0,0),size=15,color=C.OFFWHITE,text="FPS 0"})
@@ -606,7 +594,6 @@ end
 setCapBtn.MouseButton1Click:Connect(applyFpsCap)
 capBox.FocusLost:Connect(function(enter) if enter then applyFpsCap() end end)
 
--- Mini panel
 local miniAvatar=Instance.new("ImageLabel",miniPanel); miniAvatar.Size=UDim2.new(0,40,0,40)
 miniAvatar.Position=UDim2.new(0,14,0,14); miniAvatar.BackgroundColor3=C.CARD
 miniAvatar.BorderSizePixel=0; miniAvatar.ZIndex=3; corner(miniAvatar,20); stroke(miniAvatar,C.BORDER2,1,0)
@@ -625,7 +612,6 @@ for i, pair in ipairs({{"Level","LV"},{"Beli","G"},{"Fragments","◈"}}) do
     lbl(miniPanel,{sz=UDim2.new(0,72,0,14),pos=UDim2.new(0,x+24,0,28),size=9,color=C.DIM,text=key:upper(),zindex=3})
 end
 
--- Blackout
 local blackoutFrame=Instance.new("Frame",gui); blackoutFrame.Size=UDim2.new(1,0,1,0)
 blackoutFrame.BackgroundColor3=Color3.fromRGB(0,0,0); blackoutFrame.BackgroundTransparency=0
 blackoutFrame.BorderSizePixel=0; blackoutFrame.ZIndex=1; blackoutFrame.Visible=false
@@ -641,7 +627,6 @@ end
 if config["White Screen"] then setBlackout(true) end
 restoreBtn.MouseButton1Click:Connect(function() setBlackout(false) end)
 
--- Self highlight
 local selfHL
 local function applyHighlight(char)
     if selfHL and selfHL.Parent then selfHL:Destroy() end
@@ -654,7 +639,6 @@ end
 if player.Character then task.delay(0.5,function() applyHighlight(player.Character) end) end
 player.CharacterAdded:Connect(function(char) task.wait(0.5); applyHighlight(char) end)
 
--- FPS counter
 local fps, frameCount, lastFpsTime = 0, 0, tick()
 RunService.RenderStepped:Connect(function()
     frameCount += 1
@@ -735,7 +719,6 @@ UIS.InputBegan:Connect(function(inp, gp)
     if inp.KeyCode==Enum.KeyCode.RightControl then setView(not isMini) end
 end)
 
--- Fade system
 local fadeTargets = {
     avatar, charLabel, lvlLabel, onlineDot,
     leftCards.Beli.card, leftCards.Frag.card, leftCards.Team.card,
