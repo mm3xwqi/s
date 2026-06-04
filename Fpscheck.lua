@@ -1,7 +1,7 @@
--- getenv = function() return {
---    ["Remove Death Effect"] = true,
---    ["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
---    ["White Screen"] = false,
+--getenv = function() return {
+--	["Remove Death Effect"] = true,
+--	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
+--	["White Screen"] = false,
 -- } end
 
 local config = getenv()
@@ -851,56 +851,38 @@ local function hbWait(n)
     repeat RunService.Heartbeat:Wait() until tick() - s >= n
 end
 
-local function animateStep(fromPct, toPct, dur, overlayFrom, overlayTo)
-    local s = tick()
-    while true do
-        local r = math.min((tick() - s) / dur, 1)
-        local ease = r * r * (3 - 2 * r)
-        local v = fromPct + (toPct - fromPct) * ease
-        loadBarFill.Size  = UDim2.new(v, 0, 1, 0)
-        loadPctLabel.Text = math.floor(v * 100) .. "%"
-        local oa = overlayFrom + (overlayTo - overlayFrom) * ease
-        loadOverlay.BackgroundTransparency = oa
-        for _, child in ipairs(loadOverlay:GetDescendants()) do
-            if child:IsA("TextLabel") or child:IsA("TextButton") then
-                child.TextTransparency = math.max(0, oa - 0.3) / 0.7
-            elseif child:IsA("ImageLabel") then
-                child.ImageTransparency = math.max(0, oa - 0.3) / 0.7
-                child.BackgroundTransparency = oa
-            elseif child:IsA("Frame") then
-                child.BackgroundTransparency = oa
-            elseif child:IsA("UIStroke") then
-                child.Transparency = math.max(0, oa - 0.3) / 0.7
-            end
-        end
-        if r >= 1 then break end
-        RunService.Heartbeat:Wait()
-    end
-end
-
 task.spawn(function()
     update()
 
-    for i, item in ipairs(LOAD_ELEMENTS) do
-        local fromPct = (i - 1) / TOTAL
-        local toPct   = i / TOTAL
+    local totalDur = TOTAL * 0.3
+    local progressDone = false
 
-        loadStepLabel.Text = item.text
+    task.spawn(function()
+        for i, item in ipairs(LOAD_ELEMENTS) do
+            loadStepLabel.Text = item.text
+            local obj = fadeTargetNames[item.key]
+            if obj then fadeInElement(obj) end
+            hbWait(totalDur / TOTAL)
+        end
+        progressDone = true
+    end)
 
-        local obj = fadeTargetNames[item.key]
-        if obj then fadeInElement(obj) end
-
-        local overlayFrom = 0.4 + (0.2 * ((i-1)/TOTAL))
-        local overlayTo   = 0.4 + (0.2 * (i/TOTAL))
-
-        animateStep(fromPct, toPct, 0.45, overlayFrom, overlayTo)
-        hbWait(0.05)
+    local s = tick()
+    while not progressDone do
+        local r = math.min((tick() - s) / totalDur, 1)
+        local ease = r * r * (3 - 2 * r)
+        loadBarFill.Size  = UDim2.new(ease, 0, 1, 0)
+        loadPctLabel.Text = math.floor(ease * 100) .. "%"
+        loadOverlay.BackgroundTransparency = 0.4 + 0.2 * ease
+        RunService.Heartbeat:Wait()
     end
+    loadBarFill.Size  = UDim2.new(1, 0, 1, 0)
+    loadPctLabel.Text = "100%"
 
     local startAlpha = loadOverlay.BackgroundTransparency
-    local s = tick()
+    local s2 = tick()
     while true do
-        local r = math.min((tick() - s) / 0.5, 1)
+        local r = math.min((tick() - s2) / 0.5, 1)
         local ease = r * r * (3 - 2 * r)
         local a = startAlpha + (1 - startAlpha) * ease
         loadOverlay.BackgroundTransparency = a
