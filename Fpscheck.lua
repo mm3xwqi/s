@@ -1,11 +1,14 @@
---local config = (function() return {
---	["Remove Death Effect"] = false,
+-- config = (function() return {
+--	["Remove Death Effect"] = true,
 --	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
 --	["White Screen"] = false,
 --	["Boost FPS V1"] = false,
 --	["Boost FPS V2"] = false,
 --	["Hide Players"] = true,
 --	["Hide Enemies"] = true,
+--	["Auto Hop"] = true,
+--	["Hop Interval"] = 30,
+--	["Hop Server"] = "singapore",
 --} end)()
 
 local Players      = game:GetService("Players")
@@ -39,9 +42,10 @@ local C = {
 	WARN    = Color3.fromRGB(255,210,80),   DANGER = Color3.fromRGB(255,100,100),
 	FRIEND  = Color3.fromRGB(100,180,255),  DIST   = Color3.fromRGB(180,180,255),
 	V1COL   = Color3.fromRGB(80,190,255),   V2COL  = Color3.fromRGB(255,195,60),
-	BOUNTY  = Color3.fromRGB(255,160,60),
+	BOUNTY  = Color3.fromRGB(255,160,60),   HOP    = Color3.fromRGB(255,80,180),
 }
 
+-- ─── Boost V1 ────────────────────────────────────────────────────────────────
 local boostV1Active = false
 local hiddenParts   = {}
 local boostV1Conn   = nil
@@ -70,6 +74,7 @@ local function setMapVisibility(invisible)
 	end
 end
 
+-- ─── Boost V2 ────────────────────────────────────────────────────────────────
 local boostV2Active    = false
 local v2DescConn       = nil
 local v2OrigSettings   = {}
@@ -176,11 +181,11 @@ end
 
 if config["Boost FPS V1"] then task.spawn(function() task.wait(2); boostV1Active=true; setMapVisibility(true) end) end
 if config["Boost FPS V2"] then task.spawn(function() task.wait(2); boostV2Active=true; applyLowGraphic()    end) end
-
 player.CharacterAdded:Connect(function(char)
 	if boostV2Active then V2_SKIP_ANCESTORS[char]=true end
 end)
 
+-- ─── Hide Players ─────────────────────────────────────────────────────────────
 local hidePlayersActive = config["Hide Players"]
 local hiddenPlayersData = {}
 local hidePlayersConns  = {}
@@ -236,6 +241,7 @@ end
 
 if hidePlayersActive then task.spawn(function() task.wait(1); toggleHidePlayers(true) end) end
 
+-- ─── Hide Enemies ─────────────────────────────────────────────────────────────
 local hideEnemiesActive = config["Hide Enemies"]
 local hiddenEnemyParts  = {}
 local enemyDescConn     = nil
@@ -285,6 +291,7 @@ end
 
 if hideEnemiesActive then task.spawn(function() task.wait(2); toggleHideEnemies(true) end) end
 
+-- ─── Death Effect ─────────────────────────────────────────────────────────────
 local function removeDeathEffect()
 	pcall(function()
 		local rs    = game:GetService("ReplicatedStorage")
@@ -297,6 +304,129 @@ if config["Remove Death Effect"] then
 	player.CharacterAdded:Connect(function() task.wait(0.5); removeDeathEffect() end)
 end
 
+-- AUTO HOP SYSTEM
+local autoHopActive   = config["Auto Hop"]
+local autoHopThread   = nil
+local hopIntervalSecs = (config["Hop Interval"] or 30) * 60
+local hopTargetServer = (config["Hop Server"] or ""):lower()
+local hopCountdown    = hopIntervalSecs
+local hopLastTick     = tick()
+
+local function doHop()
+	local sb = pg:FindFirstChild("ServerBrowser")
+	if not sb then warn("[AutoHop] ไม่พบ ServerBrowser"); return end
+
+	sb.Enabled = true
+	local frame = sb:FindFirstChild("Frame")
+	if frame then pcall(function() frame.Visible = true end) end
+
+	pcall(function()
+		local regionBox = frame.Filters.SearchRegion.TextBox
+		regionBox.Text = hopTargetServer ~= "" and hopTargetServer or ""
+	end)
+
+	pcall(function() frame.Refresh:Activate() end)
+	task.wait(3)
+
+	local inside = frame and frame:FindFirstChild("FakeScroll")
+		and frame.FakeScroll:FindFirstChild("Inside")
+	if not inside then warn("[AutoHop] ไม่พบ Inside"); return end
+
+	local triedJobs = {}
+
+	local function tryHop()
+		for _, child in ipairs(inside:GetChildren()) do
+			if not child:IsA("Frame") then continue end
+
+			local joinBtn = child:FindFirstChild("Join")
+			if not joinBtn or joinBtn.Text ~= "Join" then continue end
+
+			local tl = child:FindFirstChildOfClass("TextLabel")
+			if not tl then continue end
+			if tl.Text:find("ERROR") then continue end
+			local current, max = tl.Text:match("Players: (%d+)/(%d+)")
+			current = tonumber(current); max = tonumber(max)
+			if current and max and current >= max - 1 then continue end
+
+			local jobId = joinBtn:GetAttribute("Job")
+			if not jobId or triedJobs[jobId] then continue end
+
+			triedJobs[jobId] = true
+			print("[AutoHop] Trying →", tl.Text)
+
+			local failConn
+			failConn = game:GetService("TeleportService").TeleportInitFailed:Connect(function(_, result, msg)
+				print("[AutoHop] Failed:", msg, "→ trying next...")
+				if failConn then failConn:Disconnect(); failConn = nil end
+				task.wait(1)
+				tryHop()
+			end)
+
+			for _, c in ipairs(getconnections(joinBtn.MouseButton1Click)) do
+				c:Fire()
+			end
+
+			task.delay(5, function()
+				if failConn then failConn:Disconnect(); failConn = nil end
+			end)
+			return
+		end
+
+		print("[AutoHop] หมด list, Refreshing...")
+		triedJobs = {}
+		pcall(function() frame.Refresh:Activate() end)
+		task.wait(3)
+		tryHop()
+	end
+
+	tryHop()
+end
+
+local function autoHopLoop()
+	hopLastTick  = tick()
+	hopCountdown = hopIntervalSecs
+
+	while autoHopActive do
+		task.wait(1)
+		local now    = tick()
+		hopCountdown = hopCountdown - (now - hopLastTick)
+		hopLastTick  = now
+
+		if hopCountdown <= 0 then
+			hopCountdown = hopIntervalSecs
+			if autoHopActive then
+				task.spawn(doHop)
+			end
+		end
+	end
+end
+
+local function startAutoHop()
+	autoHopActive = true
+	hopCountdown  = hopIntervalSecs
+	hopLastTick   = tick()
+	if autoHopThread then task.cancel(autoHopThread) end
+	autoHopThread = task.spawn(autoHopLoop)
+end
+
+local function stopAutoHop()
+	autoHopActive = false
+	if autoHopThread then task.cancel(autoHopThread); autoHopThread = nil end
+	hopCountdown = hopIntervalSecs
+	pcall(function()
+		local sb = pg:FindFirstChild("ServerBrowser")
+		if sb then
+			sb.Enabled = false
+			local f = sb:FindFirstChild("Frame")
+			if f then f.Visible = false end
+		end
+	end)
+end
+
+if config["Auto Hop"] then
+	task.spawn(function() task.wait(6); startAutoHop() end)
+end
+-- ─── Stats ────────────────────────────────────────────────────────────────────
 local statCache = {}
 local STAT_PATHS = {
 	Level          = {"leaderstats.Level","leaderstats.Lv.","Data.Level"},
@@ -354,12 +484,11 @@ local function fmtComma(n)
 	return tostring(math.floor(math.abs(n))):reverse():gsub("(%d%d%d)","%1,"):reverse():gsub("^,","")
 end
 
-local STUDS_TO_M    = 0.28
+local STUDS_TO_M      = 0.28
 local playerInfoCache = {}
 local spawnWatchers   = {}
 local raceWatchers    = {}
 local bountyWatchers  = {}
-
 playerInfoCache[player.UserId] = {joinTime=tick()}
 
 local function watchPlayerSpawn(p)
@@ -429,6 +558,7 @@ local function startWatchingPlayer(p)
 	watchPlayerSpawn(p); watchPlayerRace(p); watchPlayerBounty(p)
 end
 
+-- ─── Themes ───────────────────────────────────────────────────────────────────
 local THEMES = {
 	{name="Default", accent=Color3.fromRGB(255,255,255), accentDim=Color3.fromRGB(180,180,180), bg=Color3.fromRGB(6,6,6),    panel=Color3.fromRGB(10,10,10), card=Color3.fromRGB(22,22,22), hover=Color3.fromRGB(32,32,32), sep=Color3.fromRGB(50,50,50),  border=Color3.fromRGB(70,70,70),   border2=Color3.fromRGB(100,100,100), dim=Color3.fromRGB(140,140,140)},
 	{name="Cyan",    accent=Color3.fromRGB(80,220,255),  accentDim=Color3.fromRGB(60,160,200),  bg=Color3.fromRGB(2,10,14),  panel=Color3.fromRGB(4,16,22),  card=Color3.fromRGB(6,26,36),  hover=Color3.fromRGB(10,40,54),  sep=Color3.fromRGB(20,70,90), border=Color3.fromRGB(30,100,130), border2=Color3.fromRGB(50,160,200),  dim=Color3.fromRGB(80,160,190)},
@@ -439,6 +569,7 @@ local THEMES = {
 }
 local currentThemeIdx = 1
 
+-- ─── UI helpers ───────────────────────────────────────────────────────────────
 local HUD_W=640; local HUD_H=600; local PAD=10
 
 local function mk(class, parent, props)
@@ -464,7 +595,7 @@ end
 local gui = mk("ScreenGui", pg, {Name="IntegratedStatusHUD",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=10})
 local hudPos = UDim2.new(0.5,-HUD_W/2,0.5,-HUD_H/2)
 
--- Notif
+-- ─── Notif ────────────────────────────────────────────────────────────────────
 local notifQueue={};  local notifActive=false
 local notifFrame = mk("Frame",gui,{Size=UDim2.new(0,260,0,44),Position=UDim2.new(1,-270,0,60),BackgroundColor3=C.PANEL,BorderSizePixel=0,ZIndex=60,Visible=false})
 stroke(notifFrame,C.BORDER2,1); corner(notifFrame,6)
@@ -509,8 +640,7 @@ local function showNotif(name,action,col)
 end
 
 Players.PlayerAdded:Connect(function(p)
-	task.wait(1)
-	local uid=p.UserId
+	task.wait(1); local uid=p.UserId
 	if not playerInfoCache[uid] then playerInfoCache[uid]={} end
 	playerInfoCache[uid].joinTime=tick()
 	startWatchingPlayer(p)
@@ -528,6 +658,7 @@ Players.PlayerRemoving:Connect(function(p)
 	playerInfoCache[uid]=nil; statCache[uid]=nil
 end)
 
+-- ─── Inventory helpers ────────────────────────────────────────────────────────
 local VALID_STAT_TYPES={Melee=true,Sword=true,Gun=true,["Blox Fruit"]=true,Defense=true}
 local function getToolStatType(toolObj)
 	local tip=""
@@ -582,7 +713,7 @@ local function getRace(p)
 	return raceName,tier
 end
 
--- UI Panels
+-- MAIN UI
 local fullPanel=mk("Frame",gui,{Size=UDim2.new(0,HUD_W,0,HUD_H),Position=hudPos,BackgroundColor3=C.PANEL,BackgroundTransparency=0,BorderSizePixel=0,ClipsDescendants=false})
 stroke(fullPanel,C.BORDER2,2); corner(fullPanel,8)
 local miniPanel=mk("Frame",gui,{Size=UDim2.new(0,HUD_W,0,40),Position=hudPos,BackgroundColor3=C.PANEL,BackgroundTransparency=0,BorderSizePixel=0,Visible=false})
@@ -614,6 +745,7 @@ local function setView(mini)
 	end
 end
 
+-- Drag
 local dragging,dragStart,dragStartPos=false,nil,nil
 fullPanel.InputBegan:Connect(function(inp)
 	if inp.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -635,6 +767,7 @@ UIS.InputEnded:Connect(function(inp)
 	if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false; dragStart=nil; dragStartPos=nil end
 end)
 
+-- Dividers
 local HALF=HUD_W/2
 mk("Frame",fullPanel,{Size=UDim2.new(0,1,0,HUD_H-PAD*2),Position=UDim2.new(0,HALF,0,PAD),BackgroundColor3=C.SEP,BorderSizePixel=0,ZIndex=3})
 mk("Frame",fullPanel,{Size=UDim2.new(0,HUD_W-PAD*2,0,1),Position=UDim2.new(0,PAD,0,HUD_H/2),BackgroundColor3=C.SEP,BorderSizePixel=0,ZIndex=3})
@@ -655,55 +788,91 @@ local Q2X=HALF+PAD;  local Q2Y=PAD;          local Q2W=HALF-PAD*2
 local Q3X=PAD;       local Q3Y=HUD_H/2+PAD;  local Q3W=HALF-PAD*2
 local Q4X=HALF+PAD;  local Q4Y=HUD_H/2+PAD;  local Q4W=HALF-PAD*2
 
--- group UI labels into a table to save local slots
 local UI = {}
-UI.avatar=mk("ImageLabel",fullPanel,{Size=UDim2.new(0,56,0,56),Position=UDim2.new(0,Q1X,0,Q1Y),BackgroundColor3=C.CARD,BorderSizePixel=0,ZIndex=4})
+
+-- ── Q1: Profile + controls ───────────────────────────────────────────────────
+UI.avatar=mk("ImageLabel",fullPanel,{Size=UDim2.new(0,52,0,52),Position=UDim2.new(0,Q1X,0,Q1Y),BackgroundColor3=C.CARD,BorderSizePixel=0,ZIndex=4})
 stroke(UI.avatar,C.BORDER2,2); corner(UI.avatar,5)
-UI.charLabel=lbl(fullPanel,{sz=UDim2.new(0,Q1W-64,0,18),pos=UDim2.new(0,Q1X+62,0,Q1Y),   size=13,color=C.WHITE, text="Loading...",trunc=Enum.TextTruncate.AtEnd,z=4})
-UI.lvlLabel =lbl(fullPanel,{sz=UDim2.new(0,Q1W-64,0,14),pos=UDim2.new(0,Q1X+62,0,Q1Y+20),size=11,color=C.MUTED,text="LV. 0",z=4})
-UI.onlineDot=mk("Frame",fullPanel,{Size=UDim2.new(0,8,0,8),Position=UDim2.new(0,Q1X+62,0,Q1Y+40),BackgroundColor3=C.SUCCESS,BorderSizePixel=0,ZIndex=4}); corner(UI.onlineDot,4)
-lbl(fullPanel,{sz=UDim2.new(0,60,0,12),pos=UDim2.new(0,Q1X+74,0,Q1Y+38),size=9,color=C.DIM,text="ONLINE",z=4})
+UI.charLabel=lbl(fullPanel,{sz=UDim2.new(0,Q1W-58,0,16),pos=UDim2.new(0,Q1X+56,0,Q1Y),   size=12,color=C.WHITE, text="Loading...",trunc=Enum.TextTruncate.AtEnd,z=4})
+UI.lvlLabel =lbl(fullPanel,{sz=UDim2.new(0,Q1W-58,0,13),pos=UDim2.new(0,Q1X+56,0,Q1Y+18),size=10,color=C.MUTED,text="LV. 0",z=4})
+UI.onlineDot=mk("Frame",fullPanel,{Size=UDim2.new(0,7,0,7),Position=UDim2.new(0,Q1X+56,0,Q1Y+36),BackgroundColor3=C.SUCCESS,BorderSizePixel=0,ZIndex=4}); corner(UI.onlineDot,4)
+lbl(fullPanel,{sz=UDim2.new(0,55,0,11),pos=UDim2.new(0,Q1X+67,0,Q1Y+34),size=9,color=C.DIM,text="ONLINE",z=4})
 
 task.spawn(function()
 	while true do
-		TweenService:Create(UI.onlineDot,TweenInfo.new(0.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{BackgroundTransparency=0.5}):Play()
-		task.wait(0.8)
-		TweenService:Create(UI.onlineDot,TweenInfo.new(0.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{BackgroundTransparency=0}):Play()
-		task.wait(0.8)
+		TweenService:Create(UI.onlineDot,TweenInfo.new(0.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{BackgroundTransparency=0.5}):Play(); task.wait(0.8)
+		TweenService:Create(UI.onlineDot,TweenInfo.new(0.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{BackgroundTransparency=0}):Play(); task.wait(0.8)
 	end
 end)
 
+local colW3=math.floor(Q1W/3)
 local function miniStatRow2(x,y,w,labelTxt,valTxt)
-	lbl(fullPanel,{sz=UDim2.new(0,w,0,12),pos=UDim2.new(0,x,0,y),size=9,color=C.DIM,text=labelTxt,z=4})
-	local v=lbl(fullPanel,{sz=UDim2.new(0,w,0,14),pos=UDim2.new(0,x,0,y+12),size=12,color=C.OFFWHITE,text=valTxt,trunc=Enum.TextTruncate.AtEnd,z=4})
+	lbl(fullPanel,{sz=UDim2.new(0,w,0,11),pos=UDim2.new(0,x,0,y),size=9,color=C.DIM,text=labelTxt,z=4})
+	local v=lbl(fullPanel,{sz=UDim2.new(0,w,0,13),pos=UDim2.new(0,x,0,y+11),size=11,color=C.OFFWHITE,text=valTxt,trunc=Enum.TextTruncate.AtEnd,z=4})
 	return v
 end
+UI.raceValLbl =miniStatRow2(Q1X,            Q1Y+64, colW3-4,"RACE","???")
+UI.teamValLbl =miniStatRow2(Q1X+colW3,      Q1Y+64, colW3-4,"TEAM","N/A")
+UI.spawnValLbl=miniStatRow2(Q1X+colW3*2,    Q1Y+64, colW3-4,"SPAWN","???")
 
-local colW3=math.floor(Q1W/3)
-UI.raceValLbl =miniStatRow2(Q1X,        Q1Y+68,colW3-4,"RACE","???")
-UI.teamValLbl =miniStatRow2(Q1X+colW3,  Q1Y+68,colW3-4,"TEAM","N/A")
-UI.spawnValLbl=miniStatRow2(Q1X+colW3*2,Q1Y+68,colW3-4,"SPAWN","???")
-UI.fpsLabel   =lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,16),pos=UDim2.new(0,Q1X,0,Q1Y+100),size=13,color=C.OFFWHITE,text="FPS 0",z=4})
-UI.pingLabel  =lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,16),pos=UDim2.new(0,Q1X,0,Q1Y+118),size=13,color=C.OFFWHITE,text="PING 0ms",z=4})
-UI.timeLabel  =lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0,Q1Y+136),font=Enum.Font.Gotham,size=11,color=C.DIM,text="00:00:00",z=4})
+UI.fpsLabel  =lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0,Q1Y+92), size=12,color=C.OFFWHITE,text="FPS 0",z=4})
+UI.pingLabel =lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0,Q1Y+108),size=12,color=C.OFFWHITE,text="PING 0ms",z=4})
+UI.timeLabel =lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,13),pos=UDim2.new(0,Q1X,0,Q1Y+124),font=Enum.Font.Gotham,size=10,color=C.DIM,text="00:00:00",z=4})
 
 local function makeSmallBtn(x,y,w,h,txt,col,state)
-	local btn=mk("TextButton",fullPanel,{Size=UDim2.new(0,w,0,h),Position=UDim2.new(0,x,0,y),BackgroundColor3=state and col or C.CARD,BorderSizePixel=0,Text=txt,TextColor3=state and C.BG or C.MUTED,TextSize=10,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
+	local btn=mk("TextButton",fullPanel,{
+		Size=UDim2.new(0,w,0,h), Position=UDim2.new(0,x,0,y),
+		BackgroundColor3=state and col or C.CARD, BorderSizePixel=0,
+		Text=txt, TextColor3=state and C.BG or C.MUTED,
+		TextSize=10, Font=Enum.Font.GothamBold, AutoButtonColor=false, ZIndex=4})
 	stroke(btn,C.BORDER2,1); corner(btn,4); return btn
 end
 
-local btnW=math.floor((Q1W-6)/2)
-UI.v1Btn   =makeSmallBtn(Q1X,        Q1Y+158,btnW,20,config["Boost FPS V1"] and "V1 ON" or "V1 OFF",C.V1COL,config["Boost FPS V1"])
-UI.v2Btn   =makeSmallBtn(Q1X+btnW+6, Q1Y+158,btnW,20,config["Boost FPS V2"] and "V2 ON" or "V2 OFF",C.V2COL,config["Boost FPS V2"])
-UI.hideBtn =makeSmallBtn(Q1X,        Q1Y+182,btnW,20,hidePlayersActive and "HIDE ON" or "HIDE OFF",C.WHITE,hidePlayersActive)
-UI.miniBtn =makeSmallBtn(Q1X+btnW+6, Q1Y+182,btnW,20,"MINIMIZE",C.CARD,false); UI.miniBtn.TextColor3=C.MUTED
-UI.enemyBtn=makeSmallBtn(Q1X,        Q1Y+206,btnW,20,hideEnemiesActive and "ENEMY ON" or "ENEMY OFF",C.DANGER,hideEnemiesActive)
-UI.themeBtn=makeSmallBtn(Q1X+btnW+6, Q1Y+230,btnW,20,"THEME: Default",C.CARD,false); UI.themeBtn.TextColor3=C.MUTED
-UI.capBox=mk("TextBox",fullPanel,{Size=UDim2.new(0,btnW-36,0,20),Position=UDim2.new(0,Q1X,0,Q1Y+230),BackgroundColor3=C.CARD,BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHITE,Text="",PlaceholderText=tostring(FPS_CAP),PlaceholderColor3=C.DIM,ZIndex=4})
-stroke(UI.capBox,C.BORDER2,1); corner(UI.capBox,4)
-UI.setCapBtn=makeSmallBtn(Q1X+btnW-30,Q1Y+230,30,20,"SET",C.WHITE,false)
-UI.setCapBtn.BackgroundColor3=C.WHITE; UI.setCapBtn.TextColor3=C.BG
+local btnW = math.floor((Q1W-6)/2)
 
+UI.v1Btn  = makeSmallBtn(Q1X,        Q1Y+142, btnW, 20, config["Boost FPS V1"] and "V1 ON" or "V1 OFF", C.V1COL, config["Boost FPS V1"])
+UI.v2Btn  = makeSmallBtn(Q1X+btnW+6, Q1Y+142, btnW, 20, config["Boost FPS V2"] and "V2 ON" or "V2 OFF", C.V2COL, config["Boost FPS V2"])
+UI.hideBtn= makeSmallBtn(Q1X,        Q1Y+166, btnW, 20, hidePlayersActive and "HIDE ON" or "HIDE OFF", C.WHITE, hidePlayersActive)
+UI.miniBtn= makeSmallBtn(Q1X+btnW+6, Q1Y+166, btnW, 20, "MINIMIZE", C.CARD, false); UI.miniBtn.TextColor3=C.MUTED
+UI.enemyBtn=makeSmallBtn(Q1X,        Q1Y+190, btnW, 20, hideEnemiesActive and "ENEMY ON" or "ENEMY OFF", C.DANGER, hideEnemiesActive)
+UI.hopBtn  =makeSmallBtn(Q1X+btnW+6, Q1Y+190, btnW, 20, autoHopActive and "HOP ON" or "HOP OFF", C.HOP, autoHopActive)
+UI.capBox=mk("TextBox",fullPanel,{Size=UDim2.new(0,btnW-34,0,20),Position=UDim2.new(0,Q1X,0,Q1Y+214),BackgroundColor3=C.CARD,BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHITE,Text="",PlaceholderText=tostring(FPS_CAP),PlaceholderColor3=C.DIM,ZIndex=4})
+stroke(UI.capBox,C.BORDER2,1); corner(UI.capBox,4)
+UI.setCapBtn=makeSmallBtn(Q1X+btnW-28,Q1Y+214,28,20,"SET",C.WHITE,false); UI.setCapBtn.BackgroundColor3=C.WHITE; UI.setCapBtn.TextColor3=C.BG
+UI.themeBtn =makeSmallBtn(Q1X+btnW+6, Q1Y+214, btnW, 20, "THEME: Default", C.CARD, false); UI.themeBtn.TextColor3=C.MUTED
+
+lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,10),pos=UDim2.new(0,Q1X,0,Q1Y+240),size=8,color=C.DIM,text="HOP COUNTDOWN",z=4})
+UI.hopCountdownLbl=lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0,Q1Y+250),font=Enum.Font.GothamBold,size=11,color=C.HOP,text="DISABLED",z=4})
+
+local hopPopup = mk("Frame", gui, {
+	Size=UDim2.new(0,220,0,110),
+	Position=UDim2.new(0,0,0,0), 
+	BackgroundColor3=C.PANEL, BorderSizePixel=0,
+	ZIndex=20, Visible=false, ClipsDescendants=false,
+})
+stroke(hopPopup, C.BORDER2, 1); corner(hopPopup, 6)
+
+lbl(hopPopup,{sz=UDim2.new(1,-10,0,12),pos=UDim2.new(0,8,0,6), size=9,color=C.DIM,text="HOP EVERY (MIN)",z=21})
+local hopIntervalBox=mk("TextBox",hopPopup,{Size=UDim2.new(0,140,0,20),Position=UDim2.new(0,8,0,20),BackgroundColor3=C.CARD,BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHITE,Text="",PlaceholderText=tostring(config["Hop Interval"]),PlaceholderColor3=C.DIM,ZIndex=21})
+stroke(hopIntervalBox,C.BORDER2,1); corner(hopIntervalBox,4)
+local setHopIntervalBtn=mk("TextButton",hopPopup,{Size=UDim2.new(0,56,0,20),Position=UDim2.new(0,156,0,20),BackgroundColor3=C.HOP,BorderSizePixel=0,Text="SET",TextColor3=C.BG,TextSize=10,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=21})
+stroke(setHopIntervalBtn,C.BORDER2,1); corner(setHopIntervalBtn,4)
+
+lbl(hopPopup,{sz=UDim2.new(1,-10,0,12),pos=UDim2.new(0,8,0,48),size=9,color=C.DIM,text="HOP SERVER (BLANK = ALL)",z=21})
+local hopServerBox=mk("TextBox",hopPopup,{Size=UDim2.new(0,204,0,20),Position=UDim2.new(0,8,0,62),BackgroundColor3=C.CARD,BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHITE,Text=config["Hop Server"],PlaceholderText="e.g. singapore",PlaceholderColor3=C.DIM,ZIndex=21})
+stroke(hopServerBox,C.BORDER2,1); corner(hopServerBox,4)
+
+local hopPopupVisible = false
+local function showHopPopup()
+	local absPos = fullPanel.AbsolutePosition
+	hopPopup.Position = UDim2.new(0, absPos.X + Q1X + btnW + 6, 0, absPos.Y + Q1Y + 190 + 24)
+	hopPopup.Visible = true; hopPopupVisible = true
+end
+local function hideHopPopup()
+	hopPopup.Visible = false; hopPopupVisible = false
+end
+
+-- ─── FPS cap apply ────────────────────────────────────────────────────────────
 local function applyFpsCap()
 	local num=tonumber(UI.capBox.Text)
 	if num and num>0 then
@@ -715,15 +884,37 @@ end
 UI.setCapBtn.MouseButton1Click:Connect(applyFpsCap)
 UI.capBox.FocusLost:Connect(function(enter) if enter then applyFpsCap() end end)
 
-local sRH=36
-UI.beliLbl,_          =statBlock(Q2X,Q2Y+0,    Q2W,"BELI","0")
-UI.fragLbl,_          =statBlock(Q2X,Q2Y+sRH,  Q2W,"FRAGMENTS","0")
-UI.meleeLbl,UI.meleeBar=statBlock(Q2X,Q2Y+sRH*2,Q2W,"MELEE","0",C.V1COL)
-UI.defLbl,  UI.defBar  =statBlock(Q2X,Q2Y+sRH*3,Q2W,"DEFENSE","0",C.V1COL)
-UI.swordLbl,UI.swordBar=statBlock(Q2X,Q2Y+sRH*4,Q2W,"SWORD","0",C.V1COL)
-UI.gunLbl,  UI.gunBar  =statBlock(Q2X,Q2Y+sRH*5,Q2W,"GUN","0",C.V1COL)
-UI.fruitLbl,UI.fruitBar=statBlock(Q2X,Q2Y+sRH*6,Q2W,"BLOX FRUIT","0",C.WARN)
+-- ─── Hop interval apply ───────────────────────────────────────────────────────
+local function applyHopInterval()
+	local num = tonumber(hopIntervalBox.Text)
+	if num and num > 0 then
+		hopIntervalSecs = num * 60
+		hopCountdown    = hopIntervalSecs
+		hopIntervalBox.Text = ""
+		hopIntervalBox.PlaceholderText = tostring(num)
+		showNotif("Auto Hop","Interval → "..num.." min",C.HOP)
+	end
+end
+setHopIntervalBtn.MouseButton1Click:Connect(applyHopInterval)
+hopIntervalBox.FocusLost:Connect(function(enter) if enter then applyHopInterval() end end)
 
+-- ─── Hop server apply ─────────────────────────────────────────────────────────
+hopServerBox.FocusLost:Connect(function()
+	hopTargetServer = hopServerBox.Text:lower()
+	showNotif("Auto Hop", hopTargetServer=="" and "Target: all servers" or "Target: "..hopServerBox.Text, C.HOP)
+end)
+
+-- ─── Q2: Stats ────────────────────────────────────────────────────────────────
+local sRH=36
+UI.beliLbl,_           = statBlock(Q2X, Q2Y+0,     Q2W,"BELI","0")
+UI.fragLbl,_           = statBlock(Q2X, Q2Y+sRH,   Q2W,"FRAGMENTS","0")
+UI.meleeLbl,UI.meleeBar= statBlock(Q2X, Q2Y+sRH*2, Q2W,"MELEE","0",C.V1COL)
+UI.defLbl,  UI.defBar  = statBlock(Q2X, Q2Y+sRH*3, Q2W,"DEFENSE","0",C.V1COL)
+UI.swordLbl,UI.swordBar= statBlock(Q2X, Q2Y+sRH*4, Q2W,"SWORD","0",C.V1COL)
+UI.gunLbl,  UI.gunBar  = statBlock(Q2X, Q2Y+sRH*5, Q2W,"GUN","0",C.V1COL)
+UI.fruitLbl,UI.fruitBar= statBlock(Q2X, Q2Y+sRH*6, Q2W,"BLOX FRUIT","0",C.WARN)
+
+-- ─── Q3: Players ──────────────────────────────────────────────────────────────
 lbl(fullPanel,{sz=UDim2.new(0,Q3W,0,12),pos=UDim2.new(0,Q3X,0,Q3Y),size=9,color=C.DIM,text="PLAYERS",z=4})
 UI.pcCountLbl=lbl(fullPanel,{sz=UDim2.new(0,100,0,18),pos=UDim2.new(0,Q3X,0,Q3Y+12),size=14,color=C.WHITE,text="? / "..MAX_PLAYERS,z=4})
 local svrBarBg=mk("Frame",fullPanel,{Size=UDim2.new(0,Q3W,0,3),Position=UDim2.new(0,Q3X,0,Q3Y+32),BackgroundColor3=C.BORDER,BorderSizePixel=0,ZIndex=4}); corner(svrBarBg,1)
@@ -751,6 +942,7 @@ for i=1,20 do
 	}
 end
 
+-- ─── Q4: Inventory ────────────────────────────────────────────────────────────
 lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,12),pos=UDim2.new(0,Q4X,0,Q4Y),size=9,color=C.DIM,text="EQUIPPED",z=4})
 UI.equipValLbl=lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,17),pos=UDim2.new(0,Q4X,0,Q4Y+12),size=13,color=C.OFFWHITE,text="None",trunc=Enum.TextTruncate.AtEnd,z=4})
 UI.equipLvlLbl=lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,13),pos=UDim2.new(0,Q4X,0,Q4Y+30),font=Enum.Font.GothamBold,size=10,color=C.WARN,text="",z=4})
@@ -771,7 +963,7 @@ for i=1,20 do
 	}
 end
 
--- Mini panel
+-- ─── Mini panel ───────────────────────────────────────────────────────────────
 UI.miniAva=mk("ImageLabel",miniPanel,{Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,6,0,6),BackgroundColor3=C.CARD,BorderSizePixel=0,ZIndex=3}); stroke(UI.miniAva,C.BORDER2,1); corner(UI.miniAva,4)
 task.spawn(function()
 	local ok,t=pcall(function() return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100) end)
@@ -779,18 +971,19 @@ task.spawn(function()
 end)
 UI.miniNameLbl=lbl(miniPanel,{sz=UDim2.new(0,120,0,16),pos=UDim2.new(0,38,0,4), size=12,color=C.WHITE,text="Loading...",z=3})
 UI.miniLvlLbl =lbl(miniPanel,{sz=UDim2.new(0,90,0,12), pos=UDim2.new(0,38,0,22),font=Enum.Font.Gotham,size=10,color=C.DIM,text="LV. 0",z=3})
-lbl(miniPanel,{sz=UDim2.new(0,50,0,12),pos=UDim2.new(0,170,0,4), size=9,color=C.DIM,text="FPS",z=3})
+lbl(miniPanel,{sz=UDim2.new(0,40,0,12),pos=UDim2.new(0,170,0,4), size=9,color=C.DIM,text="FPS",z=3})
 UI.miniFpsLbl =lbl(miniPanel,{sz=UDim2.new(0,80,0,16),pos=UDim2.new(0,170,0,20),size=12,color=C.WHITE,text="...",z=3})
-lbl(miniPanel,{sz=UDim2.new(0,50,0,12),pos=UDim2.new(0,270,0,4), size=9,color=C.DIM,text="PING",z=3})
-UI.miniPingLbl=lbl(miniPanel,{sz=UDim2.new(0,80,0,16),pos=UDim2.new(0,270,0,20),size=12,color=C.WHITE,text="...",z=3})
-lbl(miniPanel,{sz=UDim2.new(0,50,0,12),pos=UDim2.new(0,370,0,4), size=9,color=C.DIM,text="BELI",z=3})
-UI.miniBeliLbl=lbl(miniPanel,{sz=UDim2.new(0,100,0,16),pos=UDim2.new(0,370,0,20),size=12,color=C.WHITE,text="...",z=3})
+lbl(miniPanel,{sz=UDim2.new(0,40,0,12),pos=UDim2.new(0,260,0,4), size=9,color=C.DIM,text="PING",z=3})
+UI.miniPingLbl=lbl(miniPanel,{sz=UDim2.new(0,80,0,16),pos=UDim2.new(0,260,0,20),size=12,color=C.WHITE,text="...",z=3})
+lbl(miniPanel,{sz=UDim2.new(0,40,0,12),pos=UDim2.new(0,350,0,4), size=9,color=C.DIM,text="BELI",z=3})
+UI.miniBeliLbl=lbl(miniPanel,{sz=UDim2.new(0,100,0,16),pos=UDim2.new(0,350,0,20),size=12,color=C.WHITE,text="...",z=3})
 local expandBtn=mk("TextButton",miniPanel,{Size=UDim2.new(0,30,0,22),Position=UDim2.new(1,-36,0,9),BackgroundColor3=C.CARD,BorderSizePixel=0,Text="▼",TextColor3=C.MUTED,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=5})
 stroke(expandBtn,C.BORDER2,1); corner(expandBtn,4)
 expandBtn.MouseEnter:Connect(function() TweenService:Create(expandBtn,TweenInfo.new(0.12),{BackgroundColor3=C.HOVER}):Play() end)
 expandBtn.MouseLeave:Connect(function() TweenService:Create(expandBtn,TweenInfo.new(0.12),{BackgroundColor3=C.CARD}):Play()  end)
 expandBtn.MouseButton1Click:Connect(function() setView(false) end)
 
+-- ─── Button hover───────────────────────────────────────────
 local function addHover(btn,baseCol)
 	btn.MouseEnter:Connect(function() TweenService:Create(btn,TweenInfo.new(0.12),{BackgroundColor3=C.HOVER}):Play() end)
 	btn.MouseLeave:Connect(function() TweenService:Create(btn,TweenInfo.new(0.12),{BackgroundColor3=baseCol()}):Play()  end)
@@ -800,6 +993,7 @@ local function smoothToggleBtn(btn,active,onCol,offCol,onTxt,offTxt)
 	btn.Text=active and onTxt or offTxt; btn.TextColor3=active and C.BG or C.MUTED
 end
 
+-- ─── Button clicks ───────────────────────────────────────────────────────────
 UI.v1Btn.MouseButton1Click:Connect(function()
 	boostV1Active=not boostV1Active
 	if boostV1Active then task.spawn(function() setMapVisibility(true) end) else task.spawn(function() setMapVisibility(false) end) end
@@ -818,14 +1012,41 @@ UI.enemyBtn.MouseButton1Click:Connect(function()
 	hideEnemiesActive=not hideEnemiesActive; task.spawn(function() toggleHideEnemies(hideEnemiesActive) end)
 	smoothToggleBtn(UI.enemyBtn,hideEnemiesActive,C.DANGER,C.CARD,"ENEMY ON","ENEMY OFF")
 end)
+UI.miniBtn.MouseButton1Click:Connect(function() setView(true) end)
+
+UI.hopBtn.MouseButton1Click:Connect(function()
+	if autoHopActive then
+		stopAutoHop()
+		smoothToggleBtn(UI.hopBtn,false,C.HOP,C.CARD,"HOP ON","HOP OFF")
+		showNotif("Auto Hop","Disabled",C.DANGER)
+		hideHopPopup()
+	else
+		startAutoHop()
+		smoothToggleBtn(UI.hopBtn,true,C.HOP,C.CARD,"HOP ON","HOP OFF")
+		showNotif("Auto Hop","Enabled ("..math.floor(hopIntervalSecs/60).." min)",C.HOP)
+	end
+end)
+
+UI.hopBtn.MouseButton2Click:Connect(function()
+	if hopPopupVisible then hideHopPopup() else showHopPopup() end
+end)
+
+UIS.InputBegan:Connect(function(inp, gp)
+	if gp then return end
+	if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+		if hopPopupVisible then hideHopPopup() end
+	end
+end)
+
 addHover(UI.v1Btn,    function() return boostV1Active     and C.V1COL or C.CARD end)
 addHover(UI.v2Btn,    function() return boostV2Active     and C.V2COL or C.CARD end)
 addHover(UI.hideBtn,  function() return hidePlayersActive and C.WHITE  or C.CARD end)
 addHover(UI.enemyBtn, function() return hideEnemiesActive and C.DANGER or C.CARD end)
+addHover(UI.hopBtn,   function() return autoHopActive     and C.HOP    or C.CARD end)
 addHover(UI.miniBtn,  function() return C.CARD end)
 addHover(UI.setCapBtn,function() return C.WHITE end)
-UI.miniBtn.MouseButton1Click:Connect(function() setView(true) end)
 
+-- ─── Theme ────────────────────────────────────────────────────────────────────
 local function twC(obj,props,dur)
 	TweenService:Create(obj,TweenInfo.new(dur or 0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),props):Play()
 end
@@ -839,6 +1060,7 @@ local function applyTheme(idx)
 	UI.themeBtn.Text="THEME: "..t.name
 	twC(fullPanel,{BackgroundColor3=t.panel}); twC(miniPanel,{BackgroundColor3=t.panel})
 	twC(notifFrame,{BackgroundColor3=t.panel}); twC(loadOverlay,{BackgroundColor3=t.bg})
+	twC(hopPopup,{BackgroundColor3=t.panel})
 	local function recolorPanel(panel)
 		for _,obj in ipairs(panel:GetDescendants()) do
 			if obj:IsA("Frame") and obj.BackgroundTransparency<1 then
@@ -859,26 +1081,22 @@ local function applyTheme(idx)
 	end
 	recolorPanel(fullPanel); recolorPanel(miniPanel)
 	for _,pf in ipairs(playerMiniRows) do
-		if pf.row and pf.row.Parent then
-			twC(pf.row,{BackgroundColor3=t.card})
-			for _,s in ipairs(pf.row:GetChildren()) do if s:IsA("UIStroke") then twC(s,{Color=t.border2}) end end
-		end
+		if pf.row and pf.row.Parent then twC(pf.row,{BackgroundColor3=t.card}) end
 	end
 	for _,pf in ipairs(invTextRows) do
-		if pf.cell and pf.cell.Parent then
-			twC(pf.cell,{BackgroundColor3=t.card})
-			for _,s in ipairs(pf.cell:GetChildren()) do if s:IsA("UIStroke") then twC(s,{Color=t.border2}) end end
-		end
+		if pf.cell and pf.cell.Parent then twC(pf.cell,{BackgroundColor3=t.card}) end
 	end
 	twC(UI.serverBarFill,{BackgroundColor3=t.accent}); twC(loadBarFill,{BackgroundColor3=t.accent})
 	twC(UI.onlineDot,{BackgroundColor3=C.SUCCESS}); twC(notifDot,{BackgroundColor3=C.SUCCESS})
 	twC(UI.avatar,{BackgroundColor3=t.card}); twC(UI.miniAva,{BackgroundColor3=t.card})
-	twC(UI.setCapBtn,{BackgroundColor3=t.accent,TextColor3=t.bg}); twC(UI.capBox,{BackgroundColor3=t.card})
+	twC(UI.setCapBtn,{BackgroundColor3=t.accent,TextColor3=t.bg})
+	twC(UI.capBox,{BackgroundColor3=t.card})
 	twC(expandBtn,{BackgroundColor3=t.card,TextColor3=t.accentDim})
 end
 UI.themeBtn.MouseButton1Click:Connect(function() applyTheme((currentThemeIdx%#THEMES)+1) end)
 addHover(UI.themeBtn,function() return C.CARD end)
 
+-- ─── Blackout ─────────────────────────────────────────────────────────────────
 local blackoutFrame=mk("Frame",gui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=0,BorderSizePixel=0,ZIndex=1,Visible=false})
 local restoreBtn=mk("TextButton",gui,{Size=UDim2.new(0,96,0,32),AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,-30),BackgroundColor3=C.WHITE,BorderSizePixel=0,Text="RESTORE",TextColor3=C.BG,Font=Enum.Font.GothamBold,TextSize=12,AutoButtonColor=false,Visible=false,ZIndex=51})
 local blackoutActive=false
@@ -886,6 +1104,7 @@ local function setBlackout(state) blackoutActive=state; blackoutFrame.Visible=st
 if config["White Screen"] then setBlackout(true) end
 restoreBtn.MouseButton1Click:Connect(function() setBlackout(false) end)
 
+-- ─── Self Highlight ───────────────────────────────────────────────────────────
 local selfHL
 local function applyHighlight(char)
 	if selfHL and selfHL.Parent then selfHL:Destroy() end; selfHL=nil
@@ -903,6 +1122,7 @@ task.spawn(function()
 	if ok and t then UI.avatar.Image=t end
 end)
 
+-- ─── FPS counter ─────────────────────────────────────────────────────────────
 local fps,frameCount,lastFpsTime=0,0,tick()
 RunService.RenderStepped:Connect(function()
 	frameCount+=1; local now=tick()
@@ -913,8 +1133,9 @@ local function getPing()
 	return ok and type(p)=="number" and math.floor(p) or math.floor(player:GetNetworkPing()*1000)
 end
 
+-- ─── Render helpers ───────────────────────────────────────────────────────────
 local scriptStart=tick()
-local lastText={};  local lastSize={};  local lastColor3={}
+local lastText={}; local lastSize={}; local lastColor3={}
 local barTweens={}; local colorTweens={}; local textTweens={}
 
 local function setText(lb,val,animate)
@@ -940,14 +1161,29 @@ local function setBgColor(frame,col)
 	TweenService:Create(frame,TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{BackgroundColor3=col}):Play()
 end
 
+local function fmtCountdown(secs)
+	if not autoHopActive then return "DISABLED" end
+	local s = math.max(0, math.floor(secs))
+	local h = math.floor(s/3600); s = s%3600
+	local m = math.floor(s/60);   s = s%60
+	if h>0 then return ("%d:%02d:%02d"):format(h,m,s) end
+	return ("%02d:%02d"):format(m,s)
+end
+
+-- ─── Update loops ─────────────────────────────────────────────────────────────
 local function updateFast()
-	local e=tick()-scriptStart; local ping=getPing()
-	setText(UI.fpsLabel,"FPS "..fps,false); setText(UI.pingLabel,"PING "..ping.."ms",false)
+	local ping=getPing()
+	local e=tick()-scriptStart
+	setText(UI.fpsLabel,"FPS "..fps,false)
+	setText(UI.pingLabel,"PING "..ping.."ms",false)
 	setText(UI.timeLabel,("%02d:%02d:%02d"):format(math.floor(e/3600),math.floor(e%3600/60),math.floor(e%60)),false)
 	setColor(UI.pingLabel,ping<80 and C.SUCCESS or ping<150 and C.WARN or C.DANGER)
-	setText(UI.miniFpsLbl,"FPS "..fps,false); setText(UI.miniPingLbl,ping.."ms",false)
+	setText(UI.miniFpsLbl,"FPS "..fps,false)
+	setText(UI.miniPingLbl,ping.."ms",false)
 	setText(UI.miniBeliLbl,formatVal(getStat("Beli"),"Beli"),false)
 	UI.capBox.PlaceholderText=tostring(FPS_CAP)
+	setText(UI.hopCountdownLbl, fmtCountdown(hopCountdown), false)
+	setColor(UI.hopCountdownLbl, autoHopActive and C.HOP or C.DIM)
 end
 
 local function updateStats()
@@ -1072,13 +1308,14 @@ local function updatePlayers()
 	end
 end
 
+-- ─── Keyboard shortcuts ───────────────────────────────────────────────────────
 UIS.InputBegan:Connect(function(inp,gp)
 	if gp then return end
 	if inp.KeyCode==Enum.KeyCode.B            then setBlackout(not blackoutActive) end
 	if inp.KeyCode==Enum.KeyCode.RightControl then setView(not isMini) end
 end)
 
--- Load sequence
+-- ─── Load sequence ────────────────────────────────────────────────────────────
 local LOAD_ELEMENTS={
 	{"Loading account...",      UI.avatar},
 	{"Loading username...",     UI.charLabel},
