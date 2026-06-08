@@ -1,4 +1,4 @@
---local config = (function() return {
+--config = (function() return {
 --	["Remove Death Effect"] = true,
 --	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
 --	["White Screen"] = false,
