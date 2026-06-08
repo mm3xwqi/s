@@ -1,15 +1,15 @@
-local config = (function() return {
-	["Remove Death Effect"] = true
-	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
-	["White Screen"] = false,
-	["Boost FPS V1"] = false,
-	["Boost FPS V2"] = false,
-	["Hide Players"] = true,
-	["Hide Enemies"] = true,
-	["Auto Hop"] = true,
-	["Hop Interval"] = 30,
-	["Hop Server"] = "singapore",
-} end)()
+--local config = (function() return {
+--	["Remove Death Effect"] = true,
+--	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
+--	["White Screen"] = false,
+--	["Boost FPS V1"] = false,
+--	["Boost FPS V2"] = false,
+--	["Hide Players"] = true,
+--	["Hide Enemies"] = true,
+--	["Auto Hop"] = true,
+--	["Hop Interval"] = 30,
+--	["Hop Server"] = "singapore"
+--} end)()
 
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
