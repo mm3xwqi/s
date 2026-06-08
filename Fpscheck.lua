@@ -1,15 +1,15 @@
---config = (function() return {
---	["Remove Death Effect"] = true,
---	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
---	["White Screen"] = false,
---	["Boost FPS V1"] = false,
---	["Boost FPS V2"] = false,
---	["Hide Players"] = true,
---	["Hide Enemies"] = true,
---	["Auto Hop"] = true,
---	["Hop Interval"] = 30,
---	["Hop Server"] = "singapore",
---} end)()
+local config = (function() return {
+	["Remove Death Effect"] = true,
+	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
+	["White Screen"] = false,
+	["Boost FPS V1"] = false,
+	["Boost FPS V2"] = false,
+	["Hide Players"] = true,
+	["Hide Enemies"] = true,
+	["Auto Hop"] = true,
+	["Hop Interval"] = 0,
+	["Hop Server"] = "singapore",
+} end)()
 
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -45,7 +45,6 @@ local C = {
 	BOUNTY  = Color3.fromRGB(255,160,60),   HOP    = Color3.fromRGB(255,80,180),
 }
 
--- ─── Boost V1 ────────────────────────────────────────────────────────────────
 local boostV1Active = false
 local hiddenParts   = {}
 local boostV1Conn   = nil
@@ -74,7 +73,6 @@ local function setMapVisibility(invisible)
 	end
 end
 
--- ─── Boost V2 ────────────────────────────────────────────────────────────────
 local boostV2Active    = false
 local v2DescConn       = nil
 local v2OrigSettings   = {}
@@ -185,101 +183,88 @@ player.CharacterAdded:Connect(function(char)
 	if boostV2Active then V2_SKIP_ANCESTORS[char]=true end
 end)
 
--- ─── Hide Players ─────────────────────────────────────────────────────────────
--- ─── Hide Players ─────────────────────────────────────────────────────────────
-local hidePlayersActive = config["Hide Players"]
-local hiddenPlayersData = {}
-local hidePlayersConns  = {}
-local hidePlayerCharConns = {}   -- เพิ่ม: track CharacterAdded ของแต่ละ player
+local hidePlayersActive   = config["Hide Players"]
+local hiddenPlayersData   = {}
+local hidePlayersConns    = {}
+local hidePlayerCharConns = {}
 
 local function setPlayerVisibility(plr, visible)
-    local char = plr.Character
-    if not char then return end
-    if not visible then
-        if hiddenPlayersData[plr.UserId] then return end
-        local partsData = {}
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                partsData[#partsData+1] = {obj=part, trans=part.Transparency}
-                part.Transparency = 1
-            end
-        end
-        hiddenPlayersData[plr.UserId] = partsData
-    else
-        local data = hiddenPlayersData[plr.UserId]
-        if not data then return end
-        for _, d in ipairs(data) do
-            if d.obj and d.obj.Parent then d.obj.Transparency = d.trans end
-        end
-        hiddenPlayersData[plr.UserId] = nil
-    end
+	local char = plr.Character
+	if not char then return end
+	if not visible then
+		if hiddenPlayersData[plr.UserId] then return end
+		local partsData = {}
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				partsData[#partsData+1] = {obj=part, trans=part.Transparency}
+				part.Transparency = 1
+			end
+		end
+		hiddenPlayersData[plr.UserId] = partsData
+	else
+		local data = hiddenPlayersData[plr.UserId]
+		if not data then return end
+		for _, d in ipairs(data) do
+			if d.obj and d.obj.Parent then d.obj.Transparency = d.trans end
+		end
+		hiddenPlayersData[plr.UserId] = nil
+	end
 end
 
--- เพิ่ม: watch CharacterAdded ของ player คนอื่น เพื่อซ่อนเมื่อเกิดใหม่
 local function watchCharacterForPlayer(p)
-    if p == player then return end
-    local uid = p.UserId
-    if hidePlayerCharConns[uid] then
-        hidePlayerCharConns[uid]:Disconnect()
-    end
-    hidePlayerCharConns[uid] = p.CharacterAdded:Connect(function()
-        hiddenPlayersData[uid] = nil  -- ล้าง cache เก่าจาก character ที่ตายไปแล้ว
-        if hidePlayersActive then
-            task.wait(0.5)
-            setPlayerVisibility(p, false)
-        end
-    end)
+	if p == player then return end
+	local uid = p.UserId
+	if hidePlayerCharConns[uid] then hidePlayerCharConns[uid]:Disconnect() end
+	hidePlayerCharConns[uid] = p.CharacterAdded:Connect(function()
+		hiddenPlayersData[uid] = nil
+		if hidePlayersActive then
+			task.wait(0.5)
+			setPlayerVisibility(p, false)
+		end
+	end)
 end
 
 local function applyHidePlayers(active)
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player then setPlayerVisibility(p, not active) end
-    end
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player then setPlayerVisibility(p, not active) end
+	end
 end
 
 local function toggleHidePlayers(active)
-    hidePlayersActive = active
-    applyHidePlayers(active)
-    if active then
-        -- watch CharacterAdded ของทุก player ที่อยู่แล้ว
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= player then watchCharacterForPlayer(p) end
-        end
-        if not hidePlayersConns.playerAdded then
-            hidePlayersConns.playerAdded = Players.PlayerAdded:Connect(function(p)
-                if p ~= player then
-                    watchCharacterForPlayer(p)
-                    -- รอ character โหลดก่อนแล้วค่อยซ่อน
-                    task.spawn(function()
-                        if not p.Character then
-                            p.CharacterAdded:Wait()
-                        end
-                        task.wait(0.5)
-                        if hidePlayersActive then
-                            setPlayerVisibility(p, false)
-                        end
-                    end)
-                end
-            end)
-        end
-        if not hidePlayersConns.characterAdded then
-            hidePlayersConns.characterAdded = player.CharacterAdded:Connect(function()
-                task.wait(0.5); applyHidePlayers(true)
-            end)
-        end
-    else
-        if hidePlayersConns.playerAdded    then hidePlayersConns.playerAdded:Disconnect();    hidePlayersConns.playerAdded=nil    end
-        if hidePlayersConns.characterAdded then hidePlayersConns.characterAdded:Disconnect(); hidePlayersConns.characterAdded=nil end
-        -- disconnect CharacterAdded ของทุก player
-        for uid, conn in pairs(hidePlayerCharConns) do
-            conn:Disconnect(); hidePlayerCharConns[uid] = nil
-        end
-    end
+	hidePlayersActive = active
+	applyHidePlayers(active)
+	if active then
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= player then watchCharacterForPlayer(p) end
+		end
+		if not hidePlayersConns.playerAdded then
+			hidePlayersConns.playerAdded = Players.PlayerAdded:Connect(function(p)
+				if p ~= player then
+					watchCharacterForPlayer(p)
+					task.spawn(function()
+						if not p.Character then p.CharacterAdded:Wait() end
+						task.wait(0.5)
+						if hidePlayersActive then setPlayerVisibility(p, false) end
+					end)
+				end
+			end)
+		end
+		if not hidePlayersConns.characterAdded then
+			hidePlayersConns.characterAdded = player.CharacterAdded:Connect(function()
+				task.wait(0.5); applyHidePlayers(true)
+			end)
+		end
+	else
+		if hidePlayersConns.playerAdded    then hidePlayersConns.playerAdded:Disconnect();    hidePlayersConns.playerAdded=nil    end
+		if hidePlayersConns.characterAdded then hidePlayersConns.characterAdded:Disconnect(); hidePlayersConns.characterAdded=nil end
+		for uid, conn in pairs(hidePlayerCharConns) do
+			conn:Disconnect(); hidePlayerCharConns[uid] = nil
+		end
+	end
 end
 
 if hidePlayersActive then task.spawn(function() task.wait(1); toggleHidePlayers(true) end) end
 
--- ─── Hide Enemies ─────────────────────────────────────────────────────────────
 local hideEnemiesActive = config["Hide Enemies"]
 local hiddenEnemyParts  = {}
 local enemyDescConn     = nil
@@ -329,7 +314,6 @@ end
 
 if hideEnemiesActive then task.spawn(function() task.wait(2); toggleHideEnemies(true) end) end
 
--- ─── Death Effect ─────────────────────────────────────────────────────────────
 local function removeDeathEffect()
 	pcall(function()
 		local rs    = game:GetService("ReplicatedStorage")
@@ -342,7 +326,6 @@ if config["Remove Death Effect"] then
 	player.CharacterAdded:Connect(function() task.wait(0.5); removeDeathEffect() end)
 end
 
--- AUTO HOP SYSTEM
 local autoHopActive   = config["Auto Hop"]
 local autoHopThread   = nil
 local hopIntervalSecs = (config["Hop Interval"] or 30) * 60
@@ -353,45 +336,33 @@ local hopLastTick     = tick()
 local function doHop()
 	local sb = pg:FindFirstChild("ServerBrowser")
 	if not sb then warn("[AutoHop] ไม่พบ ServerBrowser"); return end
-
 	sb.Enabled = true
 	local frame = sb:FindFirstChild("Frame")
 	if frame then pcall(function() frame.Visible = true end) end
-
 	pcall(function()
 		local regionBox = frame.Filters.SearchRegion.TextBox
 		regionBox.Text = hopTargetServer ~= "" and hopTargetServer or ""
 	end)
-
 	pcall(function() frame.Refresh:Activate() end)
 	task.wait(3)
-
-	local inside = frame and frame:FindFirstChild("FakeScroll")
-		and frame.FakeScroll:FindFirstChild("Inside")
+	local inside = frame and frame:FindFirstChild("FakeScroll") and frame.FakeScroll:FindFirstChild("Inside")
 	if not inside then warn("[AutoHop] ไม่พบ Inside"); return end
-
 	local triedJobs = {}
-
 	local function tryHop()
 		for _, child in ipairs(inside:GetChildren()) do
 			if not child:IsA("Frame") then continue end
-
 			local joinBtn = child:FindFirstChild("Join")
 			if not joinBtn or joinBtn.Text ~= "Join" then continue end
-
 			local tl = child:FindFirstChildOfClass("TextLabel")
 			if not tl then continue end
 			if tl.Text:find("ERROR") then continue end
 			local current, max = tl.Text:match("Players: (%d+)/(%d+)")
 			current = tonumber(current); max = tonumber(max)
 			if current and max and current >= max - 1 then continue end
-
 			local jobId = joinBtn:GetAttribute("Job")
 			if not jobId or triedJobs[jobId] then continue end
-
 			triedJobs[jobId] = true
 			print("[AutoHop] Trying →", tl.Text)
-
 			local failConn
 			failConn = game:GetService("TeleportService").TeleportInitFailed:Connect(function(_, result, msg)
 				print("[AutoHop] Failed:", msg, "→ trying next...")
@@ -399,42 +370,30 @@ local function doHop()
 				task.wait(1)
 				tryHop()
 			end)
-
-			for _, c in ipairs(getconnections(joinBtn.MouseButton1Click)) do
-				c:Fire()
-			end
-
-			task.delay(5, function()
-				if failConn then failConn:Disconnect(); failConn = nil end
-			end)
+			for _, c in ipairs(getconnections(joinBtn.MouseButton1Click)) do c:Fire() end
+			task.delay(5, function() if failConn then failConn:Disconnect(); failConn = nil end end)
 			return
 		end
-
 		print("[AutoHop] หมด list, Refreshing...")
 		triedJobs = {}
 		pcall(function() frame.Refresh:Activate() end)
 		task.wait(3)
 		tryHop()
 	end
-
 	tryHop()
 end
 
 local function autoHopLoop()
 	hopLastTick  = tick()
 	hopCountdown = hopIntervalSecs
-
 	while autoHopActive do
 		task.wait(1)
 		local now    = tick()
 		hopCountdown = hopCountdown - (now - hopLastTick)
 		hopLastTick  = now
-
 		if hopCountdown <= 0 then
 			hopCountdown = hopIntervalSecs
-			if autoHopActive then
-				task.spawn(doHop)
-			end
+			if autoHopActive then task.spawn(doHop) end
 		end
 	end
 end
@@ -461,11 +420,13 @@ local function stopAutoHop()
 	end)
 end
 
-if config["Auto Hop"] then
-	task.spawn(function() task.wait(6); startAutoHop() end)
-end
--- ─── Stats ────────────────────────────────────────────────────────────────────
+if config["Auto Hop"] then task.spawn(function() task.wait(6); startAutoHop() end) end
+
 local statCache = {}
+local sessionStartBeli      = nil
+local sessionStartFragments = nil
+local sessionInitialized    = false
+
 local STAT_PATHS = {
 	Level          = {"leaderstats.Level","leaderstats.Lv.","Data.Level"},
 	Beli           = {"leaderstats.Beli","leaderstats.Money","Data.Beli"},
@@ -596,7 +557,6 @@ local function startWatchingPlayer(p)
 	watchPlayerSpawn(p); watchPlayerRace(p); watchPlayerBounty(p)
 end
 
--- ─── Themes ───────────────────────────────────────────────────────────────────
 local THEMES = {
 	{name="Default", accent=Color3.fromRGB(255,255,255), accentDim=Color3.fromRGB(180,180,180), bg=Color3.fromRGB(6,6,6),    panel=Color3.fromRGB(10,10,10), card=Color3.fromRGB(22,22,22), hover=Color3.fromRGB(32,32,32), sep=Color3.fromRGB(50,50,50),  border=Color3.fromRGB(70,70,70),   border2=Color3.fromRGB(100,100,100), dim=Color3.fromRGB(140,140,140)},
 	{name="Cyan",    accent=Color3.fromRGB(80,220,255),  accentDim=Color3.fromRGB(60,160,200),  bg=Color3.fromRGB(2,10,14),  panel=Color3.fromRGB(4,16,22),  card=Color3.fromRGB(6,26,36),  hover=Color3.fromRGB(10,40,54),  sep=Color3.fromRGB(20,70,90), border=Color3.fromRGB(30,100,130), border2=Color3.fromRGB(50,160,200),  dim=Color3.fromRGB(80,160,190)},
@@ -607,7 +567,6 @@ local THEMES = {
 }
 local currentThemeIdx = 1
 
--- ─── UI helpers ───────────────────────────────────────────────────────────────
 local HUD_W=640; local HUD_H=600; local PAD=10
 
 local function mk(class, parent, props)
@@ -633,7 +592,6 @@ end
 local gui = mk("ScreenGui", pg, {Name="IntegratedStatusHUD",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=10})
 local hudPos = UDim2.new(0.5,-HUD_W/2,0.5,-HUD_H/2)
 
--- ─── Notif ────────────────────────────────────────────────────────────────────
 local notifQueue={};  local notifActive=false
 local notifFrame = mk("Frame",gui,{Size=UDim2.new(0,260,0,44),Position=UDim2.new(1,-270,0,60),BackgroundColor3=C.PANEL,BorderSizePixel=0,ZIndex=60,Visible=false})
 stroke(notifFrame,C.BORDER2,1); corner(notifFrame,6)
@@ -689,15 +647,14 @@ Players.PlayerRemoving:Connect(function(p)
 end)
 for _,p in ipairs(Players:GetPlayers()) do if p~=player then startWatchingPlayer(p) end end
 Players.PlayerRemoving:Connect(function(p)
-    local uid = p.UserId
-    if spawnWatchers[uid]       then spawnWatchers[uid]:Disconnect();       spawnWatchers[uid]=nil       end
-    if raceWatchers[uid]        then raceWatchers[uid]:Disconnect();        raceWatchers[uid]=nil        end
-    if bountyWatchers[uid]      then bountyWatchers[uid]:Disconnect();      bountyWatchers[uid]=nil      end
-    if hidePlayerCharConns[uid] then hidePlayerCharConns[uid]:Disconnect(); hidePlayerCharConns[uid]=nil end  -- เพิ่ม
-    playerInfoCache[uid]=nil; statCache[uid]=nil; hiddenPlayersData[uid]=nil  -- เพิ่ม hiddenPlayersData
+	local uid = p.UserId
+	if spawnWatchers[uid]       then spawnWatchers[uid]:Disconnect();       spawnWatchers[uid]=nil       end
+	if raceWatchers[uid]        then raceWatchers[uid]:Disconnect();        raceWatchers[uid]=nil        end
+	if bountyWatchers[uid]      then bountyWatchers[uid]:Disconnect();      bountyWatchers[uid]=nil      end
+	if hidePlayerCharConns[uid] then hidePlayerCharConns[uid]:Disconnect(); hidePlayerCharConns[uid]=nil end
+	playerInfoCache[uid]=nil; statCache[uid]=nil; hiddenPlayersData[uid]=nil
 end)
 
--- ─── Inventory helpers ────────────────────────────────────────────────────────
 local VALID_STAT_TYPES={Melee=true,Sword=true,Gun=true,["Blox Fruit"]=true,Defense=true}
 local function getToolStatType(toolObj)
 	local tip=""
@@ -752,7 +709,6 @@ local function getRace(p)
 	return raceName,tier
 end
 
--- MAIN UI
 local fullPanel=mk("Frame",gui,{Size=UDim2.new(0,HUD_W,0,HUD_H),Position=hudPos,BackgroundColor3=C.PANEL,BackgroundTransparency=0,BorderSizePixel=0,ClipsDescendants=false})
 stroke(fullPanel,C.BORDER2,2); corner(fullPanel,8)
 local miniPanel=mk("Frame",gui,{Size=UDim2.new(0,HUD_W,0,40),Position=hudPos,BackgroundColor3=C.PANEL,BackgroundTransparency=0,BorderSizePixel=0,Visible=false})
@@ -784,7 +740,6 @@ local function setView(mini)
 	end
 end
 
--- Drag
 local dragging,dragStart,dragStartPos=false,nil,nil
 fullPanel.InputBegan:Connect(function(inp)
 	if inp.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -806,7 +761,6 @@ UIS.InputEnded:Connect(function(inp)
 	if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false; dragStart=nil; dragStartPos=nil end
 end)
 
--- Dividers
 local HALF=HUD_W/2
 mk("Frame",fullPanel,{Size=UDim2.new(0,1,0,HUD_H-PAD*2),Position=UDim2.new(0,HALF,0,PAD),BackgroundColor3=C.SEP,BorderSizePixel=0,ZIndex=3})
 mk("Frame",fullPanel,{Size=UDim2.new(0,HUD_W-PAD*2,0,1),Position=UDim2.new(0,PAD,0,HUD_H/2),BackgroundColor3=C.SEP,BorderSizePixel=0,ZIndex=3})
@@ -829,7 +783,6 @@ local Q4X=HALF+PAD;  local Q4Y=HUD_H/2+PAD;  local Q4W=HALF-PAD*2
 
 local UI = {}
 
--- ── Q1: Profile + controls ───────────────────────────────────────────────────
 UI.avatar=mk("ImageLabel",fullPanel,{Size=UDim2.new(0,52,0,52),Position=UDim2.new(0,Q1X,0,Q1Y),BackgroundColor3=C.CARD,BorderSizePixel=0,ZIndex=4})
 stroke(UI.avatar,C.BORDER2,2); corner(UI.avatar,5)
 UI.charLabel=lbl(fullPanel,{sz=UDim2.new(0,Q1W-58,0,16),pos=UDim2.new(0,Q1X+56,0,Q1Y),   size=12,color=C.WHITE, text="Loading...",trunc=Enum.TextTruncate.AtEnd,z=4})
@@ -885,7 +838,7 @@ UI.hopCountdownLbl=lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0
 
 local hopPopup = mk("Frame", gui, {
 	Size=UDim2.new(0,220,0,110),
-	Position=UDim2.new(0,0,0,0), 
+	Position=UDim2.new(0,0,0,0),
 	BackgroundColor3=C.PANEL, BorderSizePixel=0,
 	ZIndex=20, Visible=false, ClipsDescendants=false,
 })
@@ -911,7 +864,6 @@ local function hideHopPopup()
 	hopPopup.Visible = false; hopPopupVisible = false
 end
 
--- ─── FPS cap apply ────────────────────────────────────────────────────────────
 local function applyFpsCap()
 	local num=tonumber(UI.capBox.Text)
 	if num and num>0 then
@@ -923,7 +875,6 @@ end
 UI.setCapBtn.MouseButton1Click:Connect(applyFpsCap)
 UI.capBox.FocusLost:Connect(function(enter) if enter then applyFpsCap() end end)
 
--- ─── Hop interval apply ───────────────────────────────────────────────────────
 local function applyHopInterval()
 	local num = tonumber(hopIntervalBox.Text)
 	if num and num > 0 then
@@ -937,13 +888,11 @@ end
 setHopIntervalBtn.MouseButton1Click:Connect(applyHopInterval)
 hopIntervalBox.FocusLost:Connect(function(enter) if enter then applyHopInterval() end end)
 
--- ─── Hop server apply ─────────────────────────────────────────────────────────
 hopServerBox.FocusLost:Connect(function()
 	hopTargetServer = hopServerBox.Text:lower()
 	showNotif("Auto Hop", hopTargetServer=="" and "Target: all servers" or "Target: "..hopServerBox.Text, C.HOP)
 end)
 
--- ─── Q2: Stats ────────────────────────────────────────────────────────────────
 local sRH=36
 UI.beliLbl,_           = statBlock(Q2X, Q2Y+0,     Q2W,"BELI","0")
 UI.fragLbl,_           = statBlock(Q2X, Q2Y+sRH,   Q2W,"FRAGMENTS","0")
@@ -953,7 +902,13 @@ UI.swordLbl,UI.swordBar= statBlock(Q2X, Q2Y+sRH*4, Q2W,"SWORD","0",C.V1COL)
 UI.gunLbl,  UI.gunBar  = statBlock(Q2X, Q2Y+sRH*5, Q2W,"GUN","0",C.V1COL)
 UI.fruitLbl,UI.fruitBar= statBlock(Q2X, Q2Y+sRH*6, Q2W,"BLOX FRUIT","0",C.WARN)
 
--- ─── Q3: Players ──────────────────────────────────────────────────────────────
+local sessY = Q2Y + sRH*7 + 4
+mk("Frame",fullPanel,{Size=UDim2.new(0,Q2W-4,0,1),Position=UDim2.new(0,Q2X,0,sessY-3),BackgroundColor3=C.SEP,BorderSizePixel=0,ZIndex=4})
+lbl(fullPanel,{sz=UDim2.new(0,Q2W/2-2,0,10),pos=UDim2.new(0,Q2X,0,sessY),size=8,color=C.DIM,text="SESSION BELI",z=4})
+UI.sessionBeliLbl=lbl(fullPanel,{sz=UDim2.new(0,Q2W/2-2,0,15),pos=UDim2.new(0,Q2X,0,sessY+10),size=12,color=C.SUCCESS,text="+0",z=4})
+lbl(fullPanel,{sz=UDim2.new(0,Q2W/2-2,0,10),pos=UDim2.new(0,Q2X+Q2W/2,0,sessY),size=8,color=C.DIM,text="SESSION FRAG",align=Enum.TextXAlignment.Right,z=4})
+UI.sessionFragLbl=lbl(fullPanel,{sz=UDim2.new(0,Q2W/2-2,0,15),pos=UDim2.new(0,Q2X+Q2W/2,0,sessY+10),size=12,color=C.WARN,text="+0",align=Enum.TextXAlignment.Right,z=4})
+
 lbl(fullPanel,{sz=UDim2.new(0,Q3W,0,12),pos=UDim2.new(0,Q3X,0,Q3Y),size=9,color=C.DIM,text="PLAYERS",z=4})
 UI.pcCountLbl=lbl(fullPanel,{sz=UDim2.new(0,100,0,18),pos=UDim2.new(0,Q3X,0,Q3Y+12),size=14,color=C.WHITE,text="? / "..MAX_PLAYERS,z=4})
 local svrBarBg=mk("Frame",fullPanel,{Size=UDim2.new(0,Q3W,0,3),Position=UDim2.new(0,Q3X,0,Q3Y+32),BackgroundColor3=C.BORDER,BorderSizePixel=0,ZIndex=4}); corner(svrBarBg,1)
@@ -981,7 +936,6 @@ for i=1,20 do
 	}
 end
 
--- ─── Q4: Inventory ────────────────────────────────────────────────────────────
 lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,12),pos=UDim2.new(0,Q4X,0,Q4Y),size=9,color=C.DIM,text="EQUIPPED",z=4})
 UI.equipValLbl=lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,17),pos=UDim2.new(0,Q4X,0,Q4Y+12),size=13,color=C.OFFWHITE,text="None",trunc=Enum.TextTruncate.AtEnd,z=4})
 UI.equipLvlLbl=lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,13),pos=UDim2.new(0,Q4X,0,Q4Y+30),font=Enum.Font.GothamBold,size=10,color=C.WARN,text="",z=4})
@@ -1002,7 +956,6 @@ for i=1,20 do
 	}
 end
 
--- ─── Mini panel ───────────────────────────────────────────────────────────────
 UI.miniAva=mk("ImageLabel",miniPanel,{Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,6,0,6),BackgroundColor3=C.CARD,BorderSizePixel=0,ZIndex=3}); stroke(UI.miniAva,C.BORDER2,1); corner(UI.miniAva,4)
 task.spawn(function()
 	local ok,t=pcall(function() return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100) end)
@@ -1022,7 +975,6 @@ expandBtn.MouseEnter:Connect(function() TweenService:Create(expandBtn,TweenInfo.
 expandBtn.MouseLeave:Connect(function() TweenService:Create(expandBtn,TweenInfo.new(0.12),{BackgroundColor3=C.CARD}):Play()  end)
 expandBtn.MouseButton1Click:Connect(function() setView(false) end)
 
--- ─── Button hover───────────────────────────────────────────
 local function addHover(btn,baseCol)
 	btn.MouseEnter:Connect(function() TweenService:Create(btn,TweenInfo.new(0.12),{BackgroundColor3=C.HOVER}):Play() end)
 	btn.MouseLeave:Connect(function() TweenService:Create(btn,TweenInfo.new(0.12),{BackgroundColor3=baseCol()}):Play()  end)
@@ -1032,7 +984,6 @@ local function smoothToggleBtn(btn,active,onCol,offCol,onTxt,offTxt)
 	btn.Text=active and onTxt or offTxt; btn.TextColor3=active and C.BG or C.MUTED
 end
 
--- ─── Button clicks ───────────────────────────────────────────────────────────
 UI.v1Btn.MouseButton1Click:Connect(function()
 	boostV1Active=not boostV1Active
 	if boostV1Active then task.spawn(function() setMapVisibility(true) end) else task.spawn(function() setMapVisibility(false) end) end
@@ -1085,7 +1036,6 @@ addHover(UI.hopBtn,   function() return autoHopActive     and C.HOP    or C.CARD
 addHover(UI.miniBtn,  function() return C.CARD end)
 addHover(UI.setCapBtn,function() return C.WHITE end)
 
--- ─── Theme ────────────────────────────────────────────────────────────────────
 local function twC(obj,props,dur)
 	TweenService:Create(obj,TweenInfo.new(dur or 0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),props):Play()
 end
@@ -1135,7 +1085,6 @@ end
 UI.themeBtn.MouseButton1Click:Connect(function() applyTheme((currentThemeIdx%#THEMES)+1) end)
 addHover(UI.themeBtn,function() return C.CARD end)
 
--- ─── Blackout ─────────────────────────────────────────────────────────────────
 local blackoutFrame=mk("Frame",gui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=0,BorderSizePixel=0,ZIndex=1,Visible=false})
 local restoreBtn=mk("TextButton",gui,{Size=UDim2.new(0,96,0,32),AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,-30),BackgroundColor3=C.WHITE,BorderSizePixel=0,Text="RESTORE",TextColor3=C.BG,Font=Enum.Font.GothamBold,TextSize=12,AutoButtonColor=false,Visible=false,ZIndex=51})
 local blackoutActive=false
@@ -1143,7 +1092,6 @@ local function setBlackout(state) blackoutActive=state; blackoutFrame.Visible=st
 if config["White Screen"] then setBlackout(true) end
 restoreBtn.MouseButton1Click:Connect(function() setBlackout(false) end)
 
--- ─── Self Highlight ───────────────────────────────────────────────────────────
 local selfHL
 local function applyHighlight(char)
 	if selfHL and selfHL.Parent then selfHL:Destroy() end; selfHL=nil
@@ -1161,7 +1109,6 @@ task.spawn(function()
 	if ok and t then UI.avatar.Image=t end
 end)
 
--- ─── FPS counter ─────────────────────────────────────────────────────────────
 local fps,frameCount,lastFpsTime=0,0,tick()
 RunService.RenderStepped:Connect(function()
 	frameCount+=1; local now=tick()
@@ -1172,7 +1119,6 @@ local function getPing()
 	return ok and type(p)=="number" and math.floor(p) or math.floor(player:GetNetworkPing()*1000)
 end
 
--- ─── Render helpers ───────────────────────────────────────────────────────────
 local scriptStart=tick()
 local lastText={}; local lastSize={}; local lastColor3={}
 local barTweens={}; local colorTweens={}; local textTweens={}
@@ -1209,7 +1155,6 @@ local function fmtCountdown(secs)
 	return ("%02d:%02d"):format(m,s)
 end
 
--- ─── Update loops ─────────────────────────────────────────────────────────────
 local function updateFast()
 	local ping=getPing()
 	local e=tick()-scriptStart
@@ -1233,6 +1178,21 @@ local function updateStats()
 	setText(UI.lvlLabel,lvStr,true); setText(UI.miniLvlLbl,lvStr,false)
 	setText(UI.beliLbl,formatVal(getStat("Beli"),"Beli"),true)
 	setText(UI.fragLbl,formatVal(getStat("Fragments"),"Fragments"),true)
+	local curBeli  = getStat("Beli")
+	local curFrags = getStat("Fragments")
+	if not sessionInitialized and curBeli and curFrags then
+		sessionStartBeli      = curBeli
+		sessionStartFragments = curFrags
+		sessionInitialized    = true
+	end
+	if sessionInitialized and UI.sessionBeliLbl then
+		local gb = math.floor((curBeli  or 0) - sessionStartBeli)
+		local gf = math.floor((curFrags or 0) - sessionStartFragments)
+		setText(UI.sessionBeliLbl,(gb>=0 and "+" or "")..formatVal(gb,"Beli"),true)
+		setText(UI.sessionFragLbl,(gf>=0 and "+" or "")..formatVal(gf,"Fragments"),true)
+		setColor(UI.sessionBeliLbl, gb>=0 and C.SUCCESS or C.DANGER)
+		setColor(UI.sessionFragLbl, gf>=0 and C.SUCCESS or C.DANGER)
+	end
 	local function doStat(vl,bar,key)
 		local v=getStat(key); setText(vl,formatVal(v),true)
 		if bar then setBarX(bar,tonumber(v) and tonumber(v)/COMBAT_CAP or 0) end
@@ -1347,14 +1307,12 @@ local function updatePlayers()
 	end
 end
 
--- ─── Keyboard shortcuts ───────────────────────────────────────────────────────
 UIS.InputBegan:Connect(function(inp,gp)
 	if gp then return end
 	if inp.KeyCode==Enum.KeyCode.B            then setBlackout(not blackoutActive) end
 	if inp.KeyCode==Enum.KeyCode.RightControl then setView(not isMini) end
 end)
 
--- ─── Load sequence ────────────────────────────────────────────────────────────
 local LOAD_ELEMENTS={
 	{"Loading account...",      UI.avatar},
 	{"Loading username...",     UI.charLabel},
