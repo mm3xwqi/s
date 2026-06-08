@@ -7,11 +7,11 @@
 --	["Hide Players"] = true,
 --	["Hide Enemies"] = true,
 --	["Auto Hop"] = true,
---	["Hop Interval"] = 9,
+--	["Hop Interval"] = 45,
 --	["Hop Server"] = "singapore",
 --	["Webhook Enabled"] = true,
 --	["Webhook URL"]     = "YOUR_WEBHOOK",
---	["Webhook Name"]    = "Blox Hub • Auto Hop",
+--	["Webhook Name"]    = "Blox fruit Webhook",
 --} end)()
 
 local Players      = game:GetService("Players")
@@ -344,9 +344,9 @@ local sessionStartFragments = nil
 local sessionInitialized    = false
 
 local STAT_PATHS = {
-	Level          = {"leaderstats.Level","leaderstats.Lv.","Data.Level"},
-	Beli           = {"leaderstats.Beli","leaderstats.Money","Data.Beli"},
-	Fragments      = {"leaderstats.Fragments","leaderstats.Fragment","Data.Fragments"},
+	Level          = {"Data.Level","leaderstats.Level","leaderstats.Lv."},
+	Beli           = {"Data.Beli","leaderstats.Beli","leaderstats.Money"},
+	Fragments      = {"Data.Fragments","leaderstats.Fragments","leaderstats.Fragment"},
 	Melee          = {"leaderstats.Melee","Data.Stats.Melee.Level"},
 	Defense        = {"leaderstats.Defense","Data.Stats.Defense.Level"},
 	Sword          = {"leaderstats.Sword","Data.Stats.Sword.Level"},
@@ -356,13 +356,20 @@ local STAT_PATHS = {
 	SpawnPoint     = {"Data.LastSpawnPoint"},
 }
 
+-- แก้ไข: ใช้ WaitForChild แทน FindFirstChild เพื่อรอให้ Data โหลดครบก่อน
 local function resolvePath(root, path)
 	local obj = root
 	for part in path:gmatch("[^%.]+") do
 		if not obj then return nil end
-		obj = obj:FindFirstChild(part)
+		local ok, child = pcall(function()
+			return obj:WaitForChild(part, 5)
+		end)
+		if not ok or not child then return nil end
+		obj = child
 	end
-	if obj and (obj:IsA("IntValue") or obj:IsA("NumberValue") or obj:IsA("StringValue")) then return obj end
+	if obj and (obj:IsA("IntValue") or obj:IsA("NumberValue") or obj:IsA("StringValue")) then
+		return obj
+	end
 	return nil
 end
 
@@ -376,6 +383,7 @@ local function getStatObj(plr, key)
 		local obj = resolvePath(plr, path)
 		if obj then statCache[uid][key]=obj; return obj end
 	end
+	statCache[uid][key] = false
 	return false
 end
 
@@ -402,7 +410,7 @@ end
 
 local function getTimestamp()
 	local ok, str = pcall(function() return os.date("!%Y-%m-%dT%H:%M:%SZ") end)
-	return ok and str or ""
+	return (ok and str and str ~= "") and str or nil
 end
 
 local function getLocalTimeStr()
@@ -441,31 +449,29 @@ local function sendHopWebhook(sessionBeli, sessionFrags, sessionElapsed)
 	end)
 
 	local payload = {
-		username   = config["Webhook Name"] or "Blox Hub",
-		avatar_url = avatarUrl ~= "" and avatarUrl or nil,
+		username = config["Webhook Name"] or "Blox Hub",
 		embeds = {
 			{
 				author = {
-					name     = "🚀  Auto Hop Triggered",
-					icon_url = avatarUrl ~= "" and avatarUrl or nil,
+					name = "Auto Hop Triggered",
 				},
-				title  = "สรุปเซสชัน — กำลัง Hop Server",
+				title  = "Session Summary — Hopping Server",
 				color  = embedColor,
 				fields = {
-					{ name="👤  ผู้เล่น",              value="```"..playerName.."```",                       inline=true  },
-					{ name="⭐  Level",                value="```"..tostring(math.floor(curLevel)).."```",   inline=true  },
-					{ name="🔁  Hop ครั้งที่",          value="```#"..totalHopCount.."```",                  inline=true  },
-					{ name="⏱️  เวลาใน Server",         value="```"..elapsedStr(sessionElapsed).."```",      inline=true  },
-					{ name="💰  Beli ที่ได้",            value="```"..wFmt(sessionBeli).."```",               inline=true  },
-					{ name="💎  Fragments ที่ได้",       value="```"..wFmt(sessionFrags).."```",              inline=true  },
-					{ name="⚡  Beli / นาที",            value="```"..wFmt(beliPerMin).."```",                inline=true  },
-					{ name="⚡  Frags / นาที",           value="```"..wFmt(fragsPerMin).."```",               inline=true  },
-					{ name="🌏  Hop ไปยัง",              value="```"..hopTarget.."```",                       inline=true  },
-					{ name="🕐  เวลา Hop",               value="```"..hopTime.."```",                         inline=true  },
-					{ name="🔑  Job ID (เซิร์ฟเวอร์เดิม)", value="```"..tostring(jobId):sub(1,36).."```",   inline=false },
+					{ name="Player",               value="```"..playerName.."```",                      inline=true  },
+					{ name="Level",                value="```"..tostring(math.floor(curLevel)).."```",  inline=true  },
+					{ name="Hop #",                value="```#"..totalHopCount.."```",                  inline=true  },
+					{ name="Time in Server",       value="```"..elapsedStr(sessionElapsed).."```",      inline=true  },
+					{ name="Beli Gained",          value="```"..wFmt(sessionBeli).."```",               inline=true  },
+					{ name="Fragments Gained",     value="```"..wFmt(sessionFrags).."```",              inline=true  },
+					{ name="Beli / Min",           value="```"..wFmt(beliPerMin).."```",                inline=true  },
+					{ name="Frags / Min",          value="```"..wFmt(fragsPerMin).."```",               inline=true  },
+					{ name="Hop Target",           value="```"..hopTarget.."```",                       inline=true  },
+					{ name="Hop Time",             value="```"..hopTime.."```",                         inline=true  },
+					{ name="Job ID (Prev Server)", value="```"..tostring(jobId):sub(1,36).."```",       inline=false },
 				},
 				footer    = { text = "Blox Hub  •  Auto Hop System" },
-				timestamp = getTimestamp(),
+				timestamp = getTimestamp() or nil,
 			}
 		}
 	}
@@ -485,25 +491,35 @@ local function sendHopWebhook(sessionBeli, sessionFrags, sessionElapsed)
 			Headers = { ["Content-Type"] = "application/json" },
 			Body    = jsonStr
 		}
+		local res
 		if typeof(request) == "function" then
-			request(opts)
+			res = request(opts)
 		elseif typeof(http_request) == "function" then
-			http_request(opts)
+			res = http_request(opts)
 		elseif syn and syn.request then
-			syn.request(opts)
+			res = syn.request(opts)
 		elseif http and http.request then
-			http.request(opts)
+			res = http.request(opts)
 		elseif getgenv and getgenv().request then
-			getgenv().request(opts)
+			res = getgenv().request(opts)
 		else
 			warn("[Webhook] ไม่พบ HTTP function")
+			return
+		end
+		if res then
+			print("[Webhook] StatusCode:", res.StatusCode)
+			if res.StatusCode == 204 then
+				print("[Webhook] ✅ ส่งสำเร็จ ครั้งที่ #" .. totalHopCount)
+			elseif res.StatusCode == 429 then
+				warn("[Webhook] ⚠️ Rate limited!")
+			else
+				warn("[Webhook] ❌ Status:", res.StatusCode, tostring(res.Body):sub(1,100))
+			end
 		end
 	end
 
 	local ok, err = pcall(doSend)
-	if ok then
-		print("[Webhook] ✅ ส่งสำเร็จ ครั้งที่ #" .. totalHopCount)
-	else
+	if not ok then
 		warn("[Webhook] ❌ ล้มเหลว:", err)
 	end
 end
@@ -1064,10 +1080,17 @@ UI.webhookBtn.MouseButton1Click:Connect(function()
 end)
 addHover(UI.webhookBtn, function() return webhookActive and WEBHOOK_ON_COL or C.CARD end)
 
+-- แก้ไข: เพิ่ม totalHopCount ทุกครั้งที่กด TEST เพื่อไม่ให้ Discord dedup
 UI.testWebhookBtn.MouseButton1Click:Connect(function()
 	task.spawn(function()
-		sendHopWebhook(0, 0, 0)
-		showNotif("Webhook", "Test sent!", WEBHOOK_ON_COL)
+		totalHopCount = totalHopCount + 1
+		local curBeli  = getStat("Beli")      or 0
+		local curFrags = getStat("Fragments") or 0
+		local sessBeli  = sessionInitialized and math.floor(curBeli  - (sessionStartBeli      or curBeli))  or 0
+		local sessFrags = sessionInitialized and math.floor(curFrags - (sessionStartFragments or curFrags)) or 0
+		local sessElap  = tick() - (playerInfoCache[player.UserId] and playerInfoCache[player.UserId].joinTime or tick())
+		sendHopWebhook(sessBeli, sessFrags, sessElap)
+		showNotif("Webhook", "Test sent! #"..totalHopCount, WEBHOOK_ON_COL)
 	end)
 end)
 addHover(UI.testWebhookBtn, function() return C.CARD end)
@@ -1255,6 +1278,7 @@ local function updateStats()
 		sessionStartBeli      = curBeli
 		sessionStartFragments = curFrags
 		sessionInitialized    = true
+		print("[Session] initialized — Beli:", curBeli, "Frags:", curFrags)
 	end
 	if sessionInitialized and UI.sessionBeliLbl then
 		local gb = math.floor((curBeli  or 0) - sessionStartBeli)
@@ -1395,7 +1419,7 @@ local function doHop()
 	task.spawn(function() sendHopWebhook(sessionBeli, sessionFrags, sessionElap) end)
 
 	local sb = pg:FindFirstChild("ServerBrowser")
-	if not sb then warn("[AutoHop] ไม่พบ ServerBrowser"); return end
+	if not sb then warn("[AutoHop] ServerBrowser not found"); return end
 	sb.Enabled = true
 	local frame = sb:FindFirstChild("Frame")
 	if frame then pcall(function() frame.Visible = true end) end
@@ -1406,7 +1430,7 @@ local function doHop()
 	pcall(function() frame.Refresh:Activate() end)
 	task.wait(3)
 	local inside = frame and frame:FindFirstChild("FakeScroll") and frame.FakeScroll:FindFirstChild("Inside")
-	if not inside then warn("[AutoHop] ไม่พบ Inside"); return end
+	if not inside then warn("[AutoHop] Inside not found"); return end
 	local triedJobs = {}
 	local function tryHop()
 		for _, child in ipairs(inside:GetChildren()) do
@@ -1434,7 +1458,7 @@ local function doHop()
 			task.delay(5, function() if failConn then failConn:Disconnect(); failConn = nil end end)
 			return
 		end
-		print("[AutoHop] หมด list, Refreshing...")
+		print("[AutoHop] List exhausted, refreshing...")
 		triedJobs = {}
 		pcall(function() frame.Refresh:Activate() end)
 		task.wait(3)
