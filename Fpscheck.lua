@@ -8,7 +8,7 @@
 --	["Hide Enemies"] = true,
 --	["Auto Hop"] = true,
 --	["Hop Interval"] = 30,
---	["Hop Server"] = "singapore"
+--	["Hop Server"] = "singapore",
 --} end)()
 
 local Players      = game:GetService("Players")
@@ -186,57 +186,95 @@ player.CharacterAdded:Connect(function(char)
 end)
 
 -- ─── Hide Players ─────────────────────────────────────────────────────────────
+-- ─── Hide Players ─────────────────────────────────────────────────────────────
 local hidePlayersActive = config["Hide Players"]
 local hiddenPlayersData = {}
 local hidePlayersConns  = {}
+local hidePlayerCharConns = {}   -- เพิ่ม: track CharacterAdded ของแต่ละ player
 
 local function setPlayerVisibility(plr, visible)
-	local char = plr.Character
-	if not char then return end
-	if not visible then
-		if hiddenPlayersData[plr.UserId] then return end
-		local partsData = {}
-		for _, part in ipairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				partsData[#partsData+1] = {obj=part, trans=part.Transparency}
-				part.Transparency = 1
-			end
-		end
-		hiddenPlayersData[plr.UserId] = partsData
-	else
-		local data = hiddenPlayersData[plr.UserId]
-		if not data then return end
-		for _, d in ipairs(data) do
-			if d.obj and d.obj.Parent then d.obj.Transparency = d.trans end
-		end
-		hiddenPlayersData[plr.UserId] = nil
-	end
+    local char = plr.Character
+    if not char then return end
+    if not visible then
+        if hiddenPlayersData[plr.UserId] then return end
+        local partsData = {}
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                partsData[#partsData+1] = {obj=part, trans=part.Transparency}
+                part.Transparency = 1
+            end
+        end
+        hiddenPlayersData[plr.UserId] = partsData
+    else
+        local data = hiddenPlayersData[plr.UserId]
+        if not data then return end
+        for _, d in ipairs(data) do
+            if d.obj and d.obj.Parent then d.obj.Transparency = d.trans end
+        end
+        hiddenPlayersData[plr.UserId] = nil
+    end
+end
+
+-- เพิ่ม: watch CharacterAdded ของ player คนอื่น เพื่อซ่อนเมื่อเกิดใหม่
+local function watchCharacterForPlayer(p)
+    if p == player then return end
+    local uid = p.UserId
+    if hidePlayerCharConns[uid] then
+        hidePlayerCharConns[uid]:Disconnect()
+    end
+    hidePlayerCharConns[uid] = p.CharacterAdded:Connect(function()
+        hiddenPlayersData[uid] = nil  -- ล้าง cache เก่าจาก character ที่ตายไปแล้ว
+        if hidePlayersActive then
+            task.wait(0.5)
+            setPlayerVisibility(p, false)
+        end
+    end)
 end
 
 local function applyHidePlayers(active)
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= player then setPlayerVisibility(p, not active) end
-	end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then setPlayerVisibility(p, not active) end
+    end
 end
 
 local function toggleHidePlayers(active)
-	hidePlayersActive = active
-	applyHidePlayers(active)
-	if active then
-		if not hidePlayersConns.playerAdded then
-			hidePlayersConns.playerAdded = Players.PlayerAdded:Connect(function(p)
-				if p ~= player then task.wait(0.5); setPlayerVisibility(p, false) end
-			end)
-		end
-		if not hidePlayersConns.characterAdded then
-			hidePlayersConns.characterAdded = player.CharacterAdded:Connect(function()
-				task.wait(0.5); applyHidePlayers(true)
-			end)
-		end
-	else
-		if hidePlayersConns.playerAdded    then hidePlayersConns.playerAdded:Disconnect();    hidePlayersConns.playerAdded=nil    end
-		if hidePlayersConns.characterAdded then hidePlayersConns.characterAdded:Disconnect(); hidePlayersConns.characterAdded=nil end
-	end
+    hidePlayersActive = active
+    applyHidePlayers(active)
+    if active then
+        -- watch CharacterAdded ของทุก player ที่อยู่แล้ว
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player then watchCharacterForPlayer(p) end
+        end
+        if not hidePlayersConns.playerAdded then
+            hidePlayersConns.playerAdded = Players.PlayerAdded:Connect(function(p)
+                if p ~= player then
+                    watchCharacterForPlayer(p)
+                    -- รอ character โหลดก่อนแล้วค่อยซ่อน
+                    task.spawn(function()
+                        if not p.Character then
+                            p.CharacterAdded:Wait()
+                        end
+                        task.wait(0.5)
+                        if hidePlayersActive then
+                            setPlayerVisibility(p, false)
+                        end
+                    end)
+                end
+            end)
+        end
+        if not hidePlayersConns.characterAdded then
+            hidePlayersConns.characterAdded = player.CharacterAdded:Connect(function()
+                task.wait(0.5); applyHidePlayers(true)
+            end)
+        end
+    else
+        if hidePlayersConns.playerAdded    then hidePlayersConns.playerAdded:Disconnect();    hidePlayersConns.playerAdded=nil    end
+        if hidePlayersConns.characterAdded then hidePlayersConns.characterAdded:Disconnect(); hidePlayersConns.characterAdded=nil end
+        -- disconnect CharacterAdded ของทุก player
+        for uid, conn in pairs(hidePlayerCharConns) do
+            conn:Disconnect(); hidePlayerCharConns[uid] = nil
+        end
+    end
 end
 
 if hidePlayersActive then task.spawn(function() task.wait(1); toggleHidePlayers(true) end) end
@@ -651,11 +689,12 @@ Players.PlayerRemoving:Connect(function(p)
 end)
 for _,p in ipairs(Players:GetPlayers()) do if p~=player then startWatchingPlayer(p) end end
 Players.PlayerRemoving:Connect(function(p)
-	local uid=p.UserId
-	if spawnWatchers[uid]  then spawnWatchers[uid]:Disconnect();  spawnWatchers[uid]=nil  end
-	if raceWatchers[uid]   then raceWatchers[uid]:Disconnect();   raceWatchers[uid]=nil   end
-	if bountyWatchers[uid] then bountyWatchers[uid]:Disconnect(); bountyWatchers[uid]=nil end
-	playerInfoCache[uid]=nil; statCache[uid]=nil
+    local uid = p.UserId
+    if spawnWatchers[uid]       then spawnWatchers[uid]:Disconnect();       spawnWatchers[uid]=nil       end
+    if raceWatchers[uid]        then raceWatchers[uid]:Disconnect();        raceWatchers[uid]=nil        end
+    if bountyWatchers[uid]      then bountyWatchers[uid]:Disconnect();      bountyWatchers[uid]=nil      end
+    if hidePlayerCharConns[uid] then hidePlayerCharConns[uid]:Disconnect(); hidePlayerCharConns[uid]=nil end  -- เพิ่ม
+    playerInfoCache[uid]=nil; statCache[uid]=nil; hiddenPlayersData[uid]=nil  -- เพิ่ม hiddenPlayersData
 end)
 
 -- ─── Inventory helpers ────────────────────────────────────────────────────────
