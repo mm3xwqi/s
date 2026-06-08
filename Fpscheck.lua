@@ -7,8 +7,11 @@
 --	["Hide Players"] = true,
 --	["Hide Enemies"] = true,
 --	["Auto Hop"] = true,
---	["Hop Interval"] = 0,
+--	["Hop Interval"] = 9,
 --	["Hop Server"] = "singapore",
+--	["Webhook Enabled"] = true,
+--	["Webhook URL"]     = "YOUR_WEBHOOK",
+--	["Webhook Name"]    = "Blox Hub • Auto Hop",
 --} end)()
 
 local Players      = game:GetService("Players")
@@ -333,94 +336,7 @@ local hopTargetServer = (config["Hop Server"] or ""):lower()
 local hopCountdown    = hopIntervalSecs
 local hopLastTick     = tick()
 
-local function doHop()
-	local sb = pg:FindFirstChild("ServerBrowser")
-	if not sb then warn("[AutoHop] ไม่พบ ServerBrowser"); return end
-	sb.Enabled = true
-	local frame = sb:FindFirstChild("Frame")
-	if frame then pcall(function() frame.Visible = true end) end
-	pcall(function()
-		local regionBox = frame.Filters.SearchRegion.TextBox
-		regionBox.Text = hopTargetServer ~= "" and hopTargetServer or ""
-	end)
-	pcall(function() frame.Refresh:Activate() end)
-	task.wait(3)
-	local inside = frame and frame:FindFirstChild("FakeScroll") and frame.FakeScroll:FindFirstChild("Inside")
-	if not inside then warn("[AutoHop] ไม่พบ Inside"); return end
-	local triedJobs = {}
-	local function tryHop()
-		for _, child in ipairs(inside:GetChildren()) do
-			if not child:IsA("Frame") then continue end
-			local joinBtn = child:FindFirstChild("Join")
-			if not joinBtn or joinBtn.Text ~= "Join" then continue end
-			local tl = child:FindFirstChildOfClass("TextLabel")
-			if not tl then continue end
-			if tl.Text:find("ERROR") then continue end
-			local current, max = tl.Text:match("Players: (%d+)/(%d+)")
-			current = tonumber(current); max = tonumber(max)
-			if current and max and current >= max - 1 then continue end
-			local jobId = joinBtn:GetAttribute("Job")
-			if not jobId or triedJobs[jobId] then continue end
-			triedJobs[jobId] = true
-			print("[AutoHop] Trying →", tl.Text)
-			local failConn
-			failConn = game:GetService("TeleportService").TeleportInitFailed:Connect(function(_, result, msg)
-				print("[AutoHop] Failed:", msg, "→ trying next...")
-				if failConn then failConn:Disconnect(); failConn = nil end
-				task.wait(1)
-				tryHop()
-			end)
-			for _, c in ipairs(getconnections(joinBtn.MouseButton1Click)) do c:Fire() end
-			task.delay(5, function() if failConn then failConn:Disconnect(); failConn = nil end end)
-			return
-		end
-		print("[AutoHop] หมด list, Refreshing...")
-		triedJobs = {}
-		pcall(function() frame.Refresh:Activate() end)
-		task.wait(3)
-		tryHop()
-	end
-	tryHop()
-end
-
-local function autoHopLoop()
-	hopLastTick  = tick()
-	hopCountdown = hopIntervalSecs
-	while autoHopActive do
-		task.wait(1)
-		local now    = tick()
-		hopCountdown = hopCountdown - (now - hopLastTick)
-		hopLastTick  = now
-		if hopCountdown <= 0 then
-			hopCountdown = hopIntervalSecs
-			if autoHopActive then task.spawn(doHop) end
-		end
-	end
-end
-
-local function startAutoHop()
-	autoHopActive = true
-	hopCountdown  = hopIntervalSecs
-	hopLastTick   = tick()
-	if autoHopThread then task.cancel(autoHopThread) end
-	autoHopThread = task.spawn(autoHopLoop)
-end
-
-local function stopAutoHop()
-	autoHopActive = false
-	if autoHopThread then task.cancel(autoHopThread); autoHopThread = nil end
-	hopCountdown = hopIntervalSecs
-	pcall(function()
-		local sb = pg:FindFirstChild("ServerBrowser")
-		if sb then
-			sb.Enabled = false
-			local f = sb:FindFirstChild("Frame")
-			if f then f.Visible = false end
-		end
-	end)
-end
-
-if config["Auto Hop"] then task.spawn(function() task.wait(6); startAutoHop() end) end
+local totalHopCount = 0
 
 local statCache = {}
 local sessionStartBeli      = nil
@@ -466,6 +382,130 @@ end
 local function getStat(key, root)
 	local obj = getStatObj(root or player, key)
 	return obj and obj.Value or nil
+end
+
+local function wFmt(n)
+	if type(n) ~= "number" then return "?" end
+	local sign = n < 0 and "-" or "+"
+	return sign .. tostring(math.floor(math.abs(n)))
+		:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+end
+
+local function elapsedStr(seconds)
+	local s = math.max(0, math.floor(seconds))
+	local h = math.floor(s / 3600); s = s % 3600
+	local m = math.floor(s / 60);   s = s % 60
+	if h > 0 then return ("%dh %02dm %02ds"):format(h, m, s) end
+	if m > 0 then return ("%dm %02ds"):format(m, s) end
+	return ("%ds"):format(s)
+end
+
+local function getTimestamp()
+	local ok, str = pcall(function() return os.date("!%Y-%m-%dT%H:%M:%SZ") end)
+	return ok and str or ""
+end
+
+local function getLocalTimeStr()
+	local ok, str = pcall(function() return os.date("%Y-%m-%d %H:%M:%S") end)
+	if ok and str then return str end
+	return "~" .. tostring(math.floor(tick()))
+end
+
+local function sendHopWebhook(sessionBeli, sessionFrags, sessionElapsed)
+	if not config["Webhook Enabled"] then return end
+	local url = config["Webhook URL"]
+	if not url or url == "" or url:find("YOUR_ID") then return end
+
+	local curLevel   = getStat("Level") or 0
+	local playerName = player.DisplayName ~= player.Name
+		and (player.DisplayName .. " (@" .. player.Name .. ")")
+		or player.Name
+
+	local minutesInServer = math.max(sessionElapsed / 60, 0.01)
+	local beliPerMin  = math.floor(sessionBeli  / minutesInServer)
+	local fragsPerMin = math.floor(sessionFrags / minutesInServer)
+	local hopTarget   = hopTargetServer ~= "" and hopTargetServer or "all servers"
+	local hopTime     = getLocalTimeStr()
+	local embedColor  = sessionBeli >= 0 and 5832543 or 15548997
+
+	local jobId = "unknown"
+	pcall(function() jobId = game.JobId end)
+
+	local avatarUrl = ""
+	pcall(function()
+		avatarUrl = Players:GetUserThumbnailAsync(
+			player.UserId,
+			Enum.ThumbnailType.HeadShot,
+			Enum.ThumbnailSize.Size100x100
+		)
+	end)
+
+	local payload = {
+		username   = config["Webhook Name"] or "Blox Hub",
+		avatar_url = avatarUrl ~= "" and avatarUrl or nil,
+		embeds = {
+			{
+				author = {
+					name     = "🚀  Auto Hop Triggered",
+					icon_url = avatarUrl ~= "" and avatarUrl or nil,
+				},
+				title  = "สรุปเซสชัน — กำลัง Hop Server",
+				color  = embedColor,
+				fields = {
+					{ name="👤  ผู้เล่น",              value="```"..playerName.."```",                       inline=true  },
+					{ name="⭐  Level",                value="```"..tostring(math.floor(curLevel)).."```",   inline=true  },
+					{ name="🔁  Hop ครั้งที่",          value="```#"..totalHopCount.."```",                  inline=true  },
+					{ name="⏱️  เวลาใน Server",         value="```"..elapsedStr(sessionElapsed).."```",      inline=true  },
+					{ name="💰  Beli ที่ได้",            value="```"..wFmt(sessionBeli).."```",               inline=true  },
+					{ name="💎  Fragments ที่ได้",       value="```"..wFmt(sessionFrags).."```",              inline=true  },
+					{ name="⚡  Beli / นาที",            value="```"..wFmt(beliPerMin).."```",                inline=true  },
+					{ name="⚡  Frags / นาที",           value="```"..wFmt(fragsPerMin).."```",               inline=true  },
+					{ name="🌏  Hop ไปยัง",              value="```"..hopTarget.."```",                       inline=true  },
+					{ name="🕐  เวลา Hop",               value="```"..hopTime.."```",                         inline=true  },
+					{ name="🔑  Job ID (เซิร์ฟเวอร์เดิม)", value="```"..tostring(jobId):sub(1,36).."```",   inline=false },
+				},
+				footer    = { text = "Blox Hub  •  Auto Hop System" },
+				timestamp = getTimestamp(),
+			}
+		}
+	}
+
+	local jsonOk, jsonStr = pcall(function()
+		return game:GetService("HttpService"):JSONEncode(payload)
+	end)
+	if not jsonOk or not jsonStr then
+		warn("[Webhook] JSON encode ล้มเหลว")
+		return
+	end
+
+	local function doSend()
+		local opts = {
+			Url     = url,
+			Method  = "POST",
+			Headers = { ["Content-Type"] = "application/json" },
+			Body    = jsonStr
+		}
+		if typeof(request) == "function" then
+			request(opts)
+		elseif typeof(http_request) == "function" then
+			http_request(opts)
+		elseif syn and syn.request then
+			syn.request(opts)
+		elseif http and http.request then
+			http.request(opts)
+		elseif getgenv and getgenv().request then
+			getgenv().request(opts)
+		else
+			warn("[Webhook] ไม่พบ HTTP function")
+		end
+	end
+
+	local ok, err = pcall(doSend)
+	if ok then
+		print("[Webhook] ✅ ส่งสำเร็จ ครั้งที่ #" .. totalHopCount)
+	else
+		warn("[Webhook] ❌ ล้มเหลว:", err)
+	end
 end
 
 local function formatVal(v, key)
@@ -833,8 +873,19 @@ stroke(UI.capBox,C.BORDER2,1); corner(UI.capBox,4)
 UI.setCapBtn=makeSmallBtn(Q1X+btnW-28,Q1Y+214,28,20,"SET",C.WHITE,false); UI.setCapBtn.BackgroundColor3=C.WHITE; UI.setCapBtn.TextColor3=C.BG
 UI.themeBtn =makeSmallBtn(Q1X+btnW+6, Q1Y+214, btnW, 20, "THEME: Default", C.CARD, false); UI.themeBtn.TextColor3=C.MUTED
 
-lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,10),pos=UDim2.new(0,Q1X,0,Q1Y+240),size=8,color=C.DIM,text="HOP COUNTDOWN",z=4})
-UI.hopCountdownLbl=lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0,Q1Y+250),font=Enum.Font.GothamBold,size=11,color=C.HOP,text="DISABLED",z=4})
+local webhookActive = config["Webhook Enabled"]
+local WEBHOOK_BTN_W = math.floor((Q1W - 4) * 0.60)
+local TEST_BTN_W    = Q1W - WEBHOOK_BTN_W - 4
+UI.webhookBtn = makeSmallBtn(Q1X,                    Q1Y+238, WEBHOOK_BTN_W, 20,
+	webhookActive and "WEBHOOK ON" or "WEBHOOK OFF",
+	Color3.fromRGB(88,176,255), webhookActive)
+UI.testWebhookBtn = makeSmallBtn(Q1X+WEBHOOK_BTN_W+4, Q1Y+238, TEST_BTN_W, 20,
+	"TEST SEND", Color3.fromRGB(255,200,60), false)
+UI.testWebhookBtn.BackgroundColor3 = C.CARD
+UI.testWebhookBtn.TextColor3       = Color3.fromRGB(255,200,60)
+
+lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,10),pos=UDim2.new(0,Q1X,0,Q1Y+264),size=8,color=C.DIM,text="HOP COUNTDOWN",z=4})
+UI.hopCountdownLbl=lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0,Q1Y+274),font=Enum.Font.GothamBold,size=11,color=C.HOP,text="DISABLED",z=4})
 
 local hopPopup = mk("Frame", gui, {
 	Size=UDim2.new(0,220,0,110),
@@ -1003,6 +1054,26 @@ UI.enemyBtn.MouseButton1Click:Connect(function()
 	smoothToggleBtn(UI.enemyBtn,hideEnemiesActive,C.DANGER,C.CARD,"ENEMY ON","ENEMY OFF")
 end)
 UI.miniBtn.MouseButton1Click:Connect(function() setView(true) end)
+
+local WEBHOOK_ON_COL = Color3.fromRGB(88,176,255)
+UI.webhookBtn.MouseButton1Click:Connect(function()
+	webhookActive = not webhookActive
+	config["Webhook Enabled"] = webhookActive
+	smoothToggleBtn(UI.webhookBtn, webhookActive, WEBHOOK_ON_COL, C.CARD, "WEBHOOK ON", "WEBHOOK OFF")
+	showNotif("Webhook", webhookActive and "Enabled" or "Disabled", webhookActive and WEBHOOK_ON_COL or C.DANGER)
+end)
+addHover(UI.webhookBtn, function() return webhookActive and WEBHOOK_ON_COL or C.CARD end)
+
+UI.testWebhookBtn.MouseButton1Click:Connect(function()
+	task.spawn(function()
+		sendHopWebhook(0, 0, 0)
+		showNotif("Webhook", "Test sent!", WEBHOOK_ON_COL)
+	end)
+end)
+addHover(UI.testWebhookBtn, function() return C.CARD end)
+
+local function startAutoHop() end
+local function stopAutoHop() end
 
 UI.hopBtn.MouseButton1Click:Connect(function()
 	if autoHopActive then
@@ -1312,6 +1383,104 @@ UIS.InputBegan:Connect(function(inp,gp)
 	if inp.KeyCode==Enum.KeyCode.B            then setBlackout(not blackoutActive) end
 	if inp.KeyCode==Enum.KeyCode.RightControl then setView(not isMini) end
 end)
+
+local function doHop()
+	local curBeli      = getStat("Beli")      or 0
+	local curFrags     = getStat("Fragments") or 0
+	local sessionBeli  = sessionInitialized and math.floor(curBeli  - (sessionStartBeli      or curBeli))  or 0
+	local sessionFrags = sessionInitialized and math.floor(curFrags - (sessionStartFragments or curFrags)) or 0
+	local sessionElap  = tick() - (playerInfoCache[player.UserId] and playerInfoCache[player.UserId].joinTime or tick())
+
+	totalHopCount = totalHopCount + 1
+	task.spawn(function() sendHopWebhook(sessionBeli, sessionFrags, sessionElap) end)
+
+	local sb = pg:FindFirstChild("ServerBrowser")
+	if not sb then warn("[AutoHop] ไม่พบ ServerBrowser"); return end
+	sb.Enabled = true
+	local frame = sb:FindFirstChild("Frame")
+	if frame then pcall(function() frame.Visible = true end) end
+	pcall(function()
+		local regionBox = frame.Filters.SearchRegion.TextBox
+		regionBox.Text = hopTargetServer ~= "" and hopTargetServer or ""
+	end)
+	pcall(function() frame.Refresh:Activate() end)
+	task.wait(3)
+	local inside = frame and frame:FindFirstChild("FakeScroll") and frame.FakeScroll:FindFirstChild("Inside")
+	if not inside then warn("[AutoHop] ไม่พบ Inside"); return end
+	local triedJobs = {}
+	local function tryHop()
+		for _, child in ipairs(inside:GetChildren()) do
+			if not child:IsA("Frame") then continue end
+			local joinBtn = child:FindFirstChild("Join")
+			if not joinBtn or joinBtn.Text ~= "Join" then continue end
+			local tl = child:FindFirstChildOfClass("TextLabel")
+			if not tl then continue end
+			if tl.Text:find("ERROR") then continue end
+			local current, max = tl.Text:match("Players: (%d+)/(%d+)")
+			current = tonumber(current); max = tonumber(max)
+			if current and max and current >= max - 1 then continue end
+			local jobId = joinBtn:GetAttribute("Job")
+			if not jobId or triedJobs[jobId] then continue end
+			triedJobs[jobId] = true
+			print("[AutoHop] Trying →", tl.Text)
+			local failConn
+			failConn = game:GetService("TeleportService").TeleportInitFailed:Connect(function(_, result, msg)
+				print("[AutoHop] Failed:", msg, "→ trying next...")
+				if failConn then failConn:Disconnect(); failConn = nil end
+				task.wait(1)
+				tryHop()
+			end)
+			for _, c in ipairs(getconnections(joinBtn.MouseButton1Click)) do c:Fire() end
+			task.delay(5, function() if failConn then failConn:Disconnect(); failConn = nil end end)
+			return
+		end
+		print("[AutoHop] หมด list, Refreshing...")
+		triedJobs = {}
+		pcall(function() frame.Refresh:Activate() end)
+		task.wait(3)
+		tryHop()
+	end
+	tryHop()
+end
+
+local function autoHopLoop()
+	hopLastTick  = tick()
+	hopCountdown = hopIntervalSecs
+	while autoHopActive do
+		task.wait(1)
+		local now    = tick()
+		hopCountdown = hopCountdown - (now - hopLastTick)
+		hopLastTick  = now
+		if hopCountdown <= 0 then
+			hopCountdown = hopIntervalSecs
+			if autoHopActive then task.spawn(doHop) end
+		end
+	end
+end
+
+startAutoHop = function()
+	autoHopActive = true
+	hopCountdown  = hopIntervalSecs
+	hopLastTick   = tick()
+	if autoHopThread then task.cancel(autoHopThread) end
+	autoHopThread = task.spawn(autoHopLoop)
+end
+
+stopAutoHop = function()
+	autoHopActive = false
+	if autoHopThread then task.cancel(autoHopThread); autoHopThread = nil end
+	hopCountdown = hopIntervalSecs
+	pcall(function()
+		local sb = pg:FindFirstChild("ServerBrowser")
+		if sb then
+			sb.Enabled = false
+			local f = sb:FindFirstChild("Frame")
+			if f then f.Visible = false end
+		end
+	end)
+end
+
+if config["Auto Hop"] then task.spawn(function() task.wait(6); startAutoHop() end) end
 
 local LOAD_ELEMENTS={
 	{"Loading account...",      UI.avatar},
