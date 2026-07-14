@@ -584,7 +584,7 @@ local function releaseMob(e)
                 pcall(function()
                     p.AssemblyLinearVelocity  = Vector3.zero
                     p.AssemblyAngularVelocity = Vector3.zero
-                    p.Anchored   = true
+                    p.Anchored   = false
                     p.CanCollide = true
                 end)
             end
@@ -828,7 +828,7 @@ do
     BringS:Slider({Title="Orbit Speed (rad/s)", Step=0.1, Value={Min=0.2, Max=5.0, Default=1.2},
         Callback=function(v) ORBIT_SPEED = v end})
     BringS:Space()
-    BringS:Slider({Title="Release Distance (studs)", Step=1, Value={Min=2, Max=30, Default=8},
+    BringS:Slider({Title="Release Distance (studs)", Step=1, Value={Min=2, Max=30, Default=0},
         Callback=function(v) RELEASE_THRESHOLD = v end})
 end
 
