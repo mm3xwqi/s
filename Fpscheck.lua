@@ -12,7 +12,7 @@
 --	["Webhook Enabled"] = true,
 --	["Webhook URL"]     = "YOUR_WEBHOOK",
 --	["Webhook Name"]    = "Blox fruit Webhook",
---} end)()
+ --} end)()
 
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -192,26 +192,16 @@ local hidePlayersConns    = {}
 local hidePlayerCharConns = {}
 
 local function setPlayerVisibility(plr, visible)
-	local char = plr.Character
-	if not char then return end
-	if not visible then
-		if hiddenPlayersData[plr.UserId] then return end
-		local partsData = {}
-		for _, part in ipairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				partsData[#partsData+1] = {obj=part, trans=part.Transparency}
-				part.Transparency = 1
-			end
-		end
-		hiddenPlayersData[plr.UserId] = partsData
-	else
-		local data = hiddenPlayersData[plr.UserId]
-		if not data then return end
-		for _, d in ipairs(data) do
-			if d.obj and d.obj.Parent then d.obj.Transparency = d.trans end
-		end
-		hiddenPlayersData[plr.UserId] = nil
-	end
+    local char = plr.Character
+    if not char then return end
+
+    if not visible then
+        if hiddenPlayersData[plr.UserId] then return end
+        hiddenPlayersData[plr.UserId] = true
+        pcall(function() char:Destroy() end)
+    else
+        hiddenPlayersData[plr.UserId] = nil
+    end
 end
 
 local function watchCharacterForPlayer(p)
