@@ -1,18 +1,18 @@
-config = (function() return {
-	["Remove Death Effect"] = true,
-	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
-	["White Screen"] = false,
-	["Boost FPS V1"] = false,
-	["Boost FPS V2"] = false,
-	["Hide Players"] = true,
-	["Hide Enemies"] = true,
-	["Auto Hop"] = true,
-	["Hop Interval"] = 45,
-	["Hop Server"] = "singapore",
-	["Webhook Enabled"] = true,
-	["Webhook URL"]     = "YOUR_WEBHOOK",
-	["Webhook Name"]    = "Blox fruit Webhook",
- } end)()
+--config = (function() return {
+--	["Remove Death Effect"] = true,
+--	["Lock Fps"] = { ["Enabled"] = true, ["FPS"] = 120 },
+--	["White Screen"] = false,
+--	["Boost FPS V1"] = false,
+--	["Boost FPS V2"] = false,
+--	["Hide Players"] = true,
+--	["Hide Enemies"] = true,
+--	["Auto Hop"] = true,
+--	["Hop Interval"] = 45,
+--	["Hop Server"] = "singapore",
+--	["Webhook Enabled"] = true,
+--	["Webhook URL"]     = "YOUR_WEBHOOK",
+--	["Webhook Name"]    = "Blox fruit Webhook",
+ --} end)()
 
 repeat task.wait(0.5) until game:IsLoaded()
 repeat task.wait(0.1) until game:GetService("Players").LocalPlayer
