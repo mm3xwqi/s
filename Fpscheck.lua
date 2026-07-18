@@ -14,9 +14,19 @@
 --	["Webhook Name"]    = "Blox fruit Webhook",
  --} end)()
 
-repeat task.wait(0.5) until game:IsLoaded()
-repeat task.wait(0.1) until game:GetService("Players").LocalPlayer
-repeat task.wait(0.1) until game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+if not game:IsLoaded() then game.Loaded:Wait() end
+while not game:GetService("Players").LocalPlayer do task.wait(0.1) end
+while not game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui") do task.wait(0.1) end
+
+local _pg = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+if _pg then
+    for _, v in ipairs(_pg:GetChildren()) do
+        if v.Name == "IntegratedStatusHUD" then v:Destroy() end
+    end
+end
+
+if _G.__FpsCheckRunning then return end
+_G.__FpsCheckRunning = true
 
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -1595,3 +1605,4 @@ task.spawn(function()
 	task.spawn(function() updateStats(); updateInventory(); while true do task.wait(0.2); updateStats(); updateInventory() end end)
 	task.spawn(function() updatePlayers(); while true do task.wait(0.3); updatePlayers() end end)
 end)
+_G.__FpsCheckRunning = false
