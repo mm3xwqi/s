@@ -14,7 +14,7 @@
 --	["Webhook Name"]    = "Blox fruit Webhook",
  --} end)()
 
-repeat task.wait(0.1) until game:IsLoaded()
+repeat task.wait(0.5) until game:IsLoaded()
 repeat task.wait(0.1) until game:GetService("Players").LocalPlayer
 repeat task.wait(0.1) until game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
 
