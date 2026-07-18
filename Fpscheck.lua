@@ -870,9 +870,9 @@ local btnW = math.floor((Q1W-6)/2)
 
 UI.v1Btn  = makeSmallBtn(Q1X,        Q1Y+142, btnW, 20, config["Boost FPS V1"] and "V1 ON" or "V1 OFF", C.V1COL, config["Boost FPS V1"])
 UI.v2Btn  = makeSmallBtn(Q1X+btnW+6, Q1Y+142, btnW, 20, config["Boost FPS V2"] and "V2 ON" or "V2 OFF", C.V2COL, config["Boost FPS V2"])
-UI.hideBtn= makeSmallBtn(Q1X,        Q1Y+166, btnW, 20, hidePlayersActive and "HIDE ON" or "HIDE OFF", C.WHITE, hidePlayersActive)
+UI.hideBtn= makeSmallBtn(Q1X,        Q1Y+166, btnW, 20, hidePlayersActive and "Del Player ON" or "Del Player OFF", C.WHITE, hidePlayersActive)
 UI.miniBtn= makeSmallBtn(Q1X+btnW+6, Q1Y+166, btnW, 20, "MINIMIZE", C.CARD, false); UI.miniBtn.TextColor3=C.MUTED
-UI.enemyBtn=makeSmallBtn(Q1X,        Q1Y+190, btnW, 20, hideEnemiesActive and "ENEMY ON" or "ENEMY OFF", C.DANGER, hideEnemiesActive)
+UI.enemyBtn=makeSmallBtn(Q1X,        Q1Y+190, btnW, 20, hideEnemiesActive and "HIDE ENEMY ON" or "HIDE ENEMY OFF", C.DANGER, hideEnemiesActive)
 UI.hopBtn  =makeSmallBtn(Q1X+btnW+6, Q1Y+190, btnW, 20, autoHopActive and "HOP ON" or "HOP OFF", C.HOP, autoHopActive)
 UI.capBox=mk("TextBox",fullPanel,{Size=UDim2.new(0,btnW-34,0,20),Position=UDim2.new(0,Q1X,0,Q1Y+214),BackgroundColor3=C.CARD,BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHITE,Text="",PlaceholderText=tostring(FPS_CAP),PlaceholderColor3=C.DIM,ZIndex=4})
 stroke(UI.capBox,C.BORDER2,1); corner(UI.capBox,4)
