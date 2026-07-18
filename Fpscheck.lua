@@ -1605,4 +1605,4 @@ task.spawn(function()
 	task.spawn(function() updateStats(); updateInventory(); while true do task.wait(0.2); updateStats(); updateInventory() end end)
 	task.spawn(function() updatePlayers(); while true do task.wait(0.3); updatePlayers() end end)
 end)
-_G.__FpsCheckRunning = false
+
