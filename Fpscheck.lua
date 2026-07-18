@@ -12,21 +12,26 @@
 --	["Webhook Enabled"] = true,
 --	["Webhook URL"]     = "YOUR_WEBHOOK",
 --	["Webhook Name"]    = "Blox fruit Webhook",
- --} end)()
+-- } end)()
 
+-- ============================================================
+-- GUARD: ลบ GUI เก่าทิ้ง + ป้องกันรันซ้อนกัน
+-- ============================================================
 if not game:IsLoaded() then game.Loaded:Wait() end
 while not game:GetService("Players").LocalPlayer do task.wait(0.1) end
 while not game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui") do task.wait(0.1) end
 
-local _pg = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
-if _pg then
-    for _, v in ipairs(_pg:GetChildren()) do
-        if v.Name == "IntegratedStatusHUD" then v:Destroy() end
-    end
+do
+	local _pg = game:GetService("Players").LocalPlayer.PlayerGui
+	for _, v in ipairs(_pg:GetChildren()) do
+		if v.Name == "IntegratedStatusHUD" then v:Destroy() end
+	end
 end
 
 if _G.__FpsCheckRunning then return end
 _G.__FpsCheckRunning = true
+
+-- ============================================================
 
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -37,8 +42,10 @@ local WS           = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 local pg     = player:WaitForChild("PlayerGui")
-if pg:FindFirstChild("IntegratedStatusHUD") then pg.IntegratedStatusHUD:Destroy() end
-if player.Character and player.Character:FindFirstChild("ESP_SelfHL") then player.Character.ESP_SelfHL:Destroy() end
+
+if player.Character and player.Character:FindFirstChild("ESP_SelfHL") then
+	player.Character.ESP_SelfHL:Destroy()
+end
 
 local MAX_PLAYERS = Players.MaxPlayers
 local COMBAT_CAP  = 2800
@@ -206,16 +213,15 @@ local hidePlayersConns    = {}
 local hidePlayerCharConns = {}
 
 local function setPlayerVisibility(plr, visible)
-    local char = plr.Character
-    if not char then return end
-
-    if not visible then
-        if hiddenPlayersData[plr.UserId] then return end
-        hiddenPlayersData[plr.UserId] = true
-        pcall(function() char:Destroy() end)
-    else
-        hiddenPlayersData[plr.UserId] = nil
-    end
+	local char = plr.Character
+	if not char then return end
+	if not visible then
+		if hiddenPlayersData[plr.UserId] then return end
+		hiddenPlayersData[plr.UserId] = true
+		pcall(function() char:Destroy() end)
+	else
+		hiddenPlayersData[plr.UserId] = nil
+	end
 end
 
 local function watchCharacterForPlayer(p)
@@ -360,7 +366,6 @@ local STAT_PATHS = {
 	SpawnPoint     = {"Data.LastSpawnPoint"},
 }
 
--- แก้ไข: ใช้ WaitForChild แทน FindFirstChild เพื่อรอให้ Data โหลดครบก่อน
 local function resolvePath(root, path)
 	local obj = root
 	for part in path:gmatch("[^%.]+") do
@@ -443,22 +448,11 @@ local function sendHopWebhook(sessionBeli, sessionFrags, sessionElapsed)
 	local jobId = "unknown"
 	pcall(function() jobId = game.JobId end)
 
-	local avatarUrl = ""
-	pcall(function()
-		avatarUrl = Players:GetUserThumbnailAsync(
-			player.UserId,
-			Enum.ThumbnailType.HeadShot,
-			Enum.ThumbnailSize.Size100x100
-		)
-	end)
-
 	local payload = {
 		username = config["Webhook Name"] or "Blox Hub",
 		embeds = {
 			{
-				author = {
-					name = "Auto Hop Triggered",
-				},
+				author = { name = "Auto Hop Triggered" },
 				title  = "Session Summary — Hopping Server",
 				color  = embedColor,
 				fields = {
@@ -1084,7 +1078,6 @@ UI.webhookBtn.MouseButton1Click:Connect(function()
 end)
 addHover(UI.webhookBtn, function() return webhookActive and WEBHOOK_ON_COL or C.CARD end)
 
--- แก้ไข: เพิ่ม totalHopCount ทุกครั้งที่กด TEST เพื่อไม่ให้ Discord dedup
 UI.testWebhookBtn.MouseButton1Click:Connect(function()
 	task.spawn(function()
 		totalHopCount = totalHopCount + 1
@@ -1282,7 +1275,6 @@ local function updateStats()
 		sessionStartBeli      = curBeli
 		sessionStartFragments = curFrags
 		sessionInitialized    = true
-		print("[Session] initialized — Beli:", curBeli, "Frags:", curFrags)
 	end
 	if sessionInitialized and UI.sessionBeliLbl then
 		local gb = math.floor((curBeli  or 0) - sessionStartBeli)
@@ -1605,4 +1597,3 @@ task.spawn(function()
 	task.spawn(function() updateStats(); updateInventory(); while true do task.wait(0.2); updateStats(); updateInventory() end end)
 	task.spawn(function() updatePlayers(); while true do task.wait(0.3); updatePlayers() end end)
 end)
-
