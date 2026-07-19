@@ -1,11 +1,11 @@
 --config = (function() return {
 --	["Remove Death Effect"] = false,
---	["Lock Fps"]      = { ["Enabled"] = true, ["FPS"] = 120 },
+--	["Lock Fps"]      = { ["Enabled"] = false, ["FPS"] = 120 },
 --	["White Screen"]  = false,
 --	["Boost FPS V1"]  = false,
 --	["Boost FPS V2"]  = false,
---	["Hide Players"]  = true,
---	["Hide Enemies"]  = true,
+--	["Hide Players"]  = false,
+--	["Hide Enemies"]  = false,
 --	["Auto Hop"]      = false,
 --	["Hop Interval"]  = 45,
 --	["Hop Server"]    = "singapore",
@@ -182,24 +182,28 @@ local function resolvePath(root, path)
 	local obj = root
 	for part in path:gmatch("[^%.]+") do
 		if not obj then return nil end
-		local ok,child = pcall(function() return obj:WaitForChild(part,5) end)
-		if not ok or not child then return nil end
+		local child = obj:FindFirstChild(part)
+		if not child then
+			local ok2, c2 = pcall(function() return obj:WaitForChild(part, 1) end)
+			if ok2 and c2 then child = c2 end
+		end
+		if not child then return nil end
 		obj = child
 	end
 	if obj and (obj:IsA("IntValue") or obj:IsA("NumberValue") or obj:IsA("StringValue")) then return obj end
 	return nil
 end
 local function getStatObj(plr, key)
-	local uid = plr.UserId
-	if not statCache[uid] then statCache[uid]={} end
-	local c = statCache[uid][key]
-	if c ~= nil then return c ~= false and c or nil end
-	local paths = STAT_PATHS[key] or {"leaderstats."..key,"Data."..key}
-	for _, path in ipairs(paths) do
-		local obj = resolvePath(plr, path)
-		if obj then statCache[uid][key]=obj; return obj end
-	end
-	statCache[uid][key]=false; return nil
+    local uid = plr.UserId
+    if not statCache[uid] then statCache[uid]={} end
+    local c = statCache[uid][key]
+    if c and c ~= false then return c end   -- ← เจอแล้วค่อย cache
+    local paths = STAT_PATHS[key] or {"leaderstats."..key,"Data."..key}
+    for _, path in ipairs(paths) do
+        local obj = resolvePath(plr, path)
+        if obj then statCache[uid][key]=obj; return obj end
+    end
+    return nil
 end
 local function getStat(key, root)
 	local obj = getStatObj(root or player, key)
@@ -1105,7 +1109,7 @@ local function updateInventory()
                 local sl = pf.skillLbls[key]
                 sl.kl.Visible = true
                 sl.cl.Visible = true
-                setText(sl.cl, item.level >= reqLv and "✔" or "✘")
+                setText(sl.cl, item.level >= reqLv and "🟢" or "🔴")
                 setColor(sl.cl, item.level >= reqLv and C.SUCCESS or C.DANGER)
                 slotIdx = slotIdx + 1
             end
@@ -1295,7 +1299,7 @@ local LOAD_STEPS={
 	"Loading combat stats...", "Loading inventory...", "Loading players...", "Loading performance..."
 }
 task.spawn(function()
-	local N=#LOAD_STEPS; local DUR=0.15
+	local N=#LOAD_STEPS; local DUR=0.08
 	for i,step in ipairs(LOAD_STEPS) do
 		loadStepLbl.Text=step; task.wait(DUR)
 	end
@@ -1337,7 +1341,7 @@ task.spawn(function()
 		for _, tool in ipairs(bp:GetChildren()) do
 			if tool:IsA("Tool") then
 				pcall(function() hum:EquipTool(tool) end)
-				task.wait(.2)
+				task.wait(0.08)
 				skillCache[tool.Name] = getSkillLevels(tool.Name)
 
 				print("[Cache] tool:", tool.Name, "keys:")
@@ -1346,12 +1350,12 @@ task.spawn(function()
 				end
 				
 				pcall(function() hum:UnequipTools() end)
-				task.wait(0.2)
+				task.wait(0.08)
 			end
 		end
 		end)
 	-- ── Start update loops ───────────────────────────────────────────
-	task.spawn(function() while true do updateFast(); task.wait(0.05) end end)
-	task.spawn(function() updateStats(); updateInventory(); while true do task.wait(0.2); updateStats(); updateInventory() end end)
-	task.spawn(function() updatePlayers(); while true do task.wait(0.3); updatePlayers() end end)
+	task.spawn(function() task.wait(0.1); while true do updateFast(); task.wait(0.05) end end)
+	task.spawn(function() task.wait(0.3); updateStats(); updateInventory(); while true do task.wait(0.2); updateStats(); updateInventory() end end)
+	task.spawn(function() task.wait(0.5); updatePlayers(); while true do task.wait(0.3); updatePlayers() end end)
 end)
