@@ -27,21 +27,19 @@ end
 _G.__FpsCheckRunning = nil
 _G.__FpsCheckRunning = true
 
--- ── Services ──────────────────────────────────────────────────────────
-local Players   = game:GetService("Players")
-local Run       = game:GetService("RunService")
-local UIS       = game:GetService("UserInputService")
-local TS        = game:GetService("TweenService")
-local Stats     = game:GetService("Stats")
-local WS        = game:GetService("Workspace")
-local player    = Players.LocalPlayer
-local pg        = player:WaitForChild("PlayerGui")
+local Players = game:GetService("Players")
+local Run     = game:GetService("RunService")
+local UIS     = game:GetService("UserInputService")
+local TS      = game:GetService("TweenService")
+local Stats   = game:GetService("Stats")
+local WS      = game:GetService("Workspace")
+local player  = Players.LocalPlayer
+local pg      = player:WaitForChild("PlayerGui")
 
 if player.Character and player.Character:FindFirstChild("ESP_SelfHL") then
 	player.Character.ESP_SelfHL:Destroy()
 end
 
--- ── Colors ────────────────────────────────────────────────────────────
 local C = {
 	BG=Color3.fromRGB(6,6,6), PANEL=Color3.fromRGB(10,10,10),
 	CARD=Color3.fromRGB(22,22,22), HOVER=Color3.fromRGB(32,32,32),
@@ -56,7 +54,6 @@ local C = {
 	FRAG=Color3.fromRGB(160,120,255),
 }
 
--- ── Themes ────────────────────────────────────────────────────────────
 local THEMES = {
 	{name="Default", accent=Color3.fromRGB(255,255,255), accentDim=Color3.fromRGB(180,180,180), bg=Color3.fromRGB(6,6,6),   panel=Color3.fromRGB(10,10,10), card=Color3.fromRGB(22,22,22), hover=Color3.fromRGB(32,32,32), sep=Color3.fromRGB(50,50,50),  border=Color3.fromRGB(70,70,70),  border2=Color3.fromRGB(100,100,100), dim=Color3.fromRGB(140,140,140)},
 	{name="Cyan",    accent=Color3.fromRGB(80,220,255),  accentDim=Color3.fromRGB(60,160,200),  bg=Color3.fromRGB(2,10,14), panel=Color3.fromRGB(4,16,22),  card=Color3.fromRGB(6,26,36),  hover=Color3.fromRGB(10,40,54),  sep=Color3.fromRGB(20,70,90), border=Color3.fromRGB(30,100,130),border2=Color3.fromRGB(50,160,200),  dim=Color3.fromRGB(80,160,190)},
@@ -67,13 +64,23 @@ local THEMES = {
 }
 local curTheme = 1
 
--- ── Constants ─────────────────────────────────────────────────────────
-local MAX_PLAYERS  = Players.MaxPlayers
-local COMBAT_CAP   = 2800
-local STUDS_TO_M   = 0.28
-local SKILL_KEYS   = {"Z","X","C","V","F"}
-local HUD_W, HUD_H, PAD = 640, 600, 10
-local HALF = HUD_W / 2
+local SKILL_KEYS = {"Z","X","C","V","F"}
+
+local K = {
+	MAX_PLAYERS  = Players.MaxPlayers,
+	COMBAT_CAP   = 2800,
+	STUDS_TO_M   = 0.28,
+	SKILL_KEYS   = SKILL_KEYS,
+	HUD_W = 640, HUD_H = 780, PAD = 10,
+	MINI_W = 740,
+	HISTORY_MAX = 60,
+	HISTORY_INTERVAL = 10,
+}
+K.HALF = K.HUD_W / 2
+K.Q1X = K.PAD;         K.Q1Y = K.PAD;             K.Q1W = K.HALF - K.PAD*2
+K.Q2X = K.HALF+K.PAD;  K.Q2Y = K.PAD;             K.Q2W = K.HALF - K.PAD*2
+K.Q3X = K.PAD;         K.Q3Y = K.HUD_H/2+K.PAD;  K.Q3W = K.HALF - K.PAD*2
+K.Q4X = K.HALF+K.PAD;  K.Q4Y = K.HUD_H/2+K.PAD;  K.Q4W = K.HALF - K.PAD*2
 
 local FPS_CAP = config["Lock Fps"]["Enabled"] and config["Lock Fps"]["FPS"] or 60
 if config["Lock Fps"]["Enabled"] then
@@ -81,27 +88,43 @@ if config["Lock Fps"]["Enabled"] then
 	pcall(function() setfpscap(FPS_CAP) end)
 end
 
--- ── State ─────────────────────────────────────────────────────────────
-local skillCache = {}
-local boostV1Active, hiddenParts, boostV1Conn = false, {}, nil
-local boostV2Active, v2DescConn, v2Orig = false, nil, {}
-local hidePlayersActive = config["Hide Players"]
-local hiddenPlayersData, hidePlayersConns, hideCharConns = {}, {}, {}
-local hideEnemiesActive = config["Hide Enemies"]
-local hiddenEnemyParts, enemyDescConn = {}, nil
-local autoHopActive = config["Auto Hop"]
-local autoHopThread = nil
-local hopIntervalSecs = (config["Hop Interval"] or 30) * 60
-local hopTargetServer = (config["Hop Server"] or ""):lower()
-local hopCountdown, hopLastTick = hopIntervalSecs, tick()
-local totalHopCount = 0
-local webhookActive = config["Webhook Enabled"]
-local sessionStartBeli, sessionStartFragments, sessionInit = nil, nil, false
-local statCache = {}
-local playerInfoCache = { [player.UserId] = { joinTime = tick() } }
-local spawnWatchers, raceWatchers, bountyWatchers = {}, {}, {}
+local S = {
+	skillCache = {},
+	boostV1Active = false, hiddenParts = {}, boostV1Conn = nil,
+	boostV2Active = false, v2DescConn = nil, v2Orig = {},
+	hidePlayersActive = config["Hide Players"],
+	hiddenPlayersData = {}, hidePlayersConns = {}, hideCharConns = {},
+	hideEnemiesActive = config["Hide Enemies"],
+	hiddenEnemyParts = {}, enemyDescConn = nil,
+	autoHopActive = config["Auto Hop"],
+	autoHopThread = nil,
+	hopIntervalSecs = (config["Hop Interval"] or 30) * 60,
+	hopTargetServer = (config["Hop Server"] or ""):lower(),
+	hopCountdown = 0, hopLastTick = 0,
+	totalHopCount = 0,
+	webhookActive = config["Webhook Enabled"],
+	sessionStartBeli = nil, sessionStartFragments = nil, sessionInit = false,
+	statCache = {},
+	playerInfoCache = { [player.UserId] = { joinTime = tick() } },
+	spawnWatchers = {}, raceWatchers = {}, bountyWatchers = {},
+	beliHistory = {}, fragHistory = {},
+	beliPerMin = 0, beliPerHour = 0,
+	fragPerMin = 0, fragPerHour = 0,
+	hopPopupOpen = false,
+	fps = 0, frameCount = 0, lastFpsT = tick(),
+	dragging = false, dragStart = nil, dragStartPos = nil,
+	lastText = {}, lastSize = {}, lastColor = {},
+	barTw = {}, colTw = {},
+	blackoutActive = false,
+	isMini = false,
+	selfHL = nil,
+	scriptStart = tick(),
+}
+S.hopCountdown  = S.hopIntervalSecs
+S.hopLastTick   = tick()
 
--- ── Helpers ───────────────────────────────────────────────────────────
+local V2_SKIP = {}
+
 local function mk(cl, par, props)
 	local o = Instance.new(cl)
 	if par  then o.Parent = par end
@@ -165,7 +188,20 @@ local function getLocalTimeStr()
 	return ok and str or ("~"..math.floor(tick()))
 end
 
--- ── Stat System ───────────────────────────────────────────────────────
+local function pushHistory(tbl, val, maxLen)
+	if type(val) ~= "number" then return end
+	tbl[#tbl + 1] = { t = tick(), v = val }
+	while #tbl > maxLen do table.remove(tbl, 1) end
+end
+local function calcRate(tbl)
+	if #tbl < 2 then return 0, 0 end
+	local oldest, newest = tbl[1], tbl[#tbl]
+	local elapsedSec = newest.t - oldest.t
+	if elapsedSec < 1 then return 0, 0 end
+	local perMin = (newest.v - oldest.v) / (elapsedSec / 60)
+	return math.floor(perMin), math.floor(perMin * 60)
+end
+
 local STAT_PATHS = {
 	Level={"Data.Level","leaderstats.Level","leaderstats.Lv."},
 	Beli={"Data.Beli","leaderstats.Beli","leaderstats.Money"},
@@ -194,48 +230,45 @@ local function resolvePath(root, path)
 	return nil
 end
 local function getStatObj(plr, key)
-    local uid = plr.UserId
-    if not statCache[uid] then statCache[uid]={} end
-    local c = statCache[uid][key]
-    if c and c ~= false then return c end   -- ← เจอแล้วค่อย cache
-    local paths = STAT_PATHS[key] or {"leaderstats."..key,"Data."..key}
-    for _, path in ipairs(paths) do
-        local obj = resolvePath(plr, path)
-        if obj then statCache[uid][key]=obj; return obj end
-    end
-    return nil
+	local uid = plr.UserId
+	if not S.statCache[uid] then S.statCache[uid]={} end
+	local c = S.statCache[uid][key]
+	if c and c ~= false then return c end
+	local paths = STAT_PATHS[key] or {"leaderstats."..key,"Data."..key}
+	for _, path in ipairs(paths) do
+		local obj = resolvePath(plr, path)
+		if obj then S.statCache[uid][key]=obj; return obj end
+	end
+	return nil
 end
 local function getStat(key, root)
 	local obj = getStatObj(root or player, key)
 	return obj and obj.Value or nil
 end
 
--- ── FPS boost helpers ─────────────────────────────────────────────────
 local function setMapVisibility(hide)
 	if hide then
-		hiddenParts={}
+		S.hiddenParts={}
 		for _,v in ipairs(WS:GetDescendants()) do
 			pcall(function()
-				if v:IsA("BasePart") then hiddenParts[#hiddenParts+1]={obj=v,tr=v.Transparency}; v.Transparency=1 end
+				if v:IsA("BasePart") then S.hiddenParts[#S.hiddenParts+1]={obj=v,tr=v.Transparency}; v.Transparency=1 end
 			end)
 		end
-		if boostV1Conn then boostV1Conn:Disconnect() end
-		boostV1Conn = WS.DescendantAdded:Connect(function(v)
+		if S.boostV1Conn then S.boostV1Conn:Disconnect() end
+		S.boostV1Conn = WS.DescendantAdded:Connect(function(v)
 			pcall(function() if v:IsA("BasePart") then v.Transparency=1 end end)
 		end)
 	else
-		if boostV1Conn then boostV1Conn:Disconnect(); boostV1Conn=nil end
-		for _,d in ipairs(hiddenParts) do
+		if S.boostV1Conn then S.boostV1Conn:Disconnect(); S.boostV1Conn=nil end
+		for _,d in ipairs(S.hiddenParts) do
 			if d.obj and d.obj.Parent then d.obj.Transparency=d.tr end
 		end
-		hiddenParts={}
+		S.hiddenParts={}
 	end
 end
-
-local V2_SKIP={}
 local function buildV2Skip()
 	V2_SKIP={}
-	for _,s in ipairs({pg,game:GetService("ReplicatedStorage"),Players,game:GetService("CoreGui")}) do V2_SKIP[s]=true end
+	for _,sv in ipairs({pg,game:GetService("ReplicatedStorage"),Players,game:GetService("CoreGui")}) do V2_SKIP[sv]=true end
 	if player.Character then V2_SKIP[player.Character]=true end
 end
 local function shouldSkip(obj)
@@ -252,156 +285,148 @@ end
 local function applyLowGraphic()
 	buildV2Skip()
 	local L=game:GetService("Lighting")
-	v2Orig={GlobalShadows=L.GlobalShadows,FogEnd=L.FogEnd,ShadowSoftness=L.ShadowSoftness}
+	S.v2Orig={GlobalShadows=L.GlobalShadows,FogEnd=L.FogEnd,ShadowSoftness=L.ShadowSoftness}
 	L.GlobalShadows=false; L.FogEnd=9e9; L.ShadowSoftness=0
 	pcall(function() sethiddenproperty(L,"Technology",2) end)
-	v2Orig.QualityLevel=settings().Rendering.QualityLevel; settings().Rendering.QualityLevel=1
-	pcall(function() v2Orig.MeshDetail=settings().Rendering.MeshPartDetailLevel; settings().Rendering.MeshPartDetailLevel=Enum.MeshPartDetailLevel.Level04 end)
+	S.v2Orig.QualityLevel=settings().Rendering.QualityLevel; settings().Rendering.QualityLevel=1
+	pcall(function() S.v2Orig.MeshDetail=settings().Rendering.MeshPartDetailLevel; settings().Rendering.MeshPartDetailLevel=Enum.MeshPartDetailLevel.Level04 end)
 	local ter=WS:FindFirstChildOfClass("Terrain")
 	if ter then
-		v2Orig.WW=ter.WaterWaveSize; v2Orig.WS=ter.WaterWaveSpeed; v2Orig.WR=ter.WaterReflectance; v2Orig.WT=ter.WaterTransparency
+		S.v2Orig.WW=ter.WaterWaveSize; S.v2Orig.WS=ter.WaterWaveSpeed; S.v2Orig.WR=ter.WaterReflectance; S.v2Orig.WT=ter.WaterTransparency
 		ter.WaterWaveSize=0; ter.WaterWaveSpeed=0; ter.WaterReflectance=0; ter.WaterTransparency=0
 		pcall(function() sethiddenproperty(ter,"Decoration",false) end)
 	end
 	task.spawn(function()
 		local all=WS:GetDescendants()
 		for i=1,#all,150 do
-			if not boostV2Active then break end
+			if not S.boostV2Active then break end
 			for j=i,math.min(i+149,#all) do if not shouldSkip(all[j]) then pcall(applyObjGraphic,all[j]) end end
 			task.wait()
 		end
 	end)
-	if v2DescConn then v2DescConn:Disconnect() end
-	v2DescConn=game.DescendantAdded:Connect(function(obj)
-		if not boostV2Active or not obj:IsDescendantOf(WS) or shouldSkip(obj) then return end
-		task.wait(0.3); if boostV2Active then pcall(applyObjGraphic,obj) end
+	if S.v2DescConn then S.v2DescConn:Disconnect() end
+	S.v2DescConn=game.DescendantAdded:Connect(function(obj)
+		if not S.boostV2Active or not obj:IsDescendantOf(WS) or shouldSkip(obj) then return end
+		task.wait(0.3); if S.boostV2Active then pcall(applyObjGraphic,obj) end
 	end)
 end
 local function removeLowGraphic()
-	if v2DescConn then v2DescConn:Disconnect(); v2DescConn=nil end
+	if S.v2DescConn then S.v2DescConn:Disconnect(); S.v2DescConn=nil end
 	local L=game:GetService("Lighting")
-	if v2Orig.GlobalShadows~=nil then L.GlobalShadows=v2Orig.GlobalShadows end
-	if v2Orig.FogEnd~=nil then L.FogEnd=v2Orig.FogEnd end
-	if v2Orig.ShadowSoftness~=nil then L.ShadowSoftness=v2Orig.ShadowSoftness end
-	pcall(function() settings().Rendering.QualityLevel=v2Orig.QualityLevel or 5 end)
-	pcall(function() if v2Orig.MeshDetail then settings().Rendering.MeshPartDetailLevel=v2Orig.MeshDetail end end)
+	if S.v2Orig.GlobalShadows~=nil then L.GlobalShadows=S.v2Orig.GlobalShadows end
+	if S.v2Orig.FogEnd~=nil then L.FogEnd=S.v2Orig.FogEnd end
+	if S.v2Orig.ShadowSoftness~=nil then L.ShadowSoftness=S.v2Orig.ShadowSoftness end
+	pcall(function() settings().Rendering.QualityLevel=S.v2Orig.QualityLevel or 5 end)
+	pcall(function() if S.v2Orig.MeshDetail then settings().Rendering.MeshPartDetailLevel=S.v2Orig.MeshDetail end end)
 	local ter=WS:FindFirstChildOfClass("Terrain")
 	if ter then
-		if v2Orig.WW~=nil then ter.WaterWaveSize=v2Orig.WW end
-		if v2Orig.WS~=nil then ter.WaterWaveSpeed=v2Orig.WS end
-		if v2Orig.WR~=nil then ter.WaterReflectance=v2Orig.WR end
-		if v2Orig.WT~=nil then ter.WaterTransparency=v2Orig.WT end
+		if S.v2Orig.WW~=nil then ter.WaterWaveSize=S.v2Orig.WW end
+		if S.v2Orig.WS~=nil then ter.WaterWaveSpeed=S.v2Orig.WS end
+		if S.v2Orig.WR~=nil then ter.WaterReflectance=S.v2Orig.WR end
+		if S.v2Orig.WT~=nil then ter.WaterTransparency=S.v2Orig.WT end
 	end
-	v2Orig={}
+	S.v2Orig={}
 end
 
--- ── Hide Players ──────────────────────────────────────────────────────
 local function setPlayerVis(plr, visible)
 	local char=plr.Character; if not char then return end
 	if not visible then
-		if hiddenPlayersData[plr.UserId] then return end
-		hiddenPlayersData[plr.UserId]=true; pcall(function() char:Destroy() end)
-	else hiddenPlayersData[plr.UserId]=nil end
+		if S.hiddenPlayersData[plr.UserId] then return end
+		S.hiddenPlayersData[plr.UserId]=true; pcall(function() char:Destroy() end)
+	else S.hiddenPlayersData[plr.UserId]=nil end
 end
 local function watchChar(p)
 	if p==player then return end
 	local uid=p.UserId
-	if hideCharConns[uid] then hideCharConns[uid]:Disconnect() end
-	hideCharConns[uid]=p.CharacterAdded:Connect(function()
-		hiddenPlayersData[uid]=nil
-		if hidePlayersActive then task.wait(0.5); setPlayerVis(p,false) end
+	if S.hideCharConns[uid] then S.hideCharConns[uid]:Disconnect() end
+	S.hideCharConns[uid]=p.CharacterAdded:Connect(function()
+		S.hiddenPlayersData[uid]=nil
+		if S.hidePlayersActive then task.wait(0.5); setPlayerVis(p,false) end
 	end)
 end
 local function toggleHidePlayers(active)
-	hidePlayersActive=active
+	S.hidePlayersActive=active
 	for _,p in ipairs(Players:GetPlayers()) do if p~=player then setPlayerVis(p,not active) end end
 	if active then
 		for _,p in ipairs(Players:GetPlayers()) do if p~=player then watchChar(p) end end
-		if not hidePlayersConns.pa then
-			hidePlayersConns.pa=Players.PlayerAdded:Connect(function(p)
-				if p==player then return end
-				watchChar(p)
+		if not S.hidePlayersConns.pa then
+			S.hidePlayersConns.pa=Players.PlayerAdded:Connect(function(p)
+				if p==player then return end; watchChar(p)
 				task.spawn(function()
 					if not p.Character then p.CharacterAdded:Wait() end
-					task.wait(0.5); if hidePlayersActive then setPlayerVis(p,false) end
+					task.wait(0.5); if S.hidePlayersActive then setPlayerVis(p,false) end
 				end)
 			end)
 		end
-		if not hidePlayersConns.ca then
-			hidePlayersConns.ca=player.CharacterAdded:Connect(function()
+		if not S.hidePlayersConns.ca then
+			S.hidePlayersConns.ca=player.CharacterAdded:Connect(function()
 				task.wait(0.5)
 				for _,p in ipairs(Players:GetPlayers()) do if p~=player then setPlayerVis(p,true) end end
 			end)
 		end
 	else
-		if hidePlayersConns.pa then hidePlayersConns.pa:Disconnect(); hidePlayersConns.pa=nil end
-		if hidePlayersConns.ca then hidePlayersConns.ca:Disconnect(); hidePlayersConns.ca=nil end
-		for uid,conn in pairs(hideCharConns) do conn:Disconnect(); hideCharConns[uid]=nil end
+		if S.hidePlayersConns.pa then S.hidePlayersConns.pa:Disconnect(); S.hidePlayersConns.pa=nil end
+		if S.hidePlayersConns.ca then S.hidePlayersConns.ca:Disconnect(); S.hidePlayersConns.ca=nil end
+		for uid,conn in pairs(S.hideCharConns) do conn:Disconnect(); S.hideCharConns[uid]=nil end
 	end
 end
 
--- ── Hide Enemies ──────────────────────────────────────────────────────
 local function setEnemyHide(part, hide)
 	if hide then
-		if hiddenEnemyParts[part]~=nil then return end
-		hiddenEnemyParts[part]=part.Transparency; part.Transparency=1
+		if S.hiddenEnemyParts[part]~=nil then return end
+		S.hiddenEnemyParts[part]=part.Transparency; part.Transparency=1
 	else
-		if hiddenEnemyParts[part]==nil then return end
-		if part and part.Parent then part.Transparency=hiddenEnemyParts[part] end
-		hiddenEnemyParts[part]=nil
+		if S.hiddenEnemyParts[part]==nil then return end
+		if part and part.Parent then part.Transparency=S.hiddenEnemyParts[part] end
+		S.hiddenEnemyParts[part]=nil
 	end
 end
 local function toggleHideEnemies(active)
-	hideEnemiesActive=active
+	S.hideEnemiesActive=active
 	local ef=WS:FindFirstChild("Enemies"); if not ef then return end
 	for _,obj in ipairs(ef:GetDescendants()) do if obj:IsA("BasePart") then pcall(setEnemyHide,obj,active) end end
 	if active then
-		if not enemyDescConn then
-			enemyDescConn=ef.DescendantAdded:Connect(function(obj)
-				if hideEnemiesActive and obj:IsA("BasePart") then task.wait(0.1); pcall(setEnemyHide,obj,true) end
+		if not S.enemyDescConn then
+			S.enemyDescConn=ef.DescendantAdded:Connect(function(obj)
+				if S.hideEnemiesActive and obj:IsA("BasePart") then task.wait(0.1); pcall(setEnemyHide,obj,true) end
 			end)
 		end
 	else
-		if enemyDescConn then enemyDescConn:Disconnect(); enemyDescConn=nil end
-		for part,tr in pairs(hiddenEnemyParts) do if part and part.Parent then pcall(function() part.Transparency=tr end) end end
-		hiddenEnemyParts={}
+		if S.enemyDescConn then S.enemyDescConn:Disconnect(); S.enemyDescConn=nil end
+		for part,tr in pairs(S.hiddenEnemyParts) do if part and part.Parent then pcall(function() part.Transparency=tr end) end end
+		S.hiddenEnemyParts={}
 	end
 end
 
--- ── Player Data Watchers ──────────────────────────────────────────────
 local function watchPlayerData(p)
 	if p==player then return end
 	local uid=p.UserId
-	if not playerInfoCache[uid] then playerInfoCache[uid]={joinTime=tick()} end
-	-- spawn
+	if not S.playerInfoCache[uid] then S.playerInfoCache[uid]={joinTime=tick()} end
 	task.spawn(function()
 		local d=p:FindFirstChild("Data") or p:WaitForChild("Data",30); if not d then return end
 		local sp=d:FindFirstChild("LastSpawnPoint") or d:WaitForChild("LastSpawnPoint",30); if not sp then return end
-		playerInfoCache[uid].spawn=sp.Value
-		if spawnWatchers[uid] then spawnWatchers[uid]:Disconnect() end
-		spawnWatchers[uid]=sp.Changed:Connect(function(v) playerInfoCache[uid]=playerInfoCache[uid] or {}; playerInfoCache[uid].spawn=v end)
+		S.playerInfoCache[uid].spawn=sp.Value
+		if S.spawnWatchers[uid] then S.spawnWatchers[uid]:Disconnect() end
+		S.spawnWatchers[uid]=sp.Changed:Connect(function(v) S.playerInfoCache[uid]=S.playerInfoCache[uid] or {}; S.playerInfoCache[uid].spawn=v end)
 	end)
-	-- race
 	task.spawn(function()
 		local d=p:FindFirstChild("Data") or p:WaitForChild("Data",30); if not d then return end
 		local rc=d:FindFirstChild("Race") or d:WaitForChild("Race",30); if not rc then return end
-		playerInfoCache[uid].race=rc:IsA("ValueBase") and rc.Value~="" and tostring(rc.Value) or nil
+		S.playerInfoCache[uid].race=rc:IsA("ValueBase") and rc.Value~="" and tostring(rc.Value) or nil
 		local cObj=rc:FindFirstChild("C")
-		if cObj then playerInfoCache[uid].raceTier=cObj.Value end
-		if raceWatchers[uid] then raceWatchers[uid]:Disconnect() end
-		raceWatchers[uid]=rc.Changed:Connect(function(v) playerInfoCache[uid]=playerInfoCache[uid] or {}; if v~="" then playerInfoCache[uid].race=tostring(v) end end)
+		if cObj then S.playerInfoCache[uid].raceTier=cObj.Value end
+		if S.raceWatchers[uid] then S.raceWatchers[uid]:Disconnect() end
+		S.raceWatchers[uid]=rc.Changed:Connect(function(v) S.playerInfoCache[uid]=S.playerInfoCache[uid] or {}; if v~="" then S.playerInfoCache[uid].race=tostring(v) end end)
 	end)
-	-- bounty
 	task.spawn(function()
 		local bObj=getStatObj(p,"Bounty")
 		if not bObj then task.wait(3); bObj=getStatObj(p,"Bounty") end; if not bObj then return end
-		playerInfoCache[uid].bounty=bObj.Value
-		if bountyWatchers[uid] then bountyWatchers[uid]:Disconnect() end
-		bountyWatchers[uid]=bObj.Changed:Connect(function(v) playerInfoCache[uid]=playerInfoCache[uid] or {}; playerInfoCache[uid].bounty=v end)
+		S.playerInfoCache[uid].bounty=bObj.Value
+		if S.bountyWatchers[uid] then S.bountyWatchers[uid]:Disconnect() end
+		S.bountyWatchers[uid]=bObj.Changed:Connect(function(v) S.playerInfoCache[uid]=S.playerInfoCache[uid] or {}; S.playerInfoCache[uid].bounty=v end)
 	end)
 end
 
--- ── Webhook ───────────────────────────────────────────────────────────
 local function sendWebhook(sessBeli, sessFrags, sessElap)
 	if not config["Webhook Enabled"] then return end
 	local url=config["Webhook URL"]; if not url or url=="" or url:find("YOUR_ID") then return end
@@ -418,13 +443,13 @@ local function sendWebhook(sessBeli, sessFrags, sessElap)
 			fields={
 				{name="Player",value="```"..pName.."```",inline=true},
 				{name="Level",value="```"..math.floor(curLv).."```",inline=true},
-				{name="Hop #",value="```#"..totalHopCount.."```",inline=true},
+				{name="Hop #",value="```#"..S.totalHopCount.."```",inline=true},
 				{name="Time in Server",value="```"..elapsedStr(sessElap).."```",inline=true},
 				{name="Beli Gained",value="```"..wFmt(sessBeli).."```",inline=true},
 				{name="Fragments Gained",value="```"..wFmt(sessFrags).."```",inline=true},
 				{name="Beli / Min",value="```"..wFmt(math.floor(sessBeli/minInSvr)).."```",inline=true},
 				{name="Frags / Min",value="```"..wFmt(math.floor(sessFrags/minInSvr)).."```",inline=true},
-				{name="Hop Target",value="```"..(hopTargetServer~="" and hopTargetServer or "all").."```",inline=true},
+				{name="Hop Target",value="```"..(S.hopTargetServer~="" and S.hopTargetServer or "all").."```",inline=true},
 				{name="Hop Time",value="```"..getLocalTimeStr().."```",inline=true},
 				{name="Job ID (Prev Server)",value="```"..tostring(jobId):sub(1,36).."```",inline=false},
 			},
@@ -446,7 +471,6 @@ local function sendWebhook(sessBeli, sessFrags, sessElap)
 	end)
 end
 
--- ── Inventory helpers ─────────────────────────────────────────────────
 local function getToolLevel(obj)
 	local lv; pcall(function()
 		local lo=obj:FindFirstChild("Level") or obj:FindFirstChildOfClass("NumberValue") or obj:FindFirstChildOfClass("IntValue")
@@ -467,74 +491,45 @@ local function getEquippedItem()
 	for _,o in ipairs(char:GetChildren()) do if o:IsA("Tool") then return o.Name,getToolLevel(o) end end
 	return "None",nil
 end
-local SKIP_TOOLTIPS = { ["JobTool"] = true, [""] = true, ["Wear"] = true }
-
+local SKIP_TOOLTIPS={["JobTool"]=true,[""]=true,["Wear"]=true}
 local function getInventory()
-    local items = {}
-    local skipItems = {}
-    local bp = player:FindFirstChild("Backpack")
-    if not bp then return items end
-    
-    for _, o in ipairs(bp:GetChildren()) do
-        if o:IsA("Tool") and o.Name ~= "Tool" then
-            local lv = getToolLevel(o)
-            if lv ~= nil then
-                local tip = ""
-                pcall(function() tip = o.ToolTip or "" end)
-                local statType = getToolStatType(o)
-                
-                if SKIP_TOOLTIPS[tip] then
-                    skipItems[#skipItems + 1] = {name=o.Name, level=lv, statType=statType}
-                else
-                    items[#items + 1] = {name=o.Name, level=lv, statType=statType}
-                end
-            end
-        end
-    end
-    for _, v in ipairs(skipItems) do
-        items[#items + 1] = v
-    end
-    
-    return items
+	local items,skipItems={},{}
+	local bp=player:FindFirstChild("Backpack"); if not bp then return items end
+	for _,o in ipairs(bp:GetChildren()) do
+		if o:IsA("Tool") and o.Name~="Tool" then
+			local lv=getToolLevel(o)
+			if lv~=nil then
+				local tip=""; pcall(function() tip=o.ToolTip or "" end)
+				local statType=getToolStatType(o)
+				if SKIP_TOOLTIPS[tip] then skipItems[#skipItems+1]={name=o.Name,level=lv,statType=statType}
+				else items[#items+1]={name=o.Name,level=lv,statType=statType} end
+			end
+		end
+	end
+	for _,v in ipairs(skipItems) do items[#items+1]=v end
+	return items
 end
 local function getSkillLevels(itemName)
-    if skillCache[itemName] then return skillCache[itemName] end
-
-    local res = {}
-    local SKIP_SKILL_ITEMS = { 
-    ["Fishing Rod"] = true, 
-    ["Kitsune Ribbon"] = true, 
-    ["Tool"] = true,
-    ["Awakening"] = true,
-    ["Heightened Senses"] = true,
-}
-    if SKIP_SKILL_ITEMS[itemName] then return res end
-
-    local ok, skillFolder = pcall(function()
-        return pg:WaitForChild("Main", 3)
-                  :WaitForChild("Skills", 3)
-                  :WaitForChild(itemName, 3)
-    end)
-    if not ok or not skillFolder then return res end
-
-    for _, child in ipairs(skillFolder:GetChildren()) do
-        if child.Name == "Template" then continue end
-        if not child:IsA("Frame") then continue end
-
-        local key = child.Name
-        local lvObj = child:FindFirstChild("Level")
-        if lvObj then
-            local val
-            if lvObj:IsA("TextLabel") or lvObj:IsA("TextButton") then
-                -- extract เฉพาะตัวเลขจาก text เช่น "Lv. 100" → 100
-                val = tonumber(lvObj.Text:match("%d+"))
-            elseif lvObj:IsA("IntValue") or lvObj:IsA("NumberValue") then
-                val = lvObj.Value
-            end
-            if val then res[key] = val end
-        end
-    end
-    return res
+	if S.skillCache[itemName] then return S.skillCache[itemName] end
+	local res={}
+	local SKIP_SKILL_ITEMS={["Fishing Rod"]=true,["Kitsune Ribbon"]=true,["Tool"]=true,["Awakening"]=true,["Heightened Senses"]=true}
+	if SKIP_SKILL_ITEMS[itemName] then return res end
+	local ok,skillFolder=pcall(function()
+		return pg:WaitForChild("Main",3):WaitForChild("Skills",3):WaitForChild(itemName,3)
+	end)
+	if not ok or not skillFolder then return res end
+	for _,child in ipairs(skillFolder:GetChildren()) do
+		if child.Name=="Template" then continue end
+		if not child:IsA("Frame") then continue end
+		local lvObj=child:FindFirstChild("Level")
+		if lvObj then
+			local val
+			if lvObj:IsA("TextLabel") or lvObj:IsA("TextButton") then val=tonumber(lvObj.Text:match("%d+"))
+			elseif lvObj:IsA("IntValue") or lvObj:IsA("NumberValue") then val=lvObj.Value end
+			if val then res[child.Name]=val end
+		end
+	end
+	return res
 end
 local function getRace(p)
 	local rn,rt
@@ -549,40 +544,31 @@ local function getRace(p)
 end
 
 -- ═══════════════════════════════════════════════════════════════════════
--- ── GUI BUILD ──────────────────────────────────────────────────────────
+-- GUI BUILD
 -- ═══════════════════════════════════════════════════════════════════════
-local gui = mk("ScreenGui",pg,{Name="IntegratedStatusHUD",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=10})
-local hudPos = UDim2.new(0.5,-HUD_W/2,0.5,-HUD_H/2)
+local gui=mk("ScreenGui",pg,{Name="IntegratedStatusHUD",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=10})
+local hudPos=UDim2.new(0.5,-K.HUD_W/2,0.5,-K.HUD_H/2)
 
--- ── Full Panel ────────────────────────────────────────────────────────
-local fullPanel = mk("Frame",gui,{Size=UDim2.new(0,HUD_W,0,HUD_H),Position=hudPos,BackgroundColor3=C.PANEL,BorderSizePixel=0,ClipsDescendants=false})
+local fullPanel=mk("Frame",gui,{Size=UDim2.new(0,K.HUD_W,0,K.HUD_H),Position=hudPos,BackgroundColor3=C.PANEL,BorderSizePixel=0,ClipsDescendants=false})
 stroke(fullPanel,C.BORDER2,2); corner(fullPanel,8)
 
--- ── Mini Panel (wider: 740px to fit FRAG column) ──────────────────────
-local MINI_W = 740
-local miniPanel = mk("Frame",gui,{
-	Size=UDim2.new(0,MINI_W,0,44),
-	Position=UDim2.new(0.5,-MINI_W/2,0.5,-HUD_H/2),
-	BackgroundColor3=C.PANEL,BorderSizePixel=0,Visible=false
-})
+local miniPanel=mk("Frame",gui,{Size=UDim2.new(0,K.MINI_W,0,44),Position=UDim2.new(0.5,-K.MINI_W/2,0.5,-K.HUD_H/2),BackgroundColor3=C.PANEL,BorderSizePixel=0,Visible=false})
 stroke(miniPanel,C.BORDER2,2); corner(miniPanel,5)
 
--- ── Load overlay ──────────────────────────────────────────────────────
-local loadOverlay = mk("Frame",gui,{Size=UDim2.new(0,HUD_W,0,HUD_H),Position=hudPos,BackgroundColor3=C.BG,ZIndex=50})
+local loadOverlay=mk("Frame",gui,{Size=UDim2.new(0,K.HUD_W,0,K.HUD_H),Position=hudPos,BackgroundColor3=C.BG,ZIndex=50})
 corner(loadOverlay,8); stroke(loadOverlay,C.BORDER2,2)
 lbl(loadOverlay,{sz=UDim2.new(1,0,0,28),pos=UDim2.new(0,0,0.38,-14),size=16,color=C.WHITE,text="Account Info",align=Enum.TextXAlignment.Center,z=52})
-local loadStepLbl  = lbl(loadOverlay,{sz=UDim2.new(1,-60,0,16),pos=UDim2.new(0,30,0.38,18),font=Enum.Font.Gotham,size=12,color=C.MUTED,text="Initializing...",align=Enum.TextXAlignment.Center,z=52})
-local loadTrackBg  = mk("Frame",loadOverlay,{Size=UDim2.new(1,-60,0,3),Position=UDim2.new(0,30,0.38,40),BackgroundColor3=C.BORDER,BorderSizePixel=0,ZIndex=52}); corner(loadTrackBg,2)
-local loadBarFill  = mk("Frame",loadTrackBg,{Size=UDim2.new(0,0,1,0),BackgroundColor3=C.WHITE,BorderSizePixel=0,ZIndex=53}); corner(loadBarFill,2)
-local loadPctLbl   = lbl(loadOverlay,{sz=UDim2.new(1,-60,0,14),pos=UDim2.new(0,30,0.38,48),font=Enum.Font.GothamBold,size=10,color=C.DIM,text="0%",align=Enum.TextXAlignment.Right,z=52})
+local loadStepLbl=lbl(loadOverlay,{sz=UDim2.new(1,-60,0,16),pos=UDim2.new(0,30,0.38,18),font=Enum.Font.Gotham,size=12,color=C.MUTED,text="Initializing...",align=Enum.TextXAlignment.Center,z=52})
+local loadTrackBg=mk("Frame",loadOverlay,{Size=UDim2.new(1,-60,0,3),Position=UDim2.new(0,30,0.38,40),BackgroundColor3=C.BORDER,BorderSizePixel=0,ZIndex=52}); corner(loadTrackBg,2)
+local loadBarFill=mk("Frame",loadTrackBg,{Size=UDim2.new(0,0,1,0),BackgroundColor3=C.WHITE,BorderSizePixel=0,ZIndex=53}); corner(loadBarFill,2)
+local loadPctLbl=lbl(loadOverlay,{sz=UDim2.new(1,-60,0,14),pos=UDim2.new(0,30,0.38,48),font=Enum.Font.GothamBold,size=10,color=C.DIM,text="0%",align=Enum.TextXAlignment.Right,z=52})
 
--- ── Notification ──────────────────────────────────────────────────────
-local notifFrame = mk("Frame",gui,{Size=UDim2.new(0,260,0,44),Position=UDim2.new(1,-270,0,60),BackgroundColor3=C.PANEL,ZIndex=60,Visible=false})
+local notifFrame=mk("Frame",gui,{Size=UDim2.new(0,260,0,44),Position=UDim2.new(1,-270,0,60),BackgroundColor3=C.PANEL,ZIndex=60,Visible=false})
 stroke(notifFrame,C.BORDER2,1); corner(notifFrame,6)
-local notifDot    = mk("Frame",notifFrame,{Size=UDim2.new(0,8,0,8),Position=UDim2.new(0,10,0,10),BackgroundColor3=C.SUCCESS,ZIndex=61}); corner(notifDot,4)
-local notifName   = lbl(notifFrame,{sz=UDim2.new(1,-28,0,16),pos=UDim2.new(0,24,0,4),size=11,color=C.WHITE,text="",trunc=Enum.TextTruncate.AtEnd,z=61})
-local notifSub    = lbl(notifFrame,{sz=UDim2.new(1,-28,0,12),pos=UDim2.new(0,24,0,24),font=Enum.Font.Gotham,size=9,color=C.DIM,text="",z=61})
-local notifQ={};  local notifBusy=false
+local notifDot=mk("Frame",notifFrame,{Size=UDim2.new(0,8,0,8),Position=UDim2.new(0,10,0,10),BackgroundColor3=C.SUCCESS,ZIndex=61}); corner(notifDot,4)
+local notifName=lbl(notifFrame,{sz=UDim2.new(1,-28,0,16),pos=UDim2.new(0,24,0,4),size=11,color=C.WHITE,text="",trunc=Enum.TextTruncate.AtEnd,z=61})
+local notifSub=lbl(notifFrame,{sz=UDim2.new(1,-28,0,12),pos=UDim2.new(0,24,0,24),font=Enum.Font.Gotham,size=9,color=C.DIM,text="",z=61})
+local notifQ,notifBusy={},false
 local NI=TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
 local NO=TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.In)
 local function showNotif(name,action,col)
@@ -618,71 +604,58 @@ local function showNotif(name,action,col)
 	end)
 end
 
--- ── Drag ──────────────────────────────────────────────────────────────
-local dragging,dragStart,dragStartPos=false,nil,nil
 fullPanel.InputBegan:Connect(function(inp)
 	if inp.UserInputType==Enum.UserInputType.MouseButton1 then
-		dragging=true; dragStart=inp.Position; dragStartPos=fullPanel.Position
+		S.dragging=true; S.dragStart=inp.Position; S.dragStartPos=fullPanel.Position
 	end
 end)
 UIS.InputChanged:Connect(function(inp)
-	if dragging and inp.UserInputType==Enum.UserInputType.MouseMovement then
-		local ok,d=pcall(function() return inp.Position-dragStart end); if not ok then dragging=false; return end
-		local np=UDim2.new(dragStartPos.X.Scale,dragStartPos.X.Offset+d.X,dragStartPos.Y.Scale,dragStartPos.Y.Offset+d.Y)
+	if S.dragging and inp.UserInputType==Enum.UserInputType.MouseMovement then
+		local ok,d=pcall(function() return inp.Position-S.dragStart end); if not ok then S.dragging=false; return end
+		local np=UDim2.new(S.dragStartPos.X.Scale,S.dragStartPos.X.Offset+d.X,S.dragStartPos.Y.Scale,S.dragStartPos.Y.Offset+d.Y)
 		fullPanel.Position=np; miniPanel.Position=np; loadOverlay.Position=np
 	end
 end)
 UIS.InputEnded:Connect(function(inp)
-	if inp.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
+	if inp.UserInputType==Enum.UserInputType.MouseButton1 then S.dragging=false end
 end)
 
--- ── Full panel separators ─────────────────────────────────────────────
-mk("Frame",fullPanel,{Size=UDim2.new(0,1,0,HUD_H-PAD*2),Position=UDim2.new(0,HALF,0,PAD),BackgroundColor3=C.SEP,ZIndex=3})
-mk("Frame",fullPanel,{Size=UDim2.new(0,HUD_W-PAD*2,0,1),Position=UDim2.new(0,PAD,0,HUD_H/2),BackgroundColor3=C.SEP,ZIndex=3})
+mk("Frame",fullPanel,{Size=UDim2.new(0,1,0,K.HUD_H-K.PAD*2),Position=UDim2.new(0,K.HALF,0,K.PAD),BackgroundColor3=C.SEP,ZIndex=3})
+mk("Frame",fullPanel,{Size=UDim2.new(0,K.HUD_W-K.PAD*2,0,1),Position=UDim2.new(0,K.PAD,0,K.HUD_H/2),BackgroundColor3=C.SEP,ZIndex=3})
 
--- ── Quadrant coords ───────────────────────────────────────────────────
-local Q1X,Q1Y,Q1W = PAD,       PAD,         HALF-PAD*2
-local Q2X,Q2Y,Q2W = HALF+PAD,  PAD,         HALF-PAD*2
-local Q3X,Q3Y,Q3W = PAD,       HUD_H/2+PAD, HALF-PAD*2
-local Q4X,Q4Y,Q4W = HALF+PAD,  HUD_H/2+PAD, HALF-PAD*2
-
--- ── stat block builder ────────────────────────────────────────────────
-local function statBlock(x,y,w,labelTxt,barColor)
-	lbl(fullPanel,{sz=UDim2.new(0,w-4,0,12),pos=UDim2.new(0,x,0,y),size=9,color=C.DIM,text=labelTxt,z=4})
-	local vl=lbl(fullPanel,{sz=UDim2.new(0,w-4,0,17),pos=UDim2.new(0,x,0,y+12),size=13,color=C.OFFWHITE,text="0",trunc=Enum.TextTruncate.AtEnd,z=4})
+local function statBlock(par, x, y, w, labelTxt, barColor)
+	lbl(par,{sz=UDim2.new(0,w-4,0,12),pos=UDim2.new(0,x,0,y),size=9,color=C.DIM,text=labelTxt,z=4})
+	local vl=lbl(par,{sz=UDim2.new(0,w-4,0,17),pos=UDim2.new(0,x,0,y+12),size=13,color=C.OFFWHITE,text="0",trunc=Enum.TextTruncate.AtEnd,z=4})
 	local bf
 	if barColor then
-		local bb=mk("Frame",fullPanel,{Size=UDim2.new(0,w-8,0,3),Position=UDim2.new(0,x,0,y+31),BackgroundColor3=C.BORDER,BorderSizePixel=0,ZIndex=4}); corner(bb,1)
+		local bb=mk("Frame",par,{Size=UDim2.new(0,w-8,0,3),Position=UDim2.new(0,x,0,y+31),BackgroundColor3=C.BORDER,BorderSizePixel=0,ZIndex=4}); corner(bb,1)
 		bf=mk("Frame",bb,{Size=UDim2.new(0,0,1,0),BackgroundColor3=barColor,BorderSizePixel=0,ZIndex=5}); corner(bf,1)
 	end
 	return vl,bf
 end
 
--- ═══════════════ Q1 — Player Info ═════════════════════════════════════
-local UI = {}
-UI.avatar=mk("ImageLabel",fullPanel,{Size=UDim2.new(0,52,0,52),Position=UDim2.new(0,Q1X,0,Q1Y),BackgroundColor3=C.CARD,ZIndex=4})
+-- Q1
+local UI={}
+UI.avatar=mk("ImageLabel",fullPanel,{Size=UDim2.new(0,52,0,52),Position=UDim2.new(0,K.Q1X,0,K.Q1Y),BackgroundColor3=C.CARD,ZIndex=4})
 stroke(UI.avatar,C.BORDER2,2); corner(UI.avatar,5)
-UI.charLabel= lbl(fullPanel,{sz=UDim2.new(0,Q1W-58,0,16),pos=UDim2.new(0,Q1X+56,0,Q1Y),   size=12,color=C.WHITE, text="Loading...",trunc=Enum.TextTruncate.AtEnd,z=4})
-UI.lvlLabel = lbl(fullPanel,{sz=UDim2.new(0,Q1W-58,0,13),pos=UDim2.new(0,Q1X+56,0,Q1Y+18),size=10,color=C.MUTED,text="LV. 0",z=4})
-UI.onlineDot= mk("Frame",fullPanel,{Size=UDim2.new(0,7,0,7),Position=UDim2.new(0,Q1X+56,0,Q1Y+36),BackgroundColor3=C.SUCCESS,ZIndex=4}); corner(UI.onlineDot,4)
-lbl(fullPanel,{sz=UDim2.new(0,55,0,11),pos=UDim2.new(0,Q1X+67,0,Q1Y+34),size=9,color=C.DIM,text="ONLINE",z=4})
+UI.charLabel=lbl(fullPanel,{sz=UDim2.new(0,K.Q1W-58,0,16),pos=UDim2.new(0,K.Q1X+56,0,K.Q1Y),   size=12,color=C.WHITE, text="Loading...",trunc=Enum.TextTruncate.AtEnd,z=4})
+UI.lvlLabel =lbl(fullPanel,{sz=UDim2.new(0,K.Q1W-58,0,13),pos=UDim2.new(0,K.Q1X+56,0,K.Q1Y+18),size=10,color=C.MUTED,text="LV. 0",z=4})
+UI.onlineDot=mk("Frame",fullPanel,{Size=UDim2.new(0,7,0,7),Position=UDim2.new(0,K.Q1X+56,0,K.Q1Y+36),BackgroundColor3=C.SUCCESS,ZIndex=4}); corner(UI.onlineDot,4)
+lbl(fullPanel,{sz=UDim2.new(0,55,0,11),pos=UDim2.new(0,K.Q1X+67,0,K.Q1Y+34),size=9,color=C.DIM,text="ONLINE",z=4})
 task.spawn(function()
-	while true do
-		tween(UI.onlineDot,{BackgroundTransparency=0.5},0.8); task.wait(0.8)
-		tween(UI.onlineDot,{BackgroundTransparency=0},0.8); task.wait(0.8)
-	end
+	while true do tween(UI.onlineDot,{BackgroundTransparency=0.5},0.8); task.wait(0.8); tween(UI.onlineDot,{BackgroundTransparency=0},0.8); task.wait(0.8) end
 end)
-local colW3=math.floor(Q1W/3)
+local colW3=math.floor(K.Q1W/3)
 local function miniRow(x,y,w,lbTxt,vlTxt)
 	lbl(fullPanel,{sz=UDim2.new(0,w,0,11),pos=UDim2.new(0,x,0,y),size=9,color=C.DIM,text=lbTxt,z=4})
 	return lbl(fullPanel,{sz=UDim2.new(0,w,0,13),pos=UDim2.new(0,x,0,y+11),size=11,color=C.OFFWHITE,text=vlTxt,trunc=Enum.TextTruncate.AtEnd,z=4})
 end
-UI.raceValLbl = miniRow(Q1X,        Q1Y+64,colW3-4,"RACE","???")
-UI.teamValLbl = miniRow(Q1X+colW3,  Q1Y+64,colW3-4,"TEAM","N/A")
-UI.spawnValLbl= miniRow(Q1X+colW3*2,Q1Y+64,colW3-4,"SPAWN","???")
-UI.fpsLabel   = lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0,Q1Y+92), size=12,color=C.OFFWHITE,text="FPS 0",z=4})
-UI.pingLabel  = lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0,Q1Y+108),size=12,color=C.OFFWHITE,text="PING 0ms",z=4})
-UI.timeLabel  = lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,13),pos=UDim2.new(0,Q1X,0,Q1Y+124),font=Enum.Font.Gotham,size=10,color=C.DIM,text="00:00:00",z=4})
+UI.raceValLbl =miniRow(K.Q1X,         K.Q1Y+64,colW3-4,"RACE","???")
+UI.teamValLbl =miniRow(K.Q1X+colW3,   K.Q1Y+64,colW3-4,"TEAM","N/A")
+UI.spawnValLbl=miniRow(K.Q1X+colW3*2, K.Q1Y+64,colW3-4,"SPAWN","???")
+UI.fpsLabel  =lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+92), size=12,color=C.OFFWHITE,text="FPS 0",z=4})
+UI.pingLabel =lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+108),size=12,color=C.OFFWHITE,text="PING 0ms",z=4})
+UI.timeLabel =lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,13),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+124),font=Enum.Font.Gotham,size=10,color=C.DIM,text="00:00:00",z=4})
 
 local function mkBtn(x,y,w,h,txt,isOn,col)
 	local b=mk("TextButton",fullPanel,{Size=UDim2.new(0,w,0,h),Position=UDim2.new(0,x,0,y),
@@ -690,26 +663,25 @@ local function mkBtn(x,y,w,h,txt,isOn,col)
 		Text=txt,TextColor3=isOn and C.BG or C.MUTED,TextSize=10,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
 	stroke(b,C.BORDER2,1); corner(b,4); return b
 end
-local bW=math.floor((Q1W-6)/2)
-UI.v1Btn   =mkBtn(Q1X,        Q1Y+142,bW,20,config["Boost FPS V1"] and "V1 ON" or "V1 OFF",config["Boost FPS V1"],C.V1COL)
-UI.v2Btn   =mkBtn(Q1X+bW+6,   Q1Y+142,bW,20,config["Boost FPS V2"] and "V2 ON" or "V2 OFF",config["Boost FPS V2"],C.V2COL)
-UI.hideBtn =mkBtn(Q1X,        Q1Y+166,bW,20,hidePlayersActive and "Del Player ON" or "Del Player OFF",hidePlayersActive,C.WHITE)
-UI.miniBtn =mkBtn(Q1X+bW+6,   Q1Y+166,bW,20,"MINIMIZE",false,C.CARD); UI.miniBtn.TextColor3=C.MUTED
-UI.enemyBtn=mkBtn(Q1X,        Q1Y+190,bW,20,hideEnemiesActive and "HIDE ENEMY ON" or "HIDE ENEMY OFF",hideEnemiesActive,C.DANGER)
-UI.hopBtn  =mkBtn(Q1X+bW+6,   Q1Y+190,bW,20,autoHopActive and "HOP ON" or "HOP OFF",autoHopActive,C.HOP)
-UI.capBox  =mk("TextBox",fullPanel,{Size=UDim2.new(0,bW-34,0,20),Position=UDim2.new(0,Q1X,0,Q1Y+214),
+local bW=math.floor((K.Q1W-6)/2)
+UI.v1Btn   =mkBtn(K.Q1X,       K.Q1Y+142,bW,20,config["Boost FPS V1"] and "V1 ON" or "V1 OFF",config["Boost FPS V1"],C.V1COL)
+UI.v2Btn   =mkBtn(K.Q1X+bW+6,  K.Q1Y+142,bW,20,config["Boost FPS V2"] and "V2 ON" or "V2 OFF",config["Boost FPS V2"],C.V2COL)
+UI.hideBtn =mkBtn(K.Q1X,       K.Q1Y+166,bW,20,S.hidePlayersActive and "Del Player ON" or "Del Player OFF",S.hidePlayersActive,C.WHITE)
+UI.miniBtn =mkBtn(K.Q1X+bW+6,  K.Q1Y+166,bW,20,"MINIMIZE",false,C.CARD); UI.miniBtn.TextColor3=C.MUTED
+UI.enemyBtn=mkBtn(K.Q1X,       K.Q1Y+190,bW,20,S.hideEnemiesActive and "HIDE ENEMY ON" or "HIDE ENEMY OFF",S.hideEnemiesActive,C.DANGER)
+UI.hopBtn  =mkBtn(K.Q1X+bW+6,  K.Q1Y+190,bW,20,S.autoHopActive and "HOP ON" or "HOP OFF",S.autoHopActive,C.HOP)
+UI.capBox  =mk("TextBox",fullPanel,{Size=UDim2.new(0,bW-34,0,20),Position=UDim2.new(0,K.Q1X,0,K.Q1Y+214),
 	BackgroundColor3=C.CARD,BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHITE,
 	Text="",PlaceholderText=tostring(FPS_CAP),PlaceholderColor3=C.DIM,ZIndex=4})
 stroke(UI.capBox,C.BORDER2,1); corner(UI.capBox,4)
-UI.setCapBtn=mkBtn(Q1X+bW-28,Q1Y+214,28,20,"SET",true,C.WHITE); UI.setCapBtn.TextColor3=C.BG
-UI.themeBtn =mkBtn(Q1X+bW+6, Q1Y+214,bW,20,"THEME: Default",false,C.CARD); UI.themeBtn.TextColor3=C.MUTED
-local WH_W=math.floor((Q1W-4)*0.60); local TEST_W=Q1W-WH_W-4
-UI.webhookBtn    =mkBtn(Q1X,       Q1Y+238,WH_W,20,webhookActive and "WEBHOOK ON" or "WEBHOOK OFF",webhookActive,Color3.fromRGB(88,176,255))
-UI.testWebhookBtn=mkBtn(Q1X+WH_W+4,Q1Y+238,TEST_W,20,"TEST SEND",false,C.CARD); UI.testWebhookBtn.TextColor3=Color3.fromRGB(255,200,60)
-lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,10),pos=UDim2.new(0,Q1X,0,Q1Y+264),size=8,color=C.DIM,text="HOP COUNTDOWN",z=4})
-UI.hopCountdownLbl=lbl(fullPanel,{sz=UDim2.new(0,Q1W,0,14),pos=UDim2.new(0,Q1X,0,Q1Y+274),font=Enum.Font.GothamBold,size=11,color=C.HOP,text="DISABLED",z=4})
+UI.setCapBtn=mkBtn(K.Q1X+bW-28,K.Q1Y+214,28,20,"SET",true,C.WHITE); UI.setCapBtn.TextColor3=C.BG
+UI.themeBtn =mkBtn(K.Q1X+bW+6, K.Q1Y+214,bW,20,"THEME: Default",false,C.CARD); UI.themeBtn.TextColor3=C.MUTED
+local WH_W=math.floor((K.Q1W-4)*0.60)
+UI.webhookBtn    =mkBtn(K.Q1X,       K.Q1Y+238,WH_W,20,S.webhookActive and "WEBHOOK ON" or "WEBHOOK OFF",S.webhookActive,Color3.fromRGB(88,176,255))
+UI.testWebhookBtn=mkBtn(K.Q1X+WH_W+4,K.Q1Y+238,K.Q1W-WH_W-4,20,"TEST SEND",false,C.CARD); UI.testWebhookBtn.TextColor3=Color3.fromRGB(255,200,60)
+lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,10),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+264),size=8,color=C.DIM,text="HOP COUNTDOWN",z=4})
+UI.hopCountdownLbl=lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+274),font=Enum.Font.GothamBold,size=11,color=C.HOP,text="DISABLED",z=4})
 
--- Hop popup
 local hopPopup=mk("Frame",gui,{Size=UDim2.new(0,220,0,110),BackgroundColor3=C.PANEL,ZIndex=20,Visible=false})
 stroke(hopPopup,C.BORDER2,1); corner(hopPopup,6)
 lbl(hopPopup,{sz=UDim2.new(1,-10,0,12),pos=UDim2.new(0,8,0,6),size=9,color=C.DIM,text="HOP EVERY (MIN)",z=21})
@@ -720,46 +692,90 @@ stroke(setHopBtn,C.BORDER2,1); corner(setHopBtn,4)
 lbl(hopPopup,{sz=UDim2.new(1,-10,0,12),pos=UDim2.new(0,8,0,48),size=9,color=C.DIM,text="HOP SERVER (BLANK = ALL)",z=21})
 local hopServerBox=mk("TextBox",hopPopup,{Size=UDim2.new(0,204,0,20),Position=UDim2.new(0,8,0,62),BackgroundColor3=C.CARD,BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHITE,Text=config["Hop Server"],PlaceholderText="e.g. singapore",PlaceholderColor3=C.DIM,ZIndex=21})
 stroke(hopServerBox,C.BORDER2,1); corner(hopServerBox,4)
-local hopPopupOpen=false
 local function showHopPopup()
 	local ap=fullPanel.AbsolutePosition
-	hopPopup.Position=UDim2.new(0,ap.X+Q1X+bW+6,0,ap.Y+Q1Y+190+24)
-	hopPopup.Visible=true; hopPopupOpen=true
+	hopPopup.Position=UDim2.new(0,ap.X+K.Q1X+bW+6,0,ap.Y+K.Q1Y+190+24)
+	hopPopup.Visible=true; S.hopPopupOpen=true
 end
-local function hideHopPopup() hopPopup.Visible=false; hopPopupOpen=false end
+local function hideHopPopup() hopPopup.Visible=false; S.hopPopupOpen=false end
 
--- ═══════════════ Q2 — Stats ════════════════════════════════════════════
-local sRH=36
-UI.beliLbl,_          =statBlock(Q2X,Q2Y+0,    Q2W,"BELI",nil)
-UI.fragLbl,_          =statBlock(Q2X,Q2Y+sRH,  Q2W,"FRAGMENTS",nil)
-UI.meleeLbl,UI.meleeBar=statBlock(Q2X,Q2Y+sRH*2,Q2W,"MELEE",C.V1COL)
-UI.defLbl,  UI.defBar  =statBlock(Q2X,Q2Y+sRH*3,Q2W,"DEFENSE",C.V1COL)
-UI.swordLbl,UI.swordBar=statBlock(Q2X,Q2Y+sRH*4,Q2W,"SWORD",C.V1COL)
-UI.gunLbl,  UI.gunBar  =statBlock(Q2X,Q2Y+sRH*5,Q2W,"GUN",C.V1COL)
-UI.fruitLbl,UI.fruitBar=statBlock(Q2X,Q2Y+sRH*6,Q2W,"BLOX FRUIT",C.WARN)
-local sessY=Q2Y+sRH*7+4
-mk("Frame",fullPanel,{Size=UDim2.new(0,Q2W-4,0,1),Position=UDim2.new(0,Q2X,0,sessY-3),BackgroundColor3=C.SEP,ZIndex=4})
-lbl(fullPanel,{sz=UDim2.new(0,Q2W/2-2,0,10),pos=UDim2.new(0,Q2X,0,sessY),size=8,color=C.DIM,text="SESSION BELI",z=4})
-UI.sessionBeliLbl=lbl(fullPanel,{sz=UDim2.new(0,Q2W/2-2,0,15),pos=UDim2.new(0,Q2X,0,sessY+10),size=12,color=C.SUCCESS,text="+0",z=4})
-lbl(fullPanel,{sz=UDim2.new(0,Q2W/2-2,0,10),pos=UDim2.new(0,Q2X+Q2W/2,0,sessY),size=8,color=C.DIM,text="SESSION FRAG",align=Enum.TextXAlignment.Right,z=4})
-UI.sessionFragLbl=lbl(fullPanel,{sz=UDim2.new(0,Q2W/2-2,0,15),pos=UDim2.new(0,Q2X+Q2W/2,0,sessY+10),size=12,color=C.WARN,text="+0",align=Enum.TextXAlignment.Right,z=4})
+-- ════════════════════════════════════════════════════════════════════════
+-- Q2 — Stats + Session (ไม่มีกราฟ)
+-- ════════════════════════════════════════════════════════════════════════
+local Q2_HEIGHT = K.HUD_H/2 - K.PAD*2
 
--- ═══════════════ Q3 — Players ══════════════════════════════════════════
-lbl(fullPanel,{sz=UDim2.new(0,Q3W,0,12),pos=UDim2.new(0,Q3X,0,Q3Y),size=9,color=C.DIM,text="PLAYERS",z=4})
-UI.pcCountLbl=lbl(fullPanel,{sz=UDim2.new(0,100,0,18),pos=UDim2.new(0,Q3X,0,Q3Y+12),size=14,color=C.WHITE,text="? / "..MAX_PLAYERS,z=4})
-local svrBarBg=mk("Frame",fullPanel,{Size=UDim2.new(0,Q3W,0,3),Position=UDim2.new(0,Q3X,0,Q3Y+32),BackgroundColor3=C.BORDER,ZIndex=4}); corner(svrBarBg,1)
+local q2Scroll = mk("ScrollingFrame", fullPanel, {
+	Size            = UDim2.new(0, K.Q2W, 0, Q2_HEIGHT),
+	Position        = UDim2.new(0, K.Q2X, 0, K.Q2Y),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness     = 4,
+	ScrollBarImageColor3   = C.BORDER2,
+	CanvasSize             = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize    = Enum.AutomaticSize.Y,
+	ClipsDescendants       = true,
+	ZIndex                 = 3,
+})
+local q2Inner = mk("Frame", q2Scroll, {
+	Size                   = UDim2.new(1, 0, 0, 500),
+	AutomaticSize          = Enum.AutomaticSize.Y,
+	BackgroundTransparency = 1,
+	BorderSizePixel        = 0,
+	ZIndex                 = 3,
+})
+
+local sRH = 36
+local function q2StatBlock(iy, labelTxt, barColor)
+	return statBlock(q2Inner, 0, iy, K.Q2W, labelTxt, barColor)
+end
+
+UI.beliLbl,_            = q2StatBlock(sRH*0,       "BELI",         nil)
+UI.fragLbl,_            = q2StatBlock(sRH*1,       "FRAGMENTS",    nil)
+UI.meleeLbl,UI.meleeBar = q2StatBlock(sRH*2,       "MELEE",        C.V1COL)
+UI.defLbl,  UI.defBar   = q2StatBlock(sRH*3,       "DEFENSE",      C.V1COL)
+UI.swordLbl,UI.swordBar = q2StatBlock(sRH*4,       "SWORD",        C.V1COL)
+UI.gunLbl,  UI.gunBar   = q2StatBlock(sRH*5,       "GUN",          C.V1COL)
+UI.fruitLbl,UI.fruitBar = q2StatBlock(sRH*6,       "BLOX FRUIT",   C.WARN)
+
+-- Session
+local sessY = sRH*7 + 4
+
+local _cL = math.floor(K.Q2W/2) - 4   -- ความกว้าง column ซ้าย
+local _cR = K.Q2W - math.floor(K.Q2W/2) - 8  -- ความกว้าง column ขวา (หัก padding ขวา)
+local _xR = math.floor(K.Q2W/2) + 2   -- x เริ่มต้น column ขวา
+
+mk("Frame",q2Inner,{Size=UDim2.new(0,K.Q2W-4,0,1),Position=UDim2.new(0,0,0,sessY-3),BackgroundColor3=C.SEP,ZIndex=4})
+lbl(q2Inner,{sz=UDim2.new(0,_cL,0,10),pos=UDim2.new(0,0,0,sessY),size=8,color=C.DIM,text="SESSION BELI",z=4})
+UI.sessionBeliLbl=lbl(q2Inner,{sz=UDim2.new(0,_cL,0,15),pos=UDim2.new(0,0,0,sessY+10),size=12,color=C.SUCCESS,text="+0",z=4})
+lbl(q2Inner,{sz=UDim2.new(0,_cR,0,10),pos=UDim2.new(0,_xR,0,sessY),size=8,color=C.DIM,text="SESSION FRAG",align=Enum.TextXAlignment.Right,z=4})
+UI.sessionFragLbl=lbl(q2Inner,{sz=UDim2.new(0,_cR,0,15),pos=UDim2.new(0,_xR,0,sessY+10),size=12,color=C.WARN,text="+0",align=Enum.TextXAlignment.Right,z=4})
+
+mk("Frame",q2Inner,{Size=UDim2.new(0,K.Q2W-4,0,1),Position=UDim2.new(0,0,0,sessY+28),BackgroundColor3=C.SEP,ZIndex=4})
+lbl(q2Inner,{sz=UDim2.new(0,K.Q2W-4,0,10),pos=UDim2.new(0,0,0,sessY+32),size=8,color=C.DIM,text="RATE (LIVE ESTIMATE)",z=4})
+lbl(q2Inner,{sz=UDim2.new(0,_cL,0,10),pos=UDim2.new(0,0,0,sessY+44),size=8,color=C.DIM,text="BELI / MIN",z=4})
+lbl(q2Inner,{sz=UDim2.new(0,_cR,0,10),pos=UDim2.new(0,_xR,0,sessY+44),size=8,color=C.DIM,text="BELI / HR",align=Enum.TextXAlignment.Right,z=4})
+UI.beliPerMinLbl  =lbl(q2Inner,{sz=UDim2.new(0,_cL,0,15),pos=UDim2.new(0,0,0,sessY+54),size=12,color=C.SUCCESS,text="+0",z=4})
+UI.beliPerHourLbl =lbl(q2Inner,{sz=UDim2.new(0,_cR,0,15),pos=UDim2.new(0,_xR,0,sessY+54),size=12,color=C.SUCCESS,text="+0",align=Enum.TextXAlignment.Right,z=4})
+lbl(q2Inner,{sz=UDim2.new(0,_cL,0,10),pos=UDim2.new(0,0,0,sessY+72),size=8,color=C.DIM,text="FRAG / MIN",z=4})
+lbl(q2Inner,{sz=UDim2.new(0,_cR,0,10),pos=UDim2.new(0,_xR,0,sessY+72),size=8,color=C.DIM,text="FRAG / HR",align=Enum.TextXAlignment.Right,z=4})
+UI.fragPerMinLbl  =lbl(q2Inner,{sz=UDim2.new(0,_cL,0,15),pos=UDim2.new(0,0,0,sessY+82),size=12,color=C.FRAG,text="+0",z=4})
+UI.fragPerHourLbl =lbl(q2Inner,{sz=UDim2.new(0,_cR,0,15),pos=UDim2.new(0,_xR,0,sessY+82),size=12,color=C.FRAG,text="+0",align=Enum.TextXAlignment.Right,z=4})
+
+-- Q3 Players
+lbl(fullPanel,{sz=UDim2.new(0,K.Q3W,0,12),pos=UDim2.new(0,K.Q3X,0,K.Q3Y),size=9,color=C.DIM,text="PLAYERS",z=4})
+UI.pcCountLbl=lbl(fullPanel,{sz=UDim2.new(0,100,0,18),pos=UDim2.new(0,K.Q3X,0,K.Q3Y+12),size=14,color=C.WHITE,text="? / "..K.MAX_PLAYERS,z=4})
+local svrBarBg=mk("Frame",fullPanel,{Size=UDim2.new(0,K.Q3W,0,3),Position=UDim2.new(0,K.Q3X,0,K.Q3Y+32),BackgroundColor3=C.BORDER,ZIndex=4}); corner(svrBarBg,1)
 UI.serverBarFill=mk("Frame",svrBarBg,{Size=UDim2.new(0,0,1,0),BackgroundColor3=C.WHITE,ZIndex=5}); corner(UI.serverBarFill,1)
-lbl(fullPanel,{sz=UDim2.new(0,Q3W/2,0,12),pos=UDim2.new(0,Q3X+Q3W/2,0,Q3Y),size=9,color=C.DIM,text="TOTAL BOUNTY",align=Enum.TextXAlignment.Right,z=4})
-UI.totalBountyLbl=lbl(fullPanel,{sz=UDim2.new(0,Q3W/2,0,18),pos=UDim2.new(0,Q3X+Q3W/2,0,Q3Y+12),size=12,color=C.BOUNTY,text="0",align=Enum.TextXAlignment.Right,z=4})
-local plrScroll=mk("ScrollingFrame",fullPanel,{Size=UDim2.new(0,Q3W,0,HUD_H/2-PAD*2-42),Position=UDim2.new(0,Q3X,0,Q3Y+38),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BORDER2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,ZIndex=3})
+lbl(fullPanel,{sz=UDim2.new(0,K.Q3W/2,0,12),pos=UDim2.new(0,K.Q3X+K.Q3W/2,0,K.Q3Y),size=9,color=C.DIM,text="TOTAL BOUNTY",align=Enum.TextXAlignment.Right,z=4})
+UI.totalBountyLbl=lbl(fullPanel,{sz=UDim2.new(0,K.Q3W/2,0,18),pos=UDim2.new(0,K.Q3X+K.Q3W/2,0,K.Q3Y+12),size=12,color=C.BOUNTY,text="0",align=Enum.TextXAlignment.Right,z=4})
+local plrScroll=mk("ScrollingFrame",fullPanel,{Size=UDim2.new(0,K.Q3W,0,K.HUD_H/2-K.PAD*2-42),Position=UDim2.new(0,K.Q3X,0,K.Q3Y+38),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BORDER2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,ZIndex=3})
 mk("UIListLayout",plrScroll,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
 mk("UIPadding",plrScroll,{PaddingBottom=UDim.new(0,2)})
 local plrRows={}
 for i=1,20 do
 	local row=mk("Frame",plrScroll,{Size=UDim2.new(1,-4,0,58),BackgroundColor3=C.CARD,ZIndex=4,LayoutOrder=i,Visible=false})
 	stroke(row,C.BORDER2,1); corner(row,4)
-	plrRows[i]={
-		row=row,
+	plrRows[i]={row=row,
 		nameLbl =lbl(row,{sz=UDim2.new(1,-62,0,14),pos=UDim2.new(0,6,0,2), size=11,color=C.WHITE, text="",trunc=Enum.TextTruncate.AtEnd,z=5}),
 		lvlLbl  =lbl(row,{sz=UDim2.new(0,56,0,14), pos=UDim2.new(1,-60,0,2), size=10,color=C.MUTED,text="",align=Enum.TextXAlignment.Right,z=5}),
 		raceLbl =lbl(row,{sz=UDim2.new(0,90,0,12), pos=UDim2.new(0,6,0,18), font=Enum.Font.Gotham,size=9,color=C.FRIEND,text="",trunc=Enum.TextTruncate.AtEnd,z=5}),
@@ -770,93 +786,96 @@ for i=1,20 do
 	}
 end
 
--- ═══════════════ Q4 — Inventory ════════════════════════════════════════
-lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,12),pos=UDim2.new(0,Q4X,0,Q4Y),size=9,color=C.DIM,text="EQUIPPED",z=4})
-UI.equipValLbl=lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,17),pos=UDim2.new(0,Q4X,0,Q4Y+12),size=13,color=C.OFFWHITE,text="None",trunc=Enum.TextTruncate.AtEnd,z=4})
-UI.equipLvlLbl=lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,13),pos=UDim2.new(0,Q4X,0,Q4Y+30),font=Enum.Font.GothamBold,size=10,color=C.WARN,text="",z=4})
-lbl(fullPanel,{sz=UDim2.new(0,Q4W,0,12),pos=UDim2.new(0,Q4X,0,Q4Y+48),size=9,color=C.DIM,text="INVENTORY",z=4})
-local invScroll=mk("ScrollingFrame",fullPanel,{Size=UDim2.new(0,Q4W,0,HUD_H/2-PAD-62-2),Position=UDim2.new(0,Q4X,0,Q4Y+62),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BORDER2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,ZIndex=3})
-mk("UIListLayout",invScroll,{Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder})
+-- Q4 Inventory
+lbl(fullPanel,{sz=UDim2.new(0,K.Q4W,0,12),pos=UDim2.new(0,K.Q4X,0,K.Q4Y),size=9,color=C.DIM,text="EQUIPPED",z=4})
+UI.equipValLbl=lbl(fullPanel,{sz=UDim2.new(0,K.Q4W,0,17),pos=UDim2.new(0,K.Q4X,0,K.Q4Y+12),size=13,color=C.OFFWHITE,text="None",trunc=Enum.TextTruncate.AtEnd,z=4})
+UI.equipLvlLbl=lbl(fullPanel,{sz=UDim2.new(0,K.Q4W,0,13),pos=UDim2.new(0,K.Q4X,0,K.Q4Y+30),font=Enum.Font.GothamBold,size=10,color=C.WARN,text="",z=4})
+lbl(fullPanel,{sz=UDim2.new(0,K.Q4W,0,12),pos=UDim2.new(0,K.Q4X,0,K.Q4Y+48),size=9,color=C.DIM,text="INVENTORY",z=4})
+
+local invScroll=mk("ScrollingFrame",fullPanel,{
+	Size=UDim2.new(0,K.Q4W,0,K.HUD_H/2-K.PAD-62-2),
+	Position=UDim2.new(0,K.Q4X,0,K.Q4Y+62),
+	BackgroundTransparency=1,BorderSizePixel=0,
+	ScrollBarThickness=3,ScrollBarImageColor3=C.BORDER2,
+	CanvasSize=UDim2.new(0,0,0,0),
+	AutomaticCanvasSize=Enum.AutomaticSize.Y,
+	ClipsDescendants=true,ZIndex=3
+})
+mk("UIListLayout",invScroll,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
 mk("UIPadding",invScroll,{PaddingBottom=UDim.new(0,2)})
+
 local invRows={}
 for i=1,20 do
-	local cell=mk("Frame",invScroll,{Size=UDim2.new(1,-4,0,42),BackgroundColor3=C.CARD,ZIndex=4,LayoutOrder=i,Visible=false})
+	local cell=mk("Frame",invScroll,{
+		Size=UDim2.new(1,-4,0,56),
+		BackgroundColor3=C.CARD,ZIndex=4,LayoutOrder=i,Visible=false
+	})
 	stroke(cell,C.BORDER2,1); corner(cell,4)
-	local nameLbl=lbl(cell,{sz=UDim2.new(1,-70,0,20),pos=UDim2.new(0,8,0,0),size=11,color=C.OFFWHITE,text="",trunc=Enum.TextTruncate.AtEnd,z=5})
-	local lvlLbl =lbl(cell,{sz=UDim2.new(0,60,0,20), pos=UDim2.new(1,-66,0,0),size=10,color=C.WARN,   text="",align=Enum.TextXAlignment.Right,z=5})
+	local nameLbl=lbl(cell,{
+		sz=UDim2.new(1,-68,0,16),pos=UDim2.new(0,8,0,4),
+		size=11,color=C.OFFWHITE,text="",trunc=Enum.TextTruncate.AtEnd,z=5
+	})
+	local lvlLbl=lbl(cell,{
+		sz=UDim2.new(0,60,0,16),pos=UDim2.new(1,-66,0,4),
+		size=10,color=C.WARN,text="",align=Enum.TextXAlignment.Right,z=5
+	})
+	mk("Frame",cell,{Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,0,23),BackgroundColor3=C.SEP,ZIndex=5})
 	local skillLbls={}
-	local slotW=36
 	for si,key in ipairs(SKILL_KEYS) do
-		local kl=lbl(cell,{sz=UDim2.new(0,slotW,0,10),pos=UDim2.new(0,8+(si-1)*slotW,0,20),size=8,color=C.DIM,text=key,align=Enum.TextXAlignment.Center,z=5})
-		local cl=lbl(cell,{sz=UDim2.new(0,slotW,0,14),pos=UDim2.new(0,8+(si-1)*slotW,0,28),size=12,color=C.SUCCESS,text="",align=Enum.TextXAlignment.Center,z=5})
+		local xPos=8+(si-1)*40
+		local kl=lbl(cell,{sz=UDim2.new(0,38,0,11),pos=UDim2.new(0,xPos,0,27),size=8,color=C.DIM,text=key,align=Enum.TextXAlignment.Center,z=5})
+		local cl=lbl(cell,{sz=UDim2.new(0,38,0,16),pos=UDim2.new(0,xPos,0,38),size=13,color=C.SUCCESS,text="",align=Enum.TextXAlignment.Center,z=5})
+		kl.Visible=false; cl.Visible=false
 		skillLbls[key]={kl=kl,cl=cl}
 	end
 	invRows[i]={cell=cell,nameLbl=nameLbl,lvlLbl=lvlLbl,skillLbls=skillLbls}
 end
 
--- ═══════════════ MINI PANEL ════════════════════════════════════════════
--- Layout: [Avatar] [Name+LV] | [FPS] | [PING] | [BELI] | [FRAG] | [▼]
+-- Mini Panel
 UI.miniAva=mk("ImageLabel",miniPanel,{Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,6,0,8),BackgroundColor3=C.CARD,ZIndex=3})
 stroke(UI.miniAva,C.BORDER2,1); corner(UI.miniAva,4)
 task.spawn(function()
 	local ok,t=pcall(function() return Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100) end)
 	if ok and t then UI.miniAva.Image=t; UI.avatar.Image=t end
 end)
-UI.miniNameLbl=lbl(miniPanel,{sz=UDim2.new(0,120,0,16),pos=UDim2.new(0,38,0,6), size=12,color=C.WHITE,text="Loading...",z=3})
+UI.miniNameLbl=lbl(miniPanel,{sz=UDim2.new(0,120,0,16),pos=UDim2.new(0,38,0,6),size=12,color=C.WHITE,text="Loading...",z=3})
 UI.miniLvlLbl =lbl(miniPanel,{sz=UDim2.new(0,90,0,12), pos=UDim2.new(0,38,0,24),font=Enum.Font.Gotham,size=10,color=C.DIM,text="LV. 0",z=3})
-
-local function miniCol(x, labelTxt, isHighlight)
-	local col = isHighlight and C.FRAG or C.WHITE
-	lbl(miniPanel,{sz=UDim2.new(0,90,0,12),pos=UDim2.new(0,x,0,6), size=9, color=C.DIM, text=labelTxt,z=3})
-	return lbl(miniPanel,{sz=UDim2.new(0,90,0,16),pos=UDim2.new(0,x,0,22),size=12,color=col,text="...",z=3})
+local function miniCol(x,labelTxt,isHighlight)
+	lbl(miniPanel,{sz=UDim2.new(0,90,0,12),pos=UDim2.new(0,x,0,6),size=9,color=C.DIM,text=labelTxt,z=3})
+	return lbl(miniPanel,{sz=UDim2.new(0,90,0,16),pos=UDim2.new(0,x,0,22),size=12,color=isHighlight and C.FRAG or C.WHITE,text="...",z=3})
 end
-UI.miniFpsLbl  = miniCol(170, "FPS")
-UI.miniPingLbl = miniCol(270, "PING")
-UI.miniBeliLbl = miniCol(370, "BELI")
-UI.miniFragLbl = miniCol(470, "FRAG", true)  -- ← NEW: Fragment column
-
--- ── separator between BELI and FRAG ──────────────────────────────────
+UI.miniFpsLbl  =miniCol(170,"FPS")
+UI.miniPingLbl =miniCol(270,"PING")
+UI.miniBeliLbl =miniCol(370,"BELI")
+UI.miniFragLbl =miniCol(470,"FRAG",true)
 mk("Frame",miniPanel,{Size=UDim2.new(0,1,0,28),Position=UDim2.new(0,466,0,8),BackgroundColor3=C.SEP,ZIndex=3})
-
 local expandBtn=mk("TextButton",miniPanel,{Size=UDim2.new(0,30,0,26),Position=UDim2.new(1,-36,0,9),BackgroundColor3=C.CARD,BorderSizePixel=0,Text="▼",TextColor3=C.MUTED,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=5})
 stroke(expandBtn,C.BORDER2,1); corner(expandBtn,4)
 
--- ── Misc ──────────────────────────────────────────────────────────────
 local blackoutFrame=mk("Frame",gui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.new(0,0,0),ZIndex=1,Visible=false})
 local restoreBtn=mk("TextButton",gui,{Size=UDim2.new(0,96,0,32),AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,-30),BackgroundColor3=C.WHITE,BorderSizePixel=0,Text="RESTORE",TextColor3=C.BG,Font=Enum.Font.GothamBold,TextSize=12,AutoButtonColor=false,Visible=false,ZIndex=51})
-local blackoutActive=false
-local function setBlackout(state) blackoutActive=state; blackoutFrame.Visible=state; restoreBtn.Visible=state end
-if config["White Screen"] then setBlackout(true) end
-restoreBtn.MouseButton1Click:Connect(function() setBlackout(false) end)
+if config["White Screen"] then S.blackoutActive=true; blackoutFrame.Visible=true; restoreBtn.Visible=true end
+restoreBtn.MouseButton1Click:Connect(function() S.blackoutActive=false; blackoutFrame.Visible=false; restoreBtn.Visible=false end)
 
-local selfHL
 local function applyHL(char)
-	if selfHL and selfHL.Parent then selfHL:Destroy() end; selfHL=nil
+	if S.selfHL and S.selfHL.Parent then S.selfHL:Destroy() end; S.selfHL=nil
 	if not char then return end
 	local hl=Instance.new("Highlight"); hl.Name="ESP_SelfHL"
 	hl.FillColor=Color3.fromRGB(255,255,255); hl.OutlineColor=Color3.new(0,0,0)
 	hl.FillTransparency=0.5; hl.OutlineTransparency=0
-	hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; hl.Adornee=char; hl.Parent=char; selfHL=hl
+	hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; hl.Adornee=char; hl.Parent=char; S.selfHL=hl
 end
 if player.Character then task.delay(0.5,function() applyHL(player.Character) end) end
 player.CharacterAdded:Connect(function(char) task.wait(0.5); applyHL(char) end)
 
--- ═══════════════════════════════════════════════════════════════════════
--- ── VIEW TOGGLE ────────────────────────────────────────────────────────
--- ═══════════════════════════════════════════════════════════════════════
-local isMini=false
 local function setView(mini)
-	isMini=mini
+	S.isMini=mini
 	if mini then
-		tween(fullPanel,{BackgroundTransparency=1},0.18)
-		task.delay(0.18,function() fullPanel.Visible=false; fullPanel.BackgroundTransparency=0 end)
-		miniPanel.BackgroundTransparency=1; miniPanel.Visible=true
-		tween(miniPanel,{BackgroundTransparency=0},0.18)
+		tween(fullPanel,{BackgroundTransparency=1},0.18); task.delay(0.18,function() fullPanel.Visible=false; fullPanel.BackgroundTransparency=0 end)
+		miniPanel.BackgroundTransparency=1; miniPanel.Visible=true; tween(miniPanel,{BackgroundTransparency=0},0.18)
 	else
-		tween(miniPanel,{BackgroundTransparency=1},0.18)
-		task.delay(0.18,function() miniPanel.Visible=false; miniPanel.BackgroundTransparency=0 end)
-		fullPanel.BackgroundTransparency=1; fullPanel.Visible=true
-		tween(fullPanel,{BackgroundTransparency=0},0.18)
+		tween(miniPanel,{BackgroundTransparency=1},0.18); task.delay(0.18,function() miniPanel.Visible=false; miniPanel.BackgroundTransparency=0 end)
+		fullPanel.BackgroundTransparency=1; fullPanel.Visible=true; tween(fullPanel,{BackgroundTransparency=0},0.18)
 	end
 end
 expandBtn.MouseButton1Click:Connect(function() setView(false) end)
@@ -864,7 +883,6 @@ expandBtn.MouseEnter:Connect(function() tween(expandBtn,{BackgroundColor3=C.HOVE
 expandBtn.MouseLeave:Connect(function() tween(expandBtn,{BackgroundColor3=C.CARD},0.12) end)
 UI.miniBtn.MouseButton1Click:Connect(function() setView(true) end)
 
--- ── Button logic ──────────────────────────────────────────────────────
 local function addHover(btn,getCol)
 	btn.MouseEnter:Connect(function() tween(btn,{BackgroundColor3=C.HOVER},0.12) end)
 	btn.MouseLeave:Connect(function() tween(btn,{BackgroundColor3=getCol()},0.12) end)
@@ -875,37 +893,37 @@ local function smoothToggle(btn,active,onCol,offCol,onTxt,offTxt)
 end
 
 UI.v1Btn.MouseButton1Click:Connect(function()
-	boostV1Active=not boostV1Active
-	if boostV1Active then task.spawn(function() setMapVisibility(true) end) else task.spawn(function() setMapVisibility(false) end) end
-	smoothToggle(UI.v1Btn,boostV1Active,C.V1COL,C.CARD,"V1 ON","V1 OFF")
+	S.boostV1Active=not S.boostV1Active
+	if S.boostV1Active then task.spawn(function() setMapVisibility(true) end) else task.spawn(function() setMapVisibility(false) end) end
+	smoothToggle(UI.v1Btn,S.boostV1Active,C.V1COL,C.CARD,"V1 ON","V1 OFF")
 end)
 UI.v2Btn.MouseButton1Click:Connect(function()
-	boostV2Active=not boostV2Active
-	if boostV2Active then task.spawn(applyLowGraphic) else task.spawn(removeLowGraphic) end
-	smoothToggle(UI.v2Btn,boostV2Active,C.V2COL,C.CARD,"V2 ON","V2 OFF")
+	S.boostV2Active=not S.boostV2Active
+	if S.boostV2Active then task.spawn(applyLowGraphic) else task.spawn(removeLowGraphic) end
+	smoothToggle(UI.v2Btn,S.boostV2Active,C.V2COL,C.CARD,"V2 ON","V2 OFF")
 end)
 UI.hideBtn.MouseButton1Click:Connect(function()
-	hidePlayersActive=not hidePlayersActive; toggleHidePlayers(hidePlayersActive)
-	smoothToggle(UI.hideBtn,hidePlayersActive,C.WHITE,C.CARD,"DEL PLAYER ON","DEL PLAYER OFF")
+	S.hidePlayersActive=not S.hidePlayersActive; toggleHidePlayers(S.hidePlayersActive)
+	smoothToggle(UI.hideBtn,S.hidePlayersActive,C.WHITE,C.CARD,"DEL PLAYER ON","DEL PLAYER OFF")
 end)
 UI.enemyBtn.MouseButton1Click:Connect(function()
-	hideEnemiesActive=not hideEnemiesActive; task.spawn(function() toggleHideEnemies(hideEnemiesActive) end)
-	smoothToggle(UI.enemyBtn,hideEnemiesActive,C.DANGER,C.CARD,"HIDE ENEMY ON","HIDE ENEMY OFF")
+	S.hideEnemiesActive=not S.hideEnemiesActive; task.spawn(function() toggleHideEnemies(S.hideEnemiesActive) end)
+	smoothToggle(UI.enemyBtn,S.hideEnemiesActive,C.DANGER,C.CARD,"HIDE ENEMY ON","HIDE ENEMY OFF")
 end)
 local WH_COL=Color3.fromRGB(88,176,255)
 UI.webhookBtn.MouseButton1Click:Connect(function()
-	webhookActive=not webhookActive; config["Webhook Enabled"]=webhookActive
-	smoothToggle(UI.webhookBtn,webhookActive,WH_COL,C.CARD,"WEBHOOK ON","WEBHOOK OFF")
-	showNotif("Webhook",webhookActive and "Enabled" or "Disabled",webhookActive and WH_COL or C.DANGER)
+	S.webhookActive=not S.webhookActive; config["Webhook Enabled"]=S.webhookActive
+	smoothToggle(UI.webhookBtn,S.webhookActive,WH_COL,C.CARD,"WEBHOOK ON","WEBHOOK OFF")
+	showNotif("Webhook",S.webhookActive and "Enabled" or "Disabled",S.webhookActive and WH_COL or C.DANGER)
 end)
 UI.testWebhookBtn.MouseButton1Click:Connect(function()
 	task.spawn(function()
-		totalHopCount=totalHopCount+1
+		S.totalHopCount=S.totalHopCount+1
 		local cb=getStat("Beli") or 0; local cf=getStat("Fragments") or 0
-		local sb=sessionInit and math.floor(cb-(sessionStartBeli or cb)) or 0
-		local sf=sessionInit and math.floor(cf-(sessionStartFragments or cf)) or 0
-		local se=tick()-(playerInfoCache[player.UserId] and playerInfoCache[player.UserId].joinTime or tick())
-		sendWebhook(sb,sf,se); showNotif("Webhook","Test sent! #"..totalHopCount,WH_COL)
+		local sb=S.sessionInit and math.floor(cb-(S.sessionStartBeli or cb)) or 0
+		local sf=S.sessionInit and math.floor(cf-(S.sessionStartFragments or cf)) or 0
+		local se=tick()-(S.playerInfoCache[player.UserId] and S.playerInfoCache[player.UserId].joinTime or tick())
+		sendWebhook(sb,sf,se); showNotif("Webhook","Test sent! #"..S.totalHopCount,WH_COL)
 	end)
 end)
 local function applyFpsCap()
@@ -918,28 +936,27 @@ UI.setCapBtn.MouseButton1Click:Connect(applyFpsCap)
 UI.capBox.FocusLost:Connect(function(e) if e then applyFpsCap() end end)
 local function applyHopInterval()
 	local n=tonumber(hopIntervalBox.Text); if not n or n<=0 then return end
-	hopIntervalSecs=n*60; hopCountdown=hopIntervalSecs
+	S.hopIntervalSecs=n*60; S.hopCountdown=S.hopIntervalSecs
 	hopIntervalBox.Text=""; hopIntervalBox.PlaceholderText=tostring(n)
 	showNotif("Auto Hop","Interval → "..n.." min",C.HOP)
 end
 setHopBtn.MouseButton1Click:Connect(applyHopInterval)
 hopIntervalBox.FocusLost:Connect(function(e) if e then applyHopInterval() end end)
 hopServerBox.FocusLost:Connect(function()
-	hopTargetServer=hopServerBox.Text:lower()
-	showNotif("Auto Hop",hopTargetServer=="" and "Target: all servers" or "Target: "..hopServerBox.Text,C.HOP)
+	S.hopTargetServer=hopServerBox.Text:lower()
+	showNotif("Auto Hop",S.hopTargetServer=="" and "Target: all servers" or "Target: "..hopServerBox.Text,C.HOP)
 end)
-addHover(UI.v1Btn,   function() return boostV1Active    and C.V1COL  or C.CARD end)
-addHover(UI.v2Btn,   function() return boostV2Active    and C.V2COL  or C.CARD end)
-addHover(UI.hideBtn, function() return hidePlayersActive and C.WHITE  or C.CARD end)
-addHover(UI.enemyBtn,function() return hideEnemiesActive and C.DANGER or C.CARD end)
-addHover(UI.hopBtn,  function() return autoHopActive     and C.HOP   or C.CARD end)
+addHover(UI.v1Btn,   function() return S.boostV1Active    and C.V1COL  or C.CARD end)
+addHover(UI.v2Btn,   function() return S.boostV2Active    and C.V2COL  or C.CARD end)
+addHover(UI.hideBtn, function() return S.hidePlayersActive and C.WHITE  or C.CARD end)
+addHover(UI.enemyBtn,function() return S.hideEnemiesActive and C.DANGER or C.CARD end)
+addHover(UI.hopBtn,  function() return S.autoHopActive     and C.HOP   or C.CARD end)
 addHover(UI.miniBtn, function() return C.CARD end)
 addHover(UI.setCapBtn,function() return C.WHITE end)
-addHover(UI.webhookBtn,function() return webhookActive and WH_COL or C.CARD end)
+addHover(UI.webhookBtn,function() return S.webhookActive and WH_COL or C.CARD end)
 addHover(UI.testWebhookBtn,function() return C.CARD end)
 addHover(UI.themeBtn,function() return C.CARD end)
 
--- ── Theme ─────────────────────────────────────────────────────────────
 local function applyTheme(idx)
 	curTheme=idx; local t=THEMES[idx]
 	C.BG=t.bg; C.PANEL=t.panel; C.CARD=t.card; C.HOVER=t.hover
@@ -973,51 +990,47 @@ end
 UI.themeBtn.MouseButton1Click:Connect(function() applyTheme((curTheme%#THEMES)+1) end)
 
 -- ═══════════════════════════════════════════════════════════════════════
--- ── UPDATE FUNCTIONS ───────────────────────────────────────────────────
+-- UPDATE FUNCTIONS
 -- ═══════════════════════════════════════════════════════════════════════
-local lastText,lastSize,lastColor={},{},{}
-local barTw,colTw={},{}
 local function setText(lb,val)
-	if not lb or not lb.Parent or lastText[lb]==val then return end; lastText[lb]=val; lb.Text=val
+	if not lb or not lb.Parent or S.lastText[lb]==val then return end; S.lastText[lb]=val; lb.Text=val
 end
 local function setBarX(f,scale)
-	local s=math.clamp(scale,0,1); if lastSize[f]==s then return end; lastSize[f]=s
-	if barTw[f] then barTw[f]:Cancel() end
-	local tw=TS:Create(f,TweenInfo.new(0.22,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(s,0,1,0)}); tw:Play(); barTw[f]=tw
+	local sv=math.clamp(scale,0,1); if S.lastSize[f]==sv then return end; S.lastSize[f]=sv
+	if S.barTw[f] then S.barTw[f]:Cancel() end
+	local tw=TS:Create(f,TweenInfo.new(0.22,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(sv,0,1,0)}); tw:Play(); S.barTw[f]=tw
 end
 local function setColor(lb,col)
-	if not lb or not lb.Parent or lastColor[lb]==col then return end; lastColor[lb]=col
-	if colTw[lb] then colTw[lb]:Cancel() end
-	local tw=TS:Create(lb,TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{TextColor3=col}); tw:Play(); colTw[lb]=tw
+	if not lb or not lb.Parent or S.lastColor[lb]==col then return end; S.lastColor[lb]=col
+	if S.colTw[lb] then S.colTw[lb]:Cancel() end
+	local tw=TS:Create(lb,TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{TextColor3=col}); tw:Play(); S.colTw[lb]=tw
 end
 local function setBgColor(f,col) tween(f,{BackgroundColor3=col},0.2) end
 
-local fps,frameCount,lastFpsT=0,0,tick()
 Run.RenderStepped:Connect(function()
-	frameCount+=1; local n=tick()
-	if n-lastFpsT>=0.5 then fps=math.floor(frameCount/(n-lastFpsT)); frameCount=0; lastFpsT=n end
+	S.frameCount+=1; local n=tick()
+	if n-S.lastFpsT>=0.5 then S.fps=math.floor(S.frameCount/(n-S.lastFpsT)); S.frameCount=0; S.lastFpsT=n end
 end)
 local function getPing()
 	local ok,p=pcall(function() return Stats.Network.ServerStatsItem["Data Ping"] end)
 	return ok and type(p)=="number" and math.floor(p) or math.floor(player:GetNetworkPing()*1000)
 end
 
-local scriptStart=tick()
 local function updateFast()
-	local ping=getPing(); local e=tick()-scriptStart
-	setText(UI.fpsLabel,"FPS "..fps); setText(UI.pingLabel,"PING "..ping.."ms")
+	local ping=getPing(); local e=tick()-S.scriptStart
+	setText(UI.fpsLabel,"FPS "..S.fps); setText(UI.pingLabel,"PING "..ping.."ms")
 	setText(UI.timeLabel,("%02d:%02d:%02d"):format(math.floor(e/3600),math.floor(e%3600/60),math.floor(e%60)))
 	setColor(UI.pingLabel,ping<80 and C.SUCCESS or ping<150 and C.WARN or C.DANGER)
-	setText(UI.miniFpsLbl,"FPS "..fps); setText(UI.miniPingLbl,ping.."ms")
+	setText(UI.miniFpsLbl,"FPS "..S.fps); setText(UI.miniPingLbl,ping.."ms")
 	setText(UI.miniBeliLbl,formatVal(getStat("Beli"),"Beli"))
-	setText(UI.miniFragLbl,formatVal(getStat("Fragments"),"Fragments"))  -- ← FRAGMENT in mini
+	setText(UI.miniFragLbl,formatVal(getStat("Fragments"),"Fragments"))
 	UI.capBox.PlaceholderText=tostring(FPS_CAP)
-	setText(UI.hopCountdownLbl,autoHopActive and (function()
-		local s=math.max(0,math.floor(hopCountdown))
-		local h=math.floor(s/3600); s=s%3600; local m=math.floor(s/60); s=s%60
-		return h>0 and ("%d:%02d:%02d"):format(h,m,s) or ("%02d:%02d"):format(m,s)
+	setText(UI.hopCountdownLbl,S.autoHopActive and (function()
+		local sv=math.max(0,math.floor(S.hopCountdown))
+		local h=math.floor(sv/3600); sv=sv%3600; local m=math.floor(sv/60); sv=sv%60
+		return h>0 and ("%d:%02d:%02d"):format(h,m,sv) or ("%02d:%02d"):format(m,sv)
 	end)() or "DISABLED")
-	setColor(UI.hopCountdownLbl,autoHopActive and C.HOP or C.DIM)
+	setColor(UI.hopCountdownLbl,S.autoHopActive and C.HOP or C.DIM)
 end
 
 local function updateStats()
@@ -1029,9 +1042,9 @@ local function updateStats()
 	setText(UI.beliLbl,formatVal(getStat("Beli"),"Beli"))
 	setText(UI.fragLbl,formatVal(getStat("Fragments"),"Fragments"))
 	local cb=getStat("Beli"); local cf=getStat("Fragments")
-	if not sessionInit and cb and cf then sessionStartBeli=cb; sessionStartFragments=cf; sessionInit=true end
-	if sessionInit then
-		local gb=math.floor((cb or 0)-sessionStartBeli); local gf=math.floor((cf or 0)-sessionStartFragments)
+	if not S.sessionInit and cb and cf then S.sessionStartBeli=cb; S.sessionStartFragments=cf; S.sessionInit=true end
+	if S.sessionInit then
+		local gb=math.floor((cb or 0)-S.sessionStartBeli); local gf=math.floor((cf or 0)-S.sessionStartFragments)
 		setText(UI.sessionBeliLbl,(gb>=0 and "+" or "")..formatVal(gb,"Beli"))
 		setText(UI.sessionFragLbl,(gf>=0 and "+" or "")..formatVal(gf,"Fragments"))
 		setColor(UI.sessionBeliLbl,gb>=0 and C.SUCCESS or C.DANGER)
@@ -1039,95 +1052,81 @@ local function updateStats()
 	end
 	local function doStat(vl,bar,key)
 		local v=getStat(key); setText(vl,formatVal(v))
-		if bar then setBarX(bar,tonumber(v) and tonumber(v)/COMBAT_CAP or 0) end
+		if bar then setBarX(bar,tonumber(v) and tonumber(v)/K.COMBAT_CAP or 0) end
 	end
 	doStat(UI.meleeLbl,UI.meleeBar,"Melee"); doStat(UI.defLbl,UI.defBar,"Defense")
 	doStat(UI.swordLbl,UI.swordBar,"Sword"); doStat(UI.gunLbl,UI.gunBar,"Gun")
 	local fv=getStat("Blox Fruit"); setText(UI.fruitLbl,formatVal(fv))
-	if UI.fruitBar then setBarX(UI.fruitBar,tonumber(fv) and tonumber(fv)/COMBAT_CAP or 0) end
+	if UI.fruitBar then setBarX(UI.fruitBar,tonumber(fv) and tonumber(fv)/K.COMBAT_CAP or 0) end
 	local rn,rt=getRace(player)
 	setText(UI.raceValLbl,rn and (rn..(rt and " [V"..rt.."]" or "")) or "Not V4")
 	setText(UI.teamValLbl,player.Team and player.Team.Name or "N/A")
 	local sp=getStat("SpawnPoint"); setText(UI.spawnValLbl,sp~=nil and tostring(sp) or "??")
 end
 
-local INV_STAT_COLORS={Sword=C.SUCCESS,Gun=C.FRIEND,["Blox Fruit"]=Color3.fromRGB(200,140,255),Defense=C.DIST,Melee=C.WARN}
+local function updateRates()
+	S.beliPerMin, S.beliPerHour = calcRate(S.beliHistory)
+	S.fragPerMin, S.fragPerHour = calcRate(S.fragHistory)
+	local function rateStr(v)
+		local sg=v>=0 and "+" or ""
+		if math.abs(v)>=1e6 then return sg..("%.1fM"):format(v/1e6)
+		elseif math.abs(v)>=1e3 then return sg..("%.1fK"):format(v/1e3)
+		else return sg..tostring(v) end
+	end
+	setText(UI.beliPerMinLbl,  rateStr(S.beliPerMin));  setColor(UI.beliPerMinLbl,  S.beliPerMin>=0  and C.SUCCESS or C.DANGER)
+	setText(UI.beliPerHourLbl, rateStr(S.beliPerHour)); setColor(UI.beliPerHourLbl, S.beliPerHour>=0 and C.SUCCESS or C.DANGER)
+	setText(UI.fragPerMinLbl,  rateStr(S.fragPerMin));  setColor(UI.fragPerMinLbl,  S.fragPerMin>=0  and C.SUCCESS or C.DANGER)
+	setText(UI.fragPerHourLbl, rateStr(S.fragPerHour)); setColor(UI.fragPerHourLbl, S.fragPerHour>=0 and C.SUCCESS or C.DANGER)
+end
+
+local INV_STAT_COLORS={
+	Sword=C.SUCCESS, Gun=C.FRIEND,
+	["Blox Fruit"]=Color3.fromRGB(200,140,255),
+	Defense=C.DIST, Melee=C.WARN
+}
+
 local function updateInventory()
-    local en, elv = getEquippedItem()
-    setText(UI.equipValLbl, en)
-    if elv ~= nil then
-        setText(UI.equipLvlLbl, "LV " .. fmtComma(elv))
-        setColor(UI.equipLvlLbl, C.WARN)
-    else
-        setText(UI.equipLvlLbl, en ~= "None" and "No Level" or "")
-        setColor(UI.equipLvlLbl, C.DIM)
-    end
-
-    local items = getInventory()
-    for i = 1, 20 do
-        local pf = invRows[i]
-        local item = items[i]
-        if item then
-            pf.cell.Visible = true
-            local dn = item.statType and ("[" .. item.statType .. "] " .. item.name) or item.name
-            setText(pf.nameLbl, dn)
-            setColor(pf.nameLbl, INV_STAT_COLORS[item.statType] or C.OFFWHITE)
-            setText(pf.lvlLbl, "LV " .. math.floor(item.level))
-
-            local reqLevels = getSkillLevels(item.name)
-
-            -- ซ่อนทุก slot ก่อน
-            for _, key in ipairs(SKILL_KEYS) do
-                local sl = pf.skillLbls[key]
-                if sl then
-                    sl.kl.Visible = false
-                    sl.cl.Visible = false
-                end
-            end
-
-            -- แสดงเฉพาะ key ที่มีจริง
-            local slotIdx = 0
-            local slotW = 36
-            for key, reqLv in pairs(reqLevels) do
-                -- สร้าง label ถ้ายังไม่มี
-                if not pf.skillLbls[key] then
-                    local kl = lbl(pf.cell, {
-                        sz = UDim2.new(0, slotW, 0, 10),
-                        pos = UDim2.new(0, 8 + slotIdx * slotW, 0, 20),
-                        size = 8, color = C.DIM, text = key,
-                        align = Enum.TextXAlignment.Center, z = 5
-                    })
-                    local cl = lbl(pf.cell, {
-                        sz = UDim2.new(0, slotW, 0, 14),
-                        pos = UDim2.new(0, 8 + slotIdx * slotW, 0, 28),
-                        size = 12, color = C.SUCCESS, text = "",
-                        align = Enum.TextXAlignment.Center, z = 5
-                    })
-                    pf.skillLbls[key] = { kl = kl, cl = cl }
-                end
-
-                local sl = pf.skillLbls[key]
-                sl.kl.Visible = true
-                sl.cl.Visible = true
-                setText(sl.cl, item.level >= reqLv and "🟢" or "🔴")
-                setColor(sl.cl, item.level >= reqLv and C.SUCCESS or C.DANGER)
-                slotIdx = slotIdx + 1
-            end
-        else
-            pf.cell.Visible = false
-        end
-    end
+	local en,elv=getEquippedItem()
+	setText(UI.equipValLbl,en)
+	if elv~=nil then
+		setText(UI.equipLvlLbl,"LV "..fmtComma(elv)); setColor(UI.equipLvlLbl,C.WARN)
+	else
+		setText(UI.equipLvlLbl,en~="None" and "No Level" or ""); setColor(UI.equipLvlLbl,C.DIM)
+	end
+	local items=getInventory()
+	for i=1,20 do
+		local pf=invRows[i]; local item=items[i]
+		if item then
+			pf.cell.Visible=true
+			local dn=item.statType and ("["..item.statType.."] "..item.name) or item.name
+			setText(pf.nameLbl,dn); setColor(pf.nameLbl,INV_STAT_COLORS[item.statType] or C.OFFWHITE)
+			setText(pf.lvlLbl,"LV "..math.floor(item.level))
+			for _,key in ipairs(SKILL_KEYS) do pf.skillLbls[key].kl.Visible=false; pf.skillLbls[key].cl.Visible=false end
+			local reqLevels=getSkillLevels(item.name); local slotIdx=0
+			for _,key in ipairs(SKILL_KEYS) do
+				local reqLv=reqLevels[key]
+				if reqLv then
+					local sl=pf.skillLbls[key]; local xPos=8+slotIdx*40
+					sl.kl.Position=UDim2.new(0,xPos,0,27); sl.cl.Position=UDim2.new(0,xPos,0,38)
+					sl.kl.Visible=true; sl.cl.Visible=true
+					setText(sl.cl,item.level>=reqLv and "🟢" or "🔴")
+					setColor(sl.cl,item.level>=reqLv and C.SUCCESS or C.DANGER)
+					slotIdx=slotIdx+1
+				end
+			end
+		else pf.cell.Visible=false end
+	end
 end
 
 local function updatePlayers()
 	local list=Players:GetPlayers(); local total=#list
-	local ratio=math.clamp(total/MAX_PLAYERS,0,1)
-	setText(UI.pcCountLbl,total.." / "..MAX_PLAYERS)
+	local ratio=math.clamp(total/K.MAX_PLAYERS,0,1)
+	setText(UI.pcCountLbl,total.." / "..K.MAX_PLAYERS)
 	local barCol=ratio>=1 and C.DANGER or ratio>=0.75 and C.WARN or C.WHITE
 	setBgColor(UI.serverBarFill,barCol); setColor(UI.pcCountLbl,barCol); setBarX(UI.serverBarFill,ratio)
 	local totalBounty=0
 	for _,p in ipairs(list) do
-		local cache=playerInfoCache[p.UserId]
+		local cache=S.playerInfoCache[p.UserId]
 		if cache and cache.bounty then totalBounty+=cache.bounty
 		else local bObj=getStatObj(p,"Bounty"); if bObj then totalBounty+=bObj.Value or 0 end end
 	end
@@ -1154,12 +1153,12 @@ local function updatePlayers()
 			if p~=player then
 				local sv,rv,rt2,bv
 				pcall(function()
-					local cache=playerInfoCache[p.UserId]
+					local cache=S.playerInfoCache[p.UserId]
 					if cache then sv=cache.spawn; rv=cache.race; rt2=cache.raceTier; bv=cache.bounty end
 					if not sv or not rv then
 						local d=p:FindFirstChild("Data")
 						if d then
-							if not sv then local s=d:FindFirstChild("LastSpawnPoint"); if s then sv=s.Value end end
+							if not sv then local sp=d:FindFirstChild("LastSpawnPoint"); if sp then sv=sp.Value end end
 							if not rv then local rc=d:FindFirstChild("Race")
 								if rc then
 									if rc:IsA("ValueBase") and rc.Value~="" then rv=tostring(rc.Value) end
@@ -1175,32 +1174,30 @@ local function updatePlayers()
 				setText(pf.spawnLbl,sv and ("LOCATION: "..sv) or "LOCATION: ?")
 				setText(pf.bountyLbl,bv~=nil and ("Bounty: "..fmtComma(bv)) or "Bounty: ?")
 				local rd=distCache[p.UserId] or math.huge
-				setText(pf.distLbl,rd==math.huge and "?" or (fmtComma(math.floor(rd*STUDS_TO_M)).."m"))
+				setText(pf.distLbl,rd==math.huge and "?" or (fmtComma(math.floor(rd*K.STUDS_TO_M)).."m"))
 				setColor(pf.distLbl,C.DIST)
-				setText(pf.timeLbl,sessionTimeStr(playerInfoCache[p.UserId] and playerInfoCache[p.UserId].joinTime))
+				setText(pf.timeLbl,sessionTimeStr(S.playerInfoCache[p.UserId] and S.playerInfoCache[p.UserId].joinTime))
 			else
 				setText(pf.raceLbl,""); setText(pf.spawnLbl,""); setText(pf.bountyLbl,"")
 				setText(pf.distLbl,"YOU"); setColor(pf.distLbl,C.SUCCESS)
-				setText(pf.timeLbl,sessionTimeStr(playerInfoCache[player.UserId] and playerInfoCache[player.UserId].joinTime))
+				setText(pf.timeLbl,sessionTimeStr(S.playerInfoCache[player.UserId] and S.playerInfoCache[player.UserId].joinTime))
 			end
 		elseif pf then pf.row.Visible=false end
 	end
 end
 
--- ═══════════════════════════════════════════════════════════════════════
--- ── AUTO HOP ───────────────────────────────────────────────────────────
--- ═══════════════════════════════════════════════════════════════════════
+-- Auto Hop
 local startAutoHop, stopAutoHop
 local function doHop()
 	local cb=getStat("Beli") or 0; local cf=getStat("Fragments") or 0
-	local sb=sessionInit and math.floor(cb-(sessionStartBeli or cb)) or 0
-	local sf=sessionInit and math.floor(cf-(sessionStartFragments or cf)) or 0
-	local se=tick()-(playerInfoCache[player.UserId] and playerInfoCache[player.UserId].joinTime or tick())
-	totalHopCount+=1; task.spawn(function() sendWebhook(sb,sf,se) end)
+	local sb=S.sessionInit and math.floor(cb-(S.sessionStartBeli or cb)) or 0
+	local sf=S.sessionInit and math.floor(cf-(S.sessionStartFragments or cf)) or 0
+	local se=tick()-(S.playerInfoCache[player.UserId] and S.playerInfoCache[player.UserId].joinTime or tick())
+	S.totalHopCount+=1; task.spawn(function() sendWebhook(sb,sf,se) end)
 	local sb2=pg:FindFirstChild("ServerBrowser"); if not sb2 then return end
 	sb2.Enabled=true; local frame=sb2:FindFirstChild("Frame")
 	if frame then pcall(function() frame.Visible=true end) end
-	pcall(function() frame.Filters.SearchRegion.TextBox.Text=hopTargetServer~="" and hopTargetServer or "" end)
+	pcall(function() frame.Filters.SearchRegion.TextBox.Text=S.hopTargetServer~="" and S.hopTargetServer or "" end)
 	pcall(function() frame.Refresh:Activate() end); task.wait(3)
 	local inside=frame and frame:FindFirstChild("FakeScroll") and frame.FakeScroll:FindFirstChild("Inside")
 	if not inside then return end
@@ -1227,85 +1224,75 @@ local function doHop()
 	tryHop()
 end
 local function autoHopLoop()
-	hopLastTick=tick(); hopCountdown=hopIntervalSecs
-	while autoHopActive do
+	S.hopLastTick=tick(); S.hopCountdown=S.hopIntervalSecs
+	while S.autoHopActive do
 		task.wait(1); local now=tick()
-		hopCountdown=hopCountdown-(now-hopLastTick); hopLastTick=now
-		if hopCountdown<=0 then hopCountdown=hopIntervalSecs; if autoHopActive then task.spawn(doHop) end end
+		S.hopCountdown=S.hopCountdown-(now-S.hopLastTick); S.hopLastTick=now
+		if S.hopCountdown<=0 then S.hopCountdown=S.hopIntervalSecs; if S.autoHopActive then task.spawn(doHop) end end
 	end
 end
 startAutoHop=function()
-	autoHopActive=true; hopCountdown=hopIntervalSecs; hopLastTick=tick()
-	if autoHopThread then task.cancel(autoHopThread) end
-	autoHopThread=task.spawn(autoHopLoop)
+	S.autoHopActive=true; S.hopCountdown=S.hopIntervalSecs; S.hopLastTick=tick()
+	if S.autoHopThread then task.cancel(S.autoHopThread) end
+	S.autoHopThread=task.spawn(autoHopLoop)
 end
 stopAutoHop=function()
-	autoHopActive=false
-	if autoHopThread then task.cancel(autoHopThread); autoHopThread=nil end
-	hopCountdown=hopIntervalSecs
+	S.autoHopActive=false
+	if S.autoHopThread then task.cancel(S.autoHopThread); S.autoHopThread=nil end
+	S.hopCountdown=S.hopIntervalSecs
 	pcall(function() local sb=pg:FindFirstChild("ServerBrowser"); if sb then sb.Enabled=false; local f=sb:FindFirstChild("Frame"); if f then f.Visible=false end end end)
 end
 UI.hopBtn.MouseButton1Click:Connect(function()
-	if autoHopActive then stopAutoHop(); smoothToggle(UI.hopBtn,false,C.HOP,C.CARD,"HOP ON","HOP OFF"); showNotif("Auto Hop","Disabled",C.DANGER); hideHopPopup()
-	else startAutoHop(); smoothToggle(UI.hopBtn,true,C.HOP,C.CARD,"HOP ON","HOP OFF"); showNotif("Auto Hop","Enabled ("..math.floor(hopIntervalSecs/60).." min)",C.HOP) end
+	if S.autoHopActive then stopAutoHop(); smoothToggle(UI.hopBtn,false,C.HOP,C.CARD,"HOP ON","HOP OFF"); showNotif("Auto Hop","Disabled",C.DANGER); hideHopPopup()
+	else startAutoHop(); smoothToggle(UI.hopBtn,true,C.HOP,C.CARD,"HOP ON","HOP OFF"); showNotif("Auto Hop","Enabled ("..math.floor(S.hopIntervalSecs/60).." min)",C.HOP) end
 end)
-UI.hopBtn.MouseButton2Click:Connect(function() if hopPopupOpen then hideHopPopup() else showHopPopup() end end)
+UI.hopBtn.MouseButton2Click:Connect(function() if S.hopPopupOpen then hideHopPopup() else showHopPopup() end end)
 
--- ── Player events ─────────────────────────────────────────────────────
 Players.PlayerAdded:Connect(function(p)
 	task.wait(1); local uid=p.UserId
-	if not playerInfoCache[uid] then playerInfoCache[uid]={} end
-	playerInfoCache[uid].joinTime=tick()
-	watchPlayerData(p)
+	if not S.playerInfoCache[uid] then S.playerInfoCache[uid]={} end
+	S.playerInfoCache[uid].joinTime=tick(); watchPlayerData(p)
 	showNotif(p.DisplayName~=p.Name and (p.DisplayName.." (@"..p.Name..")") or p.Name,"joined the server",C.SUCCESS)
 end)
 Players.PlayerRemoving:Connect(function(p)
 	local uid=p.UserId
 	showNotif(p.DisplayName~=p.Name and (p.DisplayName.." (@"..p.Name..")") or p.Name,"left the server",C.DANGER)
-	if spawnWatchers[uid]   then spawnWatchers[uid]:Disconnect();   spawnWatchers[uid]=nil   end
-	if raceWatchers[uid]    then raceWatchers[uid]:Disconnect();    raceWatchers[uid]=nil    end
-	if bountyWatchers[uid]  then bountyWatchers[uid]:Disconnect();  bountyWatchers[uid]=nil  end
-	if hideCharConns[uid]   then hideCharConns[uid]:Disconnect();   hideCharConns[uid]=nil   end
-	playerInfoCache[uid]=nil; statCache[uid]=nil; hiddenPlayersData[uid]=nil
+	if S.spawnWatchers[uid]  then S.spawnWatchers[uid]:Disconnect();  S.spawnWatchers[uid]=nil  end
+	if S.raceWatchers[uid]   then S.raceWatchers[uid]:Disconnect();   S.raceWatchers[uid]=nil   end
+	if S.bountyWatchers[uid] then S.bountyWatchers[uid]:Disconnect(); S.bountyWatchers[uid]=nil end
+	if S.hideCharConns[uid]  then S.hideCharConns[uid]:Disconnect();  S.hideCharConns[uid]=nil  end
+	S.playerInfoCache[uid]=nil; S.statCache[uid]=nil; S.hiddenPlayersData[uid]=nil
 end)
 for _,p in ipairs(Players:GetPlayers()) do if p~=player then watchPlayerData(p) end end
-player.CharacterAdded:Connect(function(char)
-	if boostV2Active then V2_SKIP[char]=true end
-end)
+player.CharacterAdded:Connect(function(char) if S.boostV2Active then V2_SKIP[char]=true end end)
 
 UIS.InputBegan:Connect(function(inp,gp)
 	if gp then return end
-	if inp.KeyCode==Enum.KeyCode.B then setBlackout(not blackoutActive) end
-	if inp.KeyCode==Enum.KeyCode.RightControl then setView(not isMini) end
-	if inp.UserInputType==Enum.UserInputType.MouseButton1 and hopPopupOpen then hideHopPopup() end
+	if inp.KeyCode==Enum.KeyCode.B then S.blackoutActive=not S.blackoutActive; blackoutFrame.Visible=S.blackoutActive; restoreBtn.Visible=S.blackoutActive end
+	if inp.KeyCode==Enum.KeyCode.RightControl then setView(not S.isMini) end
+	if inp.UserInputType==Enum.UserInputType.MouseButton1 and S.hopPopupOpen then hideHopPopup() end
 end)
 
-if config["Boost FPS V1"] then task.spawn(function() task.wait(2); boostV1Active=true; setMapVisibility(true) end) end
-if config["Boost FPS V2"] then task.spawn(function() task.wait(2); boostV2Active=true; applyLowGraphic() end) end
+if config["Boost FPS V1"] then task.spawn(function() task.wait(2); S.boostV1Active=true; setMapVisibility(true) end) end
+if config["Boost FPS V2"] then task.spawn(function() task.wait(2); S.boostV2Active=true; applyLowGraphic() end) end
 if config["Remove Death Effect"] then
 	local function rde() pcall(function() local r=game:GetService("ReplicatedStorage"); local d=r:WaitForChild("Effect",10):WaitForChild("Container",10):WaitForChild("Death",10); if d then d:Destroy() end end) end
 	rde(); player.CharacterAdded:Connect(function() task.wait(0.5); rde() end)
 end
-if hidePlayersActive then task.spawn(function() task.wait(1); toggleHidePlayers(true) end) end
-if hideEnemiesActive then task.spawn(function() task.wait(2); toggleHideEnemies(true) end) end
+if S.hidePlayersActive then task.spawn(function() task.wait(1); toggleHidePlayers(true) end) end
+if S.hideEnemiesActive then task.spawn(function() task.wait(2); toggleHideEnemies(true) end) end
 if config["Auto Hop"] then task.spawn(function() task.wait(6); startAutoHop() end) end
 
 -- ═══════════════════════════════════════════════════════════════════════
--- ── LOADING SEQUENCE ───────────────────────────────────────────────────
+-- LOADING SEQUENCE
 -- ═══════════════════════════════════════════════════════════════════════
-local LOAD_STEPS={
-	"Loading account...", "Loading username...", "Loading level...",
-	"Loading beli...", "Loading fragments...", "Loading fruit...",
-	"Loading combat stats...", "Loading inventory...", "Loading players...", "Loading performance..."
-}
+local LOAD_STEPS={"Loading account...","Loading username...","Loading level...","Loading beli...","Loading fragments...","Loading fruit...","Loading combat stats...","Loading inventory...","Loading players...","Loading performance..."}
 task.spawn(function()
-	local N=#LOAD_STEPS; local DUR=0.08
-	for i,step in ipairs(LOAD_STEPS) do
-		loadStepLbl.Text=step; task.wait(DUR)
-	end
+	local N=#LOAD_STEPS
+	for _,step in ipairs(LOAD_STEPS) do loadStepLbl.Text=step; task.wait(0.08) end
 	local s=tick()
 	repeat
-		local r=math.min((tick()-s)/(N*DUR),1); local ease=r*r*(3-2*r)
+		local r=math.min((tick()-s)/(N*0.08),1); local ease=r*r*(3-2*r)
 		if loadBarFill.Parent then loadBarFill.Size=UDim2.new(ease,0,1,0) end
 		if loadPctLbl.Parent  then loadPctLbl.Text=math.floor(ease*100).."%" end
 		if loadOverlay.Parent then loadOverlay.BackgroundTransparency=0.05+0.15*ease end
@@ -1328,34 +1315,34 @@ task.spawn(function()
 		end
 		if loadOverlay.Parent then loadOverlay:Destroy() end
 	end
-
-		task.spawn(function()
+	task.spawn(function()
 		if not player.Character then player.CharacterAdded:Wait() end
-		local char = player.Character
+		local char=player.Character
 		while not char:FindFirstChild("HumanoidRootPart") do task.wait(0.1) end
-		local bp = player:WaitForChild("Backpack", 10)
-		if not bp then return end
-		local hum = char:WaitForChild("Humanoid", 10)
-		if not hum then return end
+		local bp=player:WaitForChild("Backpack",10); if not bp then return end
+		local hum=char:WaitForChild("Humanoid",10); if not hum then return end
 		task.wait(1)
-		for _, tool in ipairs(bp:GetChildren()) do
+		for _,tool in ipairs(bp:GetChildren()) do
 			if tool:IsA("Tool") then
-				pcall(function() hum:EquipTool(tool) end)
-				task.wait(0.08)
-				skillCache[tool.Name] = getSkillLevels(tool.Name)
-
-				print("[Cache] tool:", tool.Name, "keys:")
-				for k,v in pairs(skillCache[tool.Name]) do
-					print("  ->", k, "=", v)
-				end
-				
-				pcall(function() hum:UnequipTools() end)
-				task.wait(0.08)
+				pcall(function() hum:EquipTool(tool) end); task.wait(0.08)
+				S.skillCache[tool.Name]=getSkillLevels(tool.Name)
+				pcall(function() hum:UnequipTools() end); task.wait(0.08)
 			end
 		end
-		end)
-	-- ── Start update loops ───────────────────────────────────────────
+	end)
 	task.spawn(function() task.wait(0.1); while true do updateFast(); task.wait(0.05) end end)
 	task.spawn(function() task.wait(0.3); updateStats(); updateInventory(); while true do task.wait(0.2); updateStats(); updateInventory() end end)
 	task.spawn(function() task.wait(0.5); updatePlayers(); while true do task.wait(0.3); updatePlayers() end end)
+	task.spawn(function()
+		task.wait(2)
+		while true do
+			pushHistory(S.beliHistory, getStat("Beli"), K.HISTORY_MAX)
+			pushHistory(S.fragHistory, getStat("Fragments"), K.HISTORY_MAX)
+			task.wait(K.HISTORY_INTERVAL)
+		end
+	end)
+	task.spawn(function()
+		task.wait(12)
+		while true do updateRates(); task.wait(5) end
+	end)
 end)
