@@ -10,8 +10,9 @@
 --	["Hop Interval"]  = 45,
 --	["Hop Server"]    = "singapore",
 --	["Webhook Enabled"] = false,
---	["Webhook URL"]   = "YOUR_WEBHOOK",
+--	["Webhook URL"]   = "",
 --	["Webhook Name"]  = "Blox fruit Webhook",
+--	["Webhook Interval"] = 30,
 --} end)()
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -19,10 +20,10 @@ while not game:GetService("Players").LocalPlayer do task.wait(0.1) end
 while not game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui") do task.wait(0.1) end
 
 do
-    local _pg = game:GetService("Players").LocalPlayer.PlayerGui
-    for _, v in ipairs(_pg:GetChildren()) do
-        if v.Name == "IntegratedStatusHUD" then v:Destroy() end
-    end
+	local _pg = game:GetService("Players").LocalPlayer.PlayerGui
+	for _, v in ipairs(_pg:GetChildren()) do
+		if v.Name == "IntegratedStatusHUD" then v:Destroy() end
+	end
 end
 _G.__FpsCheckRunning = nil
 _G.__FpsCheckRunning = true
@@ -52,6 +53,8 @@ local C = {
 	V1COL=Color3.fromRGB(80,190,255), V2COL=Color3.fromRGB(255,195,60),
 	BOUNTY=Color3.fromRGB(255,160,60), HOP=Color3.fromRGB(255,80,180),
 	FRAG=Color3.fromRGB(160,120,255),
+	WEBHOOK=Color3.fromRGB(88,176,255),
+	PULL=Color3.fromRGB(255,100,100),
 }
 
 local THEMES = {
@@ -71,7 +74,7 @@ local K = {
 	COMBAT_CAP   = 2800,
 	STUDS_TO_M   = 0.28,
 	SKILL_KEYS   = SKILL_KEYS,
-	HUD_W = 640, HUD_H = 780, PAD = 10,
+	HUD_W = 640, HUD_H = 860, PAD = 10,
 	MINI_W = 740,
 	HISTORY_MAX = 60,
 	HISTORY_INTERVAL = 10,
@@ -88,6 +91,8 @@ if config["Lock Fps"]["Enabled"] then
 	pcall(function() setfpscap(FPS_CAP) end)
 end
 
+local _cfgWHInterval = tonumber(config["Webhook Interval"]) or 30
+
 local S = {
 	skillCache = {},
 	boostV1Active = false, hiddenParts = {}, boostV1Conn = nil,
@@ -103,6 +108,13 @@ local S = {
 	hopCountdown = 0, hopLastTick = 0,
 	totalHopCount = 0,
 	webhookActive = config["Webhook Enabled"],
+	webhookTimerActive    = false,
+	webhookIntervalSecs   = _cfgWHInterval * 60,
+	webhookTimerCountdown = _cfgWHInterval * 60,
+	webhookTimerLastTick  = 0,
+	webhookTimerThread    = nil,
+	webhookTimerPopupOpen = false,
+	totalWebhookCount     = 0,
 	sessionStartBeli = nil, sessionStartFragments = nil, sessionInit = false,
 	statCache = {},
 	playerInfoCache = { [player.UserId] = { joinTime = tick() } },
@@ -122,6 +134,24 @@ local S = {
 }
 S.hopCountdown  = S.hopIntervalSecs
 S.hopLastTick   = tick()
+
+-- BRING MOB STATE
+local BM = {
+	active       = false,
+	task         = nil,
+	mobData      = {},
+	noclipConn   = nil,
+	pinConn      = nil,
+	maxDist      = 1000,
+	maxBatch     = 20,
+	pullForce    = 60000,
+	snapDist     = 30,
+	useCustomOff = false,
+	customOffset = Vector3.new(0, 0, 0),
+	yOffset      = -20,
+}
+
+local bmPinTick = 0
 
 local V2_SKIP = {}
 
@@ -282,32 +312,125 @@ local function applyObjGraphic(obj)
 	elseif obj:IsA("Decal") or obj:IsA("Texture") then obj.Transparency=1
 	elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then obj.Enabled=false end
 end
+local function applyEffectReduce(model)
+	if not model then return end
+	for _, obj in ipairs(model:GetDescendants()) do
+		pcall(function()
+			if obj:IsA("ParticleEmitter") or obj:IsA("Trail")
+				or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles")
+			then
+				obj.Enabled = false
+				obj.Rate = 0
+			elseif obj:IsA("Beam") then
+				obj.Enabled = false
+			elseif obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+				obj.Enabled = false
+			elseif obj:IsA("SelectionBox") or obj:IsA("SelectionSphere") then
+				obj.Visible = false
+			elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+				obj.Enabled = false
+			end
+		end)
+	end
+end
 local function applyLowGraphic()
 	buildV2Skip()
-	local L=game:GetService("Lighting")
-	S.v2Orig={GlobalShadows=L.GlobalShadows,FogEnd=L.FogEnd,ShadowSoftness=L.ShadowSoftness}
-	L.GlobalShadows=false; L.FogEnd=9e9; L.ShadowSoftness=0
-	pcall(function() sethiddenproperty(L,"Technology",2) end)
-	S.v2Orig.QualityLevel=settings().Rendering.QualityLevel; settings().Rendering.QualityLevel=1
-	pcall(function() S.v2Orig.MeshDetail=settings().Rendering.MeshPartDetailLevel; settings().Rendering.MeshPartDetailLevel=Enum.MeshPartDetailLevel.Level04 end)
-	local ter=WS:FindFirstChildOfClass("Terrain")
+	local L = game:GetService("Lighting")
+
+	S.v2Orig = {
+		GlobalShadows    = L.GlobalShadows,
+		FogEnd           = L.FogEnd,
+		FogStart         = L.FogStart,
+		ShadowSoftness   = L.ShadowSoftness,
+		Brightness       = L.Brightness,
+		Ambient          = L.Ambient,
+		OutdoorAmbient   = L.OutdoorAmbient,
+		ClockTime        = L.ClockTime,
+		QualityLevel     = settings().Rendering.QualityLevel,
+	}
+	pcall(function() S.v2Orig.MeshDetail = settings().Rendering.MeshPartDetailLevel end)
+
+	L.GlobalShadows  = false
+	L.FogEnd         = 9e9
+	L.FogStart       = 9e9
+	L.ShadowSoftness = 0
+	L.Brightness     = 0
+	L.Ambient        = Color3.new(0.5, 0.5, 0.5)
+	L.OutdoorAmbient = Color3.new(0.5, 0.5, 0.5)
+	L.ClockTime      = 14
+	pcall(function() sethiddenproperty(L, "Technology", 2) end)
+	settings().Rendering.QualityLevel = 1
+	pcall(function() settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level04 end)
+
+	local ter = WS:FindFirstChildOfClass("Terrain")
 	if ter then
-		S.v2Orig.WW=ter.WaterWaveSize; S.v2Orig.WS=ter.WaterWaveSpeed; S.v2Orig.WR=ter.WaterReflectance; S.v2Orig.WT=ter.WaterTransparency
-		ter.WaterWaveSize=0; ter.WaterWaveSpeed=0; ter.WaterReflectance=0; ter.WaterTransparency=0
-		pcall(function() sethiddenproperty(ter,"Decoration",false) end)
+		S.v2Orig.WW = ter.WaterWaveSize
+		S.v2Orig.WS = ter.WaterWaveSpeed
+		S.v2Orig.WR = ter.WaterReflectance
+		S.v2Orig.WT = ter.WaterTransparency
+		ter.WaterWaveSize    = 0
+		ter.WaterWaveSpeed   = 0
+		ter.WaterReflectance = 0
+		ter.WaterTransparency = 1
+		pcall(function() sethiddenproperty(ter, "Decoration", false) end)
 	end
-	task.spawn(function()
-		local all=WS:GetDescendants()
-		for i=1,#all,150 do
-			if not S.boostV2Active then break end
-			for j=i,math.min(i+149,#all) do if not shouldSkip(all[j]) then pcall(applyObjGraphic,all[j]) end end
-			task.wait()
+
+	for _, child in ipairs(L:GetChildren()) do
+		if child:IsA("PostEffect")
+			or child:IsA("BloomEffect")
+			or child:IsA("BlurEffect")
+			or child:IsA("ColorCorrectionEffect")
+			or child:IsA("DepthOfFieldEffect")
+			or child:IsA("SunRaysEffect")
+		then
+			child.Enabled = false
 		end
+	end
+
+	task.spawn(function()
+		local effectFolders = {"Effects","Effect","VFX","Particles","SkillEffects"}
+		for _, folderName in ipairs(effectFolders) do
+			local folder = WS:FindFirstChild(folderName, true)
+			if folder then applyEffectReduce(folder) end
+		end
+
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p.Character then applyEffectReduce(p.Character) end
+			p.CharacterAdded:Connect(function(char)
+				task.wait(0.1)
+				if S.boostV2Active then applyEffectReduce(char) end
+			end)
+		end
+
+		local ef = WS:FindFirstChild("Enemies")
+		if ef then applyEffectReduce(ef) end
 	end)
+
 	if S.v2DescConn then S.v2DescConn:Disconnect() end
-	S.v2DescConn=game.DescendantAdded:Connect(function(obj)
-		if not S.boostV2Active or not obj:IsDescendantOf(WS) or shouldSkip(obj) then return end
-		task.wait(0.3); if S.boostV2Active then pcall(applyObjGraphic,obj) end
+	S.v2DescConn = game.DescendantAdded:Connect(function(obj)
+		if not S.boostV2Active or shouldSkip(obj) then return end
+		pcall(function()
+			if obj:IsA("ParticleEmitter") or obj:IsA("Trail")
+				or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles")
+			then
+				obj.Enabled = false
+				obj.Rate = 0
+			elseif obj:IsA("Beam") then
+				obj.Enabled = false
+			elseif obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+				obj.Enabled = false
+			elseif obj:IsA("BasePart") and obj:IsDescendantOf(WS) then
+				obj.Material    = Enum.Material.SmoothPlastic
+				obj.Reflectance = 0
+				obj.CastShadow  = false
+			elseif obj:IsA("Decal") or obj:IsA("Texture") then
+				obj.Transparency = 1
+			elseif obj:IsA("SpecialMesh") then
+				obj.TextureId = ""
+			elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+				obj.Enabled = false
+			end
+		end)
 	end)
 end
 local function removeLowGraphic()
@@ -427,36 +550,460 @@ local function watchPlayerData(p)
 	end)
 end
 
-local function sendWebhook(sessBeli, sessFrags, sessElap)
+-- BRING MOB FUNCTIONS
+local function bmGetEHRP(e)
+	return e:FindFirstChild("HumanoidRootPart") or e:FindFirstChild("Torso")
+end
+local function bmGetHum(e)
+	return e:FindFirstChildOfClass("Humanoid")
+end
+local function bmIsAlive(e)
+	local h = bmGetHum(e)
+	return h and h.Health > 0
+end
+local function bmGetMyRoot()
+	local char = player.Character
+	return char and char:FindFirstChild("HumanoidRootPart")
+end
+local function bmGetOffset()
+	if BM.useCustomOff then return BM.customOffset end
+	local angle = math.random() * math.pi * 2
+	local radius = math.random(2, 5)
+	return Vector3.new(
+		math.cos(angle) * radius,
+		0,
+		math.sin(angle) * radius
+	)
+end
+
+local function bmRelease(e)
+	local data = BM.mobData[e]; if not data then return end
+
+	if data.bp and data.bp.Parent then pcall(function() data.bp:Destroy() end) end
+	if data.bv and data.bv.Parent then pcall(function() data.bv:Destroy() end) end
+	if data.bg and data.bg.Parent then pcall(function() data.bg:Destroy() end) end
+
+	local ehrp = bmGetEHRP(e)
+	if ehrp then
+		for _, child in ipairs(ehrp:GetChildren()) do
+			if child.Name:find("BringMob") then pcall(function() child:Destroy() end) end
+		end
+		pcall(function() ehrp.Anchored = false end)
+		pcall(function() ehrp.AssemblyLinearVelocity  = Vector3.zero end)
+		pcall(function() ehrp.AssemblyAngularVelocity = Vector3.zero end)
+	end
+
+	local h = bmGetHum(e)
+	if h then
+		pcall(function() h.PlatformStand = false end)
+		pcall(function() h.WalkSpeed     = 16 end)
+		pcall(function() h.JumpPower     = 50 end)
+	end
+
+	if e.Parent then
+		for _, p in ipairs(e:GetDescendants()) do
+			if p:IsA("BasePart") then pcall(function() p.CanCollide = true end) end
+		end
+	end
+	BM.mobData[e] = nil
+end
+
+local function bmCleanup()
+	local snap = {}
+	for e in pairs(BM.mobData) do table.insert(snap, e) end
+	for _, e in ipairs(snap) do pcall(bmRelease, e) end
+	BM.mobData = {}
+end
+
+local function bmStartNoclip()
+	if BM.noclipConn then return end
+	BM.noclipConn = Run.Heartbeat:Connect(function()
+		for e in pairs(BM.mobData) do
+			if e and e.Parent then
+				for _, p in ipairs(e:GetDescendants()) do
+					if p:IsA("BasePart") and p.CanCollide then
+						pcall(function() p.CanCollide = false end)
+					end
+				end
+			end
+		end
+	end)
+end
+local function bmStopNoclip()
+	if BM.noclipConn then BM.noclipConn:Disconnect(); BM.noclipConn = nil end
+end
+
+local function startBringMob()
+	BM.active = true
+	bmCleanup()
+	bmStartNoclip()
+	bmPinTick = 0
+
+	if BM.pinConn then BM.pinConn:Disconnect() end
+
+	BM.pinConn = Run.Heartbeat:Connect(function()
+		bmPinTick = bmPinTick + 1
+		if bmPinTick % 3 ~= 0 then return end
+		local myRoot2 = bmGetMyRoot()
+		if not myRoot2 then return end
+		local myPos2 = myRoot2.Position
+
+		for e, data in pairs(BM.mobData) do
+			if not e or not e.Parent or not data or not data.arrived then continue end
+			local ehrp = bmGetEHRP(e); if not ehrp then continue end
+
+			if not data.anchorPos then
+				data.anchorPos = myPos2
+			end
+
+			local moved = (myPos2 - data.anchorPos).Magnitude
+			if moved > 3 then
+				data.anchorPos = myPos2
+				local newTarget = myPos2 + data.offset
+				newTarget = Vector3.new(newTarget.X, myPos2.Y + BM.yOffset, newTarget.Z)
+				data.fixedPos = newTarget
+
+				if data.bp and data.bp.Parent then
+					pcall(function() data.bp.Position = newTarget end)
+				else
+					local fbp = Instance.new("BodyPosition")
+					fbp.Name = "BringMobBP_Fixed"
+					fbp.MaxForce = Vector3.new(1e9,1e9,1e9)
+					fbp.P = 500000; fbp.D = 10000
+					fbp.Position = newTarget
+					pcall(function() fbp.Parent = ehrp end)
+					data.bp = fbp
+				end
+			end
+
+			if not data.bp or not data.bp.Parent then
+				local fbp = Instance.new("BodyPosition")
+				fbp.Name = "BringMobBP_Fixed"
+				fbp.MaxForce = Vector3.new(1e9,1e9,1e9)
+				fbp.P = 500000; fbp.D = 10000
+				fbp.Position = data.fixedPos or myPos2 + data.offset
+				pcall(function() fbp.Parent = ehrp end)
+				data.bp = fbp
+			end
+
+			if not data.bg or not data.bg.Parent then
+				local bg = Instance.new("BodyGyro")
+				bg.Name = "BringMobBG"
+				bg.MaxTorque = Vector3.new(1e9,1e9,1e9)
+				bg.P = 100000; bg.D = 2000
+				bg.CFrame = ehrp.CFrame
+				pcall(function() bg.Parent = ehrp end)
+				data.bg = bg
+			end
+
+			pcall(function()
+				ehrp.AssemblyLinearVelocity  = Vector3.zero
+				ehrp.AssemblyAngularVelocity = Vector3.zero
+			end)
+		end
+	end)
+
+	BM.task = task.spawn(function()
+		local PULL_TIME  = 8
+		local HOLD_TIME  = 5
+		local cyclePhase = "pull"
+		local phaseTimer = 0
+		local lastTick   = tick()
+
+		while BM.active do
+			task.wait(0.05)
+			local now = tick()
+			local dt  = now - lastTick
+			lastTick  = now
+			phaseTimer = phaseTimer + dt
+
+			local myRoot = bmGetMyRoot(); if not myRoot then continue end
+			local ap = myRoot.Position
+			local ef = WS:FindFirstChild("Enemies"); if not ef then task.wait(0.3); continue end
+
+			local snap = {}
+			for e in pairs(BM.mobData) do table.insert(snap, e) end
+			for _, e in ipairs(snap) do
+				if not e or not e.Parent or not bmIsAlive(e) then pcall(bmRelease, e) end
+			end
+
+			if cyclePhase == "pull" and phaseTimer >= PULL_TIME then
+				for e, data in pairs(BM.mobData) do
+					if not data.arrived then
+						local ehrp = bmGetEHRP(e)
+						if ehrp then
+							pcall(function() if data.bp and data.bp.Parent then data.bp:Destroy() end end)
+							pcall(function()
+								ehrp.AssemblyLinearVelocity  = Vector3.zero
+								ehrp.AssemblyAngularVelocity = Vector3.zero
+							end)
+							local fixedTP = ehrp.Position
+							local fixedCF = ehrp.CFrame
+							local fbp = Instance.new("BodyPosition")
+							fbp.Name="BringMobBP_Fixed"; fbp.MaxForce=Vector3.new(1e9,1e9,1e9)
+							fbp.P=500000; fbp.D=10000; fbp.Position=fixedTP
+							pcall(function() fbp.Parent=ehrp end)
+							local bg = Instance.new("BodyGyro")
+							bg.Name="BringMobBG"; bg.MaxTorque=Vector3.new(1e9,1e9,1e9)
+							bg.P=100000; bg.D=2000; bg.CFrame=fixedCF
+							pcall(function() bg.Parent=ehrp end)
+							pcall(function() local h=bmGetHum(e); if h then
+								h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0
+							end end)
+							data.bp=fbp; data.bg=bg; data.arrived=true
+							data.fixedPos=fixedTP; data.fixedCFrame=fixedCF
+						end
+					end
+				end
+				cyclePhase = "hold"
+				phaseTimer = 0
+
+			elseif cyclePhase == "hold" and phaseTimer >= HOLD_TIME then
+				bmCleanup()
+				cyclePhase = "pull"
+				phaseTimer = 0
+			end
+
+			if cyclePhase == "hold" then continue end
+
+			local pulling = 0
+			for _, data in pairs(BM.mobData) do
+				if not data.arrived then pulling = pulling + 1 end
+			end
+
+			for _, e in ipairs(ef:GetChildren()) do
+				if not BM.active then break end
+				if not e or not e.Parent or not bmIsAlive(e) then continue end
+
+				local ehrp = bmGetEHRP(e); if not ehrp then continue end
+				if (ap - ehrp.Position).Magnitude > BM.maxDist then
+					if BM.mobData[e] and not BM.mobData[e].arrived then
+						pcall(bmRelease, e)
+					end
+					continue
+				end
+
+				if not BM.mobData[e] then
+					if pulling >= BM.maxBatch then continue end
+					local off = bmGetOffset()
+					local bp = Instance.new("BodyPosition")
+					bp.Name="BringMobBP"; bp.MaxForce=Vector3.new(1e9,1e9,1e9)
+					bp.P=BM.pullForce; bp.D=2000; bp.Position=ap+off
+					pcall(function() bp.Parent=ehrp end)
+					pcall(function() local h=bmGetHum(e); if h then
+						h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0
+					end end)
+					pcall(function()
+						for _,p in ipairs(e:GetDescendants()) do
+							if p:IsA("BasePart") then p.CanCollide=false end
+						end
+					end)
+					BM.mobData[e]={bp=bp,bv=nil,bg=nil,arrived=false,offset=off,stuckTime=0,lastPos=ehrp.Position}
+					pulling = pulling + 1
+				end
+
+				local data = BM.mobData[e]
+				if not data or not data.bp or not data.bp.Parent then pcall(bmRelease,e); continue end
+				if data.arrived then continue end
+
+				local tp = ap + data.offset
+				tp = Vector3.new(tp.X, ap.Y + BM.yOffset, tp.Z)
+				local dist  = (ehrp.Position - tp).Magnitude
+				local moved = (ehrp.Position - data.lastPos).Magnitude
+				data.lastPos = ehrp.Position
+
+				if moved < 0.05 then data.stuckTime = data.stuckTime + 0.05
+				else data.stuckTime = 0 end
+
+				pcall(function() data.bp.Position = tp end)
+
+				if dist <= BM.snapDist then
+					pcall(function() data.bp:Destroy() end)
+					pcall(function()
+						ehrp.AssemblyLinearVelocity  = Vector3.zero
+						ehrp.AssemblyAngularVelocity = Vector3.zero
+					end)
+					local fixedTP = ehrp.Position
+					local fixedCF = ehrp.CFrame
+
+					local bv = Instance.new("BodyVelocity")
+					bv.Name="BringMobBV"; bv.MaxForce=Vector3.new(1e9,1e9,1e9)
+					bv.Velocity=Vector3.zero
+					pcall(function() bv.Parent=ehrp end)
+
+					task.wait()
+
+					local fbp = Instance.new("BodyPosition")
+					fbp.Name="BringMobBP_Fixed"; fbp.MaxForce=Vector3.new(1e9,1e9,1e9)
+					fbp.P=500000; fbp.D=10000; fbp.Position=fixedTP
+					pcall(function() fbp.Parent=ehrp end)
+
+					local bg = Instance.new("BodyGyro")
+					bg.Name="BringMobBG"; bg.MaxTorque=Vector3.new(1e9,1e9,1e9)
+					bg.P=100000; bg.D=2000; bg.CFrame=fixedCF
+					pcall(function() bg.Parent=ehrp end)
+
+					pcall(function() local h=bmGetHum(e); if h then
+						h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0
+					end end)
+
+					task.delay(0.5,function()
+						if bv and bv.Parent then pcall(function() bv:Destroy() end) end
+					end)
+
+					data.bp=fbp; data.bg=bg; data.bv=bv
+					data.arrived=true
+					data.fixedPos=fixedTP; data.fixedCFrame=fixedCF
+
+				elseif data.stuckTime >= 1.5 then
+					data.offset = bmGetOffset()
+					pcall(function() data.bp.P=100000 end)
+					data.stuckTime = 0
+				end
+			end
+		end
+
+		if BM.pinConn then BM.pinConn:Disconnect(); BM.pinConn=nil end
+		bmStopNoclip(); bmCleanup()
+		BM.task = nil
+	end)
+end
+
+local function stopBringMob()
+	BM.active = false
+	if BM.task    then task.cancel(BM.task);    BM.task    = nil end
+	if BM.pinConn then BM.pinConn:Disconnect(); BM.pinConn = nil end
+	bmStopNoclip(); bmCleanup()
+end
+
+-- WEBHOOK
+local function getPing()
+	local ok,p=pcall(function() return Stats.Network.ServerStatsItem["Data Ping"] end)
+	return ok and type(p)=="number" and math.floor(p) or math.floor(player:GetNetworkPing()*1000)
+end
+
+local function sendWebhook(sessBeli, sessFrags, sessElap, source)
 	if not config["Webhook Enabled"] then return end
 	local url=config["Webhook URL"]; if not url or url=="" or url:find("YOUR_ID") then return end
-	local curLv=getStat("Level") or 0
-	local pName=player.DisplayName~=player.Name and (player.DisplayName.." (@"..player.Name..")") or player.Name
-	local minInSvr=math.max(sessElap/60,0.01)
+
+	source = source or "Manual"
+	S.totalWebhookCount = S.totalWebhookCount + 1
+
+	local curLv    = getStat("Level")     or 0
+	local curBeli  = getStat("Beli")      or 0
+	local curFrag  = getStat("Fragments") or 0
+	local melee    = getStat("Melee")     or 0
+	local sword    = getStat("Sword")     or 0
+	local gun      = getStat("Gun")       or 0
+	local defense  = getStat("Defense")   or 0
+	local bloxFruit= getStat("Blox Fruit")or 0
+	local bounty   = getStat("Bounty")    or 0
+	local spawn    = getStat("SpawnPoint") or "?"
+	local raceN, raceTier = "", ""
+	pcall(function()
+		local d=player:FindFirstChild("Data"); if not d then return end
+		local rc=d:FindFirstChild("Race"); if not rc then return end
+		if rc:IsA("ValueBase") and rc.Value~="" then raceN=tostring(rc.Value) end
+		for _,n in ipairs({"C","V","Tier","Level","T"}) do
+			local c=rc:FindFirstChild(n)
+			if c and (c:IsA("NumberValue") or c:IsA("IntValue")) then raceTier="V"..tostring(c.Value); break end
+		end
+	end)
+	if raceN=="" then raceN="Unknown" end
+
+	local pName = player.DisplayName~=player.Name and (player.DisplayName.." (@"..player.Name..")") or player.Name
+	local minInSvr = math.max((sessElap or 0)/60, 0.01)
+	local beliPM   = math.floor(sessBeli/minInSvr)
+	local fragPM   = math.floor(sessFrags/minInSvr)
+
 	local jobId="unknown"; pcall(function() jobId=game.JobId end)
+	local plrCount = #Players:GetPlayers()
+
+	local equippedStr = "None"
+	local equippedLv  = nil
+	pcall(function()
+		local char = player.Character
+		if char then
+			for _, o in ipairs(char:GetChildren()) do
+				if o:IsA("Tool") then
+					equippedStr = o.Name
+					local lo = o:FindFirstChild("Level")
+						or o:FindFirstChildOfClass("NumberValue")
+						or o:FindFirstChildOfClass("IntValue")
+					if lo then equippedLv = math.floor(lo.Value) end
+					break
+				end
+			end
+		end
+	end)
+	local equippedLine = equippedLv ~= nil
+		and ("⚔ "..equippedStr.." [LV"..equippedLv.."]")
+		or  ("⚔ "..equippedStr)
+
+	local invLines = {}
+	local bp = player:FindFirstChild("Backpack")
+	if bp then
+		local count = 0
+		for _,o in ipairs(bp:GetChildren()) do
+			if o:IsA("Tool") and o.Name~="Tool" and count<5 then
+				local lv=nil; pcall(function()
+					local lo=o:FindFirstChild("Level") or o:FindFirstChildOfClass("NumberValue") or o:FindFirstChildOfClass("IntValue")
+					if lo then lv=lo.Value end
+				end)
+				invLines[#invLines+1] = lv~=nil and ("• "..o.Name.." [LV"..math.floor(lv).."]") or ("• "..o.Name)
+				count=count+1
+			end
+		end
+	end
+	local invStr = #invLines>0 and (equippedLine.."\n"..table.concat(invLines,"\n")) or equippedLine
+
+	local embedColor = sessBeli>=0 and 5832543 or 15548997
+	local sourceIcon = ({["Auto Hop"]="🔀", ["Timer"]="⏰", ["Manual"]="🖐", ["Test"]="🧪"})[source] or "📡"
+	local title = sourceIcon.." Session Report — "..source
+
+	local fields = {
+		{name="👤 Player",         value="```"..pName.."```",                     inline=true},
+		{name="⭐ Level",          value="```"..fmtComma(math.floor(curLv)).."```",inline=true},
+		{name="🧬 Race",           value="```"..(raceN..(raceTier~="" and " "..raceTier or "")).."```", inline=true},
+		{name="💰 Beli (Total)",   value="```"..fmtComma(curBeli).."```",          inline=true},
+		{name="💎 Fragments (Total)",value="```"..fmtComma(curFrag).."```",        inline=true},
+		{name="🏆 Bounty",         value="```"..fmtComma(bounty).."```",           inline=true},
+		{name="📈 Session Beli",   value="```"..wFmt(sessBeli).."```",             inline=true},
+		{name="📈 Session Frag",   value="```"..wFmt(sessFrags).."```",            inline=true},
+		{name="⏱ Session Time",   value="```"..elapsedStr(sessElap or 0).."```",   inline=true},
+		{name="⚡ Beli / Min",     value="```"..wFmt(beliPM).."```",               inline=true},
+		{name="⚡ Beli / Hr",      value="```"..wFmt(beliPM*60).."```",             inline=true},
+		{name="⚡ Frag / Min",     value="```"..wFmt(fragPM).."```",               inline=true},
+		{name="⚔️ Combat Stats",
+		 value="```\nMelee:  "..fmtComma(melee).."\nSword:  "..fmtComma(sword).."\nGun:    "..fmtComma(gun).."\nDefense:"..fmtComma(defense).."\nFruit:  "..fmtComma(bloxFruit).."\n```",
+		 inline=false},
+		{name="📍 Spawn Point",    value="```"..tostring(spawn).."```",             inline=true},
+		{name="👥 Players in Server",value="```"..plrCount.."/"..K.MAX_PLAYERS.."```",inline=true},
+		{name="🖥 FPS / Ping",    value="```"..S.fps.." FPS | "..getPing().."ms```",inline=true},
+		{name="🎒 Equipped + Backpack (Top 5)",value="```\n"..invStr.."\n```",      inline=false},
+		{name="📨 Webhook #",      value="```#"..S.totalWebhookCount.."```",         inline=true},
+		{name="📡 Source",         value="```"..source.."```",                       inline=true},
+		{name="🕐 Local Time",     value="```"..getLocalTimeStr().."```",            inline=true},
+	}
+
+	if source=="Auto Hop" then
+		fields[#fields+1]={name="🔀 Hop #",value="```#"..S.totalHopCount.."```",inline=true}
+		fields[#fields+1]={name="🌐 Hop Target",value="```"..(S.hopTargetServer~="" and S.hopTargetServer or "all").."```",inline=true}
+		fields[#fields+1]={name="🆔 Prev Job ID",value="```"..tostring(jobId):sub(1,36).."```",inline=false}
+	end
+
 	local payload={
 		username=config["Webhook Name"] or "Blox Hub",
 		embeds={{
-			author={name="Auto Hop Triggered"},
-			title="Session Summary — Hopping Server",
-			color=sessBeli>=0 and 5832543 or 15548997,
-			fields={
-				{name="Player",value="```"..pName.."```",inline=true},
-				{name="Level",value="```"..math.floor(curLv).."```",inline=true},
-				{name="Hop #",value="```#"..S.totalHopCount.."```",inline=true},
-				{name="Time in Server",value="```"..elapsedStr(sessElap).."```",inline=true},
-				{name="Beli Gained",value="```"..wFmt(sessBeli).."```",inline=true},
-				{name="Fragments Gained",value="```"..wFmt(sessFrags).."```",inline=true},
-				{name="Beli / Min",value="```"..wFmt(math.floor(sessBeli/minInSvr)).."```",inline=true},
-				{name="Frags / Min",value="```"..wFmt(math.floor(sessFrags/minInSvr)).."```",inline=true},
-				{name="Hop Target",value="```"..(S.hopTargetServer~="" and S.hopTargetServer or "all").."```",inline=true},
-				{name="Hop Time",value="```"..getLocalTimeStr().."```",inline=true},
-				{name="Job ID (Prev Server)",value="```"..tostring(jobId):sub(1,36).."```",inline=false},
-			},
-			footer={text="Blox Hub  •  Auto Hop"},
+			author={name="Blox Hub — "..source.." Report"},
+			title=title,
+			color=embedColor,
+			fields=fields,
+			footer={text="Blox Hub  •  v2  •  "..source},
 			timestamp=getTimestamp(),
 		}}
 	}
+
 	local ok,json=pcall(function() return game:GetService("HttpService"):JSONEncode(payload) end)
 	if not ok then return end
 	local opts={Url=url,Method="POST",Headers={["Content-Type"]="application/json"},Body=json}
@@ -467,10 +1014,52 @@ local function sendWebhook(sessBeli, sessFrags, sessElap)
 		elseif syn and syn.request then res=syn.request(opts)
 		elseif http and http.request then res=http.request(opts)
 		elseif getgenv and getgenv().request then res=getgenv().request(opts) end
-		if res then print("[Webhook] Status:",res.StatusCode) end
+		if res then print("[Webhook] Status:",res.StatusCode,"| #"..S.totalWebhookCount.." |",source) end
 	end)
 end
 
+-- WEBHOOK TIMER
+local startWebhookTimer, stopWebhookTimer
+
+local function webhookTimerLoop()
+	S.webhookTimerLastTick   = tick()
+	S.webhookTimerCountdown  = S.webhookIntervalSecs
+	while S.webhookTimerActive do
+		task.wait(1)
+		local now = tick()
+		S.webhookTimerCountdown = S.webhookTimerCountdown - (now - S.webhookTimerLastTick)
+		S.webhookTimerLastTick  = now
+		if S.webhookTimerCountdown <= 0 then
+			S.webhookTimerCountdown = S.webhookIntervalSecs
+			if S.webhookTimerActive and config["Webhook Enabled"] then
+				task.spawn(function()
+					local cb = getStat("Beli") or 0
+					local cf = getStat("Fragments") or 0
+					local sb = S.sessionInit and math.floor(cb-(S.sessionStartBeli or cb)) or 0
+					local sf = S.sessionInit and math.floor(cf-(S.sessionStartFragments or cf)) or 0
+					local se = tick() - (S.playerInfoCache[player.UserId] and S.playerInfoCache[player.UserId].joinTime or tick())
+					sendWebhook(sb, sf, se, "Timer")
+				end)
+			end
+		end
+	end
+end
+
+startWebhookTimer = function()
+	S.webhookTimerActive    = true
+	S.webhookTimerCountdown = S.webhookIntervalSecs
+	S.webhookTimerLastTick  = tick()
+	if S.webhookTimerThread then task.cancel(S.webhookTimerThread) end
+	S.webhookTimerThread = task.spawn(webhookTimerLoop)
+end
+
+stopWebhookTimer = function()
+	S.webhookTimerActive = false
+	if S.webhookTimerThread then task.cancel(S.webhookTimerThread); S.webhookTimerThread=nil end
+	S.webhookTimerCountdown = S.webhookIntervalSecs
+end
+
+-- SKILL / INVENTORY HELPERS
 local function getToolLevel(obj)
 	local lv; pcall(function()
 		local lo=obj:FindFirstChild("Level") or obj:FindFirstChildOfClass("NumberValue") or obj:FindFirstChildOfClass("IntValue")
@@ -542,14 +1131,11 @@ local function getRace(p)
 		end
 	end); return rn,rt
 end
-
--- ═══════════════════════════════════════════════════════════════════════
 -- GUI BUILD
--- ═══════════════════════════════════════════════════════════════════════
 local gui=mk("ScreenGui",pg,{Name="IntegratedStatusHUD",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=10})
 local hudPos=UDim2.new(0.5,-K.HUD_W/2,0.5,-K.HUD_H/2)
 
-local fullPanel=mk("Frame",gui,{Size=UDim2.new(0,K.HUD_W,0,K.HUD_H),Position=hudPos,BackgroundColor3=C.PANEL,BorderSizePixel=0,ClipsDescendants=false})
+local fullPanel=mk("Frame",gui,{Size=UDim2.new(0,K.HUD_W,0,K.HUD_H),Position=hudPos,BackgroundColor3=C.PANEL,BorderSizePixel=0,ClipsDescendants=true})
 stroke(fullPanel,C.BORDER2,2); corner(fullPanel,8)
 
 local miniPanel=mk("Frame",gui,{Size=UDim2.new(0,K.MINI_W,0,44),Position=UDim2.new(0.5,-K.MINI_W/2,0.5,-K.HUD_H/2),BackgroundColor3=C.PANEL,BorderSizePixel=0,Visible=false})
@@ -572,6 +1158,7 @@ local notifQ,notifBusy={},false
 local NI=TweenInfo.new(0.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
 local NO=TweenInfo.new(0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.In)
 local function showNotif(name,action,col)
+	if #notifQ >= 5 then table.remove(notifQ, 1) end
 	notifQ[#notifQ+1]={name=name,action=action,col=col}
 	if notifBusy then return end; notifBusy=true
 	task.spawn(function()
@@ -604,6 +1191,7 @@ local function showNotif(name,action,col)
 	end)
 end
 
+-- Drag
 fullPanel.InputBegan:Connect(function(inp)
 	if inp.UserInputType==Enum.UserInputType.MouseButton1 then
 		S.dragging=true; S.dragStart=inp.Position; S.dragStartPos=fullPanel.Position
@@ -634,54 +1222,181 @@ local function statBlock(par, x, y, w, labelTxt, barColor)
 	return vl,bf
 end
 
--- Q1
+--Q1: ScrollingFrame
 local UI={}
-UI.avatar=mk("ImageLabel",fullPanel,{Size=UDim2.new(0,52,0,52),Position=UDim2.new(0,K.Q1X,0,K.Q1Y),BackgroundColor3=C.CARD,ZIndex=4})
+local Q1_PANEL_H = K.HUD_H/2 - K.PAD*2
+
+local q1Scroll = mk("ScrollingFrame", fullPanel, {
+	Size                   = UDim2.new(0, K.Q1W + K.PAD, 0, Q1_PANEL_H),
+	Position               = UDim2.new(0, K.PAD, 0, K.PAD),
+	BackgroundTransparency = 1,
+	BorderSizePixel        = 0,
+	ScrollBarThickness     = 3,
+	ScrollBarImageColor3   = C.BORDER2,
+	CanvasSize             = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize    = Enum.AutomaticSize.Y,
+	ClipsDescendants       = true,
+	ZIndex                 = 3,
+})
+
+local q1Inner = mk("Frame", q1Scroll, {
+	Size                   = UDim2.new(1, -6, 0, 500),
+	AutomaticSize          = Enum.AutomaticSize.Y,
+	BackgroundTransparency = 1,
+	BorderSizePixel        = 0,
+	ZIndex                 = 3,
+})
+
+local function q1lbl(props)
+	return lbl(q1Inner, props)
+end
+local function q1mk(cl, props)
+	local o = Instance.new(cl)
+	o.Parent = q1Inner
+	if props then for k,v in pairs(props) do pcall(function() o[k]=v end) end end
+	return o
+end
+
+--avatar row
+UI.avatar=mk("ImageLabel",q1Inner,{Size=UDim2.new(0,52,0,52),Position=UDim2.new(0,0,0,0),BackgroundColor3=C.CARD,ZIndex=4})
 stroke(UI.avatar,C.BORDER2,2); corner(UI.avatar,5)
-UI.charLabel=lbl(fullPanel,{sz=UDim2.new(0,K.Q1W-58,0,16),pos=UDim2.new(0,K.Q1X+56,0,K.Q1Y),   size=12,color=C.WHITE, text="Loading...",trunc=Enum.TextTruncate.AtEnd,z=4})
-UI.lvlLabel =lbl(fullPanel,{sz=UDim2.new(0,K.Q1W-58,0,13),pos=UDim2.new(0,K.Q1X+56,0,K.Q1Y+18),size=10,color=C.MUTED,text="LV. 0",z=4})
-UI.onlineDot=mk("Frame",fullPanel,{Size=UDim2.new(0,7,0,7),Position=UDim2.new(0,K.Q1X+56,0,K.Q1Y+36),BackgroundColor3=C.SUCCESS,ZIndex=4}); corner(UI.onlineDot,4)
-lbl(fullPanel,{sz=UDim2.new(0,55,0,11),pos=UDim2.new(0,K.Q1X+67,0,K.Q1Y+34),size=9,color=C.DIM,text="ONLINE",z=4})
+UI.charLabel=q1lbl({sz=UDim2.new(0,K.Q1W-58,0,16),pos=UDim2.new(0,56,0,0),   size=12,color=C.WHITE, text="Loading...",trunc=Enum.TextTruncate.AtEnd,z=4})
+UI.lvlLabel =q1lbl({sz=UDim2.new(0,K.Q1W-58,0,13),pos=UDim2.new(0,56,0,18),size=10,color=C.MUTED,text="LV. 0",z=4})
+UI.onlineDot=mk("Frame",q1Inner,{Size=UDim2.new(0,7,0,7),Position=UDim2.new(0,56,0,36),BackgroundColor3=C.SUCCESS,ZIndex=4}); corner(UI.onlineDot,4)
+q1lbl({sz=UDim2.new(0,55,0,11),pos=UDim2.new(0,67,0,34),size=9,color=C.DIM,text="ONLINE",z=4})
 task.spawn(function()
 	while true do tween(UI.onlineDot,{BackgroundTransparency=0.5},0.8); task.wait(0.8); tween(UI.onlineDot,{BackgroundTransparency=0},0.8); task.wait(0.8) end
 end)
+
+--mini info row
 local colW3=math.floor(K.Q1W/3)
 local function miniRow(x,y,w,lbTxt,vlTxt)
-	lbl(fullPanel,{sz=UDim2.new(0,w,0,11),pos=UDim2.new(0,x,0,y),size=9,color=C.DIM,text=lbTxt,z=4})
-	return lbl(fullPanel,{sz=UDim2.new(0,w,0,13),pos=UDim2.new(0,x,0,y+11),size=11,color=C.OFFWHITE,text=vlTxt,trunc=Enum.TextTruncate.AtEnd,z=4})
+	q1lbl({sz=UDim2.new(0,w,0,11),pos=UDim2.new(0,x,0,y),size=9,color=C.DIM,text=lbTxt,z=4})
+	return q1lbl({sz=UDim2.new(0,w,0,13),pos=UDim2.new(0,x,0,y+11),size=11,color=C.OFFWHITE,text=vlTxt,trunc=Enum.TextTruncate.AtEnd,z=4})
 end
-UI.raceValLbl =miniRow(K.Q1X,         K.Q1Y+64,colW3-4,"RACE","???")
-UI.teamValLbl =miniRow(K.Q1X+colW3,   K.Q1Y+64,colW3-4,"TEAM","N/A")
-UI.spawnValLbl=miniRow(K.Q1X+colW3*2, K.Q1Y+64,colW3-4,"SPAWN","???")
-UI.fpsLabel  =lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+92), size=12,color=C.OFFWHITE,text="FPS 0",z=4})
-UI.pingLabel =lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+108),size=12,color=C.OFFWHITE,text="PING 0ms",z=4})
-UI.timeLabel =lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,13),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+124),font=Enum.Font.Gotham,size=10,color=C.DIM,text="00:00:00",z=4})
+UI.raceValLbl =miniRow(0,          64,colW3-4,"RACE","???")
+UI.teamValLbl =miniRow(colW3,      64,colW3-4,"TEAM","N/A")
+UI.spawnValLbl=miniRow(colW3*2,    64,colW3-4,"SPAWN","???")
+UI.fpsLabel  =q1lbl({sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,0,0,92), size=12,color=C.OFFWHITE,text="FPS 0",z=4})
+UI.pingLabel =q1lbl({sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,0,0,108),size=12,color=C.OFFWHITE,text="PING 0ms",z=4})
+UI.timeLabel =q1lbl({sz=UDim2.new(0,K.Q1W,0,13),pos=UDim2.new(0,0,0,124),font=Enum.Font.Gotham,size=10,color=C.DIM,text="00:00:00",z=4})
 
+--buttons
 local function mkBtn(x,y,w,h,txt,isOn,col)
-	local b=mk("TextButton",fullPanel,{Size=UDim2.new(0,w,0,h),Position=UDim2.new(0,x,0,y),
+	local b=mk("TextButton",q1Inner,{Size=UDim2.new(0,w,0,h),Position=UDim2.new(0,x,0,y),
 		BackgroundColor3=isOn and col or C.CARD,BorderSizePixel=0,
 		Text=txt,TextColor3=isOn and C.BG or C.MUTED,TextSize=10,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
 	stroke(b,C.BORDER2,1); corner(b,4); return b
 end
 local bW=math.floor((K.Q1W-6)/2)
-UI.v1Btn   =mkBtn(K.Q1X,       K.Q1Y+142,bW,20,config["Boost FPS V1"] and "V1 ON" or "V1 OFF",config["Boost FPS V1"],C.V1COL)
-UI.v2Btn   =mkBtn(K.Q1X+bW+6,  K.Q1Y+142,bW,20,config["Boost FPS V2"] and "V2 ON" or "V2 OFF",config["Boost FPS V2"],C.V2COL)
-UI.hideBtn =mkBtn(K.Q1X,       K.Q1Y+166,bW,20,S.hidePlayersActive and "Del Player ON" or "Del Player OFF",S.hidePlayersActive,C.WHITE)
-UI.miniBtn =mkBtn(K.Q1X+bW+6,  K.Q1Y+166,bW,20,"MINIMIZE",false,C.CARD); UI.miniBtn.TextColor3=C.MUTED
-UI.enemyBtn=mkBtn(K.Q1X,       K.Q1Y+190,bW,20,S.hideEnemiesActive and "HIDE ENEMY ON" or "HIDE ENEMY OFF",S.hideEnemiesActive,C.DANGER)
-UI.hopBtn  =mkBtn(K.Q1X+bW+6,  K.Q1Y+190,bW,20,S.autoHopActive and "HOP ON" or "HOP OFF",S.autoHopActive,C.HOP)
-UI.capBox  =mk("TextBox",fullPanel,{Size=UDim2.new(0,bW-34,0,20),Position=UDim2.new(0,K.Q1X,0,K.Q1Y+214),
+
+UI.v1Btn   =mkBtn(0,       142,bW,20,config["Boost FPS V1"] and "V1 ON" or "V1 OFF",config["Boost FPS V1"],C.V1COL)
+UI.v2Btn   =mkBtn(bW+6,    142,bW,20,config["Boost FPS V2"] and "V2 ON" or "V2 OFF",config["Boost FPS V2"],C.V2COL)
+UI.hideBtn =mkBtn(0,       166,bW,20,S.hidePlayersActive and "Del Player ON" or "Del Player OFF",S.hidePlayersActive,C.WHITE)
+UI.miniBtn =mkBtn(bW+6,    166,bW,20,"MINIMIZE",false,C.CARD); UI.miniBtn.TextColor3=C.MUTED
+UI.enemyBtn=mkBtn(0,       190,bW,20,S.hideEnemiesActive and "HIDE ENEMY ON" or "HIDE ENEMY OFF",S.hideEnemiesActive,C.DANGER)
+UI.hopBtn  =mkBtn(bW+6,    190,bW,20,S.autoHopActive and "HOP ON" or "HOP OFF",S.autoHopActive,C.HOP)
+
+local capBoxW = mk("TextBox",q1Inner,{Size=UDim2.new(0,bW-34,0,20),Position=UDim2.new(0,0,0,214),
 	BackgroundColor3=C.CARD,BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHITE,
 	Text="",PlaceholderText=tostring(FPS_CAP),PlaceholderColor3=C.DIM,ZIndex=4})
+UI.capBox = capBoxW
 stroke(UI.capBox,C.BORDER2,1); corner(UI.capBox,4)
-UI.setCapBtn=mkBtn(K.Q1X+bW-28,K.Q1Y+214,28,20,"SET",true,C.WHITE); UI.setCapBtn.TextColor3=C.BG
-UI.themeBtn =mkBtn(K.Q1X+bW+6, K.Q1Y+214,bW,20,"THEME: Default",false,C.CARD); UI.themeBtn.TextColor3=C.MUTED
-local WH_W=math.floor((K.Q1W-4)*0.60)
-UI.webhookBtn    =mkBtn(K.Q1X,       K.Q1Y+238,WH_W,20,S.webhookActive and "WEBHOOK ON" or "WEBHOOK OFF",S.webhookActive,Color3.fromRGB(88,176,255))
-UI.testWebhookBtn=mkBtn(K.Q1X+WH_W+4,K.Q1Y+238,K.Q1W-WH_W-4,20,"TEST SEND",false,C.CARD); UI.testWebhookBtn.TextColor3=Color3.fromRGB(255,200,60)
-lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,10),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+264),size=8,color=C.DIM,text="HOP COUNTDOWN",z=4})
-UI.hopCountdownLbl=lbl(fullPanel,{sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,K.Q1X,0,K.Q1Y+274),font=Enum.Font.GothamBold,size=11,color=C.HOP,text="DISABLED",z=4})
+UI.setCapBtn=mkBtn(bW-28,   214,28,20,"SET",true,C.WHITE); UI.setCapBtn.TextColor3=C.BG
+UI.themeBtn =mkBtn(bW+6,    214,bW,20,"THEME: Default",false,C.CARD); UI.themeBtn.TextColor3=C.MUTED
 
+local WH_W = math.floor((K.Q1W-4)*0.60)
+UI.webhookBtn    =mkBtn(0,         238, WH_W,          20, S.webhookActive and "WEBHOOK ON" or "WEBHOOK OFF", S.webhookActive, C.WEBHOOK)
+UI.testWebhookBtn=mkBtn(WH_W+4,    238, K.Q1W-WH_W-4, 20, "TEST SEND", false, C.CARD)
+UI.testWebhookBtn.TextColor3=Color3.fromRGB(255,200,60)
+
+local WH_T_W = K.Q1W - 26
+UI.whTimerBtn=mkBtn(0,         262, WH_T_W, 20, "WH TIMER OFF", false, C.CARD)
+UI.whTimerBtn.TextColor3=C.MUTED
+UI.whTimerCfgBtn=mkBtn(WH_T_W+4, 262, 20, 20, "⚙", false, C.CARD)
+UI.whTimerCfgBtn.TextColor3=C.MUTED
+
+q1lbl({sz=UDim2.new(0,K.Q1W,0,10),pos=UDim2.new(0,0,0,286),size=8,color=C.DIM,text="HOP COUNTDOWN",z=4})
+UI.hopCountdownLbl=q1lbl({sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,0,0,296),font=Enum.Font.GothamBold,size=11,color=C.HOP,text="DISABLED",z=4})
+
+q1lbl({sz=UDim2.new(0,K.Q1W,0,10),pos=UDim2.new(0,0,0,314),size=8,color=C.DIM,text="WH TIMER COUNTDOWN",z=4})
+UI.whTimerCountdownLbl=q1lbl({sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,0,0,324),font=Enum.Font.GothamBold,size=11,color=C.WEBHOOK,text="DISABLED",z=4})
+
+--Bring Mob UI
+q1lbl({sz=UDim2.new(0,K.Q1W,0,10),pos=UDim2.new(0,0,0,342),size=8,color=C.DIM,text="BRING MOB",z=4})
+
+UI.pullBtn = mkBtn(0, 352, bW, 20, "PULL OFF", false, C.CARD)
+UI.pullBtn.TextColor3 = C.MUTED
+
+local distBox = mk("TextBox", q1Inner, {
+	Size=UDim2.new(0,bW-30,0,20), Position=UDim2.new(0,bW+6,0,352),
+	BackgroundColor3=C.CARD, BorderSizePixel=0,
+	Font=Enum.Font.Gotham, TextSize=11, TextColor3=C.WHITE,
+	Text="", PlaceholderText="Dist: 1000", PlaceholderColor3=C.DIM, ZIndex=4
+})
+stroke(distBox,C.BORDER2,1); corner(distBox,4)
+local setDistBtn = mkBtn(K.Q1W-24, 352, 24, 20, "SET", true, C.WHITE)
+setDistBtn.TextColor3 = C.BG
+
+q1lbl({sz=UDim2.new(0,K.Q1W,0,10),pos=UDim2.new(0,0,0,376),size=8,color=C.DIM,text="PULL FORCE",z=4})
+local forceBox = mk("TextBox", q1Inner, {
+	Size=UDim2.new(0,bW-30,0,20), Position=UDim2.new(0,0,0,386),
+	BackgroundColor3=C.CARD, BorderSizePixel=0,
+	Font=Enum.Font.Gotham, TextSize=11, TextColor3=C.WHITE,
+	Text="", PlaceholderText="Force: 60000", PlaceholderColor3=C.DIM, ZIndex=4
+})
+stroke(forceBox,C.BORDER2,1); corner(forceBox,4)
+local setForceBtn = mkBtn(bW-24, 386, 24, 20, "SET", true, C.WHITE)
+setForceBtn.TextColor3 = C.BG
+
+q1lbl({sz=UDim2.new(0,K.Q1W,0,10),pos=UDim2.new(0,bW+6,0,376),size=8,color=C.DIM,text="SNAP DIST",z=4})
+local snapBox = mk("TextBox", q1Inner, {
+	Size=UDim2.new(0,bW-30,0,20), Position=UDim2.new(0,bW+6,0,386),
+	BackgroundColor3=C.CARD, BorderSizePixel=0,
+	Font=Enum.Font.Gotham, TextSize=11, TextColor3=C.WHITE,
+	Text="", PlaceholderText="Snap: 30", PlaceholderColor3=C.DIM, ZIndex=4
+})
+stroke(snapBox,C.BORDER2,1); corner(snapBox,4)
+local setSnapBtn = mkBtn(K.Q1W-24, 386, 24, 20, "SET", true, C.WHITE)
+setSnapBtn.TextColor3 = C.BG
+
+q1lbl({sz=UDim2.new(0,K.Q1W,0,10),pos=UDim2.new(0,0,0,410),size=8,color=C.DIM,text="Y OFFSET",z=4})
+local yOffBox = mk("TextBox", q1Inner, {
+	Size=UDim2.new(0,bW-30,0,20), Position=UDim2.new(0,0,0,420),
+	BackgroundColor3=C.CARD, BorderSizePixel=0,
+	Font=Enum.Font.Gotham, TextSize=11, TextColor3=C.WHITE,
+	Text="", PlaceholderText="Y: -20", PlaceholderColor3=C.DIM, ZIndex=4
+})
+stroke(yOffBox,C.BORDER2,1); corner(yOffBox,4)
+local setYOffBtn = mkBtn(bW-24, 420, 24, 20, "SET", true, C.WHITE)
+setYOffBtn.TextColor3 = C.BG
+
+q1lbl({sz=UDim2.new(0,K.Q1W,0,10),pos=UDim2.new(0,bW+6,0,410),size=8,color=C.DIM,text="MAX BATCH",z=4})
+
+UI.pullCountLbl = q1lbl({sz=UDim2.new(0,K.Q1W,0,14),pos=UDim2.new(0,0,0,446),font=Enum.Font.GothamBold,size=10,color=C.DIM,text="Pull: OFF",z=4})
+
+q1lbl({sz=UDim2.new(0,1,0,8),pos=UDim2.new(0,0,0,462),size=1,color=C.BG,text="",z=1})
+
+--Webhook Timer Config Popup
+local whTimerPopup=mk("Frame",gui,{Size=UDim2.new(0,220,0,76),BackgroundColor3=C.PANEL,ZIndex=20,Visible=false})
+stroke(whTimerPopup,C.BORDER2,1); corner(whTimerPopup,6)
+lbl(whTimerPopup,{sz=UDim2.new(1,-10,0,12),pos=UDim2.new(0,8,0,6),size=9,color=C.DIM,text="SEND WEBHOOK EVERY (MIN)",z=21})
+local whIntervalBox=mk("TextBox",whTimerPopup,{Size=UDim2.new(0,140,0,20),Position=UDim2.new(0,8,0,22),BackgroundColor3=C.CARD,BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHITE,Text="",PlaceholderText=tostring(math.floor(S.webhookIntervalSecs/60)),PlaceholderColor3=C.DIM,ZIndex=21})
+stroke(whIntervalBox,C.BORDER2,1); corner(whIntervalBox,4)
+local setWhIntervalBtn=mk("TextButton",whTimerPopup,{Size=UDim2.new(0,56,0,20),Position=UDim2.new(0,156,0,22),BackgroundColor3=C.WEBHOOK,BorderSizePixel=0,Text="SET",TextColor3=C.BG,TextSize=10,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=21})
+stroke(setWhIntervalBtn,C.BORDER2,1); corner(setWhIntervalBtn,4)
+local whTimerInfoLbl=lbl(whTimerPopup,{sz=UDim2.new(1,-10,0,12),pos=UDim2.new(0,8,0,48),font=Enum.Font.Gotham,size=9,color=C.DIM,text="Sends full session report periodically",z=21})
+
+local function showWhTimerPopup()
+	local ap=fullPanel.AbsolutePosition
+	whTimerPopup.Position=UDim2.new(0,ap.X+K.PAD,0,ap.Y+K.PAD+262+24)
+	whTimerPopup.Visible=true; S.webhookTimerPopupOpen=true
+end
+local function hideWhTimerPopup()
+	whTimerPopup.Visible=false; S.webhookTimerPopupOpen=false
+end
+
+--Hop Popup
 local hopPopup=mk("Frame",gui,{Size=UDim2.new(0,220,0,110),BackgroundColor3=C.PANEL,ZIndex=20,Visible=false})
 stroke(hopPopup,C.BORDER2,1); corner(hopPopup,6)
 lbl(hopPopup,{sz=UDim2.new(1,-10,0,12),pos=UDim2.new(0,8,0,6),size=9,color=C.DIM,text="HOP EVERY (MIN)",z=21})
@@ -694,14 +1409,12 @@ local hopServerBox=mk("TextBox",hopPopup,{Size=UDim2.new(0,204,0,20),Position=UD
 stroke(hopServerBox,C.BORDER2,1); corner(hopServerBox,4)
 local function showHopPopup()
 	local ap=fullPanel.AbsolutePosition
-	hopPopup.Position=UDim2.new(0,ap.X+K.Q1X+bW+6,0,ap.Y+K.Q1Y+190+24)
+	hopPopup.Position=UDim2.new(0,ap.X+K.PAD+bW+6,0,ap.Y+K.PAD+190+24)
 	hopPopup.Visible=true; S.hopPopupOpen=true
 end
 local function hideHopPopup() hopPopup.Visible=false; S.hopPopupOpen=false end
 
--- ════════════════════════════════════════════════════════════════════════
--- Q2 — Stats + Session (ไม่มีกราฟ)
--- ════════════════════════════════════════════════════════════════════════
+-- Q2 Stats + Session
 local Q2_HEIGHT = K.HUD_H/2 - K.PAD*2
 
 local q2Scroll = mk("ScrollingFrame", fullPanel, {
@@ -737,12 +1450,10 @@ UI.swordLbl,UI.swordBar = q2StatBlock(sRH*4,       "SWORD",        C.V1COL)
 UI.gunLbl,  UI.gunBar   = q2StatBlock(sRH*5,       "GUN",          C.V1COL)
 UI.fruitLbl,UI.fruitBar = q2StatBlock(sRH*6,       "BLOX FRUIT",   C.WARN)
 
--- Session
 local sessY = sRH*7 + 4
-
-local _cL = math.floor(K.Q2W/2) - 4   -- ความกว้าง column ซ้าย
-local _cR = K.Q2W - math.floor(K.Q2W/2) - 8  -- ความกว้าง column ขวา (หัก padding ขวา)
-local _xR = math.floor(K.Q2W/2) + 2   -- x เริ่มต้น column ขวา
+local _cL = math.floor(K.Q2W/2) - 4
+local _cR = K.Q2W - math.floor(K.Q2W/2) - 8
+local _xR = math.floor(K.Q2W/2) + 2
 
 mk("Frame",q2Inner,{Size=UDim2.new(0,K.Q2W-4,0,1),Position=UDim2.new(0,0,0,sessY-3),BackgroundColor3=C.SEP,ZIndex=4})
 lbl(q2Inner,{sz=UDim2.new(0,_cL,0,10),pos=UDim2.new(0,0,0,sessY),size=8,color=C.DIM,text="SESSION BELI",z=4})
@@ -761,7 +1472,7 @@ lbl(q2Inner,{sz=UDim2.new(0,_cR,0,10),pos=UDim2.new(0,_xR,0,sessY+72),size=8,col
 UI.fragPerMinLbl  =lbl(q2Inner,{sz=UDim2.new(0,_cL,0,15),pos=UDim2.new(0,0,0,sessY+82),size=12,color=C.FRAG,text="+0",z=4})
 UI.fragPerHourLbl =lbl(q2Inner,{sz=UDim2.new(0,_cR,0,15),pos=UDim2.new(0,_xR,0,sessY+82),size=12,color=C.FRAG,text="+0",align=Enum.TextXAlignment.Right,z=4})
 
--- Q3 Players
+--Q3 Players
 lbl(fullPanel,{sz=UDim2.new(0,K.Q3W,0,12),pos=UDim2.new(0,K.Q3X,0,K.Q3Y),size=9,color=C.DIM,text="PLAYERS",z=4})
 UI.pcCountLbl=lbl(fullPanel,{sz=UDim2.new(0,100,0,18),pos=UDim2.new(0,K.Q3X,0,K.Q3Y+12),size=14,color=C.WHITE,text="? / "..K.MAX_PLAYERS,z=4})
 local svrBarBg=mk("Frame",fullPanel,{Size=UDim2.new(0,K.Q3W,0,3),Position=UDim2.new(0,K.Q3X,0,K.Q3Y+32),BackgroundColor3=C.BORDER,ZIndex=4}); corner(svrBarBg,1)
@@ -786,7 +1497,7 @@ for i=1,20 do
 	}
 end
 
--- Q4 Inventory
+--Q4 Inventory
 lbl(fullPanel,{sz=UDim2.new(0,K.Q4W,0,12),pos=UDim2.new(0,K.Q4X,0,K.Q4Y),size=9,color=C.DIM,text="EQUIPPED",z=4})
 UI.equipValLbl=lbl(fullPanel,{sz=UDim2.new(0,K.Q4W,0,17),pos=UDim2.new(0,K.Q4X,0,K.Q4Y+12),size=13,color=C.OFFWHITE,text="None",trunc=Enum.TextTruncate.AtEnd,z=4})
 UI.equipLvlLbl=lbl(fullPanel,{sz=UDim2.new(0,K.Q4W,0,13),pos=UDim2.new(0,K.Q4X,0,K.Q4Y+30),font=Enum.Font.GothamBold,size=10,color=C.WARN,text="",z=4})
@@ -831,7 +1542,7 @@ for i=1,20 do
 	invRows[i]={cell=cell,nameLbl=nameLbl,lvlLbl=lvlLbl,skillLbls=skillLbls}
 end
 
--- Mini Panel
+--Mini Panel
 UI.miniAva=mk("ImageLabel",miniPanel,{Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,6,0,8),BackgroundColor3=C.CARD,ZIndex=3})
 stroke(UI.miniAva,C.BORDER2,1); corner(UI.miniAva,4)
 task.spawn(function()
@@ -892,6 +1603,7 @@ local function smoothToggle(btn,active,onCol,offCol,onTxt,offTxt)
 	btn.Text=active and onTxt or offTxt; btn.TextColor3=active and C.BG or C.MUTED
 end
 
+-- BUTTON HANDLERS
 UI.v1Btn.MouseButton1Click:Connect(function()
 	S.boostV1Active=not S.boostV1Active
 	if S.boostV1Active then task.spawn(function() setMapVisibility(true) end) else task.spawn(function() setMapVisibility(false) end) end
@@ -910,22 +1622,54 @@ UI.enemyBtn.MouseButton1Click:Connect(function()
 	S.hideEnemiesActive=not S.hideEnemiesActive; task.spawn(function() toggleHideEnemies(S.hideEnemiesActive) end)
 	smoothToggle(UI.enemyBtn,S.hideEnemiesActive,C.DANGER,C.CARD,"HIDE ENEMY ON","HIDE ENEMY OFF")
 end)
-local WH_COL=Color3.fromRGB(88,176,255)
+
 UI.webhookBtn.MouseButton1Click:Connect(function()
 	S.webhookActive=not S.webhookActive; config["Webhook Enabled"]=S.webhookActive
-	smoothToggle(UI.webhookBtn,S.webhookActive,WH_COL,C.CARD,"WEBHOOK ON","WEBHOOK OFF")
-	showNotif("Webhook",S.webhookActive and "Enabled" or "Disabled",S.webhookActive and WH_COL or C.DANGER)
+	smoothToggle(UI.webhookBtn,S.webhookActive,C.WEBHOOK,C.CARD,"WEBHOOK ON","WEBHOOK OFF")
+	showNotif("Webhook",S.webhookActive and "Enabled" or "Disabled",S.webhookActive and C.WEBHOOK or C.DANGER)
+	if not S.webhookActive and S.webhookTimerActive then
+		stopWebhookTimer()
+		smoothToggle(UI.whTimerBtn,false,C.WEBHOOK,C.CARD,"WH TIMER ON","WH TIMER OFF")
+		showNotif("WH Timer","Disabled (Webhook off)",C.DANGER)
+	end
 end)
 UI.testWebhookBtn.MouseButton1Click:Connect(function()
 	task.spawn(function()
-		S.totalHopCount=S.totalHopCount+1
 		local cb=getStat("Beli") or 0; local cf=getStat("Fragments") or 0
 		local sb=S.sessionInit and math.floor(cb-(S.sessionStartBeli or cb)) or 0
 		local sf=S.sessionInit and math.floor(cf-(S.sessionStartFragments or cf)) or 0
 		local se=tick()-(S.playerInfoCache[player.UserId] and S.playerInfoCache[player.UserId].joinTime or tick())
-		sendWebhook(sb,sf,se); showNotif("Webhook","Test sent! #"..S.totalHopCount,WH_COL)
+		sendWebhook(sb,sf,se,"Test")
+		showNotif("Webhook","Test sent! #"..S.totalWebhookCount,C.WEBHOOK)
 	end)
 end)
+UI.whTimerBtn.MouseButton1Click:Connect(function()
+	if not S.webhookActive then showNotif("WH Timer","Enable Webhook first!",C.DANGER); return end
+	if S.webhookTimerActive then
+		stopWebhookTimer()
+		smoothToggle(UI.whTimerBtn,false,C.WEBHOOK,C.CARD,"WH TIMER ON","WH TIMER OFF")
+		showNotif("WH Timer","Disabled",C.DANGER)
+	else
+		startWebhookTimer()
+		smoothToggle(UI.whTimerBtn,true,C.WEBHOOK,C.CARD,"WH TIMER ON","WH TIMER OFF")
+		showNotif("WH Timer","Every "..math.floor(S.webhookIntervalSecs/60).." min",C.WEBHOOK)
+	end
+end)
+UI.whTimerCfgBtn.MouseButton1Click:Connect(function()
+	if S.webhookTimerPopupOpen then hideWhTimerPopup() else showWhTimerPopup() end
+end)
+
+local function applyWhInterval()
+	local n=tonumber(whIntervalBox.Text); if not n or n<=0 then return end
+	S.webhookIntervalSecs=n*60; S.webhookTimerCountdown=S.webhookIntervalSecs
+	whIntervalBox.Text=""; whIntervalBox.PlaceholderText=tostring(n)
+	whTimerInfoLbl.Text="Send every "..n.." min | Next in "..n.." min"
+	if S.webhookTimerActive then stopWebhookTimer(); startWebhookTimer() end
+	showNotif("WH Timer","Interval → "..n.." min",C.WEBHOOK)
+end
+setWhIntervalBtn.MouseButton1Click:Connect(applyWhInterval)
+whIntervalBox.FocusLost:Connect(function(e) if e then applyWhInterval() end end)
+
 local function applyFpsCap()
 	local n=tonumber(UI.capBox.Text); if not n or n<=0 then return end
 	pcall(function() settings().Rendering.FrameRateManager.MaxFrameRate=n end)
@@ -934,6 +1678,7 @@ local function applyFpsCap()
 end
 UI.setCapBtn.MouseButton1Click:Connect(applyFpsCap)
 UI.capBox.FocusLost:Connect(function(e) if e then applyFpsCap() end end)
+
 local function applyHopInterval()
 	local n=tonumber(hopIntervalBox.Text); if not n or n<=0 then return end
 	S.hopIntervalSecs=n*60; S.hopCountdown=S.hopIntervalSecs
@@ -946,6 +1691,58 @@ hopServerBox.FocusLost:Connect(function()
 	S.hopTargetServer=hopServerBox.Text:lower()
 	showNotif("Auto Hop",S.hopTargetServer=="" and "Target: all servers" or "Target: "..hopServerBox.Text,C.HOP)
 end)
+
+--Bring Mob handlers
+UI.pullBtn.MouseButton1Click:Connect(function()
+	if BM.active then
+		stopBringMob()
+		smoothToggle(UI.pullBtn, false, C.PULL, C.CARD, "PULL ON", "PULL OFF")
+		showNotif("Bring Mob", "Disabled", C.DANGER)
+	else
+		startBringMob()
+		smoothToggle(UI.pullBtn, true, C.PULL, C.CARD, "PULL ON", "PULL OFF")
+		showNotif("Bring Mob", "Active | Dist="..BM.maxDist.." Batch="..BM.maxBatch, C.PULL)
+	end
+end)
+
+local function applyDist()
+	local n = tonumber(distBox.Text); if not n or n <= 0 then return end
+	BM.maxDist = n
+	distBox.Text = ""; distBox.PlaceholderText = "Dist: "..n
+	showNotif("Bring Mob", "Max Dist → "..n, C.WARN)
+end
+setDistBtn.MouseButton1Click:Connect(applyDist)
+distBox.FocusLost:Connect(function(e) if e then applyDist() end end)
+
+local function applyForce()
+	local n = tonumber(forceBox.Text); if not n or n <= 0 then return end
+	BM.pullForce = n
+	forceBox.Text = ""; forceBox.PlaceholderText = "Force: "..n
+	showNotif("Bring Mob", "Force → "..n, C.WARN)
+end
+setForceBtn.MouseButton1Click:Connect(applyForce)
+forceBox.FocusLost:Connect(function(e) if e then applyForce() end end)
+
+local function applySnap()
+	local n = tonumber(snapBox.Text); if not n or n <= 0 then return end
+	BM.snapDist = n
+	snapBox.Text = ""; snapBox.PlaceholderText = "Snap: "..n
+	showNotif("Bring Mob", "Snap → "..n, C.WARN)
+end
+setSnapBtn.MouseButton1Click:Connect(applySnap)
+snapBox.FocusLost:Connect(function(e) if e then applySnap() end end)
+
+local function applyYOff()
+	local n = tonumber(yOffBox.Text)
+	if n == nil then return end
+	BM.yOffset = n
+	yOffBox.Text = ""; yOffBox.PlaceholderText = "Y: "..n
+	showNotif("Bring Mob", "Y Offset → "..n, C.WARN)
+end
+setYOffBtn.MouseButton1Click:Connect(applyYOff)
+yOffBox.FocusLost:Connect(function(e) if e then applyYOff() end end)
+
+-- Hover effects
 addHover(UI.v1Btn,   function() return S.boostV1Active    and C.V1COL  or C.CARD end)
 addHover(UI.v2Btn,   function() return S.boostV2Active    and C.V2COL  or C.CARD end)
 addHover(UI.hideBtn, function() return S.hidePlayersActive and C.WHITE  or C.CARD end)
@@ -953,9 +1750,16 @@ addHover(UI.enemyBtn,function() return S.hideEnemiesActive and C.DANGER or C.CAR
 addHover(UI.hopBtn,  function() return S.autoHopActive     and C.HOP   or C.CARD end)
 addHover(UI.miniBtn, function() return C.CARD end)
 addHover(UI.setCapBtn,function() return C.WHITE end)
-addHover(UI.webhookBtn,function() return S.webhookActive and WH_COL or C.CARD end)
+addHover(UI.webhookBtn,function() return S.webhookActive and C.WEBHOOK or C.CARD end)
 addHover(UI.testWebhookBtn,function() return C.CARD end)
 addHover(UI.themeBtn,function() return C.CARD end)
+addHover(UI.whTimerBtn,function() return S.webhookTimerActive and C.WEBHOOK or C.CARD end)
+addHover(UI.whTimerCfgBtn,function() return C.CARD end)
+addHover(UI.pullBtn,  function() return BM.active and C.PULL or C.CARD end)
+addHover(setDistBtn,  function() return C.WHITE end)
+addHover(setForceBtn, function() return C.WHITE end)
+addHover(setSnapBtn,  function() return C.WHITE end)
+addHover(setYOffBtn,  function() return C.WHITE end)
 
 local function applyTheme(idx)
 	curTheme=idx; local t=THEMES[idx]
@@ -989,9 +1793,7 @@ local function applyTheme(idx)
 end
 UI.themeBtn.MouseButton1Click:Connect(function() applyTheme((curTheme%#THEMES)+1) end)
 
--- ═══════════════════════════════════════════════════════════════════════
 -- UPDATE FUNCTIONS
--- ═══════════════════════════════════════════════════════════════════════
 local function setText(lb,val)
 	if not lb or not lb.Parent or S.lastText[lb]==val then return end; S.lastText[lb]=val; lb.Text=val
 end
@@ -1011,10 +1813,6 @@ Run.RenderStepped:Connect(function()
 	S.frameCount+=1; local n=tick()
 	if n-S.lastFpsT>=0.5 then S.fps=math.floor(S.frameCount/(n-S.lastFpsT)); S.frameCount=0; S.lastFpsT=n end
 end)
-local function getPing()
-	local ok,p=pcall(function() return Stats.Network.ServerStatsItem["Data Ping"] end)
-	return ok and type(p)=="number" and math.floor(p) or math.floor(player:GetNetworkPing()*1000)
-end
 
 local function updateFast()
 	local ping=getPing(); local e=tick()-S.scriptStart
@@ -1025,12 +1823,25 @@ local function updateFast()
 	setText(UI.miniBeliLbl,formatVal(getStat("Beli"),"Beli"))
 	setText(UI.miniFragLbl,formatVal(getStat("Fragments"),"Fragments"))
 	UI.capBox.PlaceholderText=tostring(FPS_CAP)
+
 	setText(UI.hopCountdownLbl,S.autoHopActive and (function()
 		local sv=math.max(0,math.floor(S.hopCountdown))
 		local h=math.floor(sv/3600); sv=sv%3600; local m=math.floor(sv/60); sv=sv%60
 		return h>0 and ("%d:%02d:%02d"):format(h,m,sv) or ("%02d:%02d"):format(m,sv)
 	end)() or "DISABLED")
 	setColor(UI.hopCountdownLbl,S.autoHopActive and C.HOP or C.DIM)
+
+	setText(UI.whTimerCountdownLbl, S.webhookTimerActive and (function()
+		local sv=math.max(0,math.floor(S.webhookTimerCountdown))
+		local h=math.floor(sv/3600); sv=sv%3600; local m=math.floor(sv/60); sv=sv%60
+		return h>0 and ("%d:%02d:%02d  next send"):format(h,m,sv) or ("%02d:%02d  next send"):format(m,sv)
+	end)() or "DISABLED")
+	setColor(UI.whTimerCountdownLbl, S.webhookTimerActive and C.WEBHOOK or C.DIM)
+
+	local pulledCount = 0
+	for _ in pairs(BM.mobData) do pulledCount = pulledCount + 1 end
+	setText(UI.pullCountLbl, BM.active and ("Pulled: "..pulledCount.." | Dist:"..BM.maxDist.." Y:"..BM.yOffset) or "Pull: OFF")
+	setColor(UI.pullCountLbl, BM.active and C.PULL or C.DIM)
 end
 
 local function updateStats()
@@ -1105,7 +1916,7 @@ local function updateInventory()
 			local reqLevels=getSkillLevels(item.name); local slotIdx=0
 			for _,key in ipairs(SKILL_KEYS) do
 				local reqLv=reqLevels[key]
-				if reqLv then
+				if reqLv ~= nil and item.level ~= nil then
 					local sl=pf.skillLbls[key]; local xPos=8+slotIdx*40
 					sl.kl.Position=UDim2.new(0,xPos,0,27); sl.cl.Position=UDim2.new(0,xPos,0,38)
 					sl.kl.Visible=true; sl.cl.Visible=true
@@ -1186,14 +1997,15 @@ local function updatePlayers()
 	end
 end
 
--- Auto Hop
+-- AUTO HOP
 local startAutoHop, stopAutoHop
 local function doHop()
 	local cb=getStat("Beli") or 0; local cf=getStat("Fragments") or 0
 	local sb=S.sessionInit and math.floor(cb-(S.sessionStartBeli or cb)) or 0
 	local sf=S.sessionInit and math.floor(cf-(S.sessionStartFragments or cf)) or 0
 	local se=tick()-(S.playerInfoCache[player.UserId] and S.playerInfoCache[player.UserId].joinTime or tick())
-	S.totalHopCount+=1; task.spawn(function() sendWebhook(sb,sf,se) end)
+	S.totalHopCount+=1
+	task.spawn(function() sendWebhook(sb,sf,se,"Auto Hop") end)
 	local sb2=pg:FindFirstChild("ServerBrowser"); if not sb2 then return end
 	sb2.Enabled=true; local frame=sb2:FindFirstChild("Frame")
 	if frame then pcall(function() frame.Visible=true end) end
@@ -1262,15 +2074,22 @@ Players.PlayerRemoving:Connect(function(p)
 	if S.bountyWatchers[uid] then S.bountyWatchers[uid]:Disconnect(); S.bountyWatchers[uid]=nil end
 	if S.hideCharConns[uid]  then S.hideCharConns[uid]:Disconnect();  S.hideCharConns[uid]=nil  end
 	S.playerInfoCache[uid]=nil; S.statCache[uid]=nil; S.hiddenPlayersData[uid]=nil
+	if S.spawnWatchers[uid] then S.spawnWatchers[uid]:Disconnect(); S.spawnWatchers[uid]=nil end
 end)
 for _,p in ipairs(Players:GetPlayers()) do if p~=player then watchPlayerData(p) end end
-player.CharacterAdded:Connect(function(char) if S.boostV2Active then V2_SKIP[char]=true end end)
+player.CharacterAdded:Connect(function(char)
+    S.skillCache = {}
+    if S.boostV2Active then V2_SKIP[char]=true end
+end)
 
 UIS.InputBegan:Connect(function(inp,gp)
 	if gp then return end
 	if inp.KeyCode==Enum.KeyCode.B then S.blackoutActive=not S.blackoutActive; blackoutFrame.Visible=S.blackoutActive; restoreBtn.Visible=S.blackoutActive end
 	if inp.KeyCode==Enum.KeyCode.RightControl then setView(not S.isMini) end
-	if inp.UserInputType==Enum.UserInputType.MouseButton1 and S.hopPopupOpen then hideHopPopup() end
+	if inp.UserInputType==Enum.UserInputType.MouseButton1 then
+		if S.hopPopupOpen then hideHopPopup() end
+		if S.webhookTimerPopupOpen then hideWhTimerPopup() end
+	end
 end)
 
 if config["Boost FPS V1"] then task.spawn(function() task.wait(2); S.boostV1Active=true; setMapVisibility(true) end) end
@@ -1283,9 +2102,7 @@ if S.hidePlayersActive then task.spawn(function() task.wait(1); toggleHidePlayer
 if S.hideEnemiesActive then task.spawn(function() task.wait(2); toggleHideEnemies(true) end) end
 if config["Auto Hop"] then task.spawn(function() task.wait(6); startAutoHop() end) end
 
--- ═══════════════════════════════════════════════════════════════════════
 -- LOADING SEQUENCE
--- ═══════════════════════════════════════════════════════════════════════
 local LOAD_STEPS={"Loading account...","Loading username...","Loading level...","Loading beli...","Loading fragments...","Loading fruit...","Loading combat stats...","Loading inventory...","Loading players...","Loading performance..."}
 task.spawn(function()
 	local N=#LOAD_STEPS
