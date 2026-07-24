@@ -1312,9 +1312,9 @@ end)
 
 UI.pullBtn.MouseButton1Click:Connect(function()
 	if BM.active then
-		stopBringMob(); smoothToggle(UI.pullBtn,false,C.PULL,C.CARD,"PULL ON","PULL OFF"); showNotif("Bring Mob","Disabled",C.DANGER)
+		stopBringMob(); smoothToggle(UI.pullBtn,false,C.PULL,C.CARD,"Bring mob ON","Bring mob OFF"); showNotif("Bring Mob","Disabled",C.DANGER)
 	else
-		startBringMob(); smoothToggle(UI.pullBtn,true,C.PULL,C.CARD,"PULL ON","PULL OFF"); showNotif("Bring Mob","Active | Dist="..BM.maxDist.." Batch="..BM.maxBatch,C.PULL)
+		startBringMob(); smoothToggle(UI.pullBtn,true,C.PULL,C.CARD,"Bring mob ON","Bring mob OFF"); showNotif("Bring Mob","Active | Dist="..BM.maxDist.." Batch="..BM.maxBatch,C.PULL)
 	end
 end)
 local function applyBox(box, ph, key, min, isFloat)
