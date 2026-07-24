@@ -22,7 +22,6 @@ repeat task.wait(0.1) until Players.LocalPlayer and Players.LocalPlayer:FindFirs
 local player = Players.LocalPlayer
 local pg = player.PlayerGui
 
--- Cleanup old GUI & self highlight
 for _, v in ipairs(pg:GetChildren()) do if v.Name == "IntegratedStatusHUD" then v:Destroy() end end
 if player.Character and player.Character:FindFirstChild("ESP_SelfHL") then player.Character.ESP_SelfHL:Destroy() end
 
@@ -1625,7 +1624,32 @@ Players.PlayerRemoving:Connect(function(p)
 	S.playerInfoCache[uid]=nil; S.statCache[uid]=nil; S.hiddenPlayersData[uid]=nil
 end)
 for _,p in ipairs(Players:GetPlayers()) do if p~=player then watchPlayerData(p) end end
-player.CharacterAdded:Connect(function(char) S.skillCache={}; if S.boostV2Active then V2_SKIP[char]=true end end)
+player.CharacterAdded:Connect(function(char)
+    S.skillCache = {}
+    if S.boostV2Active then V2_SKIP[char] = true end
+    task.spawn(function()
+        while not char:FindFirstChild("HumanoidRootPart") do task.wait(0.1) end
+        local hum = char:WaitForChild("Humanoid", 10)
+        if not hum then return end
+        local bp
+        for _ = 1, 20 do
+            bp = player:FindFirstChild("Backpack")
+            if bp and #bp:GetChildren() > 0 then break end
+            task.wait(0.3)
+        end
+        if not bp then return end
+        task.wait(0.5)
+        for _, tool in ipairs(bp:GetChildren()) do
+            if tool:IsA("Tool") then
+                pcall(function() hum:EquipTool(tool) end)
+                task.wait(0.15)
+                S.skillCache[tool.Name] = getSkillLevels(tool.Name)
+                pcall(function() hum:UnequipTools() end)
+                task.wait(0.15)
+            end
+        end
+    end)
+end)
 
 UIS.InputBegan:Connect(function(inp,gp)
 	if gp then return end
