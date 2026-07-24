@@ -1099,26 +1099,31 @@ local function getInventory()
 	return items
 end
 local function getSkillLevels(itemName)
-	if S.skillCache[itemName] then return S.skillCache[itemName] end
-	local res={}
-	local SKIP_SKILL_ITEMS={["Fishing Rod"]=true,["Kitsune Ribbon"]=true,["Tool"]=true,["Awakening"]=true,["Heightened Senses"]=true}
-	if SKIP_SKILL_ITEMS[itemName] then return res end
-	local ok,skillFolder=pcall(function()
-		return pg:WaitForChild("Main",3):WaitForChild("Skills",3):WaitForChild(itemName,3)
-	end)
-	if not ok or not skillFolder then return res end
-	for _,child in ipairs(skillFolder:GetChildren()) do
-		if child.Name=="Template" then continue end
-		if not child:IsA("Frame") then continue end
-		local lvObj=child:FindFirstChild("Level")
-		if lvObj then
-			local val
-			if lvObj:IsA("TextLabel") or lvObj:IsA("TextButton") then val=tonumber(lvObj.Text:match("%d+"))
-			elseif lvObj:IsA("IntValue") or lvObj:IsA("NumberValue") then val=lvObj.Value end
-			if val then res[child.Name]=val end
-		end
-	end
-	return res
+    if S.skillCache[itemName] and next(S.skillCache[itemName]) ~= nil then 
+        return S.skillCache[itemName] 
+    end
+    local res={}
+    local SKIP_SKILL_ITEMS={["Fishing Rod"]=true,["Kitsune Ribbon"]=true,["Tool"]=true,["Awakening"]=true,["Heightened Senses"]=true}
+    if SKIP_SKILL_ITEMS[itemName] then return res end
+    local ok,skillFolder=pcall(function()
+        return pg:WaitForChild("Main",3):WaitForChild("Skills",3):WaitForChild(itemName,3)
+    end)
+    if not ok or not skillFolder then return res end
+    for _,child in ipairs(skillFolder:GetChildren()) do
+        if child.Name=="Template" then continue end
+        if not child:IsA("Frame") then continue end
+        local lvObj=child:FindFirstChild("Level")
+        if lvObj then
+            local val
+            if lvObj:IsA("TextLabel") or lvObj:IsA("TextButton") then val=tonumber(lvObj.Text:match("%d+"))
+            elseif lvObj:IsA("IntValue") or lvObj:IsA("NumberValue") then val=lvObj.Value end
+            if val then res[child.Name]=val end
+        end
+    end
+    if next(res) ~= nil then
+        S.skillCache[itemName] = res
+    end
+    return res
 end
 local function getRace(p)
 	local rn,rt
@@ -2141,9 +2146,9 @@ task.spawn(function()
 		task.wait(1)
 		for _,tool in ipairs(bp:GetChildren()) do
 			if tool:IsA("Tool") then
-				pcall(function() hum:EquipTool(tool) end); task.wait(0.08)
+				pcall(function() hum:EquipTool(tool) end); task.wait(0.15)
 				S.skillCache[tool.Name]=getSkillLevels(tool.Name)
-				pcall(function() hum:UnequipTools() end); task.wait(0.08)
+				pcall(function() hum:UnequipTools() end); task.wait(0.15)
 			end
 		end
 	end)
