@@ -327,12 +327,12 @@ local BM={
 }
 local bmTick=0
 
--- BringMob V2 state (ใช้ BM.yOff ร่วม, จำ anchor, noclip loop)
+-- BringMob V2 state
 local BM2={
 	on=false,task=nil,noclipConn=nil,
-	dist=500,interval=0.1,
-	anchorPos=nil,       -- จำตำแหน่ง player ตอนกด ON
-	resetInterval=60,    -- วินาที (0 = ไม่ reset เลย)
+	dist=500,interval=0.001,
+	anchorPos=nil,
+	resetInterval=60,
 	resetTick=0,
 }
 
@@ -404,32 +404,56 @@ end
 local function getStat(key,root) local obj=getStatObj(root or lp,key); return obj and obj.Value or nil end
 
 -- ===== FAKE LEVEL =====
+local _realLevel=nil  -- จำเลเวลจริงตั้งแต่แรก
+
+local function getRealLevelObj()
+	local paths={
+		function() return lp.Data.Level end,
+		function() return lp.leaderstats.Level end,
+		function() return lp.leaderstats.Lv end,
+	}
+	for _,fn in ipairs(paths) do
+		local ok,obj=pcall(fn)
+		if ok and obj and obj:IsA("ValueBase") then return obj end
+	end
+end
+
+-- จำเลเวลจริงตอนโหลด
+task.spawn(function()
+	task.wait(2)
+	local obj=getRealLevelObj()
+	if obj then _realLevel=obj.Value end
+end)
+
 local function stopFakeLevel()
 	S.fakeLevel=false; S.fakeLevelVal=nil
 	if S.fakeLevelThread then pcall(function() task.cancel(S.fakeLevelThread) end); S.fakeLevelThread=nil end
-end
-local function startFakeLevel(targetVal)
-	stopFakeLevel(); S.fakeLevel=true; S.fakeLevelVal=targetVal
-	local function applyFake()
-		pcall(function()
-			local paths={
-				function() return lp.Data.Level end,
-				function() return lp.leaderstats.Level end,
-				function() return lp.leaderstats.Lv end,
-			}
-			for _,fn in ipairs(paths) do
-				local ok,obj=pcall(fn)
-				if ok and obj and obj:IsA("ValueBase") and obj.Value~=targetVal then obj.Value=targetVal end
-			end
-		end)
+	-- คืนเลเวลจริง
+	if _realLevel then
+		local obj=getRealLevelObj()
+		if obj then pcall(function() obj.Value=_realLevel end) end
 	end
-	applyFake()
+end
+
+local function startFakeLevel(targetVal)
+	stopFakeLevel()
+	-- จำเลเวลจริงก่อนเปิด (ถ้ายังไม่มี)
+	local obj=getRealLevelObj()
+	if obj and not _realLevel then _realLevel=obj.Value end
+	-- อัปเดตเลเวลจริงถ้าเพิ่งเปลี่ยน
+	if obj then _realLevel=obj.Value end
+
+	S.fakeLevel=true; S.fakeLevelVal=targetVal
+	if obj then pcall(function() obj.Value=targetVal end) end
+
 	S.fakeLevelThread=task.spawn(function()
 		local conns={}
-		local function watchObj(ok,obj)
-			if ok and obj and obj:IsA("ValueBase") then
-				local c=obj.Changed:Connect(function(newVal)
-					if S.fakeLevel and newVal~=targetVal then obj.Value=targetVal end
+		local function watchObj(ok,o)
+			if ok and o and o:IsA("ValueBase") then
+				local c=o.Changed:Connect(function(newVal)
+					if S.fakeLevel and newVal~=targetVal then
+						pcall(function() o.Value=targetVal end)
+					end
 				end)
 				conns[#conns+1]=c
 			end
@@ -867,14 +891,14 @@ local function startBM2()
 	BM2.resetTick=tick()
 
 	-- noclip loop: ทำให้ทุก BasePart ของมอนใน Enemies CanCollide=false ทุก Heartbeat
-	BM2.noclipConn=Run.Heartbeat:Connect(function()
+	BM2.noclipConn=Run.Stepped:Connect(function()
 		if not BM2.on then return end
 		local ef=WS:FindFirstChild("Enemies"); if not ef then return end
 		for _,e in ipairs(ef:GetChildren()) do
 			if e and e.Parent then
 				for _,p in ipairs(e:GetDescendants()) do
-					if p:IsA("BasePart") and p.CanCollide then
-						pcall(function() p.CanCollide=false end)
+					if p:IsA("BasePart") and p.CanCollide==true then
+						p.CanCollide=false
 					end
 				end
 			end
@@ -907,11 +931,9 @@ local function startBM2()
 				if not hum or hum.Health<=0 then continue end
 				local ok,d=pcall(function() return(anchor-hrp.Position).Magnitude end)
 				if not ok or d>BM2.dist then continue end
-				local off=Vector3.new(math.random(-4,4),0,math.random(-4,4))
-				-- warp ไปที่ anchor + offset แนวนอน + BM.yOff แนวตั้ง (ร่วมกับ V1)
 				pcall(function()
 					hrp.CFrame=CFrame.new(
-						Vector3.new(anchor.X+off.X, anchor.Y+BM.yOff, anchor.Z+off.Z)
+						Vector3.new(anchor.X, anchor.Y+BM.yOff, anchor.Z)
 					)
 					hrp.AssemblyLinearVelocity=Vector3.zero
 					hrp.AssemblyAngularVelocity=Vector3.zero
