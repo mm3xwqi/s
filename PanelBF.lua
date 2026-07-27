@@ -330,7 +330,7 @@ local bmTick=0
 -- BringMob V2 state
 local BM2={
 	on=false,task=nil,noclipConn=nil,
-	dist=500,interval=0.001,
+	dist=500,interval=0.05,
 	anchorPos=nil,
 	resetInterval=60,
 	resetTick=0,
@@ -869,20 +869,22 @@ local function stopBM()
 	bmClean()
 end
 
--- ===== BRINGMOB V2 (WARP) =====
--- ใช้ BM.yOff ร่วมกับ V1
--- จำ anchorPos ตอนกด ON + reset อัตโนมัติทุก resetInterval วินาที (0=ไม่ reset)
--- noclip loop ทำให้ mob ทะลุทุกอย่างตลอดเวลาที่ V2 เปิดอยู่
-
 local function stopBM2()
 	BM2.on=false
-	if BM2.task then task.cancel(BM2.task); BM2.task=nil end
-	if BM2.noclipConn then BM2.noclipConn:Disconnect(); BM2.noclipConn=nil end
+	if BM2.task then
+		BM2.task:Disconnect()
+		BM2.task=nil
+	end
+	if BM2.noclipConn then
+		BM2.noclipConn:Disconnect()
+		BM2.noclipConn=nil
+	end
 	BM2.anchorPos=nil
 end
 
 local function startBM2()
-	stopBM2(); BM2.on=true
+	stopBM2()
+	BM2.on=true
 
 	-- จำตำแหน่ง player ตอนกด ON
 	local initChar=lp.Character
@@ -890,10 +892,14 @@ local function startBM2()
 	BM2.anchorPos=initHRP and initHRP.Position or nil
 	BM2.resetTick=tick()
 
-	-- noclip loop: ทำให้ทุก BasePart ของมอนใน Enemies CanCollide=false ทุก Heartbeat
+	-- ✅ noclip loop ใช้ Stepped เหมือนเดิม แต่เพิ่ม throttle ทุก 3 frame
+	local noclipFrame=0
 	BM2.noclipConn=Run.Stepped:Connect(function()
 		if not BM2.on then return end
-		local ef=WS:FindFirstChild("Enemies"); if not ef then return end
+		noclipFrame=noclipFrame+1
+		if noclipFrame%3~=0 then return end  -- ✅ ทำแค่ทุก 3 frame ไม่ใช่ทุก frame
+		local ef=WS:FindFirstChild("Enemies")
+		if not ef then return end
 		for _,e in ipairs(ef:GetChildren()) do
 			if e and e.Parent then
 				for _,p in ipairs(e:GetDescendants()) do
@@ -905,41 +911,52 @@ local function startBM2()
 		end
 	end)
 
-	-- warp loop หลัก
-	BM2.task=task.spawn(function()
-		while BM2.on do
-			task.wait(BM2.interval)
-			local char=lp.Character; if not char then continue end
-			local myHRP=char:FindFirstChild("HumanoidRootPart"); if not myHRP then continue end
+	-- ✅ warp loop เปลี่ยนจาก task.spawn + task.wait เป็น Heartbeat + accumulator
+	local acc=0
+	BM2.task=Run.Heartbeat:Connect(function(dt)
+		if not BM2.on then return end
+		acc=acc+dt
+		if acc < BM2.interval then return end  -- ยังไม่ถึงเวลา warp
+		acc=0  -- reset accumulator
 
-			-- auto-reset anchorPos ตาม resetInterval
-			if BM2.resetInterval>0 and (tick()-BM2.resetTick)>=BM2.resetInterval then
-				BM2.anchorPos=myHRP.Position
-				BM2.resetTick=tick()
-			end
+		local char=lp.Character
+		if not char then return end
+		local myHRP=char:FindFirstChild("HumanoidRootPart")
+		if not myHRP then return end
 
-			-- ใช้ anchorPos ที่จำไว้ (ถ้าไม่มี fallback เป็นตำแหน่งปัจจุบัน)
-			local anchor=BM2.anchorPos or myHRP.Position
+		-- auto-reset anchorPos ตาม resetInterval
+		if BM2.resetInterval>0 and (tick()-BM2.resetTick)>=BM2.resetInterval then
+			BM2.anchorPos=myHRP.Position
+			BM2.resetTick=tick()
+		end
 
-			local ef=WS:FindFirstChild("Enemies"); if not ef then continue end
+		-- ใช้ anchorPos ที่จำไว้ (ถ้าไม่มี fallback เป็นตำแหน่งปัจจุบัน)
+		local anchor=BM2.anchorPos or myHRP.Position
 
-			for _,e in ipairs(ef:GetChildren()) do
-				if not e or not e.Parent then continue end
-				local hrp=e:FindFirstChild("HumanoidRootPart") or e:FindFirstChild("Torso")
-				if not hrp then continue end
-				local hum=e:FindFirstChildOfClass("Humanoid")
-				if not hum or hum.Health<=0 then continue end
-				local ok,d=pcall(function() return(anchor-hrp.Position).Magnitude end)
-				if not ok or d>BM2.dist then continue end
-				pcall(function()
-					hrp.CFrame=CFrame.new(
-						Vector3.new(anchor.X, anchor.Y+BM.yOff, anchor.Z)
-					)
-					hrp.AssemblyLinearVelocity=Vector3.zero
-					hrp.AssemblyAngularVelocity=Vector3.zero
-				end)
-				pcall(function() hum.WalkSpeed=0; hum.JumpPower=0 end)
-			end
+		local ef=WS:FindFirstChild("Enemies")
+		if not ef then return end
+
+		for _,e in ipairs(ef:GetChildren()) do
+			if not e or not e.Parent then continue end
+			local hrp=e:FindFirstChild("HumanoidRootPart") or e:FindFirstChild("Torso")
+			if not hrp then continue end
+			local hum=e:FindFirstChildOfClass("Humanoid")
+			if not hum or hum.Health<=0 then continue end
+			local ok,d=pcall(function()
+				return(anchor-hrp.Position).Magnitude
+			end)
+			if not ok or d>BM2.dist then continue end
+			pcall(function()
+				hrp.CFrame=CFrame.new(
+					Vector3.new(anchor.X, anchor.Y+BM.yOff, anchor.Z)
+				)
+				hrp.AssemblyLinearVelocity=Vector3.zero
+				hrp.AssemblyAngularVelocity=Vector3.zero
+			end)
+			pcall(function()
+				hum.WalkSpeed=0
+				hum.JumpPower=0
+			end)
 		end
 	end)
 end
@@ -1539,6 +1556,8 @@ do
 	local plrSF2=mk("ScrollingFrame",listSec,{Size=UDim2.new(1,0,0,340),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BOR2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,ZIndex=4,LayoutOrder=2})
 	mk("UIListLayout",plrSF2,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
 	local plrRows={}
+	-- ตาราง map index -> player ที่กำลังแสดงอยู่ (update ทุกรอบ)
+	local plrRowMap={}
 	for i=1,20 do
 		local row=mk("Frame",plrSF2,{Size=UDim2.new(1,-4,0,60),BackgroundColor3=Color3.fromRGB(16,16,16),ZIndex=5,LayoutOrder=i,Visible=false}); stroke(row,C.BOR,1); corner(row,4)
 		plrRows[i]={row=row,
@@ -1550,8 +1569,19 @@ do
 			distLbl=lbl(row,{size=UDim2.new(0,82,0,12),pos=UDim2.new(1,-86,0,33),font=Enum.Font.Gotham,sz=9,col=Color3.fromRGB(180,180,255),txt="",ax=Enum.TextXAlignment.Right,z=6}),
 			timeLbl=lbl(row,{size=UDim2.new(1,-6,0,12),pos=UDim2.new(0,6,0,47),font=Enum.Font.Gotham,sz=9,col=Color3.fromRGB(180,220,255),txt="",tr=Enum.TextTruncate.AtEnd,z=6}),
 		}
+		-- ✅ Connect ครั้งเดียวตอนสร้าง ไม่ connect ซ้ำใน updatePlayers
+		local idx=i
+		row.InputBegan:Connect(function(input)
+			if input.UserInputType~=Enum.UserInputType.MouseButton1 then return end
+			local p=plrRowMap[idx]
+			if not p then return end
+			pcall(function() setclipboard("https://www.roblox.com/users/"..p.UserId.."/profile") end)
+			local ns=p.DisplayName~=p.Name and(p.DisplayName.." (@"..p.Name..")") or p.Name
+			showN(ns,"Profile URL copied!",C.WH)
+		end)
 	end
 	UI.plrRows=plrRows
+	UI.plrRowMap=plrRowMap  -- ✅ เก็บ reference ให้ updatePlayers เข้าถึงได้
 end
 
 -- ===== TAB: INVENTORY =====
@@ -1718,27 +1748,74 @@ local function updateInv()
 end
 
 local function updatePlayers()
-	local list=Plrs:GetPlayers(); local total=#list; local ratio=math.clamp(total/K.MAX,0,1)
+	local list=Plrs:GetPlayers()
+	local total=#list
+	local ratio=math.clamp(total/K.MAX,0,1)
 	setText(UI.pcLbl,total.." / "..K.MAX)
+
 	local barCol=ratio>=1 and C.ERR or ratio>=.75 and C.WRN or C.WHT
-	tw(UI.svrBar,{BackgroundColor3=barCol},.2); setCol(UI.pcLbl,barCol); setBar(UI.svrBar,ratio)
-	local totalB=0; for _,p in ipairs(list) do local c=S.plrC[p.UserId]; if c and c.bounty then totalB=totalB+c.bounty else local bo=getStatObj(p,"Bounty"); if bo then totalB=totalB+(bo.Value or 0) end end end
+	tw(UI.svrBar,{BackgroundColor3=barCol},.2)
+	setCol(UI.pcLbl,barCol)
+	setBar(UI.svrBar,ratio)
+
+	-- คำนวณ total bounty
+	local totalB=0
+	for _,p in ipairs(list) do
+		local c=S.plrC[p.UserId]
+		if c and c.bounty then
+			totalB=totalB+c.bounty
+		else
+			local bo=getStatObj(p,"Bounty")
+			if bo then totalB=totalB+(bo.Value or 0) end
+		end
+	end
 	setText(UI.bountyLbl,fmtN(totalB))
-	local myC=lp.Character; local myR=myC and myC:FindFirstChild("HumanoidRootPart"); local distC={}
-	for _,p in ipairs(list) do if p~=lp then local d=math.huge; if myR then local th=p.Character and p.Character:FindFirstChild("HumanoidRootPart"); if th then local ok,mag=pcall(function() return(myR.Position-th.Position).Magnitude end); if ok then d=mag end end end; distC[p.UserId]=d end end
-	table.sort(list,function(a,b) if a==lp then return true end; if b==lp then return false end; return(distC[a.UserId] or math.huge)<(distC[b.UserId] or math.huge) end)
+
+	-- คำนวณระยะห่าง
+	local myC=lp.Character
+	local myR=myC and myC:FindFirstChild("HumanoidRootPart")
+	local distC={}
+	for _,p in ipairs(list) do
+		if p~=lp then
+			local d=math.huge
+			if myR then
+				local th=p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+				if th then
+					local ok,mag=pcall(function() return(myR.Position-th.Position).Magnitude end)
+					if ok then d=mag end
+				end
+			end
+			distC[p.UserId]=d
+		end
+	end
+
+	-- เรียง: ตัวเองก่อน แล้วเรียงตามระยะห่าง
+	table.sort(list,function(a,b)
+		if a==lp then return true end
+		if b==lp then return false end
+		return(distC[a.UserId] or math.huge)<(distC[b.UserId] or math.huge)
+	end)
+
 	local plrRows=UI.plrRows
+	local plrRowMap=UI.plrRowMap  -- ✅ อัปเดต map ทุกรอบ
+
 	for i=1,20 do
-		local pf=plrRows[i]; local p=list[i]
+		local pf=plrRows[i]
+		local p=list[i]
+
+		-- ✅ อัปเดต map ว่า row i แสดง player คนไหน
+		plrRowMap[i]=p or nil
+
 		if p and pf then
 			pf.row.Visible=true
+
 			local ns=p.DisplayName~=p.Name and(p.DisplayName.." (@"..p.Name..")") or p.Name
-			setText(pf.nameLbl,ns); setCol(pf.nameLbl,p==lp and C.OK or C.WHT)
-			pf.row.MouseButton1Click:Connect(function()
-				pcall(function() setclipboard("https://www.roblox.com/users/"..p.UserId.."/profile") end)
-				showN(ns,"Profile URL copied!",C.WH)
-			end)
-			local plv=getStat("Level",p); setText(pf.lvlLbl,plv~=nil and("LV"..fmtV(plv,"Level")) or "LV??")
+			setText(pf.nameLbl,ns)
+			setCol(pf.nameLbl,p==lp and C.OK or C.WHT)
+
+			local plv=getStat("Level",p)
+			setText(pf.lvlLbl,plv~=nil and("LV"..fmtV(plv,"Level")) or "LV??")
+
 			if p~=lp then
 				local cache=S.plrC[p.UserId] or {}
 				setText(pf.raceLbl,cache.race and("Race: "..cache.race..(cache.raceTier and" V/T "..cache.raceTier or "")) or "Race: ?")
@@ -1748,11 +1825,18 @@ local function updatePlayers()
 				setText(pf.distLbl,rd==math.huge and "?" or(fmtN(math.floor(rd*K.S2M)).."m"))
 				setText(pf.timeLbl,serverT(cache.join))
 			else
-				setText(pf.raceLbl,""); setText(pf.spawnLbl,""); setText(pf.bountyLbl,"")
-				setText(pf.distLbl,"YOU"); setCol(pf.distLbl,C.OK)
+				-- ✅ แสดงข้อมูลตัวเองด้วย
+				setText(pf.raceLbl,"")
+				setText(pf.spawnLbl,"")
+				setText(pf.bountyLbl,"")
+				setText(pf.distLbl,"YOU")
+				setCol(pf.distLbl,C.OK)
 				setText(pf.timeLbl,serverT(S.plrC[lp.UserId] and S.plrC[lp.UserId].join))
 			end
-		elseif pf then pf.row.Visible=false end
+		elseif pf then
+			pf.row.Visible=false
+			plrRowMap[i]=nil
+		end
 	end
 end
 
