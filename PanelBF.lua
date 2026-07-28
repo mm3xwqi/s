@@ -858,6 +858,8 @@ local function stopBM()
 	bmClean()
 end
 
+local bm2XBox, bm2YBox, bm2ZBox
+
 local function stopBM2()
 	BM2.on=false
 	if BM2.task then BM2.task:Disconnect(); BM2.task=nil end
@@ -876,7 +878,7 @@ local function startBM2()
 	BM2.noclipConn=Run.Stepped:Connect(function()
 		if not BM2.on then return end
 		noclipFrame=noclipFrame+1
-		if noclipFrame%3~=0 then return end
+		if noclipFrame%5~=0 then return end
 		local ef=WS:FindFirstChild("Enemies")
 		if not ef then return end
 		for _,e in ipairs(ef:GetChildren()) do
@@ -887,12 +889,13 @@ local function startBM2()
 			end
 		end
 	end)
-	local acc=0
-	BM2.task=Run.Heartbeat:Connect(function(dt)
+	local frameCount=0
+	local WARP_EVERY=math.max(1,math.floor(BM2.interval/(1/60)))
+	BM2.task=Run.Stepped:Connect(function()
 		if not BM2.on then return end
-		acc=acc+dt
-		if acc < BM2.interval then return end
-		acc=0
+		frameCount=frameCount+1
+		if frameCount<WARP_EVERY then return end
+		frameCount=0
 		local char=lp.Character
 		if not char then return end
 		local myHRP=char:FindFirstChild("HumanoidRootPart")
@@ -900,8 +903,17 @@ local function startBM2()
 		if BM2.resetInterval>0 and (tick()-BM2.resetTick)>=BM2.resetInterval then
 			BM2.anchorPos=myHRP.Position
 			BM2.resetTick=tick()
+			pcall(function()
+				if bm2XBox and bm2YBox and bm2ZBox then
+					local p=BM2.anchorPos
+					bm2XBox.Text=tostring(math.floor(p.X))
+					bm2YBox.Text=tostring(math.floor(p.Y))
+					bm2ZBox.Text=tostring(math.floor(p.Z))
+				end
+			end)
 		end
 		local anchor=BM2.anchorPos or myHRP.Position
+		local targetY=anchor.Y+BM.yOff
 		local ef=WS:FindFirstChild("Enemies")
 		if not ef then return end
 		for _,e in ipairs(ef:GetChildren()) do
@@ -912,12 +924,18 @@ local function startBM2()
 			if not hum or hum.Health<=0 then continue end
 			local ok,d=pcall(function() return(anchor-hrp.Position).Magnitude end)
 			if not ok or d>BM2.dist then continue end
+			local targetPos=Vector3.new(anchor.X,targetY,anchor.Z)
 			pcall(function()
-				hrp.CFrame=CFrame.new(Vector3.new(anchor.X, anchor.Y+BM.yOff, anchor.Z))
 				hrp.AssemblyLinearVelocity=Vector3.zero
 				hrp.AssemblyAngularVelocity=Vector3.zero
+				hrp.CFrame=CFrame.new(targetPos)
+				hrp.AssemblyLinearVelocity=Vector3.zero
 			end)
-			pcall(function() hum.WalkSpeed=0; hum.JumpPower=0 end)
+			pcall(function()
+				hum.WalkSpeed=0
+				hum.JumpPower=0
+				hum.PlatformStand=true
+			end)
 		end
 	end)
 end
@@ -1461,15 +1479,31 @@ do
 	local sec1,_=section("bringmob",1,"BringMob Controls")
 	UI.pullBtn=secBtn(sec1,2,"BringMob V1 (Pull): Off",false,C.PULL)
 	UI.pullBtn2=secBtn(sec1,3,"BringMob V2 (Warp): Off",false,C.BM2)
+
 	local bm2Row=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=4,ZIndex=4})
 	local bm2Box=mk("TextBox",bm2Row,{Size=UDim2.new(1,-70,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText="V2 Warp interval sec (default 0.1)",PlaceholderColor3=C.DIM,ZIndex=4}); stroke(bm2Box,C.BOR2,1); corner(bm2Box,4)
 	local bm2SetBtn=mk("TextButton",bm2Row,{Size=UDim2.new(0,64,1,0),Position=UDim2.new(1,-64,0,0),BackgroundColor3=C.BM2,BorderSizePixel=0,Text="SET",TextColor3=C.BG,TextSize=11,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(bm2SetBtn,C.BOR2,1); corner(bm2SetBtn,4)
+
 	local bm2DistRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=5,ZIndex=4})
 	local bm2DistBox=mk("TextBox",bm2DistRow,{Size=UDim2.new(1,-70,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText="V2 Range studs (default 500)",PlaceholderColor3=C.DIM,ZIndex=4}); stroke(bm2DistBox,C.BOR2,1); corner(bm2DistBox,4)
 	local bm2DistBtn=mk("TextButton",bm2DistRow,{Size=UDim2.new(0,64,1,0),Position=UDim2.new(1,-64,0,0),BackgroundColor3=C.BM2,BorderSizePixel=0,Text="SET",TextColor3=C.BG,TextSize=11,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(bm2DistBtn,C.BOR2,1); corner(bm2DistBtn,4)
-	local bm2ResetRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=6,ZIndex=4})
-	local bm2ResetBox=mk("TextBox",bm2ResetRow,{Size=UDim2.new(1,-70,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText="V2 Anchor reset sec (default 60, 0=never)",PlaceholderColor3=C.DIM,ZIndex=4}); stroke(bm2ResetBox,C.BOR2,1); corner(bm2ResetBox,4)
+
+	local bm2AnchorSetRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=6,ZIndex=4})
+	local bm2AnchorBtn=mk("TextButton",bm2AnchorSetRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.BM2,BorderSizePixel=0,Text="📍  Set Anchor = My Position Now",TextColor3=C.BG,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(bm2AnchorBtn,C.BOR2,1); corner(bm2AnchorBtn,4)
+
+	local bm2XYZRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=7,ZIndex=4})
+	local xyzW=math.floor((K.IW-8)/3)-2
+	bm2XBox=mk("TextBox",bm2XYZRow,{Size=UDim2.new(0,xyzW,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText="X",PlaceholderColor3=C.DIM,ZIndex=4}); stroke(bm2XBox,C.BOR2,1); corner(bm2XBox,4)
+	bm2YBox=mk("TextBox",bm2XYZRow,{Size=UDim2.new(0,xyzW,1,0),Position=UDim2.new(0,xyzW+4,0,0),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText="Y",PlaceholderColor3=C.DIM,ZIndex=4}); stroke(bm2YBox,C.BOR2,1); corner(bm2YBox,4)
+	bm2ZBox=mk("TextBox",bm2XYZRow,{Size=UDim2.new(0,xyzW,1,0),Position=UDim2.new(0,(xyzW+4)*2,0,0),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText="Z",PlaceholderColor3=C.DIM,ZIndex=4}); stroke(bm2ZBox,C.BOR2,1); corner(bm2ZBox,4)
+
+	local bm2XYZApplyRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=8,ZIndex=4})
+	local bm2XYZApplyBtn=mk("TextButton",bm2XYZApplyRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,28),BorderSizePixel=0,Text="✅  Apply XYZ as Anchor",TextColor3=C.BM2,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(bm2XYZApplyBtn,C.BOR2,1); corner(bm2XYZApplyBtn,4)
+
+	local bm2ResetRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=9,ZIndex=4})
+	local bm2ResetBox=mk("TextBox",bm2ResetRow,{Size=UDim2.new(1,-70,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText="Auto-reset every N sec (0 = off)",PlaceholderColor3=C.DIM,ZIndex=4}); stroke(bm2ResetBox,C.BOR2,1); corner(bm2ResetBox,4)
 	local bm2ResetBtn=mk("TextButton",bm2ResetRow,{Size=UDim2.new(0,64,1,0),Position=UDim2.new(1,-64,0,0),BackgroundColor3=C.BM2,BorderSizePixel=0,Text="SET",TextColor3=C.BG,TextSize=11,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(bm2ResetBtn,C.BOR2,1); corner(bm2ResetBtn,4)
+
 	local numSec,_=section("bringmob",2,"V1 Distance & Y Offset (shared with V2)")
 	local statusSec,_=section("bringmob",3,"Status")
 	local distLblHdr=secLbl(numSec,2,"Range (studs)  [current: "..BM.dist.."]",C.DIM,9)
@@ -1485,6 +1519,7 @@ do
 	UI.bmYLbl=secLbl(statusSec,6,"Y Offset (shared): "..BM.yOff,C.DIM,9)
 	UI.bmDistLbl=secLbl(statusSec,7,"V1 Dist: "..BM.dist,C.DIM,9)
 	UI.bm2DistLbl=secLbl(statusSec,8,"V2 Dist: "..BM2.dist,C.DIM,9)
+
 	setDistBtn2.MouseButton1Click:Connect(function()
 		local n=tonumber(distBox2.Text)
 		if n and n>0 then BM.dist=n; distBox2.Text=""; distBox2.PlaceholderText="Dist: "..n; setText(distLblHdr,"Range (studs)  [current: "..n.."]"); setText(UI.bmDistLbl,"V1 Dist: "..n); S.last[distLblHdr]=nil; showN("BringMob V1","Range → "..n.." studs",C.OK)
@@ -1500,6 +1535,7 @@ do
 			showN("BringMob","Y Offset → "..n.." (V1 & V2)",C.V1)
 		else showN("BringMob","Enter a number e.g. -15",C.WRN) end
 	end)
+
 	UI.pullBtn.MouseButton1Click:Connect(function()
 		if BM.on then
 			stopBM(); tog(UI.pullBtn,false,C.PULL,Color3.fromRGB(28,28,28),"BringMob V1 (Pull): On","BringMob V1 (Pull): Off")
@@ -1509,6 +1545,7 @@ do
 			showN("BringMob V1","Pull ON | Dist: "..BM.dist.."  Y: "..BM.yOff,C.PULL)
 		end
 	end)
+
 	UI.pullBtn2.MouseButton1Click:Connect(function()
 		if BM2.on then
 			stopBM2(); tog(UI.pullBtn2,false,C.BM2,Color3.fromRGB(28,28,28),"BringMob V2 (Warp): On","BringMob V2 (Warp): Off")
@@ -1523,6 +1560,36 @@ do
 			showN("BringMob V2","Warp+Noclip ON | Dist:"..BM2.dist.." Y:"..BM.yOff,C.BM2)
 		end
 	end)
+
+	bm2AnchorBtn.MouseButton1Click:Connect(function()
+		local char=lp.Character
+		local hrp=char and char:FindFirstChild("HumanoidRootPart")
+		if not hrp then showN("BringMob V2","ยังไม่มี Character!",C.WRN); return end
+		BM2.anchorPos=hrp.Position
+		BM2.resetTick=tick()
+		local p=hrp.Position
+		bm2XBox.Text=tostring(math.floor(p.X))
+		bm2YBox.Text=tostring(math.floor(p.Y))
+		bm2ZBox.Text=tostring(math.floor(p.Z))
+		local aStr=("%.0f, %.0f, %.0f"):format(p.X,p.Y,p.Z)
+		setText(UI.bm2AnchorLbl,"V2 Anchor: "..aStr)
+		S.last[UI.bm2AnchorLbl]=nil
+		showN("BringMob V2","Anchor set → "..aStr,C.BM2)
+	end)
+
+	bm2XYZApplyBtn.MouseButton1Click:Connect(function()
+		local x=tonumber(bm2XBox.Text)
+		local y=tonumber(bm2YBox.Text)
+		local z=tonumber(bm2ZBox.Text)
+		if not x or not y or not z then showN("BringMob V2","กรอก X Y Z ให้ครบก่อน!",C.WRN); return end
+		BM2.anchorPos=Vector3.new(x,y,z)
+		BM2.resetTick=tick()
+		local aStr=("%.0f, %.0f, %.0f"):format(x,y,z)
+		setText(UI.bm2AnchorLbl,"V2 Anchor: "..aStr)
+		S.last[UI.bm2AnchorLbl]=nil
+		showN("BringMob V2","Anchor (manual) → "..aStr,C.BM2)
+	end)
+
 	bm2SetBtn.MouseButton1Click:Connect(function()
 		local n=tonumber(bm2Box.Text)
 		if n and n>0 then BM2.interval=n; bm2Box.Text=""; bm2Box.PlaceholderText="Interval: "..n.."s"; showN("BringMob V2","Interval → "..n.."s",C.BM2)
@@ -1538,8 +1605,8 @@ do
 		if n~=nil and n>=0 then
 			BM2.resetInterval=n; bm2ResetBox.Text=""
 			bm2ResetBox.PlaceholderText="Reset every: "..(n==0 and "never" or n.."s")
-			showN("BringMob V2","Anchor reset → "..(n==0 and "never" or n.."s"),C.BM2)
-		else showN("BringMob V2","Enter seconds (0 = never)",C.WRN) end
+			showN("BringMob V2","Auto-reset → "..(n==0 and "never" or n.."s"),C.BM2)
+		else showN("BringMob V2","กรอกตัวเลข (0 = ปิด auto-reset)",C.WRN) end
 	end)
 end
 
