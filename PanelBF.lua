@@ -130,7 +130,7 @@ _loadFooter.ZIndex = 102
 _loadFooter.Parent = _loadCard
 
 local _logCount   = 0
-local _totalSteps = 11
+local _totalSteps = 17
 
 local function _logStep(text, isOK)
 	_logCount = _logCount + 1
@@ -177,12 +177,13 @@ local function _logStep(text, isOK)
 end
 
 local function _closeLoader()
+	task.wait(0.3)
 	_loadStep.Text = "Load complete!"
-	_loadStep.TextColor3 = Color3.fromRGB(100,220,130)
+	_loadStep.TextColor3 = Color3.fromRGB(65,155,90)
 	_loadPct.Text = "100%"
 	_loadTS:Create(_barFill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{Size = UDim2.new(1,0,1,0)}):Play()
-	task.wait(0.8)
+	task.wait(1.2)
 	_loadTS:Create(_loadBG, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{BackgroundTransparency = 1}):Play()
 	_loadTS:Create(_loadCard, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In),
@@ -864,7 +865,6 @@ local function stopBM2()
 	BM2.on=false
 	if BM2.task then BM2.task:Disconnect(); BM2.task=nil end
 	if BM2.noclipConn then BM2.noclipConn:Disconnect(); BM2.noclipConn=nil end
-	BM2.anchorPos=nil
 end
 
 local function startBM2()
@@ -1549,7 +1549,8 @@ do
 		if BM2.on then
 			stopBM2(); tog(UI.pullBtn2,false,C.BM2,Color3.fromRGB(28,28,28),"BringMob V2 (Warp): On","BringMob V2 (Warp): Off")
 			setText(UI.bm2StatusLbl,"BringMob V2: Off"); setCol(UI.bm2StatusLbl,C.DIM)
-			setText(UI.bm2AnchorLbl,"V2 Anchor: —"); setText(UI.bm2ResetLbl,"V2 Reset: —")
+			local curA = BM2.anchorPos
+			setText(UI.bm2AnchorLbl, curA and ("V2 Anchor (saved): "..("%.0f,%.0f,%.0f"):format(curA.X,curA.Y,curA.Z)) or "V2 Anchor: —")
 			showN("BringMob V2","Disabled",C.ERR)
 		else
 			startBM2(); tog(UI.pullBtn2,true,C.BM2,Color3.fromRGB(28,28,28),"BringMob V2 (Warp): On","BringMob V2 (Warp): Off")
