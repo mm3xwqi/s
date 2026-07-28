@@ -279,19 +279,19 @@ _logStep("Config loaded")
 _logStep("Building Panel GUI...")
 
 local C={
-	BG=Color3.fromRGB(6,6,6),PAN=Color3.fromRGB(10,10,10),CARD=Color3.fromRGB(22,22,22),
-	HOV=Color3.fromRGB(32,32,32),SEP=Color3.fromRGB(50,50,50),BOR=Color3.fromRGB(70,70,70),
-	BOR2=Color3.fromRGB(100,100,100),WHT=Color3.fromRGB(255,255,255),
-	OFF=Color3.fromRGB(235,235,235),MUT=Color3.fromRGB(180,180,180),DIM=Color3.fromRGB(140,140,140),
-	OK=Color3.fromRGB(100,220,130),WRN=Color3.fromRGB(255,210,80),ERR=Color3.fromRGB(255,100,100),
-	BELI=Color3.fromRGB(100,220,130),FRAG=Color3.fromRGB(180,100,255),
-	HOP=Color3.fromRGB(255,80,180),WH=Color3.fromRGB(88,176,255),
-	PULL=Color3.fromRGB(255,100,100),
-	V1=Color3.fromRGB(80,190,255),V2=Color3.fromRGB(255,195,60),V3=Color3.fromRGB(255,100,200),
-	TABON=Color3.fromRGB(100,220,130),TABOFF=Color3.fromRGB(18,18,18),
-	FAKE=Color3.fromRGB(255,160,60),
-	BM2=Color3.fromRGB(255,140,0),
-	RERUN=Color3.fromRGB(60,200,255),
+	BG=Color3.fromRGB(6,6,6),PAN=Color3.fromRGB(10,10,10),CARD=Color3.fromRGB(20,20,20),
+	HOV=Color3.fromRGB(28,28,28),SEP=Color3.fromRGB(40,40,40),BOR=Color3.fromRGB(55,55,55),
+	BOR2=Color3.fromRGB(80,80,80),WHT=Color3.fromRGB(200,200,200),
+	OFF=Color3.fromRGB(185,185,185),MUT=Color3.fromRGB(130,130,130),DIM=Color3.fromRGB(95,95,95),
+	OK=Color3.fromRGB(70,155,90),WRN=Color3.fromRGB(185,145,50),ERR=Color3.fromRGB(185,70,70),
+	BELI=Color3.fromRGB(65,155,90),FRAG=Color3.fromRGB(125,65,185),
+	HOP=Color3.fromRGB(175,55,125),WH=Color3.fromRGB(55,120,185),
+	PULL=Color3.fromRGB(185,65,65),
+	V1=Color3.fromRGB(50,130,185),V2=Color3.fromRGB(185,135,40),V3=Color3.fromRGB(185,65,145),
+	TABON=Color3.fromRGB(70,155,90),TABOFF=Color3.fromRGB(15,15,15),
+	FAKE=Color3.fromRGB(185,110,40),
+	BM2=Color3.fromRGB(185,100,0),
+	RERUN=Color3.fromRGB(40,140,185),
 }
 
 local K={HW=500,HH=600,PAD=10,COMBAT=2800,MAX=Plrs.MaxPlayers,S2M=0.28,HMAX=60,HINT=10}
@@ -870,9 +870,7 @@ end
 local function startBM2()
 	stopBM2()
 	BM2.on=true
-	local initChar=lp.Character
-	local initHRP=initChar and initChar:FindFirstChild("HumanoidRootPart")
-	BM2.anchorPos=initHRP and initHRP.Position or nil
+	-- ไม่ set anchorPos ตอนเริ่ม ให้เป็น nil = follow mode
 	BM2.resetTick=tick()
 	local noclipFrame=0
 	BM2.noclipConn=Run.Stepped:Connect(function()
@@ -900,20 +898,11 @@ local function startBM2()
 		if not char then return end
 		local myHRP=char:FindFirstChild("HumanoidRootPart")
 		if not myHRP then return end
-		if BM2.resetInterval>0 and (tick()-BM2.resetTick)>=BM2.resetInterval then
-			BM2.anchorPos=myHRP.Position
-			BM2.resetTick=tick()
-			pcall(function()
-				if bm2XBox and bm2YBox and bm2ZBox then
-					local p=BM2.anchorPos
-					bm2XBox.Text=tostring(math.floor(p.X))
-					bm2YBox.Text=tostring(math.floor(p.Y))
-					bm2ZBox.Text=tostring(math.floor(p.Z))
-				end
-			end)
-		end
-		local anchor=BM2.anchorPos or myHRP.Position
-		local targetY=anchor.Y+BM.yOff
+
+		-- ถ้า anchorPos == nil = follow mode ใช้ตำแหน่งเราแบบ realtime
+		local anchor = BM2.anchorPos or myHRP.Position
+		local targetY = anchor.Y + BM.yOff
+
 		local ef=WS:FindFirstChild("Enemies")
 		if not ef then return end
 		for _,e in ipairs(ef:GetChildren()) do
@@ -924,7 +913,7 @@ local function startBM2()
 			if not hum or hum.Health<=0 then continue end
 			local ok,d=pcall(function() return(anchor-hrp.Position).Magnitude end)
 			if not ok or d>BM2.dist then continue end
-			local targetPos=Vector3.new(anchor.X,targetY,anchor.Z)
+			local targetPos=Vector3.new(anchor.X, targetY, anchor.Z)
 			pcall(function()
 				hrp.AssemblyLinearVelocity=Vector3.zero
 				hrp.AssemblyAngularVelocity=Vector3.zero
@@ -1491,6 +1480,16 @@ do
 	local bm2AnchorSetRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=6,ZIndex=4})
 	local bm2AnchorBtn=mk("TextButton",bm2AnchorSetRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.BM2,BorderSizePixel=0,Text="📍  Set Anchor = My Position Now",TextColor3=C.BG,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(bm2AnchorBtn,C.BOR2,1); corner(bm2AnchorBtn,4)
 
+	local bm2ClearAnchorRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=7,ZIndex=4})  -- LayoutOrder ต้องเลื่อนของเดิมออก
+	local bm2ClearBtn=mk("TextButton",bm2ClearAnchorRow,{
+		Size=UDim2.new(1,0,1,0),
+		BackgroundColor3=Color3.fromRGB(28,28,28),
+		BorderSizePixel=0,
+		Text="🔄  Clear Anchor (Follow Me)",
+		TextColor3=C.WRN,TextSize=12,
+		Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4
+	}); stroke(bm2ClearBtn,C.BOR2,1); corner(bm2ClearBtn,4)
+
 	local bm2XYZRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=7,ZIndex=4})
 	local xyzW=math.floor((K.IW-8)/3)-2
 	bm2XBox=mk("TextBox",bm2XYZRow,{Size=UDim2.new(0,xyzW,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText="X",PlaceholderColor3=C.DIM,ZIndex=4}); stroke(bm2XBox,C.BOR2,1); corner(bm2XBox,4)
@@ -1565,16 +1564,16 @@ do
 		local char=lp.Character
 		local hrp=char and char:FindFirstChild("HumanoidRootPart")
 		if not hrp then showN("BringMob V2","ยังไม่มี Character!",C.WRN); return end
-		BM2.anchorPos=hrp.Position
-		BM2.resetTick=tick()
+		BM2.anchorPos = hrp.Position   -- บันทึกตำแหน่งนี้ตายตัว
+		BM2.resetTick = tick()
 		local p=hrp.Position
 		bm2XBox.Text=tostring(math.floor(p.X))
 		bm2YBox.Text=tostring(math.floor(p.Y))
 		bm2ZBox.Text=tostring(math.floor(p.Z))
 		local aStr=("%.0f, %.0f, %.0f"):format(p.X,p.Y,p.Z)
-		setText(UI.bm2AnchorLbl,"V2 Anchor: "..aStr)
+		setText(UI.bm2AnchorLbl,"V2 Anchor (Fixed): "..aStr)
 		S.last[UI.bm2AnchorLbl]=nil
-		showN("BringMob V2","Anchor set → "..aStr,C.BM2)
+		showN("BringMob V2","Anchor fixed → "..aStr,C.BM2)
 	end)
 
 	bm2XYZApplyBtn.MouseButton1Click:Connect(function()
@@ -1589,6 +1588,16 @@ do
 		S.last[UI.bm2AnchorLbl]=nil
 		showN("BringMob V2","Anchor (manual) → "..aStr,C.BM2)
 	end)
+
+	bm2ClearBtn.MouseButton1Click:Connect(function()
+    BM2.anchorPos = nil
+    bm2XBox.Text=""
+    bm2YBox.Text=""
+    bm2ZBox.Text=""
+    setText(UI.bm2AnchorLbl,"V2 Anchor: Follow Me (no anchor)")
+    S.last[UI.bm2AnchorLbl]=nil
+    showN("BringMob V2","Cleared → Follow mode",C.WRN)
+end)
 
 	bm2SetBtn.MouseButton1Click:Connect(function()
 		local n=tonumber(bm2Box.Text)
