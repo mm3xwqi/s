@@ -9,6 +9,7 @@ local WS    = game:GetService("Workspace")
 local HTTP  = game:GetService("HttpService")
 
 -- ─── LOADER ─────────────────────────────────────────────────────────
+-- แสดง loading screen ระหว่างรอ game / leaderstats / character โหลด
 local _closeLoader
 do
     local G = Instance.new("ScreenGui", pg)
@@ -209,7 +210,6 @@ end
 local function getStat(key, root) local obj = getStatObj(root or lp, key); return obj and obj.Value or nil end
 
 -- ─── FAKE LEVEL ──────────────────────────────────────────────────────
--- แทน .Value ของ Level object แล้วล็อคไว้ตลอดด้วย Changed listener
 local _realLevel = nil
 local function getRealLevelObj()
     for _, fn in ipairs({function() return lp.Data.Level end, function() return lp.leaderstats.Level end, function() return lp.leaderstats.Lv end}) do
@@ -919,86 +919,66 @@ local function stopHop()
     pcall(function() local sb=pg:FindFirstChild("ServerBrowser"); if sb then sb.Enabled=false; local f=sb:FindFirstChild("Frame"); if f then f.Visible=false end end end)
 end
 
+local function setupAutoExec()
+    local url = cfg.AutoRerunURL
+    if not url or url == "" then return end
+    local paths = {
+        "autoexec\\PanelBF.lua",
+        "autoexec/PanelBF.lua",
+        "scripts\\autoexec\\PanelBF.lua",
+    }
+    
+    local content = ('task.wait(6)\nlocal ok,src=pcall(function() return game:HttpGet("%s",true) end)\nif ok and src then local fn=loadstring(src); if fn then pcall(fn) end end'):format(url)
+    
+    local written = false
+    for _, path in ipairs(paths) do
+        local ok2 = pcall(function() writefile(path, content) end)
+        if ok2 then
+            written = true
+            showN("Auto Rerun", "AutoExec เขียนแล้ว → "..path, C.RERUN)
+            break
+        end
+    end
+    
+    if not written then
+        pcall(function() writefile("PanelBF_autoexec.lua", content) end)
+        showN("Auto Rerun", "วางไฟล์ PanelBF_autoexec.lua ใน autoexec folder เอง", C.WRN)
+    end
+end
+
 -- ─── AUTO RERUN ──────────────────────────────────────────────────────
 local function startRerun()
     S.rerun = true
+    task.spawn(setupAutoExec)
+
     S.rerunLastJob = game.JobId
-
     if S.rerunThread then task.cancel(S.rerunThread) end
-
     S.rerunThread = task.spawn(function()
-        local TS2 = game:GetService("TeleportService")
-
-        local teleConn
-        pcall(function()
-            teleConn = game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(state)
-                if state == Enum.TeleportState.Started or state == Enum.TeleportState.InProgress then
-                    task.wait(8)
-                    if not S.rerun then return end
-                    local url = cfg.AutoRerunURL
-                    if not url or url == "" then return end
-                    local src
-                    local methods = {
-                        function() return game:HttpGet(url, true) end,
-                        function() return syn and syn.request({Url=url, Method="GET"}).Body end,
-                        function() return http_request and http_request({Url=url, Method="GET"}).Body end,
-                        function() return request and request({Url=url, Method="GET"}).Body end,
-                    }
-                    for _, fn in ipairs(methods) do
-                        local ok, res = pcall(fn)
-                        if ok and res and #res > 0 then src = res; break end
-                    end
-                    if src then
-                        local fn, err = loadstring(src)
-                        if fn then pcall(fn)
-                        else warn("[AutoRerun] loadstring error:", err) end
-                    end
-                end
-            end)
-        end)
-
         while S.rerun do
-            task.wait(2)
-            local curJob = game.JobId
-            if curJob ~= "" and curJob ~= S.rerunLastJob then
-                S.rerunLastJob = curJob
-                task.wait(6)
+            task.wait(3)
+            local cur = game.JobId
+            if cur ~= "" and cur ~= S.rerunLastJob then
+                S.rerunLastJob = cur
+                task.wait(7)
                 if not S.rerun then break end
-                local url = cfg.AutoRerunURL
-                if not url or url == "" then break end
-                local src
-                local methods = {
-                    function() return game:HttpGet(url, true) end,
-                    function() return syn and syn.request({Url=url, Method="GET"}).Body end,
-                    function() return http_request and http_request({Url=url, Method="GET"}).Body end,
-                    function() return request and request({Url=url, Method="GET"}).Body end,
-                    function()
-                        local r = (getgenv().request or getgenv().http_request)
-                        return r and r({Url=url, Method="GET"}).Body
-                    end,
-                }
-                for _, fn in ipairs(methods) do
-                    local ok, res = pcall(fn)
-                    if ok and res and #res > 0 then src = res; break end
-                end
-                if src then
-                    local fn, err = loadstring(src)
-                    if fn then pcall(fn)
-                    else warn("[AutoRerun] loadstring error:", err) end
-                else
-                    warn("[AutoRerun] Failed to fetch script from:", url)
+                local ok, src = pcall(function() return game:HttpGet(cfg.AutoRerunURL, true) end)
+                if ok and src then
+                    local fn = loadstring(src)
+                    if fn then pcall(fn) end
                 end
             end
         end
-
-        if teleConn then pcall(function() teleConn:Disconnect() end) end
     end)
-
-    showN("Auto Rerun", "Enabled", C.RERUN)
+    
+    showN("Auto Rerun", "Enabled + AutoExec เซ็ตแล้ว", C.RERUN)
 end
+
 local function stopRerun()
-    S.rerun=false; if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread=nil end
-    showN("Auto Rerun","Disabled",C.ERR)
+    S.rerun = false
+    if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
+    pcall(function() writefile("autoexec\\PanelBF.lua", "") end)
+    pcall(function() writefile("autoexec/PanelBF.lua", "") end)
+    showN("Auto Rerun", "Disabled", C.ERR)
 end
 
 -- ═══════════════════════════════════════════════════════════════════
