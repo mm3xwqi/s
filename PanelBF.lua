@@ -9,7 +9,6 @@ local WS    = game:GetService("Workspace")
 local HTTP  = game:GetService("HttpService")
 
 -- ─── LOADER ─────────────────────────────────────────────────────────
--- แสดง loading screen ระหว่างรอ game / leaderstats / character โหลด
 local _closeLoader
 do
     local G = Instance.new("ScreenGui", pg)
@@ -921,23 +920,81 @@ local function stopHop()
 end
 
 -- ─── AUTO RERUN ──────────────────────────────────────────────────────
--- ตรวจ JobId เปลี่ยน (teleport) แล้วโหลด script URL ซ้ำ
 local function startRerun()
-    S.rerun=true; S.rerunLastJob=game.JobId
+    S.rerun = true
+    S.rerunLastJob = game.JobId
+
     if S.rerunThread then task.cancel(S.rerunThread) end
-    S.rerunThread=task.spawn(function()
+
+    S.rerunThread = task.spawn(function()
+        local TS2 = game:GetService("TeleportService")
+
+        local teleConn
+        pcall(function()
+            teleConn = game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(state)
+                if state == Enum.TeleportState.Started or state == Enum.TeleportState.InProgress then
+                    task.wait(8)
+                    if not S.rerun then return end
+                    local url = cfg.AutoRerunURL
+                    if not url or url == "" then return end
+                    local src
+                    local methods = {
+                        function() return game:HttpGet(url, true) end,
+                        function() return syn and syn.request({Url=url, Method="GET"}).Body end,
+                        function() return http_request and http_request({Url=url, Method="GET"}).Body end,
+                        function() return request and request({Url=url, Method="GET"}).Body end,
+                    }
+                    for _, fn in ipairs(methods) do
+                        local ok, res = pcall(fn)
+                        if ok and res and #res > 0 then src = res; break end
+                    end
+                    if src then
+                        local fn, err = loadstring(src)
+                        if fn then pcall(fn)
+                        else warn("[AutoRerun] loadstring error:", err) end
+                    end
+                end
+            end)
+        end)
+
         while S.rerun do
-            task.wait(1)
-            local curJob=game.JobId
-            if curJob~="" and curJob~=S.rerunLastJob then
-                S.rerunLastJob=curJob; task.wait(5)
-                local url=cfg.AutoRerunURL; if not url or url=="" then break end
-                local ok,result=pcall(function() return game:HttpGet(url) end)
-                if ok and result then local fn=loadstring(result); if fn then pcall(fn) end end
+            task.wait(2)
+            local curJob = game.JobId
+            if curJob ~= "" and curJob ~= S.rerunLastJob then
+                S.rerunLastJob = curJob
+                task.wait(6)
+                if not S.rerun then break end
+                local url = cfg.AutoRerunURL
+                if not url or url == "" then break end
+                local src
+                local methods = {
+                    function() return game:HttpGet(url, true) end,
+                    function() return syn and syn.request({Url=url, Method="GET"}).Body end,
+                    function() return http_request and http_request({Url=url, Method="GET"}).Body end,
+                    function() return request and request({Url=url, Method="GET"}).Body end,
+                    function()
+                        local r = (getgenv().request or getgenv().http_request)
+                        return r and r({Url=url, Method="GET"}).Body
+                    end,
+                }
+                for _, fn in ipairs(methods) do
+                    local ok, res = pcall(fn)
+                    if ok and res and #res > 0 then src = res; break end
+                end
+                if src then
+                    local fn, err = loadstring(src)
+                    if fn then pcall(fn)
+                    else warn("[AutoRerun] loadstring error:", err) end
+                else
+                    warn("[AutoRerun] Failed to fetch script from:", url)
+                end
             end
         end
+
+        if teleConn then pcall(function() teleConn:Disconnect() end) end
     end)
-    showN("Auto Rerun","Enabled",C.RERUN)
+
+    showN("Auto Rerun", "Enabled", C.RERUN)
 end
 local function stopRerun()
     S.rerun=false; if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread=nil end
