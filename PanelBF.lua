@@ -10,45 +10,29 @@ local HTTP  = game:GetService("HttpService")
 do
     local G = Instance.new("ScreenGui", pg)
     G.Name, G.ResetOnSpawn, G.IgnoreGuiInset, G.DisplayOrder = "PanelLoad", false, true, 999
-
     local function F(c, par, props)
         local o = Instance.new(c, par)
         if props then for k, v in pairs(props) do pcall(function() o[k] = v end) end end
         return o
     end
-
-    local card = F("Frame", G, {
-        Size=UDim2.new(0,340,0,0), AutomaticSize=Enum.AutomaticSize.Y,
-        Position=UDim2.new(.5,-170,.5,-100),
-        BackgroundColor3=Color3.fromRGB(13,13,13), ZIndex=100
-    })
+    local card = F("Frame", G, {Size=UDim2.new(0,340,0,0), AutomaticSize=Enum.AutomaticSize.Y, Position=UDim2.new(.5,-170,.5,-100), BackgroundColor3=Color3.fromRGB(13,13,13), ZIndex=100})
     F("UICorner", card, {CornerRadius=UDim.new(0,12)})
     F("UIStroke", card, {Color=Color3.fromRGB(34,34,34), Thickness=1})
     F("UIPadding", card, {PaddingLeft=UDim.new(0,22),PaddingRight=UDim.new(0,22),PaddingTop=UDim.new(0,22),PaddingBottom=UDim.new(0,18)})
     F("UIListLayout", card, {Padding=UDim.new(0,0), SortOrder=Enum.SortOrder.LayoutOrder})
-
-    -- header
     local hdr = F("Frame", card, {Size=UDim2.new(1,0,0,28), BackgroundTransparency=1, LayoutOrder=1, ZIndex=101})
     local dot = F("Frame", hdr, {Size=UDim2.new(0,8,0,8), Position=UDim2.new(0,0,0.5,-4), BackgroundColor3=Color3.fromRGB(61,155,92), ZIndex=102})
     F("UICorner", dot, {CornerRadius=UDim.new(1,0)})
     F("TextLabel", hdr, {Size=UDim2.new(1,-60,1,0), Position=UDim2.new(0,18,0,0), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=14, TextColor3=Color3.fromRGB(232,232,232), Text="BloxHub  v3", TextXAlignment=Enum.TextXAlignment.Left, ZIndex=102})
     F("TextLabel", hdr, {Size=UDim2.new(0,60,1,0), Position=UDim2.new(1,-60,0,0), BackgroundTransparency=1, Font=Enum.Font.Gotham, TextSize=10, TextColor3=Color3.fromRGB(68,68,68), Text="Tab Edition", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=102})
-
-    -- gap
     F("Frame", card, {Size=UDim2.new(1,0,0,14), BackgroundTransparency=1, LayoutOrder=2})
-
-    -- progress bar
     local barBg = F("Frame", card, {Size=UDim2.new(1,0,0,3), BackgroundColor3=Color3.fromRGB(26,26,26), LayoutOrder=3, ZIndex=101})
     F("UICorner", barBg, {CornerRadius=UDim.new(1,0)})
     local barFl = F("Frame", barBg, {Size=UDim2.new(0,0,1,0), BackgroundColor3=Color3.fromRGB(61,155,92), ZIndex=102})
     F("UICorner", barFl, {CornerRadius=UDim.new(1,0)})
-
     F("Frame", card, {Size=UDim2.new(1,0,0,14), BackgroundTransparency=1, LayoutOrder=4})
-
-    -- steps container
     local stepsFrame = F("Frame", card, {Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, BackgroundTransparency=1, LayoutOrder=5, ZIndex=101})
     F("UIListLayout", stepsFrame, {Padding=UDim.new(0,2), SortOrder=Enum.SortOrder.LayoutOrder})
-
     local stepLabels = {}
     local stepNames = {"Waiting for game","Game ready","Workspace ready","Leaderstats","Character ready","Enemies","Building GUI","Done"}
     for i, name in ipairs(stepNames) do
@@ -59,21 +43,16 @@ do
         local statusLbl = F("TextLabel", row, {Size=UDim2.new(0,50,1,0), Position=UDim2.new(1,-50,0,0), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, TextColor3=Color3.fromRGB(68,68,68), Text="—", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=103})
         stepLabels[i] = {dot=d, name=nameLbl, status=statusLbl}
     end
-
     F("Frame", card, {Size=UDim2.new(1,0,0,12), BackgroundTransparency=1, LayoutOrder=6})
-
-    -- footer
     local sep = F("Frame", card, {Size=UDim2.new(1,0,0,1), BackgroundColor3=Color3.fromRGB(28,28,28), LayoutOrder=7, ZIndex=101})
     F("Frame", card, {Size=UDim2.new(1,0,0,10), BackgroundTransparency=1, LayoutOrder=8})
     local footer = F("Frame", card, {Size=UDim2.new(1,0,0,16), BackgroundTransparency=1, LayoutOrder=9, ZIndex=101})
     F("TextLabel", footer, {Size=UDim2.new(0,100,1,0), Position=UDim2.new(0,0,0,0), BackgroundTransparency=1, Font=Enum.Font.Gotham, TextSize=10, TextColor3=Color3.fromRGB(60,60,60), Text="v3 • Panel", TextXAlignment=Enum.TextXAlignment.Left, ZIndex=102})
     local pcLbl = F("TextLabel", footer, {Size=UDim2.new(0,50,1,0), Position=UDim2.new(1,-50,0,0), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=11, TextColor3=Color3.fromRGB(61,155,92), Text="0%", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=102})
-
     local n, tot = 0, 8
     local function log(txt, ok)
         n = n + 1
         local p = math.clamp(n / tot, 0, 1)
-        -- อัพเดท step ที่ผ่านมาแล้ว
         local prevIdx = n - 1
         if prevIdx >= 1 and stepLabels[prevIdx] then
             stepLabels[prevIdx].dot.BackgroundColor3 = Color3.fromRGB(61,155,92)
@@ -81,7 +60,6 @@ do
             stepLabels[prevIdx].status.Text = "done"
             stepLabels[prevIdx].name.TextColor3 = Color3.fromRGB(136,136,136)
         end
-        -- อัพเดท step ปัจจุบัน
         if stepLabels[n] then
             stepLabels[n].dot.BackgroundColor3 = Color3.fromRGB(61,155,92)
             stepLabels[n].name.TextColor3 = Color3.fromRGB(190,190,190)
@@ -91,7 +69,6 @@ do
         TS:Create(barFl, TweenInfo.new(.18), {Size=UDim2.new(p,0,1,0)}):Play()
         task.wait(.05)
     end
-
     log("Waiting for game..."); if not game:IsLoaded() then game.Loaded:Wait() end
     for _, v in ipairs(pg:GetChildren()) do if v.Name == "IntegratedStatusHUD" then v:Destroy() end end
     log("Game ready")
@@ -100,9 +77,7 @@ do
     if not lp.Character then local cw = 0; repeat task.wait(.1); cw += .1 until lp.Character or cw > 8 end; log("Character ready")
     local ew = 0; repeat task.wait(.2); ew += .2 until WS:FindFirstChild("Enemies") or ew > 6; log("Enemies")
     log("Config & GUI building"); task.wait(.05)
-
     _closeLoader = function()
-        -- mark step สุดท้าย
         if stepLabels[n] then
             stepLabels[n].dot.BackgroundColor3 = Color3.fromRGB(61,155,92)
             stepLabels[n].status.TextColor3 = Color3.fromRGB(61,155,92)
@@ -126,14 +101,19 @@ end
 local cfg = {
     RemoveDeathEffect = true,
     LockFps = {on=false, fps=120},
-    BoostV1=false, BoostV2=false, BoostV3=false,
-    HidePlayers=false, HideEnemies=false,
+    BoostV1=false, BoostV2=false, BoostV3=true,
+    HidePlayers=true, HideEnemies=false,
     AutoHop=false, HopInterval=45, HopServer="singapore",
     WebhookEnabled=false,
     WebhookURL="https://discord.com/api/webhooks/1426870143916707840/1d9rXLCZSRTlnTBE-V0AX0CxgQLodNt-zXXSggbS6MjFpPKMTfbNR8V1VrhCcm4wgnmh",
     WebhookName="Panel", WebhookInterval=30, HopMaxPlayers=3,
     AutoRerunURL="https://raw.githubusercontent.com/mm3xwqi/s/refs/heads/main/PanelBF.lua",
     AutoRerun=true,
+    MilestoneBeli      = {1000000, 5000000, 10000000, 50000000},
+    MilestoneFrag      = {10000, 50000, 100000, 500000},
+    HealthFPSThreshold = 30,
+    HealthLagDuration  = 10,
+    PerfBaselineBPM    = 50000,
 }
 
 local C = {
@@ -170,9 +150,12 @@ local S = {
     v1Parts={},v1Conn=nil,v2Orig={},v2Conn=nil,v2CharConn=nil,v3Conns={},
     fakeLevel=false,fakeLevelVal=nil,fakeLevelThread=nil,
     activeTab="status",rerun=false,rerunThread=nil,rerunLastJob="",
-    specTarget=nil,
-    specConn=nil,
-    specCharConn=nil,rerunTeleportConn = nil,
+    specTarget=nil,specConn=nil,specCharConn=nil,rerunTeleportConn=nil,
+    infJump=false,infJumpConn=nil,
+    speedMult=1,
+    logs={},events={},
+    milestone={beliReached={},fragReached={}},
+    health={fpsHist={},instanceCount=0,lagDetected=false,lagTick=0,reportSent=false,lastCheck=0,avgFPS=60},
 }
 local BM  = {on=false,task=nil,data={},noclip=nil,pin=nil,dist=500,batch=20,force=150000,snap=12,yOff=-15}
 local BM2 = {on=false,task=nil,dist=500,interval=0.05,anchorPos=nil,resetInterval=60,resetTick=0,maxCount=10}
@@ -288,41 +271,24 @@ local function startFakeLevel(targetVal)
 end
 
 local cam = WS.CurrentCamera
-
 local function stopSpec()
     if S.specConn then S.specConn:Disconnect(); S.specConn=nil end
     if S.specCharConn then S.specCharConn:Disconnect(); S.specCharConn=nil end
     S.specTarget = nil
-    pcall(function()
-        cam.CameraType = Enum.CameraType.Custom
-        cam.CameraSubject = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") or nil
-    end)
+    pcall(function() cam.CameraType = Enum.CameraType.Custom; cam.CameraSubject = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") or nil end)
 end
-
 local function startSpec(p)
     if not p or p == lp then return end
-    stopSpec()
-    S.specTarget = p
-
+    stopSpec(); S.specTarget = p
     local function attachCamera(char)
         if not char then return end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid"); local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hum or not hrp then return end
-        pcall(function()
-            cam.CameraType = Enum.CameraType.Follow
-            cam.CameraSubject = hum
-        end)
+        pcall(function() cam.CameraType = Enum.CameraType.Follow; cam.CameraSubject = hum end)
     end
-
     if p.Character then attachCamera(p.Character) end
-
     if S.specCharConn then S.specCharConn:Disconnect() end
-    S.specCharConn = p.CharacterAdded:Connect(function(char)
-        task.wait(0.5)
-        if S.specTarget == p then attachCamera(char) end
-    end)
-
+    S.specCharConn = p.CharacterAdded:Connect(function(char) task.wait(0.5); if S.specTarget == p then attachCamera(char) end end)
     if S.specConn then S.specConn:Disconnect() end
     S.specConn = Run.RenderStepped:Connect(function()
         if not S.specTarget then S.specConn:Disconnect(); S.specConn=nil; return end
@@ -336,9 +302,7 @@ local gui = mk("ScreenGui", pg, {Name="IntegratedStatusHUD", ResetOnSpawn=false,
 local NW, NH, NGAP, NMAX = 260, 44, 6, 5
 local activeNotifs = {}
 local function recalcNotifPositions()
-    for i, entry in ipairs(activeNotifs) do
-        tw(entry.frame, {Position=UDim2.new(1,-(NW+10),0,60+(i-1)*(NH+NGAP))}, .2)
-    end
+    for i, entry in ipairs(activeNotifs) do tw(entry.frame, {Position=UDim2.new(1,-(NW+10),0,60+(i-1)*(NH+NGAP))}, .2) end
 end
 local function showN(name, sub, col)
     if #activeNotifs >= NMAX then
@@ -487,9 +451,7 @@ local function setV3(on)
                 elseif o:IsA("Decal") or o:IsA("Texture") then o.Transparency=1 end
             end) end)
         end)
-        S.v3Conns[2] = lp.CharacterAdded:Connect(function(char)
-            task.wait(.5); if S.v3 then stripCharCosmetics(char) end
-        end)
+        S.v3Conns[2] = lp.CharacterAdded:Connect(function(char) task.wait(.5); if S.v3 then stripCharCosmetics(char) end end)
         S.v3Conns[3] = lp.CharacterAdded:Connect(function(char)
             task.wait(.3); if not S.v3 then return end
             char.ChildAdded:Connect(function(child)
@@ -585,7 +547,7 @@ local function startBM()
     if BM.pin then BM.pin:Disconnect() end
     bmTick = 0
     BM.pin = Run.Heartbeat:Connect(function()
-        bmTick += 1; if bmTick%2~=0 then return end  -- ถี่ขึ้น: ทุก 2 frame แทน 3
+        bmTick += 1; if bmTick%2~=0 then return end
         local mr=bmMyRoot(); if not mr then return end
         for e, d in pairs(BM.data) do
             if not e or not e.Parent or not d or not d.arrived then continue end
@@ -609,9 +571,9 @@ local function startBM()
         end
     end)
     BM.task = task.spawn(function()
-        local PULL,HOLD=5,3; local phase="pull"; local pT=0; local lt=tick()  -- เร็วขึ้น: 5s pull, 3s hold
+        local PULL,HOLD=5,3; local phase="pull"; local pT=0; local lt=tick()
         while BM.on do
-            task.wait(.025); local now=tick(); local dt=now-lt; lt=now; pT+=dt  -- loop ถี่ขึ้น 2x
+            task.wait(.025); local now=tick(); local dt=now-lt; lt=now; pT+=dt
             local mr=bmMyRoot(); if not mr then continue end
             local ap=mr.Position; local ef=WS:FindFirstChild("Enemies"); if not ef then task.wait(.3); continue end
             for e in pairs(BM.data) do if not e or not e.Parent or not bmAlive(e) then pcall(bmRelease,e) end end
@@ -648,7 +610,7 @@ local function startBM()
                 local tp=Vector3.new((ap+d.offset).X,ap.Y+BM.yOff,(ap+d.offset).Z)
                 local dist2=(hrp.Position-tp).Magnitude
                 local moved=(hrp.Position-d.lastPos).Magnitude; d.lastPos=hrp.Position
-                d.stuckTime = moved<.05 and d.stuckTime+.025 or 0  -- อัพเดทตาม wait ใหม่
+                d.stuckTime = moved<.05 and d.stuckTime+.025 or 0
                 pcall(function() d.bp.Position=tp end)
                 if dist2 <= BM.snap then
                     pcall(function() d.bp:Destroy() end); pcall(function() hrp.AssemblyLinearVelocity=Vector3.zero end)
@@ -659,7 +621,7 @@ local function startBM()
                     pcall(function() local h=bmHum(e); if h then h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end end)
                     task.delay(.5,function() if bv and bv.Parent then pcall(function() bv:Destroy() end) end end)
                     d.bp=fbp; d.bg=bg; d.bv=bv; d.arrived=true; d.fixedPos=hrp.Position
-                elseif d.stuckTime >= 0.7 then  -- ตรวจ stuck เร็วขึ้น
+                elseif d.stuckTime >= 0.7 then
                     d.offset=bmGetOff(); pcall(function() d.bp.P=100000 end); d.stuckTime=0
                 end
             end
@@ -703,8 +665,7 @@ local function startBM2()
         local anchor=BM2.anchorPos or myHRP.Position
         local targetY=anchor.Y+BM.yOff
         if BM2.resetInterval>0 and (tick()-BM2.resetTick)>=BM2.resetInterval then
-            BM2.anchorPos=myHRP.Position; BM2.resetTick=tick(); anchor=BM2.anchorPos
-            bm2Warped = {}
+            BM2.anchorPos=myHRP.Position; BM2.resetTick=tick(); anchor=BM2.anchorPos; bm2Warped = {}
         end
         local ef=WS:FindFirstChild("Enemies"); if not ef then return end
         local warpedCount = 0
@@ -712,16 +673,12 @@ local function startBM2()
             if e and e.Parent then
                 local hum = e:FindFirstChildOfClass("Humanoid")
                 if hum and hum.Health > 0 then warpedCount += 1 end
-            else
-                bm2Warped[e] = nil
-            end
+            else bm2Warped[e] = nil end
         end
         for _, e in ipairs(ef:GetChildren()) do
             if not e or not e.Parent then continue end
             local hrp=e:FindFirstChild("HumanoidRootPart") or e:FindFirstChild("Torso"); if not hrp then continue end
-            local hum=e:FindFirstChildOfClass("Humanoid"); if not hum or hum.Health<=0 then
-                bm2Warped[e] = nil; continue
-            end
+            local hum=e:FindFirstChildOfClass("Humanoid"); if not hum or hum.Health<=0 then bm2Warped[e] = nil; continue end
             local ok,d=pcall(function() return(anchor-hrp.Position).Magnitude end)
             if not ok or d>BM2.dist then continue end
             if not bm2Warped[e] then
@@ -730,14 +687,182 @@ local function startBM2()
             end
             pcall(function()
                 hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero
-                hrp.CFrame=CFrame.new(anchor.X,targetY,anchor.Z)
-                hrp.AssemblyLinearVelocity=Vector3.zero
+                hrp.CFrame=CFrame.new(anchor.X,targetY,anchor.Z); hrp.AssemblyLinearVelocity=Vector3.zero
             end)
             pcall(function() hum.WalkSpeed=0; hum.JumpPower=0; hum.PlatformStand=true end)
         end
     end)
 end
 
+-- ============================================================
+-- NEW HELPERS & LOGIC
+-- ============================================================
+local BASE_WS = 16
+
+local function emojiBar(val, maxV, len)
+    len = len or 10
+    local p = math.clamp(math.floor((val / math.max(maxV, 1)) * len), 0, len)
+    return string.rep("🟩", p) .. string.rep("⬛", len - p)
+end
+
+local function perfColor(bPM)
+    local base = cfg.PerfBaselineBPM or 50000
+    if bPM >= base then return 3066993
+    elseif bPM >= base * 0.5 then return 16776960
+    else return 15158332 end
+end
+
+local function setInfJump(on)
+    if S.infJumpConn then S.infJumpConn:Disconnect(); S.infJumpConn = nil end
+    S.infJump = on
+    if on then
+        S.infJumpConn = UIS.JumpRequest:Connect(function()
+            local char = lp.Character; if not char then return end
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum and hum:GetState() ~= Enum.HumanoidStateType.Dead then
+                hum:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    end
+end
+
+local function applySpeed(mult)
+    S.speedMult = math.max(1, mult)
+    local char = lp.Character; if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then pcall(function() hum.WalkSpeed = BASE_WS * S.speedMult end) end
+end
+
+local function addEvent(evType, detail, col)
+    table.insert(S.events, 1, {
+        time=localT(), tick=tick(),
+        evType=evType, detail=detail or "", col=col or C.DIM,
+    })
+    if #S.events > 100 then table.remove(S.events) end
+end
+
+local function addLog(source)
+    local b  = getStat("Beli") or 0
+    local f  = getStat("Fragments") or 0
+    local jt = S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
+    local elapsed   = tick() - jt
+    local sessBeli  = S.sessOK and math.floor(b - (S.sessB or b)) or 0
+    local sessFrags = S.sessOK and math.floor(f - (S.sessF or f)) or 0
+    local minIn     = math.max(elapsed / 60, 0.01)
+    table.insert(S.logs, 1, {
+        time=localT(), source=source or "Manual",
+        beli=sessBeli, frags=sessFrags, elapsed=elapsed,
+        bPM=math.floor(sessBeli/minIn), fPM=math.floor(sessFrags/minIn),
+    })
+    if #S.logs > 50 then table.remove(S.logs) end
+end
+
+local function _sendWH(url, payload)
+    local ok2,json=pcall(function() return HTTP:JSONEncode(payload) end); if not ok2 then return end
+    local opts={Url=url,Method="POST",Headers={["Content-Type"]="application/json"},Body=json}
+    local sent=false
+    local function tryR(fn) if sent or not fn then return end; local ok3,r=pcall(fn,opts); if ok3 and r then sent=true end end
+    tryR(typeof(request)=="function" and request)
+    tryR(typeof(http_request)=="function" and http_request)
+    tryR(syn and typeof(syn.request)=="function" and syn.request)
+    tryR(http and typeof(http.request)=="function" and http.request)
+    tryR(getgenv and typeof(getgenv().request)=="function" and getgenv().request)
+    tryR(fluxus and typeof(fluxus.request)=="function" and fluxus.request)
+end
+
+local function sendMilestoneWebhook(statName, target, totalBeli, totalFrag)
+    if not cfg.WebhookEnabled then return end
+    local url=cfg.WebhookURL; if not url or url=="" then return end
+    local pName=lp.DisplayName~=lp.Name and(lp.DisplayName.." (@"..lp.Name..")") or lp.Name
+    local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
+    local bPM2=calcRate(S.beliHist)
+    local cur=statName=="Beli" and totalBeli or totalFrag
+    local bar=emojiBar(math.min(cur,target),target)
+    _sendWH(url,{username=cfg.WebhookName or "BloxHub",embeds={{
+        title="🏆 Milestone — "..fmtN(target).." "..statName,
+        description="**["..pName.."](https://www.roblox.com/users/"..lp.UserId.."/profile)**\nReached **"..fmtN(target).."** "..statName.."!",
+        color=statName=="Beli" and 3447003 or 10181046,
+        fields={
+            {name="Target",      value="```"..fmtN(target).."```",    inline=true},
+            {name="Total Beli",  value="```"..fmtN(totalBeli).."```", inline=true},
+            {name="Total Frags", value="```"..fmtN(totalFrag).."```", inline=true},
+            {name="Session",     value="```"..fmtS(tick()-jt).."```", inline=true},
+            {name="Beli/min",    value="```"..wFmt(bPM2).."```",      inline=true},
+            {name="Progress",    value=bar,                            inline=false},
+        },
+        footer={text="Panel • Milestone Report"}, timestamp=ts(),
+    }}})
+end
+
+local function sendHealthWebhook(avgFPS, instanceCount, elapsed)
+    if not cfg.WebhookEnabled then return end
+    local url=cfg.WebhookURL; if not url or url=="" then return end
+    local pName=lp.DisplayName~=lp.Name and(lp.DisplayName.." (@"..lp.Name..")") or lp.Name
+    local fpsBar=emojiBar(avgFPS,60)
+    _sendWH(url,{username=cfg.WebhookName or "BloxHub",embeds={{
+        title="⚠️ Server Health Alert",
+        description="**["..pName.."](https://www.roblox.com/users/"..lp.UserId.."/profile)**\nServer lag detected!",
+        color=15158332,
+        fields={
+            {name="Avg FPS",   value="```"..avgFPS.."```",              inline=true},
+            {name="Instances", value="```"..fmtN(instanceCount).."```", inline=true},
+            {name="Ping",      value="```"..getPing().."ms```",          inline=true},
+            {name="Session",   value="```"..fmtS(elapsed).."```",       inline=true},
+            {name="Players",   value="```"..#Plrs:GetPlayers().."/"..K.MAX.."```",inline=true},
+            {name="FPS Gauge", value=fpsBar,                            inline=false},
+        },
+        footer={text="Panel • Server Health Report"}, timestamp=ts(),
+    }}})
+end
+
+local function checkServerHealth()
+    local now=tick()
+    if now-S.health.lastCheck < 1 then return end
+    S.health.lastCheck=now
+    table.insert(S.health.fpsHist, S.fps)
+    if #S.health.fpsHist > 30 then table.remove(S.health.fpsHist,1) end
+    local sum=0; for _,v in ipairs(S.health.fpsHist) do sum+=v end
+    S.health.avgFPS=#S.health.fpsHist>0 and math.floor(sum/#S.health.fpsHist) or S.fps
+    pcall(function() S.health.instanceCount=#WS:GetDescendants() end)
+    local threshold=cfg.HealthFPSThreshold or 30
+    if S.health.avgFPS < threshold then
+        if not S.health.lagDetected then
+            S.health.lagDetected=true; S.health.lagTick=now
+        elseif (now-S.health.lagTick)>=(cfg.HealthLagDuration or 10) and not S.health.reportSent then
+            S.health.reportSent=true
+            addEvent("⚠️ Server Lag","Avg FPS: "..S.health.avgFPS.." | Parts: "..fmtN(S.health.instanceCount),C.ERR)
+            showN("Server Health","Lag! Avg FPS: "..S.health.avgFPS,C.ERR)
+            if cfg.WebhookEnabled then
+                local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
+                task.spawn(sendHealthWebhook,S.health.avgFPS,S.health.instanceCount,tick()-jt)
+            end
+        end
+    else
+        S.health.lagDetected=false; S.health.reportSent=false
+    end
+end
+
+local function checkMilestones()
+    local b=getStat("Beli") or 0; local f=getStat("Fragments") or 0
+    for _, target in ipairs(cfg.MilestoneBeli or {}) do
+        if b>=target and not S.milestone.beliReached[target] then
+            S.milestone.beliReached[target]=true
+            addEvent("💰 Beli Milestone",fmtN(target).." Beli!",C.BELI)
+            showN("Milestone!",fmtN(target).." Beli reached!",C.BELI)
+            if cfg.WebhookEnabled then task.spawn(sendMilestoneWebhook,"Beli",target,b,f) end
+        end
+    end
+    for _, target in ipairs(cfg.MilestoneFrag or {}) do
+        if f>=target and not S.milestone.fragReached[target] then
+            S.milestone.fragReached[target]=true
+            addEvent("💎 Frag Milestone",fmtN(target).." Frags!",C.FRAG)
+            showN("Milestone!",fmtN(target).." Frags reached!",C.FRAG)
+            if cfg.WebhookEnabled then task.spawn(sendMilestoneWebhook,"Fragments",target,b,f) end
+        end
+    end
+end
+
+-- ============================================================
 local SKILL_KEYS = {"Z","X","C","V","F"}
 local function getToolLv(o) local lv; pcall(function() local lo=o:FindFirstChild("Level") or o:FindFirstChildOfClass("NumberValue") or o:FindFirstChildOfClass("IntValue"); if lo then lv=lo.Value end end); return lv end
 local function getEquipped() local c=lp.Character; if not c then return"None",nil end; for _,o in ipairs(c:GetChildren()) do if o:IsA("Tool") then return o.Name,getToolLv(o) end end; return"None",nil end
@@ -804,6 +929,11 @@ local function sendWebhook(sessBeli,sessFrags,elapsed,source)
     local pName=lp.DisplayName~=lp.Name and(lp.DisplayName.." (@"..lp.Name..")") or lp.Name
     local minIn=math.max((elapsed or 0)/60,.01)
     local bPM2=math.floor(sessBeli/minIn); local fPM2=math.floor(sessFrags/minIn)
+    -- NEW: progress bars & perf color
+    local nextB=nil; for _,t in ipairs(cfg.MilestoneBeli or {}) do if beli<t then nextB=t; break end end
+    local nextF=nil; for _,t in ipairs(cfg.MilestoneFrag or {}) do if frag<t then nextF=t; break end end
+    local beliBar=nextB and(emojiBar(beli,nextB).."  "..fmtN(beli).."/"..fmtN(nextB)) or "✅ All milestones reached"
+    local fragBar=nextF and(emojiBar(frag,nextF).."  "..fmtN(frag).."/"..fmtN(nextF)) or "✅ All milestones reached"
     local srcIcon=({["Auto Hop"]=">>",["Instant Hop"]="!",["Webhook Time"]="T",["Manual"]="M",["Test"]="?"})[source] or ">"
     local jobId="unknown"; pcall(function() jobId=game.JobId end)
     local plrLines={}
@@ -838,6 +968,9 @@ local function sendWebhook(sessBeli,sessFrags,elapsed,source)
         {name="Players",value="```"..#Plrs:GetPlayers().."/"..K.MAX.."```",inline=true},
         {name="FPS / Ping",value="```"..fps2.." FPS | "..getPing().."ms```",inline=true},
         {name="Backpack",value="```\n"..( #invLines>0 and table.concat(invLines,"\n") or "-").."\n```",inline=false},
+        {name="Beli Progress",value=beliBar,inline=false},
+        {name="Frag Progress",value=fragBar,inline=false},
+        {name="Server Health",value="```FPS avg: "..S.health.avgFPS.." | Parts: "..fmtN(S.health.instanceCount)..(S.health.lagDetected and " | ⚠️ LAG" or " | ✅ OK").."```",inline=false},
         {name="Players in Server",value=#plrLines>0 and table.concat(plrLines,"\n") or "?",inline=false},
         {name="Report #",value="```#"..S.whTotal.."```",inline=true},
         {name="Source",value="```"..source.."```",inline=true},
@@ -848,23 +981,13 @@ local function sendWebhook(sessBeli,sessFrags,elapsed,source)
         fields[#fields+1]={name="Target",value="```"..(S.hopTarget~="" and S.hopTarget or "all").."```",inline=true}
         fields[#fields+1]={name="Prev Job",value="```"..tostring(jobId):sub(1,36).."```",inline=false}
     end
-    local payload={username=cfg.WebhookName or "BloxHub",embeds={{
+    _sendWH(url,{username=cfg.WebhookName or "BloxHub",embeds={{
         author={name="Panel — "..source},
         title=srcIcon.."  Session Report — "..source,
         description="**["..pName.."](https://www.roblox.com/users/"..lp.UserId.."/profile)** | Session: **"..fmtS(elapsed or 0).."**\n\nBeli "..wFmt(sessBeli).." ("..wFmt(bPM2).."/min)\nFrags "..wFmt(sessFrags).." ("..wFmt(fPM2).."/min)",
-        color=sessBeli>=0 and 3066993 or 15158332, fields=fields,
+        color=perfColor(bPM2), fields=fields,
         footer={text="Panel • Report #"..S.whTotal.." • "..source}, timestamp=ts(),
-    }}}
-    local ok2,json=pcall(function() return HTTP:JSONEncode(payload) end); if not ok2 then return end
-    local opts={Url=url,Method="POST",Headers={["Content-Type"]="application/json"},Body=json}
-    local sent=false
-    local function tryR(fn) if sent or not fn then return end; local ok3,r=pcall(fn,opts); if ok3 and r then sent=true end end
-    tryR(typeof(request)=="function" and request)
-    tryR(typeof(http_request)=="function" and http_request)
-    tryR(syn and typeof(syn.request)=="function" and syn.request)
-    tryR(http and typeof(http.request)=="function" and http.request)
-    tryR(getgenv and typeof(getgenv().request)=="function" and getgenv().request)
-    tryR(fluxus and typeof(fluxus.request)=="function" and fluxus.request)
+    }}})
 end
 
 local function startWHTimer()
@@ -890,6 +1013,7 @@ local function doHop()
     local cb=getStat("Beli") or 0; local cf=getStat("Fragments") or 0
     local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
     S.hopTotal+=1
+    addLog("Auto Hop")
     task.spawn(function() sendWebhook(S.sessOK and math.floor(cb-(S.sessB or cb)) or 0, S.sessOK and math.floor(cf-(S.sessF or cf)) or 0, tick()-jt,"Auto Hop") end)
     local sb=pg:FindFirstChild("ServerBrowser"); if not sb then return end
     sb.Enabled=true
@@ -951,51 +1075,35 @@ end
 local function startRerun()
     S.rerun = true
     if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
-
     task.spawn(function()
         if not cfg.AutoRerunURL or cfg.AutoRerunURL == "" then
             showN("Auto Rerun", "No URL set!", C.ERR); S.rerun = false; return
         end
-
         local loader = string.format(
             'task.wait(5)\nlocal ok,src=pcall(game.HttpGet,game,"%s",true)\nif ok and src then local f=loadstring(src) if f then pcall(f) end end',
             cfg.AutoRerunURL
         )
-
-        local queued = false
-        local tried = {}
-
+        local queued = false; local tried = {}
         if not queued and typeof(queueonteleport)=="function" then
-            local ok2,err=pcall(queueonteleport, loader)
-            tried[#tried+1]="queueonteleport="..(ok2 and"OK" or tostring(err))
-            if ok2 then queued=true end
+            local ok2,err=pcall(queueonteleport, loader); tried[#tried+1]="queueonteleport="..(ok2 and"OK" or tostring(err)); if ok2 then queued=true end
         end
         if not queued and typeof(queue_on_teleport)=="function" then
-            local ok2,err=pcall(queue_on_teleport, loader)
-            tried[#tried+1]="queue_on_teleport="..(ok2 and"OK" or tostring(err))
-            if ok2 then queued=true end
+            local ok2,err=pcall(queue_on_teleport, loader); tried[#tried+1]="queue_on_teleport="..(ok2 and"OK" or tostring(err)); if ok2 then queued=true end
         end
         if not queued and getgenv and typeof(getgenv().queueonteleport)=="function" then
-            local ok2,err=pcall(getgenv().queueonteleport, loader)
-            tried[#tried+1]="genv="..(ok2 and"OK" or tostring(err))
-            if ok2 then queued=true end
+            local ok2,err=pcall(getgenv().queueonteleport, loader); tried[#tried+1]="genv="..(ok2 and"OK" or tostring(err)); if ok2 then queued=true end
         end
-
-        if queued then
-            showN("Auto Rerun", "Ready! Runs after hop", C.RERUN)
+        if queued then showN("Auto Rerun", "Ready! Runs after hop", C.RERUN)
         else
-            showN("Auto Rerun", table.concat(tried,", "), C.ERR)
-            S.rerun = false
+            showN("Auto Rerun", table.concat(tried,", "), C.ERR); S.rerun = false
             tog(UI.rerunBtn, false, C.RERUN, Color3.fromRGB(28,28,28), "Auto Rerun: On", "Auto Rerun: Off")
         end
     end)
 end
-
 local function stopRerun()
     S.rerun = false
     if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
-    pcall(function() queueonteleport("") end)
-    pcall(function() queue_on_teleport("") end)
+    pcall(function() queueonteleport("") end); pcall(function() queue_on_teleport("") end)
     showN("Auto Rerun", "Disabled", C.ERR)
 end
 
@@ -1027,6 +1135,7 @@ local TABS = {
     {id="bringmob",label="BringMob"},
     {id="players", label="Players"},
     {id="inv",     label="Inventory"},
+    {id="log",     label="Log"},
 }
 local tabBtns={}
 local tabPages={}
@@ -1034,7 +1143,7 @@ local tabW = math.floor(K.HW/#TABS)
 
 for i, tab in ipairs(TABS) do
     local x=(i-1)*tabW; local w=(i==#TABS) and (K.HW-(i-1)*tabW) or tabW
-    local tb=mk("TextButton",tabBar,{Size=UDim2.new(0,w,1,-1),Position=UDim2.new(0,x,0,0),BackgroundColor3=C.TABOFF,BorderSizePixel=0,Text=tab.label,TextColor3=C.DIM,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
+    local tb=mk("TextButton",tabBar,{Size=UDim2.new(0,w,1,-1),Position=UDim2.new(0,x,0,0),BackgroundColor3=C.TABOFF,BorderSizePixel=0,Text=tab.label,TextColor3=C.DIM,TextSize=11,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
     local underline=mk("Frame",tb,{Size=UDim2.new(0,0,0,2),Position=UDim2.new(0,0,1,-2),BackgroundColor3=C.TABON,BorderSizePixel=0,ZIndex=5}); corner(underline,1)
     tabBtns[tab.id]={btn=tb,line=underline}
     local sf=mk("ScrollingFrame",pageContainer,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BOR2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,Visible=false,ZIndex=3})
@@ -1092,6 +1201,9 @@ local function inlineBox(row,xOff,w,ph)
     stroke(b,C.BOR2,1); corner(b,4); return b
 end
 
+-- ============================================================
+-- STATUS TAB
+-- ============================================================
 do
     local sec1=section("status",1,"Profile")
     local avaRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,52),BackgroundTransparency=1,LayoutOrder=2,ZIndex=4})
@@ -1149,6 +1261,9 @@ do
     UI.fPMLbl=rateCol((qw+2)*2,"FRAG/MIN",C.FRAG); UI.fHRLbl=rateCol((qw+2)*3,"FRAG/HR",C.FRAG)
 end
 
+-- ============================================================
+-- CONTROLS TAB
+-- ============================================================
 do
     local sec1=section("controls",1,"Performance Boosts")
     UI.v1Btn=secBtn(sec1,2,"Boost V1: Off",false,C.V1)
@@ -1202,12 +1317,12 @@ do
     UI.whTestBtn=mk("TextButton",whTestRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,28),BorderSizePixel=0,Text="Send Test Report",TextColor3=C.WRN,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(UI.whTestBtn,C.BOR2,1); corner(UI.whTestBtn,4)
     UI.whCD=secLbl(sec5,12,"DISABLED",C.WH,10)
 
-	local sec6=section("controls",6,"Auto Rerun")
-	UI.rerunBtn=secBtn(sec6,2,"Auto Rerun: Off",false,C.RERUN)
-	UI.rerunBtn.MouseButton1Click:Connect(function()
-		if S.rerun then stopRerun(); tog(UI.rerunBtn,false,C.RERUN,Color3.fromRGB(28,28,28),"Auto Rerun: On","Auto Rerun: Off")
-		else startRerun(); tog(UI.rerunBtn,true,C.RERUN,Color3.fromRGB(28,28,28),"Auto Rerun: On","Auto Rerun: Off") end
-	end)
+    local sec6=section("controls",6,"Auto Rerun")
+    UI.rerunBtn=secBtn(sec6,2,"Auto Rerun: Off",false,C.RERUN)
+    UI.rerunBtn.MouseButton1Click:Connect(function()
+        if S.rerun then stopRerun(); tog(UI.rerunBtn,false,C.RERUN,Color3.fromRGB(28,28,28),"Auto Rerun: On","Auto Rerun: Off")
+        else startRerun(); tog(UI.rerunBtn,true,C.RERUN,Color3.fromRGB(28,28,28),"Auto Rerun: On","Auto Rerun: Off") end
+    end)
 
     local sec7=section("controls",7,"Fake Level")
     secLbl(sec7,2,"Replaces .Value on .Changed",C.DIM,9)
@@ -1224,13 +1339,47 @@ do
             setText(UI.fakeLvStatus,"ACTIVE — LV "..fmtN(n)); setCol(UI.fakeLvStatus,C.FAKE); showN("Fake Level","On — LV "..fmtN(n),C.FAKE)
         end
     end)
+
+    -- NEW: Movement
+    local sec8=section("controls",8,"Movement")
+    UI.infJumpBtn=secBtn(sec8,2,"Infinite Jump: Off",false,C.OK)
+    UI.infJumpBtn.MouseButton1Click:Connect(function()
+        S.infJump=not S.infJump; setInfJump(S.infJump)
+        tog(UI.infJumpBtn,S.infJump,C.OK,Color3.fromRGB(28,28,28),"Infinite Jump: On","Infinite Jump: Off")
+        showN("Infinite Jump",S.infJump and"On" or"Off",S.infJump and C.OK or C.ERR)
+    end)
+    local speedRow=inlineRow(sec8,3)
+    local speedBox=inlineBox(speedRow,0,K.IW-70,"Speed x  (1–20)")
+    local speedSetBtn=inlineBtn(speedRow,K.IW-66,62,"SET",C.V2)
+    UI.speedLbl=secLbl(sec8,4,"Speed: 1x  (WalkSpeed 16)",C.DIM,9)
+    local speedResetRow=inlineRow(sec8,5)
+    local speedResetBtn=mk("TextButton",speedResetRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,28),BorderSizePixel=0,Text="Reset Speed (1x)",TextColor3=C.WRN,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
+    stroke(speedResetBtn,C.BOR2,1); corner(speedResetBtn,4)
+    speedSetBtn.MouseButton1Click:Connect(function()
+        local n=tonumber(speedBox.Text)
+        if n and n>=1 and n<=20 then
+            applySpeed(n); speedBox.Text=""; speedBox.PlaceholderText="Current: "..n.."x"
+            setText(UI.speedLbl,"Speed: "..n.."x  (WalkSpeed "..math.floor(BASE_WS*n)..")"); S.last[UI.speedLbl]=nil
+            showN("Speed",n.."x — WalkSpeed "..math.floor(BASE_WS*n),C.V2)
+        else showN("Speed","Enter 1–20",C.WRN) end
+    end)
+    speedResetBtn.MouseButton1Click:Connect(function()
+        applySpeed(1); speedBox.Text=""; speedBox.PlaceholderText="Speed x  (1–20)"
+        setText(UI.speedLbl,"Speed: 1x  (WalkSpeed 16)"); S.last[UI.speedLbl]=nil
+        showN("Speed","Reset to 1x",C.DIM)
+    end)
+    addHov(UI.infJumpBtn, function() return S.infJump and C.OK or Color3.fromRGB(28,28,28) end)
+    addHov(speedSetBtn,   function() return C.V2 end)
+    addHov(speedResetBtn, function() return Color3.fromRGB(28,28,28) end)
 end
 
+-- ============================================================
+-- BRINGMOB TAB
+-- ============================================================
 do
     local sec1=section("bringmob",1,"BringMob Controls")
     UI.pullBtn =secBtn(sec1,2,"BringMob V1 (Pull): Off",false,C.PULL)
     UI.pullBtn2=secBtn(sec1,3,"BringMob V2 (Warp): Off",false,C.BM2)
-
     local bm2IntRow=inlineRow(sec1,4); local bm2Box=inlineBox(bm2IntRow,0,K.IW-70,"V2 Warp interval sec (default 0.1)"); local bm2SetBtn=inlineBtn(bm2IntRow,K.IW-66,62,"SET",C.BM2)
     local bm2DistRow=inlineRow(sec1,5); local bm2DistBox=inlineBox(bm2DistRow,0,K.IW-70,"V2 Range studs (default 500)"); local bm2DistBtn=inlineBtn(bm2DistRow,K.IW-66,62,"SET",C.BM2)
     local bm2MaxRow=inlineRow(sec1,6); local bm2MaxBox=inlineBox(bm2MaxRow,0,K.IW-70,"V2 Max mobs (default 10)"); local bm2MaxBtn=inlineBtn(bm2MaxRow,K.IW-66,62,"SET",C.BM2)
@@ -1240,7 +1389,6 @@ do
     bm2XBox=inlineBox(xyzRow,0,xyzW,"X"); bm2YBox=inlineBox(xyzRow,xyzW+4,xyzW,"Y"); bm2ZBox=inlineBox(xyzRow,(xyzW+4)*2,xyzW,"Z")
     local xyzApplyRow=inlineRow(sec1,10); local xyzApplyBtn=mk("TextButton",xyzApplyRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,28),BorderSizePixel=0,Text="Apply XYZ as Anchor",TextColor3=C.BM2,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(xyzApplyBtn,C.BOR2,1); corner(xyzApplyBtn,4)
     local bm2RstRow=inlineRow(sec1,11); local bm2RstBox=inlineBox(bm2RstRow,0,K.IW-70,"Auto-reset every N sec (0 = off)"); local bm2RstBtn=inlineBtn(bm2RstRow,K.IW-66,62,"SET",C.BM2)
-
     local numSec=section("bringmob",2,"V1 Distance & Y Offset (shared V2)")
     local distHdr=secLbl(numSec,2,"Range (studs)  [current: "..BM.dist.."]",C.DIM,9)
     local distBox =secBox(numSec,3,"Dist: "..BM.dist)
@@ -1248,7 +1396,6 @@ do
     local yHdr=secLbl(numSec,5,"Y Offset  [current: "..BM.yOff.."]  V1 & V2",C.DIM,9)
     local yOffBox=secBox(numSec,6,"Y: "..BM.yOff.."  (negative = lower)")
     local setYBtn=secBtn(numSec,7,"Apply Y Offset (V1 & V2)",true,C.V1); setYBtn.TextColor3=C.BG
-
     local stSec=section("bringmob",3,"Status")
     UI.bmCountLbl  =secLbl(stSec,2,"BringMob V1: Off",C.DIM,10)
     UI.bm2StatusLbl=secLbl(stSec,3,"BringMob V2: Off",C.DIM,10)
@@ -1258,7 +1405,6 @@ do
     UI.bmDistLbl   =secLbl(stSec,7,"V1 Dist: "..BM.dist,C.DIM,9)
     UI.bm2DistLbl  =secLbl(stSec,8,"V2 Dist: "..BM2.dist,C.DIM,9)
     UI.bm2MaxLbl   =secLbl(stSec,9,"V2 Max Mobs: "..BM2.maxCount,C.DIM,9)
-
     setDistBtn.MouseButton1Click:Connect(function()
         local n=tonumber(distBox.Text); if n and n>0 then BM.dist=n; distBox.Text=""; distBox.PlaceholderText="Dist: "..n; setText(distHdr,"Range (studs)  [current: "..n.."]"); setText(UI.bmDistLbl,"V1 Dist: "..n); S.last[distHdr]=nil; showN("BringMob V1","Range → "..n.." studs",C.OK) else showN("BringMob","Enter a valid number!",C.WRN) end
     end)
@@ -1303,6 +1449,9 @@ do
     end)
 end
 
+-- ============================================================
+-- PLAYERS TAB
+-- ============================================================
 do
     local sec1=section("players",1,"Server Info")
     local pcRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,28),BackgroundTransparency=1,LayoutOrder=2,ZIndex=4})
@@ -1312,7 +1461,6 @@ do
     UI.bountyLbl=lbl(pcRow,{size=UDim2.new(0,90,0,16),pos=UDim2.new(1,-94,0,12),sz=11,col=Color3.fromRGB(185,120,40),txt="0",ax=Enum.TextXAlignment.Right,z=5})
     local svrBg=mk("Frame",sec1,{Size=UDim2.new(1,0,0,3),BackgroundColor3=C.BOR,ZIndex=4,LayoutOrder=3}); corner(svrBg,1)
     UI.svrBar=mk("Frame",svrBg,{Size=UDim2.new(0,0,1,0),BackgroundColor3=C.WHT,ZIndex=5}); corner(UI.svrBar,1)
-
     local specSec=section("players",2,"Spectate")
     UI.specStatusLbl=secLbl(specSec,2,"Not spectating",C.DIM,10)
     local specStopRow=inlineRow(specSec,3)
@@ -1320,29 +1468,20 @@ do
     stroke(UI.specStopBtn,C.BOR2,1); corner(UI.specStopBtn,4)
     UI.specStopBtn.MouseButton1Click:Connect(function()
         if S.specTarget then
-            local n=S.specTarget.DisplayName
-            stopSpec()
+            local n=S.specTarget.DisplayName; stopSpec()
             setText(UI.specStatusLbl,"Not spectating"); setCol(UI.specStatusLbl,C.DIM)
             tw(UI.specStopBtn,{BackgroundColor3=Color3.fromRGB(28,28,28)},.15); UI.specStopBtn.TextColor3=C.DIM
             showN("Spectate","Stopped — "..n,C.DIM)
         end
     end)
-
     local listSec=section("players",3,"Player List")
     local plrSF=mk("ScrollingFrame",listSec,{Size=UDim2.new(1,0,0,300),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BOR2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,ZIndex=4,LayoutOrder=2})
     mk("UIListLayout",plrSF,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
     UI.plrRows={}; UI.plrRowMap={}
-
     local SPEC_BTN_W = 38
     for i=1,20 do
         local row=mk("Frame",plrSF,{Size=UDim2.new(1,-4,0,66),BackgroundColor3=Color3.fromRGB(16,16,16),ZIndex=5,LayoutOrder=i,Visible=false}); stroke(row,C.BOR,1); corner(row,4)
-        local specBtn=mk("TextButton",row,{
-            Size=UDim2.new(0,SPEC_BTN_W,0,24), Position=UDim2.new(1,-(SPEC_BTN_W+6),0,4),
-            BackgroundColor3=C.SPEC, BorderSizePixel=0,
-            Text="SPEC", TextColor3=C.BG, TextSize=10, Font=Enum.Font.GothamBold,
-            AutoButtonColor=false, ZIndex=7,
-        }); stroke(specBtn,C.BOR2,1); corner(specBtn,3)
-
+        local specBtn=mk("TextButton",row,{Size=UDim2.new(0,SPEC_BTN_W,0,24),Position=UDim2.new(1,-(SPEC_BTN_W+6),0,4),BackgroundColor3=C.SPEC,BorderSizePixel=0,Text="SPEC",TextColor3=C.BG,TextSize=10,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=7}); stroke(specBtn,C.BOR2,1); corner(specBtn,3)
         UI.plrRows[i]={row=row,specBtn=specBtn,
             nameLbl  =lbl(row,{size=UDim2.new(1,-(SPEC_BTN_W+16),0,14),pos=UDim2.new(0,6,0,3),sz=11,col=C.WHT,txt="",tr=Enum.TextTruncate.AtEnd,z=6}),
             lvlLbl   =lbl(row,{size=UDim2.new(0,50,0,14),pos=UDim2.new(1,-(SPEC_BTN_W+60),0,3),sz=10,col=C.MUT,txt="",ax=Enum.TextXAlignment.Right,z=6}),
@@ -1352,7 +1491,6 @@ do
             distLbl  =lbl(row,{size=UDim2.new(0,82,0,12),pos=UDim2.new(1,-86,0,33),font=Enum.Font.Gotham,sz=9,col=Color3.fromRGB(130,130,185),txt="",ax=Enum.TextXAlignment.Right,z=6}),
             timeLbl  =lbl(row,{size=UDim2.new(1,-6,0,12),pos=UDim2.new(0,6,0,51),font=Enum.Font.Gotham,sz=9,col=Color3.fromRGB(130,170,200),txt="",tr=Enum.TextTruncate.AtEnd,z=6}),
         }
-
         local idx=i
         row.InputBegan:Connect(function(input)
             if input.UserInputType~=Enum.UserInputType.MouseButton1 then return end
@@ -1360,13 +1498,11 @@ do
             pcall(function() setclipboard("https://www.roblox.com/users/"..p.UserId.."/profile") end)
             showN(p.DisplayName~=p.Name and(p.DisplayName.." (@"..p.Name..")") or p.Name,"Profile URL copied!",C.WH)
         end)
-
         specBtn.MouseButton1Click:Connect(function()
             local p=UI.plrRowMap[idx]; if not p then return end
             if p==lp then showN("Spectate","Cannot spectate yourself",C.WRN); return end
             if S.specTarget==p then
-                stopSpec()
-                setText(UI.specStatusLbl,"Not spectating"); setCol(UI.specStatusLbl,C.DIM)
+                stopSpec(); setText(UI.specStatusLbl,"Not spectating"); setCol(UI.specStatusLbl,C.DIM)
                 tw(UI.specStopBtn,{BackgroundColor3=Color3.fromRGB(28,28,28)},.15); UI.specStopBtn.TextColor3=C.DIM
                 showN("Spectate","Stopped",C.DIM)
             else
@@ -1385,6 +1521,9 @@ do
     end
 end
 
+-- ============================================================
+-- INVENTORY TAB
+-- ============================================================
 do
     local sec1=section("inv",1,"Equipped")
     local eqRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,36),BackgroundTransparency=1,LayoutOrder=2,ZIndex=4})
@@ -1413,6 +1552,159 @@ do
     end
 end
 
+-- ============================================================
+-- LOG TAB
+-- ============================================================
+do
+    -- AFK Profit Estimator
+    local afkSec=section("log",1,"AFK Profit Estimator")
+    UI.afkRateLbl=secLbl(afkSec,2,"Based on current Beli/min rate",C.DIM,9)
+    local afkHours={1,4,8,24}
+    UI.afkRows={}
+    local afkRowF=mk("Frame",afkSec,{Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,LayoutOrder=3,ZIndex=4})
+    local afkW=math.floor(K.IW/4)-3
+    for i,h in ipairs(afkHours) do
+        local xi=(i-1)*(afkW+4)
+        lbl(afkRowF,{size=UDim2.new(0,afkW,0,12),pos=UDim2.new(0,xi,0,0),sz=8,col=C.DIM,txt=h.."H",z=5})
+        local bL=lbl(afkRowF,{size=UDim2.new(0,afkW,0,14),pos=UDim2.new(0,xi,0,12),sz=10,col=C.BELI,txt="+0",z=5})
+        local fL=lbl(afkRowF,{size=UDim2.new(0,afkW,0,13),pos=UDim2.new(0,xi,0,27),sz=9, col=C.FRAG,txt="+0",z=5})
+        UI.afkRows[i]={bL=bL,fL=fL,h=h}
+    end
+
+    -- Server Health
+    local healthSec=section("log",2,"Server Health")
+    local healthRow=mk("Frame",healthSec,{Size=UDim2.new(1,0,0,36),BackgroundTransparency=1,LayoutOrder=2,ZIndex=4})
+    local hw3=math.floor(K.IW/3)-4
+    lbl(healthRow,{size=UDim2.new(0,hw3,0,12),pos=UDim2.new(0,0,0,0),           sz=8,col=C.DIM,txt="AVG FPS",z=5})
+    lbl(healthRow,{size=UDim2.new(0,hw3,0,12),pos=UDim2.new(0,hw3+4,0,0),       sz=8,col=C.DIM,txt="INSTANCES",z=5})
+    lbl(healthRow,{size=UDim2.new(0,hw3,0,12),pos=UDim2.new(0,(hw3+4)*2,0,0),   sz=8,col=C.DIM,txt="STATUS",z=5})
+    UI.hFpsLbl  =lbl(healthRow,{size=UDim2.new(0,hw3,0,16),pos=UDim2.new(0,0,0,14),         sz=13,col=C.OK,  txt="60",    z=5})
+    UI.hInstLbl =lbl(healthRow,{size=UDim2.new(0,hw3,0,16),pos=UDim2.new(0,hw3+4,0,14),     sz=13,col=C.OFF, txt="0",     z=5})
+    UI.hStatLbl =lbl(healthRow,{size=UDim2.new(0,hw3,0,16),pos=UDim2.new(0,(hw3+4)*2,0,14), sz=11,col=C.OK,  txt="✅ OK",  z=5})
+    UI.hBarBg   =mk("Frame",healthSec,{Size=UDim2.new(1,0,0,4),BackgroundColor3=C.BOR,ZIndex=4,LayoutOrder=3}); corner(UI.hBarBg,2)
+    UI.hBarFl   =mk("Frame",UI.hBarBg,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.OK,ZIndex=5}); corner(UI.hBarFl,2)
+    local threshRow=inlineRow(healthSec,4)
+    local threshBox=inlineBox(threshRow,0,K.IW-70,"FPS threshold (default: 30)")
+    local threshBtn=inlineBtn(threshRow,K.IW-66,62,"SET",C.OK)
+    threshBtn.MouseButton1Click:Connect(function()
+        local n=tonumber(threshBox.Text)
+        if n and n>0 then cfg.HealthFPSThreshold=n; threshBox.Text=""; threshBox.PlaceholderText="Threshold: "..n; showN("Server Health","Alert FPS < "..n,C.OK)
+        else showN("Server Health","Enter a number",C.WRN) end
+    end)
+
+    -- Session Log
+    local logCtrlSec=section("log",3,"Session Log")
+    UI.logCountLbl=secLbl(logCtrlSec,2,"0 entries",C.DIM,9)
+    local logBtnRow=inlineRow(logCtrlSec,3)
+    local hw4=math.floor((K.IW-4)/2)
+    local logNowBtn=inlineBtn(logBtnRow,0,hw4,"Log Now",C.OK)
+    local logClrBtn=inlineBtn(logBtnRow,hw4+4,hw4,"Clear All",C.ERR)
+    addHov(logNowBtn,function() return C.OK  end)
+    addHov(logClrBtn,function() return C.ERR end)
+    local logListSec=section("log",4,"History  (newest first)")
+    local logSF=mk("ScrollingFrame",logListSec,{Size=UDim2.new(1,0,0,200),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BOR2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,ZIndex=4,LayoutOrder=2})
+    mk("UIListLayout",logSF,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
+    UI.logRows={}
+    for i=1,50 do
+        local card=mk("Frame",logSF,{Size=UDim2.new(1,-4,0,76),BackgroundColor3=Color3.fromRGB(14,14,14),ZIndex=5,LayoutOrder=i,Visible=false}); stroke(card,C.BOR,1); corner(card,4)
+        mk("UIPadding",card,{PaddingLeft=UDim.new(0,8),PaddingRight=UDim.new(0,8),PaddingTop=UDim.new(0,5),PaddingBottom=UDim.new(0,5)})
+        mk("UIListLayout",card,{Padding=UDim.new(0,2),SortOrder=Enum.SortOrder.LayoutOrder})
+        UI.logRows[i]={
+            card  = card,
+            line1 = mk("TextLabel",card,{Size=UDim2.new(1,0,0,13),BackgroundTransparency=1,Font=Enum.Font.GothamBold,TextSize=11,TextColor3=C.WHT,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=1,ZIndex=6}),
+            line2 = mk("TextLabel",card,{Size=UDim2.new(1,0,0,13),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=10,TextColor3=C.BELI,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=2,ZIndex=6}),
+            line3 = mk("TextLabel",card,{Size=UDim2.new(1,0,0,13),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=10,TextColor3=C.FRAG,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=3,ZIndex=6}),
+            line4 = mk("TextLabel",card,{Size=UDim2.new(1,0,0,11),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=9, TextColor3=C.DIM, Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=4,ZIndex=6}),
+        }
+    end
+
+    -- Event Timeline
+    local evSec=section("log",5,"Event Timeline")
+    local evClearRow=inlineRow(evSec,2)
+    local evClrBtn=mk("TextButton",evClearRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,28),BorderSizePixel=0,Text="Clear Events",TextColor3=C.WRN,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(evClrBtn,C.BOR2,1); corner(evClrBtn,4)
+    addHov(evClrBtn,function() return Color3.fromRGB(28,28,28) end)
+    local evSF=mk("ScrollingFrame",evSec,{Size=UDim2.new(1,0,0,240),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BOR2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,ZIndex=4,LayoutOrder=3})
+    mk("UIListLayout",evSF,{Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder})
+    UI.evRows={}
+    for i=1,100 do
+        local row=mk("Frame",evSF,{Size=UDim2.new(1,-4,0,36),BackgroundColor3=Color3.fromRGB(14,14,14),ZIndex=5,LayoutOrder=i,Visible=false}); stroke(row,C.BOR,1); corner(row,4)
+        mk("UIPadding",row,{PaddingLeft=UDim.new(0,8),PaddingRight=UDim.new(0,8),PaddingTop=UDim.new(0,4),PaddingBottom=UDim.new(0,4)})
+        mk("UIListLayout",row,{Padding=UDim.new(0,1),SortOrder=Enum.SortOrder.LayoutOrder})
+        UI.evRows[i]={
+            row       = row,
+            typeLbl   = mk("TextLabel",row,{Size=UDim2.new(1,0,0,13),BackgroundTransparency=1,Font=Enum.Font.GothamBold,TextSize=11,TextColor3=C.WHT,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=1,ZIndex=6}),
+            detailLbl = mk("TextLabel",row,{Size=UDim2.new(1,0,0,11),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=9,TextColor3=C.DIM,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=2,ZIndex=6}),
+        }
+    end
+
+    -- Refresh functions
+    local function refreshLogUI()
+        setText(UI.logCountLbl,#S.logs.." entries (max 50)")
+        for i=1,50 do
+            local row=UI.logRows[i]; local entry=S.logs[i]
+            if entry then
+                row.card.Visible=true
+                local srcCol=({["Auto Hop"]=C.HOP,["Instant Hop"]=C.HOP,["Manual"]=C.OK,["Webhook Time"]=C.WH})[entry.source] or C.DIM
+                row.line1.TextColor3=srcCol
+                setText(row.line1,"#"..i.."  ["..entry.source.."]  —  "..entry.time)
+                setText(row.line2,"Beli  "..(entry.beli>=0 and"+" or"")..fmtN(entry.beli).."   ("..wFmt(entry.bPM).."/min  "..wFmt(entry.bPM*60).."/hr)")
+                setText(row.line3,"Frag  "..(entry.frags>=0 and"+" or"")..fmtN(entry.frags).."   ("..wFmt(entry.fPM).."/min  "..wFmt(entry.fPM*60).."/hr)")
+                setText(row.line4,"Duration: "..fmtS(entry.elapsed))
+            else row.card.Visible=false end
+        end
+    end
+
+    local function refreshEventUI()
+        for i=1,100 do
+            local row=UI.evRows[i]; local entry=S.events[i]
+            if entry then
+                row.row.Visible=true; row.typeLbl.TextColor3=entry.col
+                setText(row.typeLbl,entry.evType); setText(row.detailLbl,entry.detail.."  —  "..entry.time)
+            else row.row.Visible=false end
+        end
+    end
+
+    local function refreshAfkUI()
+        local bPM=calcRate(S.beliHist); local fPM=calcRate(S.fragHist)
+        setText(UI.afkRateLbl,"Rate: "..wFmt(bPM).."/min Beli  "..wFmt(fPM).."/min Frag")
+        for _,r in ipairs(UI.afkRows) do
+            local mins=r.h*60
+            setText(r.bL,"+"..fmtN(math.max(0,math.floor(bPM*mins))))
+            setText(r.fL,"+"..fmtN(math.max(0,math.floor(fPM*mins))))
+        end
+    end
+
+    local function refreshHealthUI()
+        local avg=S.health.avgFPS; local inst=S.health.instanceCount; local lag=S.health.lagDetected
+        setText(UI.hFpsLbl,tostring(avg))
+        setCol(UI.hFpsLbl, avg>=50 and C.OK or avg>=(cfg.HealthFPSThreshold or 30) and C.WRN or C.ERR)
+        setText(UI.hInstLbl,fmtN(inst))
+        setCol(UI.hInstLbl, inst<5000 and C.OK or inst<10000 and C.WRN or C.ERR)
+        setText(UI.hStatLbl, lag and"⚠️ LAG" or"✅ OK")
+        setCol(UI.hStatLbl,  lag and C.ERR or C.OK)
+        setBar(UI.hBarFl, math.clamp(avg/60,0,1))
+        tw(UI.hBarFl,{BackgroundColor3=avg>=50 and C.OK or avg>=(cfg.HealthFPSThreshold or 30) and C.WRN or C.ERR},.2)
+    end
+
+    logNowBtn.MouseButton1Click:Connect(function()
+        addLog("Manual"); refreshLogUI(); showN("Log","Saved entry #"..#S.logs,C.OK)
+    end)
+    logClrBtn.MouseButton1Click:Connect(function()
+        S.logs={}; refreshLogUI(); showN("Log","Cleared all entries",C.ERR)
+    end)
+    evClrBtn.MouseButton1Click:Connect(function()
+        S.events={}; refreshEventUI(); showN("Events","Cleared",C.ERR)
+    end)
+
+    UI._refreshLogUI    = refreshLogUI
+    UI._refreshEventUI  = refreshEventUI
+    UI._refreshAfkUI    = refreshAfkUI
+    UI._refreshHealthUI = refreshHealthUI
+end
+
+-- ============================================================
+-- BUTTON EVENTS
+-- ============================================================
 UI.v1Btn.MouseButton1Click:Connect(function() S.v1=not S.v1; task.spawn(setV1,S.v1); tog(UI.v1Btn,S.v1,C.V1,Color3.fromRGB(28,28,28),"Boost V1: On","Boost V1: Off"); showN("Boost V1",S.v1 and"On — Map hidden" or"Off",S.v1 and C.V1 or C.ERR) end)
 UI.v2Btn.MouseButton1Click:Connect(function() S.v2=not S.v2; task.spawn(setV2,S.v2); tog(UI.v2Btn,S.v2,C.V2,Color3.fromRGB(28,28,28),"Boost V2: On","Boost V2: Off"); showN("Boost V2",S.v2 and"On — Low graphics" or"Off",S.v2 and C.V2 or C.ERR) end)
 UI.v3Btn.MouseButton1Click:Connect(function() S.v3=not S.v3; task.spawn(setV3,S.v3); tog(UI.v3Btn,S.v3,C.V3,Color3.fromRGB(28,28,28),"Boost V3: On","Boost V3: Off"); showN("Boost V3",S.v3 and"On — Cosmetics off" or"Off",S.v3 and C.V3 or C.ERR) end)
@@ -1432,26 +1724,27 @@ UI.hopNowBtn.MouseButton1Click:Connect(function()
     showN("Hop Now","Hopping...",C.HOP)
     task.spawn(function()
         local cb=getStat("Beli") or 0; local cf=getStat("Fragments") or 0; local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
-        S.hopTotal+=1; sendWebhook(S.sessOK and math.floor(cb-(S.sessB or cb)) or 0,S.sessOK and math.floor(cf-(S.sessF or cf)) or 0,tick()-jt,"Instant Hop"); doHop()
+        S.hopTotal+=1; addLog("Instant Hop"); sendWebhook(S.sessOK and math.floor(cb-(S.sessB or cb)) or 0,S.sessOK and math.floor(cf-(S.sessF or cf)) or 0,tick()-jt,"Instant Hop"); doHop()
     end)
 end)
 
 for _, h in ipairs({
-    {UI.v1Btn,     function() return S.v1 and C.V1 or Color3.fromRGB(28,28,28) end},
-    {UI.v2Btn,     function() return S.v2 and C.V2 or Color3.fromRGB(28,28,28) end},
-    {UI.v3Btn,     function() return S.v3 and C.V3 or Color3.fromRGB(28,28,28) end},
-    {UI.hidBtn,    function() return S.hidPlr and C.WHT or Color3.fromRGB(28,28,28) end},
-    {UI.enmBtn,    function() return S.hidEnm and C.ERR or Color3.fromRGB(28,28,28) end},
-    {UI.hopBtn,    function() return S.hop and C.HOP or Color3.fromRGB(28,28,28) end},
-    {UI.hopNowBtn, function() return C.HOP end},
-    {UI.whBtn,     function() return S.wh and C.WH or Color3.fromRGB(28,28,28) end},
-    {UI.whTestBtn, function() return Color3.fromRGB(28,28,28) end},
-    {UI.whTimBtn,  function() return S.whTimer and C.WH or Color3.fromRGB(28,28,28) end},
-    {UI.pullBtn,   function() return BM.on and C.PULL or Color3.fromRGB(28,28,28) end},
-    {UI.pullBtn2,  function() return BM2.on and C.BM2 or Color3.fromRGB(28,28,28) end},
-    {UI.fakeLvBtn, function() return S.fakeLevel and C.FAKE or Color3.fromRGB(28,28,28) end},
-    {UI.rerunBtn,  function() return S.rerun and C.RERUN or Color3.fromRGB(28,28,28) end},
+    {UI.v1Btn,      function() return S.v1 and C.V1 or Color3.fromRGB(28,28,28) end},
+    {UI.v2Btn,      function() return S.v2 and C.V2 or Color3.fromRGB(28,28,28) end},
+    {UI.v3Btn,      function() return S.v3 and C.V3 or Color3.fromRGB(28,28,28) end},
+    {UI.hidBtn,     function() return S.hidPlr and C.WHT or Color3.fromRGB(28,28,28) end},
+    {UI.enmBtn,     function() return S.hidEnm and C.ERR or Color3.fromRGB(28,28,28) end},
+    {UI.hopBtn,     function() return S.hop and C.HOP or Color3.fromRGB(28,28,28) end},
+    {UI.hopNowBtn,  function() return C.HOP end},
+    {UI.whBtn,      function() return S.wh and C.WH or Color3.fromRGB(28,28,28) end},
+    {UI.whTestBtn,  function() return Color3.fromRGB(28,28,28) end},
+    {UI.whTimBtn,   function() return S.whTimer and C.WH or Color3.fromRGB(28,28,28) end},
+    {UI.pullBtn,    function() return BM.on and C.PULL or Color3.fromRGB(28,28,28) end},
+    {UI.pullBtn2,   function() return BM2.on and C.BM2 or Color3.fromRGB(28,28,28) end},
+    {UI.fakeLvBtn,  function() return S.fakeLevel and C.FAKE or Color3.fromRGB(28,28,28) end},
+    {UI.rerunBtn,   function() return S.rerun and C.RERUN or Color3.fromRGB(28,28,28) end},
     {UI.specStopBtn,function() return S.specTarget and C.SPEC or Color3.fromRGB(28,28,28) end},
+    {UI.infJumpBtn, function() return S.infJump and C.OK or Color3.fromRGB(28,28,28) end},
 }) do addHov(h[1], h[2]) end
 
 UIS.InputBegan:Connect(function(i, gp)
@@ -1470,16 +1763,27 @@ end
 if lp.Character then task.delay(.5,function() applyHL(lp.Character) end) end
 lp.CharacterAdded:Connect(function(char) task.wait(.5); applyHL(char) end)
 
+-- Restore speed/infJump after respawn + log event
+lp.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    if S.speedMult > 1 then
+        local hum=char:FindFirstChildOfClass("Humanoid")
+        if hum then pcall(function() hum.WalkSpeed=BASE_WS*S.speedMult end) end
+    end
+    if S.infJump then setInfJump(true) end
+    addEvent("💀 Respawned", lp.Name, C.WRN)
+end)
+
 local _frame = 0
 
 local function updateFast()
     local e=tick()-S.start
-    setText(UI.fpsLbl,  "FPS "..S.fps)
+    setText(UI.fpsLbl,"FPS "..S.fps)
     local ping=getPing(); setText(UI.pingLbl,"PING "..ping.."ms"); setCol(UI.pingLbl,ping<80 and C.OK or ping<150 and C.WRN or C.ERR)
-    setText(UI.timeLbl, ("%02d:%02d:%02d"):format(math.floor(e/3600),math.floor(e%3600/60),math.floor(e%60)))
-    local hopStr=S.hop and (function() local sv=math.max(0,math.floor(S.hopCD)); return("%02d:%02d"):format(math.floor(sv/60),sv%60) end)() or "DISABLED"
+    setText(UI.timeLbl,("%02d:%02d:%02d"):format(math.floor(e/3600),math.floor(e%3600/60),math.floor(e%60)))
+    local hopStr=S.hop and(function() local sv=math.max(0,math.floor(S.hopCD)); return("%02d:%02d"):format(math.floor(sv/60),sv%60) end)() or "DISABLED"
     setText(UI.hopCD,hopStr); setCol(UI.hopCD,S.hop and C.HOP or C.DIM)
-    local whStr=S.whTimer and (function() local sv=math.max(0,math.floor(S.whCD)); return("%02d:%02d next send"):format(math.floor(sv/60),sv%60) end)() or "DISABLED"
+    local whStr=S.whTimer and(function() local sv=math.max(0,math.floor(S.whCD)); return("%02d:%02d next send"):format(math.floor(sv/60),sv%60) end)() or "DISABLED"
     setText(UI.whCD,whStr); setCol(UI.whCD,S.whTimer and C.WH or C.DIM)
     if BM.on then local pc=0; for _ in pairs(BM.data) do pc+=1 end; setText(UI.bmCountLbl,"V1 Pulled: "..pc.."/"..BM.batch.." | Dist: "..BM.dist); setCol(UI.bmCountLbl,C.PULL) end
     if BM2.on then
@@ -1496,6 +1800,9 @@ local function updateFast()
         local dn=S.specTarget.DisplayName~=S.specTarget.Name and(S.specTarget.DisplayName.." (@"..S.specTarget.Name..")") or S.specTarget.Name
         setText(UI.specStatusLbl,"Spectating: "..dn); setCol(UI.specStatusLbl,C.SPEC)
     end
+    if UI.speedLbl and S.speedMult>1 then
+        setText(UI.speedLbl,"Speed: "..S.speedMult.."x  (WalkSpeed "..math.floor(BASE_WS*S.speedMult)..")"); S.last[UI.speedLbl]=nil
+    end
 end
 
 local function updateStats()
@@ -1503,9 +1810,9 @@ local function updateStats()
     local melee=getStat("Melee"); local def=getStat("Defense"); local sword=getStat("Sword")
     local gun=getStat("Gun"); local fruit=getStat("Blox Fruit"); local sp=getStat("SpawnPoint")
     local ns=lp.DisplayName~=lp.Name and(lp.DisplayName.." (@"..lp.Name..")") or lp.Name
-    setText(UI.charLbl, ns); setText(UI.lvlLbl,  "LV. "..fmtV(lv,"Level"))
-    setText(UI.beliLbl, fmtV(beli,"Beli")); setCol(UI.beliLbl, C.BELI)
-    setText(UI.fragLbl, fmtV(frags,"Fragments")); setCol(UI.fragLbl, C.FRAG)
+    setText(UI.charLbl,ns); setText(UI.lvlLbl,"LV. "..fmtV(lv,"Level"))
+    setText(UI.beliLbl,fmtV(beli,"Beli")); setCol(UI.beliLbl,C.BELI)
+    setText(UI.fragLbl,fmtV(frags,"Fragments")); setCol(UI.fragLbl,C.FRAG)
     if not S.sessOK and beli and frags then S.sessB=beli; S.sessF=frags; S.sessOK=true end
     if S.sessOK then
         local gb=math.floor((beli or 0)-S.sessB); local gf=math.floor((frags or 0)-S.sessF)
@@ -1513,21 +1820,21 @@ local function updateStats()
         setText(UI.sessFLbl,(gf>=0 and"+" or"")..fmtV(gf,"Fragments")); setCol(UI.sessFLbl,gf>=0 and C.FRAG or C.ERR)
     end
     setText(UI.meleeLbl,fmtV(melee)); setBar(UI.meleeBar,(melee or 0)/K.COMBAT)
-    setText(UI.defLbl,  fmtV(def));   setBar(UI.defBar,  (def   or 0)/K.COMBAT)
+    setText(UI.defLbl,fmtV(def));     setBar(UI.defBar,(def or 0)/K.COMBAT)
     setText(UI.swordLbl,fmtV(sword)); setBar(UI.swordBar,(sword or 0)/K.COMBAT)
-    setText(UI.gunLbl,  fmtV(gun));   setBar(UI.gunBar,  (gun   or 0)/K.COMBAT)
+    setText(UI.gunLbl,fmtV(gun));     setBar(UI.gunBar,(gun or 0)/K.COMBAT)
     setText(UI.fruitLbl,fmtV(fruit)); setBar(UI.fruitBar,(fruit or 0)/K.COMBAT)
     local rn,rt=getRace(lp); setText(UI.raceLbl,rn and(rn..(rt and" [V"..rt.."]" or "")) or "Not V4")
-    setText(UI.teamLbl, lp.Team and lp.Team.Name or "N/A")
+    setText(UI.teamLbl,lp.Team and lp.Team.Name or "N/A")
     setText(UI.spawnLbl,sp~=nil and fmtSpawn(tostring(sp)) or "??")
 end
 
 local function updateRates()
     local bPM2=calcRate(S.beliHist); local fPM2=calcRate(S.fragHist)
     local function rs(v) local sg=v>=0 and"+" or""; return math.abs(v)>=1e6 and sg..("%.1fM"):format(v/1e6) or math.abs(v)>=1e3 and sg..("%.1fK"):format(v/1e3) or sg..tostring(v) end
-    setText(UI.bPMLbl,rs(bPM2));     setCol(UI.bPMLbl,bPM2>=0 and C.BELI or C.ERR)
-    setText(UI.bHRLbl,rs(bPM2*60));  setCol(UI.bHRLbl,bPM2>=0 and C.BELI or C.ERR)
-    setText(UI.fPMLbl,rs(fPM2));     setCol(UI.fPMLbl,fPM2>=0 and C.FRAG or C.ERR)
+    setText(UI.bPMLbl,rs(bPM2));    setCol(UI.bPMLbl,bPM2>=0 and C.BELI or C.ERR)
+    setText(UI.bHRLbl,rs(bPM2*60)); setCol(UI.bHRLbl,bPM2>=0 and C.BELI or C.ERR)
+    setText(UI.fPMLbl,rs(fPM2));    setCol(UI.fPMLbl,fPM2>=0 and C.FRAG or C.ERR)
     setText(UI.fHRLbl,rs(fPM2*60)); setCol(UI.fHRLbl,fPM2>=0 and C.FRAG or C.ERR)
 end
 
@@ -1580,8 +1887,7 @@ local function updatePlayers()
             local plv=getStat("Level",p); setText(pf.lvlLbl,plv~=nil and("LV"..fmtV(plv,"Level")) or"LV??")
             local isSpec=S.specTarget==p
             tw(pf.specBtn,{BackgroundColor3=isSpec and Color3.fromRGB(220,80,80) or (p==lp and Color3.fromRGB(40,40,40) or C.SPEC)},.12)
-            pf.specBtn.Text=isSpec and "STOP" or "SPEC"
-            pf.specBtn.Active=(p~=lp)
+            pf.specBtn.Text=isSpec and "STOP" or "SPEC"; pf.specBtn.Active=(p~=lp)
             if p~=lp then
                 local cache=S.plrC[p.UserId] or {}
                 setText(pf.raceLbl,  cache.race and("Race: "..cache.race..(cache.raceTier and" V/T "..cache.raceTier or "")) or"Race: ?")
@@ -1609,19 +1915,32 @@ Run.Heartbeat:Connect(function()
     _frame = (_frame + 1) % 3600
     if _frame % 3  == 0 then updateFast() end
     if _frame % 12 == 0 then updateStats() end
-    if _frame % 12 == 0 and S.activeTab == "inv"     then updateInv() end
-    if _frame % 18 == 0 and S.activeTab == "players" then updatePlayers() end
+    if _frame % 12 == 0 and S.activeTab=="inv"     then updateInv() end
+    if _frame % 18 == 0 and S.activeTab=="players" then updatePlayers() end
+    if _frame % 60  == 0 then checkServerHealth() end
+    if _frame % 120 == 0 then checkMilestones() end
     if _frame % 300 == 0 then updateRates() end
-    if _frame % 600 == 0 then pushH(S.beliHist, getStat("Beli")); pushH(S.fragHist, getStat("Fragments")) end
+    if _frame % 600 == 0 then pushH(S.beliHist,getStat("Beli")); pushH(S.fragHist,getStat("Fragments")) end
+    if _frame % 30  == 0 and S.activeTab=="log" then
+        if UI._refreshLogUI    then UI._refreshLogUI()    end
+        if UI._refreshEventUI  then UI._refreshEventUI()  end
+        if UI._refreshAfkUI    then UI._refreshAfkUI()    end
+        if UI._refreshHealthUI then UI._refreshHealthUI() end
+    end
 end)
 
 Plrs.PlayerAdded:Connect(function(p)
     task.wait(1); S.plrC[p.UserId]=S.plrC[p.UserId] or {}; S.plrC[p.UserId].join=tick()
-    watchPlr(p); showN(p.DisplayName~=p.Name and(p.DisplayName.." (@"..p.Name..")") or p.Name,"Joined the server",C.OK)
+    watchPlr(p)
+    local dn=p.DisplayName~=p.Name and(p.DisplayName.." (@"..p.Name..")") or p.Name
+    showN(dn,"Joined the server",C.OK)
+    addEvent("🟢 Joined",p.Name.." (LV "..(getStat("Level",p) and fmtN(getStat("Level",p)) or "?")..")",C.OK)
 end)
 Plrs.PlayerRemoving:Connect(function(p)
     local uid=p.UserId
-    showN(p.DisplayName~=p.Name and(p.DisplayName.." (@"..p.Name..")") or p.Name,"Left the server",C.ERR)
+    local dn=p.DisplayName~=p.Name and(p.DisplayName.." (@"..p.Name..")") or p.Name
+    showN(dn,"Left the server",C.ERR)
+    addEvent("🔴 Left",p.Name,C.ERR)
     if S.specTarget==p then
         stopSpec()
         setText(UI.specStatusLbl,"Not spectating"); setCol(UI.specStatusLbl,C.DIM)
@@ -1660,14 +1979,13 @@ if cfg.HideEnemies  then task.spawn(function() task.wait(2); toggleHidEnm(true) 
 if cfg.AutoHop      then task.spawn(function() task.wait(6); startHop() end) end
 if cfg.WebhookEnabled then S.wh=true; tog(UI.whBtn,true,C.WH,Color3.fromRGB(28,28,28),"Webhook: On","Webhook: Off") end
 if cfg.LockFps.on   then pcall(function() settings().Rendering.FrameRateManager.MaxFrameRate=cfg.LockFps.fps end); pcall(function() setfpscap(cfg.LockFps.fps) end) end
-
-if cfg.AutoRerun and cfg.AutoRerunURL and cfg.AutoRerunURL ~= "" then
+if cfg.AutoRerun and cfg.AutoRerunURL and cfg.AutoRerunURL~="" then
     task.spawn(function()
-        task.wait(3)
-        startRerun()
-        tog(UI.rerunBtn, true, C.RERUN, Color3.fromRGB(28,28,28), "Auto Rerun: On", "Auto Rerun: Off")
+        task.wait(3); startRerun()
+        tog(UI.rerunBtn,true,C.RERUN,Color3.fromRGB(28,28,28),"Auto Rerun: On","Auto Rerun: Off")
     end)
 end
 
+addEvent("🚀 Panel Loaded","BloxHub v3 started",C.OK)
 switchTab("status")
 _closeLoader()
