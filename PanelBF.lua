@@ -100,9 +100,9 @@ end
 
 local cfg = {
     RemoveDeathEffect = true,
-    LockFps = {on=false, fps=120},
+    LockFps = {on=true, fps=10},
     BoostV1=false, BoostV2=false, BoostV3=true,
-    HidePlayers=true, HideEnemies=false,
+    HidePlayers=false, HideEnemies=true,
     AutoHop=false, HopInterval=45, HopServer="singapore",
     WebhookEnabled=false,
     WebhookURL="https://discord.com/api/webhooks/1426870143916707840/1d9rXLCZSRTlnTBE-V0AX0CxgQLodNt-zXXSggbS6MjFpPKMTfbNR8V1VrhCcm4wgnmh",
