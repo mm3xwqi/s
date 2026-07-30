@@ -10,31 +10,84 @@ local HTTP  = game:GetService("HttpService")
 do
     local G = Instance.new("ScreenGui", pg)
     G.Name, G.ResetOnSpawn, G.IgnoreGuiInset, G.DisplayOrder = "PanelLoad", false, true, 999
+
     local function F(c, par, props)
         local o = Instance.new(c, par)
         if props then for k, v in pairs(props) do pcall(function() o[k] = v end) end end
         return o
     end
-    local bg   = F("Frame", G,  {Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.fromRGB(4,4,4), ZIndex=100})
-    local card = F("Frame", bg, {Size=UDim2.new(0,320,0,96), Position=UDim2.new(.5,-160,.5,-48), BackgroundColor3=Color3.fromRGB(10,10,10), ZIndex=101})
-    F("UICorner", card, {CornerRadius=UDim.new(0,8)})
-    local acc = F("Frame", card, {Size=UDim2.new(1,0,0,3), BackgroundColor3=Color3.fromRGB(65,155,90), ZIndex=102})
-    F("UICorner", acc, {CornerRadius=UDim.new(0,8)})
-    F("TextLabel", card, {Size=UDim2.new(1,0,0,22), Position=UDim2.new(0,0,0,8), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=15, TextColor3=Color3.new(1,1,1), Text="BloxHub  v3", TextXAlignment=Enum.TextXAlignment.Center, ZIndex=102})
-    local stLbl = F("TextLabel", card, {Size=UDim2.new(1,-20,0,13), Position=UDim2.new(0,10,0,33), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, TextColor3=Color3.fromRGB(65,155,90), Text="Init...", TextXAlignment=Enum.TextXAlignment.Left, ZIndex=102})
-    local pcLbl = F("TextLabel", card, {Size=UDim2.new(0,36,0,13), Position=UDim2.new(1,-42,0,33), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, TextColor3=Color3.fromRGB(150,150,150), Text="0%", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=102})
-    local barBg = F("Frame", card, {Size=UDim2.new(1,-20,0,5), Position=UDim2.new(0,10,0,52), BackgroundColor3=Color3.fromRGB(22,22,22), ZIndex=102})
-    F("UICorner", barBg, {CornerRadius=UDim.new(0,3)})
-    local barFl = F("Frame", barBg, {Size=UDim2.new(0,0,1,0), BackgroundColor3=Color3.fromRGB(65,155,90), ZIndex=103})
-    F("UICorner", barFl, {CornerRadius=UDim.new(0,3)})
-    F("TextLabel", card, {Size=UDim2.new(1,0,0,11), Position=UDim2.new(0,0,1,-14), BackgroundTransparency=1, Font=Enum.Font.Gotham, TextSize=8, TextColor3=Color3.fromRGB(40,40,40), Text="Panel v3 • Tab Edition", TextXAlignment=Enum.TextXAlignment.Center, ZIndex=102})
+
+    local card = F("Frame", G, {
+        Size=UDim2.new(0,340,0,0), AutomaticSize=Enum.AutomaticSize.Y,
+        Position=UDim2.new(.5,-170,.5,-100),
+        BackgroundColor3=Color3.fromRGB(13,13,13), ZIndex=100
+    })
+    F("UICorner", card, {CornerRadius=UDim.new(0,12)})
+    F("UIStroke", card, {Color=Color3.fromRGB(34,34,34), Thickness=1})
+    F("UIPadding", card, {PaddingLeft=UDim.new(0,22),PaddingRight=UDim.new(0,22),PaddingTop=UDim.new(0,22),PaddingBottom=UDim.new(0,18)})
+    F("UIListLayout", card, {Padding=UDim.new(0,0), SortOrder=Enum.SortOrder.LayoutOrder})
+
+    -- header
+    local hdr = F("Frame", card, {Size=UDim2.new(1,0,0,28), BackgroundTransparency=1, LayoutOrder=1, ZIndex=101})
+    local dot = F("Frame", hdr, {Size=UDim2.new(0,8,0,8), Position=UDim2.new(0,0,0.5,-4), BackgroundColor3=Color3.fromRGB(61,155,92), ZIndex=102})
+    F("UICorner", dot, {CornerRadius=UDim.new(1,0)})
+    F("TextLabel", hdr, {Size=UDim2.new(1,-60,1,0), Position=UDim2.new(0,18,0,0), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=14, TextColor3=Color3.fromRGB(232,232,232), Text="BloxHub  v3", TextXAlignment=Enum.TextXAlignment.Left, ZIndex=102})
+    F("TextLabel", hdr, {Size=UDim2.new(0,60,1,0), Position=UDim2.new(1,-60,0,0), BackgroundTransparency=1, Font=Enum.Font.Gotham, TextSize=10, TextColor3=Color3.fromRGB(68,68,68), Text="Tab Edition", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=102})
+
+    -- gap
+    F("Frame", card, {Size=UDim2.new(1,0,0,14), BackgroundTransparency=1, LayoutOrder=2})
+
+    -- progress bar
+    local barBg = F("Frame", card, {Size=UDim2.new(1,0,0,3), BackgroundColor3=Color3.fromRGB(26,26,26), LayoutOrder=3, ZIndex=101})
+    F("UICorner", barBg, {CornerRadius=UDim.new(1,0)})
+    local barFl = F("Frame", barBg, {Size=UDim2.new(0,0,1,0), BackgroundColor3=Color3.fromRGB(61,155,92), ZIndex=102})
+    F("UICorner", barFl, {CornerRadius=UDim.new(1,0)})
+
+    F("Frame", card, {Size=UDim2.new(1,0,0,14), BackgroundTransparency=1, LayoutOrder=4})
+
+    -- steps container
+    local stepsFrame = F("Frame", card, {Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, BackgroundTransparency=1, LayoutOrder=5, ZIndex=101})
+    F("UIListLayout", stepsFrame, {Padding=UDim.new(0,2), SortOrder=Enum.SortOrder.LayoutOrder})
+
+    local stepLabels = {}
+    local stepNames = {"Waiting for game","Game ready","Workspace ready","Leaderstats","Character ready","Enemies","Building GUI","Done"}
+    for i, name in ipairs(stepNames) do
+        local row = F("Frame", stepsFrame, {Size=UDim2.new(1,0,0,22), BackgroundTransparency=1, LayoutOrder=i, ZIndex=102})
+        local d = F("Frame", row, {Size=UDim2.new(0,7,0,7), Position=UDim2.new(0,0,0.5,-3.5), BackgroundColor3=Color3.fromRGB(58,58,58), ZIndex=103})
+        F("UICorner", d, {CornerRadius=UDim.new(1,0)})
+        local nameLbl = F("TextLabel", row, {Size=UDim2.new(1,-60,1,0), Position=UDim2.new(0,17,0,0), BackgroundTransparency=1, Font=Enum.Font.Gotham, TextSize=11, TextColor3=Color3.fromRGB(85,85,85), Text=name, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=103})
+        local statusLbl = F("TextLabel", row, {Size=UDim2.new(0,50,1,0), Position=UDim2.new(1,-50,0,0), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, TextColor3=Color3.fromRGB(68,68,68), Text="—", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=103})
+        stepLabels[i] = {dot=d, name=nameLbl, status=statusLbl}
+    end
+
+    F("Frame", card, {Size=UDim2.new(1,0,0,12), BackgroundTransparency=1, LayoutOrder=6})
+
+    -- footer
+    local sep = F("Frame", card, {Size=UDim2.new(1,0,0,1), BackgroundColor3=Color3.fromRGB(28,28,28), LayoutOrder=7, ZIndex=101})
+    F("Frame", card, {Size=UDim2.new(1,0,0,10), BackgroundTransparency=1, LayoutOrder=8})
+    local footer = F("Frame", card, {Size=UDim2.new(1,0,0,16), BackgroundTransparency=1, LayoutOrder=9, ZIndex=101})
+    F("TextLabel", footer, {Size=UDim2.new(0,100,1,0), Position=UDim2.new(0,0,0,0), BackgroundTransparency=1, Font=Enum.Font.Gotham, TextSize=10, TextColor3=Color3.fromRGB(60,60,60), Text="v3 • Panel", TextXAlignment=Enum.TextXAlignment.Left, ZIndex=102})
+    local pcLbl = F("TextLabel", footer, {Size=UDim2.new(0,50,1,0), Position=UDim2.new(1,-50,0,0), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=11, TextColor3=Color3.fromRGB(61,155,92), Text="0%", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=102})
 
     local n, tot = 0, 8
     local function log(txt, ok)
         n = n + 1
-        stLbl.Text = txt
-        stLbl.TextColor3 = (ok ~= false) and Color3.fromRGB(65,155,90) or Color3.fromRGB(185,70,70)
-        local p = math.clamp(n / tot, 0, 1); pcLbl.Text = math.floor(p * 100) .. "%"
+        local p = math.clamp(n / tot, 0, 1)
+        -- อัพเดท step ที่ผ่านมาแล้ว
+        local prevIdx = n - 1
+        if prevIdx >= 1 and stepLabels[prevIdx] then
+            stepLabels[prevIdx].dot.BackgroundColor3 = Color3.fromRGB(61,155,92)
+            stepLabels[prevIdx].status.TextColor3 = Color3.fromRGB(61,155,92)
+            stepLabels[prevIdx].status.Text = "done"
+            stepLabels[prevIdx].name.TextColor3 = Color3.fromRGB(136,136,136)
+        end
+        -- อัพเดท step ปัจจุบัน
+        if stepLabels[n] then
+            stepLabels[n].dot.BackgroundColor3 = Color3.fromRGB(61,155,92)
+            stepLabels[n].name.TextColor3 = Color3.fromRGB(190,190,190)
+            stepLabels[n].status.Text = "—"
+        end
+        pcLbl.Text = math.floor(p * 100) .. "%"
         TS:Create(barFl, TweenInfo.new(.18), {Size=UDim2.new(p,0,1,0)}):Play()
         task.wait(.05)
     end
@@ -49,11 +102,23 @@ do
     log("Config & GUI building"); task.wait(.05)
 
     _closeLoader = function()
-        stLbl.Text = "Done!"; pcLbl.Text = "100%"
+        -- mark step สุดท้าย
+        if stepLabels[n] then
+            stepLabels[n].dot.BackgroundColor3 = Color3.fromRGB(61,155,92)
+            stepLabels[n].status.TextColor3 = Color3.fromRGB(61,155,92)
+            stepLabels[n].status.Text = "done"
+        end
+        pcLbl.Text = "100%"
         TS:Create(barFl, TweenInfo.new(.2), {Size=UDim2.new(1,0,1,0)}):Play()
         task.wait(.7)
-        TS:Create(bg,   TweenInfo.new(.3), {BackgroundTransparency=1}):Play()
-        TS:Create(card, TweenInfo.new(.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position=UDim2.new(.5,-160,.6,-48), BackgroundTransparency=1}):Play()
+        TS:Create(card, TweenInfo.new(.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position=UDim2.new(.5,-170,.6,-100), BackgroundTransparency=1}):Play()
+        for _, s in ipairs(stepLabels) do
+            pcall(function()
+                TS:Create(s.name,TweenInfo.new(.2),{TextTransparency=1}):Play()
+                TS:Create(s.status,TweenInfo.new(.2),{TextTransparency=1}):Play()
+                TS:Create(s.dot,TweenInfo.new(.2),{BackgroundTransparency=1}):Play()
+            end)
+        end
         task.wait(.35); G:Destroy()
     end
 end
@@ -883,83 +948,54 @@ local function stopHop()
     pcall(function() local sb=pg:FindFirstChild("ServerBrowser"); if sb then sb.Enabled=false; local f=sb:FindFirstChild("Frame"); if f then f.Visible=false end end end)
 end
 
-local function setupAutoExec()
-    local url = cfg.AutoRerunURL
-    if not url or url == "" then return end
-    local paths = {
-        "autoexec\\PanelBF.lua",
-        "autoexec/PanelBF.lua",
-        "scripts\\autoexec\\PanelBF.lua",
-    }
-    local content = ('task.wait(6)\nlocal ok,src=pcall(function() return game:HttpGet("%s",true) end)\nif ok and src then local fn=loadstring(src); if fn then pcall(fn) end end'):format(url)
-    local written = false
-    for _, path in ipairs(paths) do
-        local ok2 = pcall(function() writefile(path, content) end)
-        if ok2 then
-            written = true
-            showN("Auto Rerun", "AutoExec written → "..path, C.RERUN)
-            break
-        end
-    end
-    if not written then
-        pcall(function() writefile("PanelBF_autoexec.lua", content) end)
-        showN("Auto Rerun", "Place PanelBF_autoexec.lua in autoexec folder manually", C.WRN)
-    end
-end
-
 local function startRerun()
     S.rerun = true
-    S.rerunLastJob = game.JobId
-    if S.rerunThread then task.cancel(S.rerunThread) end
+    if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
 
-    S.rerunThread = task.spawn(function()
-        -- ตรวจจับ teleport ผ่าน OnTeleport event
-        local teleportConn
-        teleportConn = game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(state, _place, _customData)
-            -- TeleportState.Started = กำลังจะ hop
-            if state == Enum.TeleportState.Started then
-                if not S.rerun then teleportConn:Disconnect(); return end
+    task.spawn(function()
+        if not cfg.AutoRerunURL or cfg.AutoRerunURL == "" then
+            showN("Auto Rerun", "No URL set!", C.ERR); S.rerun = false; return
+        end
 
-                -- ดึง source script แล้ว queue ให้รันหลัง teleport
-                task.spawn(function()
-                    local ok, src = pcall(function()
-                        return game:HttpGet(cfg.AutoRerunURL, true)
-                    end)
-                    if ok and src then
-                        -- ลอง queueonteleport (Synapse, KRNL, Fluxus ฯลฯ)
-                        local queued = false
-                        if typeof(queueonteleport) == "function" then
-                            pcall(function() queueonteleport(src) end); queued = true
-                        elseif typeof(queue_on_teleport) == "function" then
-                            pcall(function() queue_on_teleport(src) end); queued = true
-                        elseif syn and typeof(syn.queue_on_teleport) == "function" then
-                            pcall(function() syn.queue_on_teleport(src) end); queued = true
-                        end
-                        if queued then
-                            showN("Auto Rerun", "Queued — will load after hop", C.RERUN)
-                        else
-                            showN("Auto Rerun", "Executor doesn't support queue!", C.WRN)
-                        end
-                    else
-                        showN("Auto Rerun", "Failed to fetch script", C.ERR)
-                    end
-                end)
-            end
-        end)
+        local loader = string.format(
+            'task.wait(5)\nlocal ok,src=pcall(game.HttpGet,game,"%s",true)\nif ok and src then local f=loadstring(src) if f then pcall(f) end end',
+            cfg.AutoRerunURL
+        )
 
-        -- เก็บ connection ไว้ disconnect ตอน stop
-        S.rerunTeleportConn = teleportConn
+        local queued = false
+        local tried = {}
+
+        if not queued and typeof(queueonteleport)=="function" then
+            local ok2,err=pcall(queueonteleport, loader)
+            tried[#tried+1]="queueonteleport="..(ok2 and"OK" or tostring(err))
+            if ok2 then queued=true end
+        end
+        if not queued and typeof(queue_on_teleport)=="function" then
+            local ok2,err=pcall(queue_on_teleport, loader)
+            tried[#tried+1]="queue_on_teleport="..(ok2 and"OK" or tostring(err))
+            if ok2 then queued=true end
+        end
+        if not queued and getgenv and typeof(getgenv().queueonteleport)=="function" then
+            local ok2,err=pcall(getgenv().queueonteleport, loader)
+            tried[#tried+1]="genv="..(ok2 and"OK" or tostring(err))
+            if ok2 then queued=true end
+        end
+
+        if queued then
+            showN("Auto Rerun", "Ready! Runs after hop", C.RERUN)
+        else
+            showN("Auto Rerun", table.concat(tried,", "), C.ERR)
+            S.rerun = false
+            tog(UI.rerunBtn, false, C.RERUN, Color3.fromRGB(28,28,28), "Auto Rerun: On", "Auto Rerun: Off")
+        end
     end)
-
-    showN("Auto Rerun", "Watching for hop...", C.RERUN)
 end
 
 local function stopRerun()
     S.rerun = false
     if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
-    if S.rerunTeleportConn then
-        S.rerunTeleportConn:Disconnect(); S.rerunTeleportConn = nil
-    end
+    pcall(function() queueonteleport("") end)
+    pcall(function() queue_on_teleport("") end)
     showN("Auto Rerun", "Disabled", C.ERR)
 end
 
@@ -1166,19 +1202,12 @@ do
     UI.whTestBtn=mk("TextButton",whTestRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,28),BorderSizePixel=0,Text="Send Test Report",TextColor3=C.WRN,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(UI.whTestBtn,C.BOR2,1); corner(UI.whTestBtn,4)
     UI.whCD=secLbl(sec5,12,"DISABLED",C.WH,10)
 
-    local sec6=section("controls",6,"Auto Rerun")
-    local rerunUrlBox=secBox(sec6,2,"Paste script URL here",26); rerunUrlBox.ClearTextOnFocus=false
-    local rerunSaveRow=inlineRow(sec6,3)
-    local rerunSaveBtn=mk("TextButton",rerunSaveRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.RERUN,BorderSizePixel=0,Text="Save URL",TextColor3=C.BG,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4}); stroke(rerunSaveBtn,C.BOR2,1); corner(rerunSaveBtn,4)
-    UI.rerunStatus=secLbl(sec6,4,"URL: not set",C.DIM,9)
-    UI.rerunBtn=secBtn(sec6,5,"Auto Rerun: Off",false,C.RERUN)
-    rerunSaveBtn.MouseButton1Click:Connect(function()
-        local url=rerunUrlBox.Text; if url and url:find("http") then cfg.AutoRerunURL=url; setText(UI.rerunStatus,"URL: "..url:sub(1,40).."..."); setCol(UI.rerunStatus,C.RERUN); showN("Auto Rerun","URL saved",C.RERUN) else showN("Auto Rerun","Invalid URL!",C.WRN) end
-    end)
-    UI.rerunBtn.MouseButton1Click:Connect(function()
-        if S.rerun then stopRerun(); tog(UI.rerunBtn,false,C.RERUN,Color3.fromRGB(28,28,28),"Auto Rerun: On","Auto Rerun: Off")
-        else if cfg.AutoRerunURL=="" then showN("Auto Rerun","Set URL first!",C.WRN); return end; startRerun(); tog(UI.rerunBtn,true,C.RERUN,Color3.fromRGB(28,28,28),"Auto Rerun: On","Auto Rerun: Off") end
-    end)
+	local sec6=section("controls",6,"Auto Rerun")
+	UI.rerunBtn=secBtn(sec6,2,"Auto Rerun: Off",false,C.RERUN)
+	UI.rerunBtn.MouseButton1Click:Connect(function()
+		if S.rerun then stopRerun(); tog(UI.rerunBtn,false,C.RERUN,Color3.fromRGB(28,28,28),"Auto Rerun: On","Auto Rerun: Off")
+		else startRerun(); tog(UI.rerunBtn,true,C.RERUN,Color3.fromRGB(28,28,28),"Auto Rerun: On","Auto Rerun: Off") end
+	end)
 
     local sec7=section("controls",7,"Fake Level")
     secLbl(sec7,2,"Replaces .Value on .Changed",C.DIM,9)
