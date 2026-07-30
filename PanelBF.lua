@@ -68,6 +68,7 @@ local cfg = {
     WebhookURL="https://discord.com/api/webhooks/1426870143916707840/1d9rXLCZSRTlnTBE-V0AX0CxgQLodNt-zXXSggbS6MjFpPKMTfbNR8V1VrhCcm4wgnmh",
     WebhookName="Panel", WebhookInterval=30, HopMaxPlayers=3,
     AutoRerunURL="https://raw.githubusercontent.com/mm3xwqi/s/refs/heads/main/PanelBF.lua",
+    AutoRerun=true,
 }
 
 local C = {
@@ -106,9 +107,9 @@ local S = {
     activeTab="status",rerun=false,rerunThread=nil,rerunLastJob="",
     specTarget=nil,
     specConn=nil,
-    specCharConn=nil,
+    specCharConn=nil,rerunTeleportConn = nil,
 }
-local BM  = {on=false,task=nil,data={},noclip=nil,pin=nil,dist=500,batch=20,force=60000,snap=30,yOff=-15}
+local BM  = {on=false,task=nil,data={},noclip=nil,pin=nil,dist=500,batch=20,force=150000,snap=12,yOff=-15}
 local BM2 = {on=false,task=nil,dist=500,interval=0.05,anchorPos=nil,resetInterval=60,resetTick=0,maxCount=10}
 local bmTick = 0
 
@@ -519,7 +520,7 @@ local function startBM()
     if BM.pin then BM.pin:Disconnect() end
     bmTick = 0
     BM.pin = Run.Heartbeat:Connect(function()
-        bmTick += 1; if bmTick%3~=0 then return end
+        bmTick += 1; if bmTick%2~=0 then return end  -- ถี่ขึ้น: ทุก 2 frame แทน 3
         local mr=bmMyRoot(); if not mr then return end
         for e, d in pairs(BM.data) do
             if not e or not e.Parent or not d or not d.arrived then continue end
@@ -543,9 +544,9 @@ local function startBM()
         end
     end)
     BM.task = task.spawn(function()
-        local PULL,HOLD=8,5; local phase="pull"; local pT=0; local lt=tick()
+        local PULL,HOLD=5,3; local phase="pull"; local pT=0; local lt=tick()  -- เร็วขึ้น: 5s pull, 3s hold
         while BM.on do
-            task.wait(.05); local now=tick(); local dt=now-lt; lt=now; pT+=dt
+            task.wait(.025); local now=tick(); local dt=now-lt; lt=now; pT+=dt  -- loop ถี่ขึ้น 2x
             local mr=bmMyRoot(); if not mr then continue end
             local ap=mr.Position; local ef=WS:FindFirstChild("Enemies"); if not ef then task.wait(.3); continue end
             for e in pairs(BM.data) do if not e or not e.Parent or not bmAlive(e) then pcall(bmRelease,e) end end
@@ -582,7 +583,7 @@ local function startBM()
                 local tp=Vector3.new((ap+d.offset).X,ap.Y+BM.yOff,(ap+d.offset).Z)
                 local dist2=(hrp.Position-tp).Magnitude
                 local moved=(hrp.Position-d.lastPos).Magnitude; d.lastPos=hrp.Position
-                d.stuckTime = moved<.05 and d.stuckTime+.05 or 0
+                d.stuckTime = moved<.05 and d.stuckTime+.025 or 0  -- อัพเดทตาม wait ใหม่
                 pcall(function() d.bp.Position=tp end)
                 if dist2 <= BM.snap then
                     pcall(function() d.bp:Destroy() end); pcall(function() hrp.AssemblyLinearVelocity=Vector3.zero end)
@@ -593,7 +594,7 @@ local function startBM()
                     pcall(function() local h=bmHum(e); if h then h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end end)
                     task.delay(.5,function() if bv and bv.Parent then pcall(function() bv:Destroy() end) end end)
                     d.bp=fbp; d.bg=bg; d.bv=bv; d.arrived=true; d.fixedPos=hrp.Position
-                elseif d.stuckTime >= 1.5 then
+                elseif d.stuckTime >= 0.7 then  -- ตรวจ stuck เร็วขึ้น
                     d.offset=bmGetOff(); pcall(function() d.bp.P=100000 end); d.stuckTime=0
                 end
             end
@@ -908,33 +909,57 @@ end
 
 local function startRerun()
     S.rerun = true
-    task.spawn(setupAutoExec)
     S.rerunLastJob = game.JobId
     if S.rerunThread then task.cancel(S.rerunThread) end
+
     S.rerunThread = task.spawn(function()
-        while S.rerun do
-            task.wait(3)
-            local cur = game.JobId
-            if cur ~= "" and cur ~= S.rerunLastJob then
-                S.rerunLastJob = cur
-                task.wait(7)
-                if not S.rerun then break end
-                local ok, src = pcall(function() return game:HttpGet(cfg.AutoRerunURL, true) end)
-                if ok and src then
-                    local fn = loadstring(src)
-                    if fn then pcall(fn) end
-                end
+        -- ตรวจจับ teleport ผ่าน OnTeleport event
+        local teleportConn
+        teleportConn = game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(state, _place, _customData)
+            -- TeleportState.Started = กำลังจะ hop
+            if state == Enum.TeleportState.Started then
+                if not S.rerun then teleportConn:Disconnect(); return end
+
+                -- ดึง source script แล้ว queue ให้รันหลัง teleport
+                task.spawn(function()
+                    local ok, src = pcall(function()
+                        return game:HttpGet(cfg.AutoRerunURL, true)
+                    end)
+                    if ok and src then
+                        -- ลอง queueonteleport (Synapse, KRNL, Fluxus ฯลฯ)
+                        local queued = false
+                        if typeof(queueonteleport) == "function" then
+                            pcall(function() queueonteleport(src) end); queued = true
+                        elseif typeof(queue_on_teleport) == "function" then
+                            pcall(function() queue_on_teleport(src) end); queued = true
+                        elseif syn and typeof(syn.queue_on_teleport) == "function" then
+                            pcall(function() syn.queue_on_teleport(src) end); queued = true
+                        end
+                        if queued then
+                            showN("Auto Rerun", "Queued — will load after hop", C.RERUN)
+                        else
+                            showN("Auto Rerun", "Executor doesn't support queue!", C.WRN)
+                        end
+                    else
+                        showN("Auto Rerun", "Failed to fetch script", C.ERR)
+                    end
+                end)
             end
-        end
+        end)
+
+        -- เก็บ connection ไว้ disconnect ตอน stop
+        S.rerunTeleportConn = teleportConn
     end)
-    showN("Auto Rerun", "Enabled + AutoExec set", C.RERUN)
+
+    showN("Auto Rerun", "Watching for hop...", C.RERUN)
 end
 
 local function stopRerun()
     S.rerun = false
     if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
-    pcall(function() writefile("autoexec\\PanelBF.lua", "") end)
-    pcall(function() writefile("autoexec/PanelBF.lua", "") end)
+    if S.rerunTeleportConn then
+        S.rerunTeleportConn:Disconnect(); S.rerunTeleportConn = nil
+    end
     showN("Auto Rerun", "Disabled", C.ERR)
 end
 
@@ -1606,6 +1631,14 @@ if cfg.HideEnemies  then task.spawn(function() task.wait(2); toggleHidEnm(true) 
 if cfg.AutoHop      then task.spawn(function() task.wait(6); startHop() end) end
 if cfg.WebhookEnabled then S.wh=true; tog(UI.whBtn,true,C.WH,Color3.fromRGB(28,28,28),"Webhook: On","Webhook: Off") end
 if cfg.LockFps.on   then pcall(function() settings().Rendering.FrameRateManager.MaxFrameRate=cfg.LockFps.fps end); pcall(function() setfpscap(cfg.LockFps.fps) end) end
+
+if cfg.AutoRerun and cfg.AutoRerunURL and cfg.AutoRerunURL ~= "" then
+    task.spawn(function()
+        task.wait(3)
+        startRerun()
+        tog(UI.rerunBtn, true, C.RERUN, Color3.fromRGB(28,28,28), "Auto Rerun: On", "Auto Rerun: Off")
+    end)
+end
 
 switchTab("status")
 _closeLoader()
