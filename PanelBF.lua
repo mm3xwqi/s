@@ -106,6 +106,7 @@ local S={
 	infJump=false,infJumpConn=nil,speedMult=1,
 	logs={},events={},
 	milestone={beliReached={},fragReached={}},
+	maxFps = 0,
 	health={fpsHist={},instanceCount=0,lagDetected=false,lagTick=0,reportSent=false,lastCheck=0,avgFPS=60},
 }
 local BM={on=false,task=nil,data={},noclip=nil,pin=nil,dist=500,batch=20,force=150000,snap=12,yOff=-15}
@@ -815,19 +816,24 @@ end
 
 -- ── HEALTH / MILESTONES ──────────────────────────────────────
 local function checkServerHealth()
-	local now=tick();if now-S.health.lastCheck<1 then return end;S.health.lastCheck=now
-	table.insert(S.health.fpsHist,S.fps);if #S.health.fpsHist>30 then table.remove(S.health.fpsHist,1) end
-	local sum=0;for _,v in ipairs(S.health.fpsHist) do sum+=v end
-	S.health.avgFPS=#S.health.fpsHist>0 and math.floor(sum/#S.health.fpsHist) or S.fps
-	pcall(function()S.health.instanceCount=#WS:GetDescendants()end)
-	local threshold=cfg.HealthFPSThreshold or 30
-	if S.health.avgFPS<threshold then
-		if not S.health.lagDetected then S.health.lagDetected=true;S.health.lagTick=now
-		elseif(now-S.health.lagTick)>=(cfg.HealthLagDuration or 10) and not S.health.reportSent then
-			S.health.reportSent=true;addEvent("⚠️ Server Lag","Avg FPS: "..S.health.avgFPS.." | Parts: "..fmtN(S.health.instanceCount),C.ERR);showN("Server Health","Lag! Avg FPS: "..S.health.avgFPS,C.ERR)
-			if cfg.WebhookEnabled then local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick();task.spawn(sendHealthWebhook,S.health.avgFPS,S.health.instanceCount,tick()-jt) end
-		end
-	else S.health.lagDetected=false;S.health.reportSent=false end
+    local now=tick();if now-S.health.lastCheck<1 then return end;S.health.lastCheck=now
+    table.insert(S.health.fpsHist,S.fps);if #S.health.fpsHist>30 then table.remove(S.health.fpsHist,1) end
+    local sum=0;for _,v in ipairs(S.health.fpsHist) do sum=sum+v end
+    S.health.avgFPS=#S.health.fpsHist>0 and math.floor(sum/#S.health.fpsHist) or S.fps
+    pcall(function()S.health.instanceCount=#WS:GetDescendants()end)
+    local threshold=cfg.HealthFPSThreshold or 30
+    if S.health.avgFPS<threshold then
+        if not S.health.lagDetected then S.health.lagDetected=true;S.health.lagTick=now
+        elseif(now-S.health.lagTick)>=(cfg.HealthLagDuration or 10) and not S.health.reportSent then
+            S.health.reportSent=true
+            addEvent("⚠️ Server Lag","Avg FPS: "..S.health.avgFPS.." | Max FPS: "..S.maxFps.." | Parts: "..fmtN(S.health.instanceCount),C.ERR)
+            showN("Server Health","Lag! Avg: "..S.health.avgFPS.." Max: "..S.maxFps,C.ERR)
+            if cfg.WebhookEnabled then
+                local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
+                task.spawn(sendHealthWebhook,S.health.avgFPS,S.health.instanceCount,tick()-jt)
+            end
+        end
+    else S.health.lagDetected=false;S.health.reportSent=false end
 end
 local function checkMilestones()
 	local b=getStat("Beli") or 0;local f=getStat("Fragments") or 0
@@ -1177,18 +1183,25 @@ do
 	local function refreshEventUI() for i=1,100 do local row=UI.evRows[i];local entry=S.events[i];if entry then row.row.Visible=true;row.typeLbl.TextColor3=entry.col;setText(row.typeLbl,entry.evType);setText(row.detailLbl,entry.detail.."  —  "..entry.time) else row.row.Visible=false end end end
 	local function refreshAfkUI() local bPM=calcRate(S.beliHist);local fPM=calcRate(S.fragHist);setText(UI.afkRateLbl,"Rate: "..wFmt(bPM).."/min Beli  "..wFmt(fPM).."/min Frag");for _,r in ipairs(UI.afkRows) do local mins=r.h*60;setText(r.bL,"+"..fmtN(math.max(0,math.floor(bPM*mins))));setText(r.fL,"+"..fmtN(math.max(0,math.floor(fPM*mins)))) end end
 	local function refreshHealthUI()
-		local avg=S.health.avgFPS;local inst=S.health.instanceCount;local lag=S.health.lagDetected
-		setText(UI.hFpsLbl,tostring(avg));setCol(UI.hFpsLbl,avg>=50 and C.OK or avg>=(cfg.HealthFPSThreshold or 30) and C.WRN or C.ERR)
-		setText(UI.hInstLbl,fmtN(inst));setCol(UI.hInstLbl,inst<5000 and C.OK or inst<10000 and C.WRN or C.ERR)
-		setText(UI.hStatLbl,lag and"⚠️ LAG" or"✅ OK");setCol(UI.hStatLbl,lag and C.ERR or C.OK)
-		setBar(UI.hBarFl,math.clamp(avg/60,0,1));tw(UI.hBarFl,{BackgroundColor3=avg>=50 and C.OK or avg>=(cfg.HealthFPSThreshold or 30) and C.WRN or C.ERR},.2)
+		local avg=S.health.avgFPS
+		local inst=S.health.instanceCount
+		local lag=S.health.lagDetected
+		local maxF=S.maxFps
+		
+		setText(UI.hFpsLbl,"Avg "..tostring(avg).." / Max "..tostring(maxF))
+		setCol(UI.hFpsLbl,avg>=50 and C.OK or avg>=(cfg.HealthFPSThreshold or 30) and C.WRN or C.ERR)
+		setText(UI.hInstLbl,fmtN(inst))
+		setCol(UI.hInstLbl,inst<5000 and C.OK or inst<10000 and C.WRN or C.ERR)
+		setText(UI.hStatLbl,lag and"⚠️ LAG" or"✅ OK")
+		setCol(UI.hStatLbl,lag and C.ERR or C.OK)
+		setBar(UI.hBarFl,math.clamp(avg/math.max(maxF,1),0,1))
+		tw(UI.hBarFl,{BackgroundColor3=avg>=50 and C.OK or avg>=(cfg.HealthFPSThreshold or 30) and C.WRN or C.ERR},.2)
 	end
 	logNowBtn.MouseButton1Click:Connect(function()addLog("Manual");refreshLogUI();showN("Log","Saved entry #"..#S.logs,C.OK) end)
 	logClrBtn.MouseButton1Click:Connect(function()S.logs={};refreshLogUI();showN("Log","Cleared all entries",C.ERR) end)
 	evClrBtn.MouseButton1Click:Connect(function()S.events={};refreshEventUI();showN("Events","Cleared",C.ERR) end)
 	UI._refreshLogUI=refreshLogUI;UI._refreshEventUI=refreshEventUI;UI._refreshAfkUI=refreshAfkUI;UI._refreshHealthUI=refreshHealthUI
 end
-
 -- ── BUTTON EVENTS ────────────────────────────────────────────
 UI.v1Btn.MouseButton1Click:Connect(function()S.v1=not S.v1;task.spawn(setV1,S.v1);tog(UI.v1Btn,S.v1,C.V1,Color3.fromRGB(28,28,28),"Boost V1: On","Boost V1: Off");showN("Boost V1",S.v1 and"On — Map hidden" or"Off",S.v1 and C.V1 or C.ERR) end)
 UI.v2Btn.MouseButton1Click:Connect(function()S.v2=not S.v2;task.spawn(setV2,S.v2);tog(UI.v2Btn,S.v2,C.V2,Color3.fromRGB(28,28,28),"Boost V2: On","Boost V2: Off");showN("Boost V2",S.v2 and"On — Low graphics" or"Off",S.v2 and C.V2 or C.ERR) end)
@@ -1231,7 +1244,7 @@ end)
 
 -- ── UPDATE FUNCTIONS ─────────────────────────────────────────
 local function updateFast()
-	local e=tick()-S.start; setText(UI.fpsLbl,"FPS "..S.fps)
+	local e=tick()-S.start; setText(UI.fpsLbl,"FPS "..S.fps.." / "..S.maxFps)
 	local ping=getPing();setText(UI.pingLbl,"PING "..ping.."ms");setCol(UI.pingLbl,ping<80 and C.OK or ping<150 and C.WRN or C.ERR)
 	setText(UI.timeLbl,("%02d:%02d:%02d"):format(math.floor(e/3600),math.floor(e%3600/60),math.floor(e%60)))
 	local hopStr=S.hop and(function()local sv=math.max(0,math.floor(S.hopCD));return("%02d:%02d"):format(math.floor(sv/60),sv%60)end)() or"DISABLED"
@@ -1292,7 +1305,18 @@ local function updatePlayers()
 end
 
 -- ── MAIN LOOPS ───────────────────────────────────────────────
-Run.RenderStepped:Connect(function() S.fc+=1;local n=tick();if n-S.fpsT>=.5 then S.fps=math.floor(S.fc/(n-S.fpsT));S.fc=0;S.fpsT=n end end)
+Run.RenderStepped:Connect(function()
+    S.fc=S.fc+1
+    local n=tick()
+    if n-S.fpsT>=.5 then
+        S.fps=math.floor(S.fc/(n-S.fpsT))
+        S.fc=0
+        S.fpsT=n
+        if S.fps > S.maxFps then
+            S.maxFps = S.fps
+        end
+    end
+end)
 local _frame=0
 Run.Heartbeat:Connect(function()
 	if not _vis then return end; _frame=(_frame+1)%3600
