@@ -56,15 +56,15 @@ end
 
 -- ── CONFIG ───────────────────────────────────────────────────
 local cfg={
-	RemoveDeathEffect=true,LockFps={on=true,fps=10},
-	BoostV1=false,BoostV2=false,BoostV3=true,
+	RemoveDeathEffect=true,LockFps={on=false,fps=10},
+	BoostV1=false,BoostV2=false,BoostV3=false,
 	HidePlayers=false,HideEnemies=true,
 	AutoHop=false,HopInterval=45,HopServer="singapore",HopMaxPlayers=3,
 	WebhookEnabled=false,
 	WebhookURL="https://discord.com/api/webhooks/1426870143916707840/1d9rXLCZSRTlnTBE-V0AX0CxgQLodNt-zXXSggbS6MjFpPKMTfbNR8V1VrhCcm4wgnmh",
 	WebhookName="Panel",WebhookInterval=30,
 	AutoRerunURL="https://raw.githubusercontent.com/mm3xwqi/s/refs/heads/main/PanelBF.lua",
-	AutoRerun=true,
+	AutoRerun=false,
 	MilestoneBeli={1000000,5000000,10000000,50000000},
 	MilestoneFrag={10000,50000,100000,500000},
 	HealthFPSThreshold=30,HealthLagDuration=10,PerfBaselineBPM=50000,
@@ -627,100 +627,163 @@ end
 local function stopWHTimer() S.whTimer=false;if S.whThread then task.cancel(S.whThread);S.whThread=nil end;S.whCD=cfg.WebhookInterval*60 end
 
 local function doHop()
-	local cb=getStat("Beli") or 0;local cf=getStat("Fragments") or 0;local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
-	S.hopTotal+=1;addLog("Auto Hop")
-	task.spawn(function()sendWebhook(S.sessOK and math.floor(cb-(S.sessB or cb)) or 0,S.sessOK and math.floor(cf-(S.sessF or cf)) or 0,tick()-jt,"Auto Hop")end)
-	local sb=pg:FindFirstChild("ServerBrowser");if not sb then return end
-	sb.Enabled=true; local frame=sb:FindFirstChild("Frame");if not frame then return end
-	pcall(function()frame.Visible=true end)
-	pcall(function()frame.Filters.SearchRegion.TextBox.Text=S.hopTarget~="" and S.hopTarget or""end)
-	pcall(function()frame.Refresh:Activate()end); task.wait(3)
-	local inside=frame and frame:FindFirstChild("FakeScroll") and frame.FakeScroll:FindFirstChild("Inside")
-	if not inside then return end
-	local maxP=cfg.HopMaxPlayers or 3;local tried={}
+    local cb=getStat("Beli") or 0;local cf=getStat("Fragments") or 0;local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
+    S.hopTotal=S.hopTotal+1;addLog("Auto Hop")
+    task.spawn(function()sendWebhook(S.sessOK and math.floor(cb-(S.sessB or cb)) or 0,S.sessOK and math.floor(cf-(S.sessF or cf)) or 0,tick()-jt,"Auto Hop")end)
+    
+    local sb=pg:FindFirstChild("ServerBrowser")
+    if not sb then return end
+    
+    local frame=sb:FindFirstChild("Frame")
+    if not frame then return end
+
+    local function ensureOpen()
+        if not sb.Enabled then
+            sb.Enabled=true
+            task.wait(0.3)
+        end
+        if not frame.Visible then
+            frame.Visible=true
+            task.wait(0.3)
+        end
+    end
+    local watching=true
+    local watchThread=task.spawn(function()
+        while watching do
+            task.wait(0.5)
+            if not sb.Enabled or not frame.Visible then
+                ensureOpen()
+            end
+        end
+    end)
+
+    ensureOpen()
+
+    pcall(function()
+        local regionBox=frame.Filters.SearchRegion:FindFirstChildOfClass("TextBox")
+        if regionBox then
+            regionBox.Text=S.hopTarget~="" and S.hopTarget or ""
+            regionBox:ReleaseFocus()
+        end
+    end)
+    pcall(function() frame.Refresh:Activate() end)
+    task.wait(3)
+    
+    local inside=frame:FindFirstChild("FakeScroll") and frame.FakeScroll:FindFirstChild("Inside")
+    if not inside then watching=false;return end
+    
+    local maxP=cfg.HopMaxPlayers or 3
+    local tried={}
 	local function findBest()
 		local best, bestC = nil, math.huge
+		local insideFrame = frame.FakeScroll:FindFirstChild("Inside")
+		if not insideFrame then return nil end
 		
-		-- เลื่อน FakeScroll เพื่อโหลดเซิร์ฟทั้งหมด
 		local fs = frame:FindFirstChild("FakeScroll")
-		if fs then
-			-- รีเซ็ตไปบนสุดก่อน
-			fs.CanvasPosition = Vector2.new(0, 0)
-			task.wait(0.3)
-			
-			local lastCanvas = 0
-			local maxTries = 30  -- กันวนไม่สิ้นสุด
-			local tries = 0
-			
-			-- เลื่อนลงเรื่อยๆ จนสุด โดยรอให้เนื้อหาโหลดแต่ละครั้ง
-			while tries < maxTries do
-				tries += 1
-				local currentCanvas = fs.AbsoluteCanvasSize.Y
-				local viewSize = fs.AbsoluteSize.Y
-				
-				-- เลื่อนลงทีละก้อน
-				local currentPos = fs.CanvasPosition.Y
-				local nextPos = currentPos + viewSize * 0.8
-				
-				fs.CanvasPosition = Vector2.new(0, nextPos)
-				task.wait(0.15)  -- รอให้ lazy-load โหลดเซิร์ฟเพิ่ม
-				
-				local newCanvas = fs.AbsoluteCanvasSize.Y
-				
-				-- ถ้า Canvas ไม่ขยายแล้ว และเลื่อนถึงล่างสุดแล้ว = โหลดครบ
-				if newCanvas == lastCanvas and nextPos >= newCanvas - viewSize then
-					break
-				end
-				lastCanvas = newCanvas
-			end
-			
-			-- กลับขึ้นบนสุด
-			fs.CanvasPosition = Vector2.new(0, 0)
-			task.wait(0.1)
+		local absPos = fs.AbsolutePosition
+		local absSz = fs.AbsoluteSize
+		local cx = absPos.X + absSz.X/2
+		local cy = absPos.Y + absSz.Y/2
+		
+		local function scrollDown()
+			game:GetService("VirtualInputManager"):SendMouseWheelEvent(cx, cy, false, game)
+		end
+		local function scrollUp()
+			game:GetService("VirtualInputManager"):SendMouseWheelEvent(cx, cy, true, game)
 		end
 		
-		-- ค้นหาเซิร์ฟที่ดีที่สุดจาก Inside
-		for _, child in ipairs(inside:GetChildren()) do
-			if not child:IsA("Frame") then continue end
-			local jb = child:FindFirstChild("Join")
-			if not jb or jb.Text ~= "Join" then continue end
-			
-			-- ดึงข้อมูลจาก TextLabel ใน row
-			local playerCount = nil
-			for _, tl in ipairs(child:GetDescendants()) do
-				if tl:IsA("TextLabel") then
-					local cur, max2 = tl.Text:match("Players:%s*(%d+)/(%d+)")
-					if cur then
-						playerCount = tonumber(cur)
-						break
+		local seenJobs = {}
+		
+		local function readCurrentRows()
+			local foundNew = false
+			for _, child in ipairs(insideFrame:GetChildren()) do
+				if not child:IsA("Frame") then continue end
+				local jb = child:FindFirstChild("Join")
+				if not jb or jb.Text ~= "Join" then continue end
+				local jobId = jb:GetAttribute("Job")
+				if not jobId or jobId == "1234567890123" then continue end
+				if tried[jobId] or seenJobs[jobId] then continue end
+				local sn = child:FindFirstChild("ServerName")
+				if sn and sn.Text:find("Your Server") then continue end
+				local tl = child:FindFirstChildOfClass("TextLabel")
+				if tl then
+					local a = tl.Text:match("Players:%s*(%d+)%s*/%s*%d+")
+					if a then
+						local pc = tonumber(a)
+						seenJobs[jobId] = true
+						foundNew = true
+						if pc and pc <= maxP then
+							if not best or pc < bestC then
+								bestC = pc
+								best = {jb = jb, jobId = jobId, cur = pc}
+							end
+						end
 					end
 				end
 			end
+			return foundNew
+		end
+		
+		local maxRefresh = 3
+		local refreshCount = 0
+
+		while not best and refreshCount < maxRefresh do
+			for i = 1, 30 do scrollUp() end
+			task.wait(0.5)
+			seenJobs = {}
+			readCurrentRows()
 			
-			if not playerCount or playerCount > maxP then continue end
-			local jobId = jb:GetAttribute("Job")
-			if not jobId or tried[jobId] then continue end
-			if playerCount < bestC then
-				bestC = playerCount
-				best = {jb = jb, jobId = jobId, cur = playerCount}
+			local noNewCount = 0
+
+			while noNewCount < 10 do
+				for i = 1, 3 do scrollDown() end
+				task.wait(0.25)
+				local foundNew = readCurrentRows()
+				if best then
+					showN("Auto Hop", "Found! "..bestC.." players", C.HOP)
+					return best
+				end
+				
+				if not foundNew then
+					noNewCount = noNewCount + 1
+				else
+					noNewCount = 0
+				end
+			end
+
+			refreshCount = refreshCount + 1
+			if refreshCount < maxRefresh then
+				showN("Auto Hop", "No server ≤"..maxP.." players, refreshing... ("..refreshCount.."/"..maxRefresh..")", C.WRN)
+				tried = {}
+				pcall(function() frame.Refresh:Activate() end)
+				task.wait(4)
 			end
 		end
 		
 		return best
 	end
-	local function tryHop()
-		local server=findBest()
-		if server then
-			tried[server.jobId]=true;showN("Auto Hop","Found server: "..server.cur.." players",C.HOP)
-			local fc;fc=game:GetService("TeleportService").TeleportInitFailed:Connect(function()if fc then fc:Disconnect();fc=nil end;task.wait(1);tryHop() end)
-			for _,c in ipairs(getconnections(server.jb.MouseButton1Click)) do c:Fire() end
-			task.delay(5,function()if fc then fc:Disconnect();fc=nil end end)
-		else
-			showN("Auto Hop","No server ≤"..maxP.." players, refreshing...",C.WRN)
-			tried={};pcall(function()frame.Refresh:Activate()end);task.wait(4);tryHop()
-		end
-	end
-	tryHop()
+    local function tryHop()
+        ensureOpen()
+        
+        local server=findBest()
+        if server then
+            tried[server.jobId]=true
+            showN("Auto Hop","Found server: "..server.cur.." players",C.HOP)
+            local fc
+            fc=game:GetService("TeleportService").TeleportInitFailed:Connect(function()
+                if fc then fc:Disconnect();fc=nil end
+                task.wait(1);tryHop()
+            end)
+            for _,c in ipairs(getconnections(server.jb.MouseButton1Click)) do c:Fire() end
+            task.delay(5,function() if fc then fc:Disconnect();fc=nil end end)
+        else
+            showN("Auto Hop","No server found after refresh",C.ERR)
+        end
+    end
+    
+    tryHop()
+
+    task.delay(10,function() watching=false end)
 end
 local function startHop()
 	S.hop=true;S.hopCD=cfg.HopInterval*60;S.hopTick=tick()
