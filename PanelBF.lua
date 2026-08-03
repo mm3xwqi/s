@@ -288,6 +288,37 @@ local S = {
 	},
 }
 
+local SEA_DANGER_NAMES = {
+    PirateGrandBrigade       = true,
+    ["Pirate Grand Brigade"] = true,
+    PirateBrigade            = true,
+    ["Pirate Brigade"]       = true,
+    Piranha                  = true,
+    Terrorshark              = true,
+    Shark                    = true,
+    ["Fish Crew Member"]     = true,
+    ["Haunted Crew Member"]  = true,
+    FishBoat                 = true,
+}
+
+local BRINGMOB_BLACKLIST = {
+	Terrorshark = true,
+}
+
+local SB = {
+	on           = false,
+	thread       = nil,
+	renderConn   = nil,
+	boatESP      = nil,
+	boatESPBB    = nil,
+	dangerActive = false,
+	angle        = 0,
+	_noBoatWarn  = 0,
+	liftY        = 150,
+	orbitRadius  = 200,
+	orbitSpeed   = 100,
+}
+
 local BM = {
 	on   = false, task = nil, data = {}, noclip = nil, pin = nil,
 	dist = 500,   batch = 20, force = 150000, snap = 12, yOff = -15,
@@ -1191,6 +1222,8 @@ local function startBM2()
 			local ok, dist = pcall(function() return (anchor - hrp.Position).Magnitude end)
 			if not ok or dist > BM2.dist then continue end
 
+			if BRINGMOB_BLACKLIST[e.Name] then continue end
+
 			if not bm2Warped[e] then
 				if warpedCount >= BM2.maxCount then continue end
 				bm2Warped[e] = true; warpedCount = warpedCount + 1
@@ -1859,6 +1892,205 @@ local function watchPlr(p)
 	end)
 end
 
+local function findOurBoat()
+    local boatsFolder = WS:FindFirstChild("Boats")
+    if not boatsFolder then return nil end
+    for _, boat in ipairs(boatsFolder:GetChildren()) do
+        local ownerVal = boat:FindFirstChild("Owner")
+        if ownerVal and ownerVal.Value == lp then
+            return boat
+        end
+    end
+    return nil
+end
+
+local function attachBoatESP(boat)
+	if SB.boatESP   and SB.boatESP.Parent   then SB.boatESP:Destroy()   end
+	if SB.boatESPBB and SB.boatESPBB.Parent then SB.boatESPBB:Destroy() end
+	SB.boatESP   = nil
+	SB.boatESPBB = nil
+	if not boat then return end
+
+	SB.boatESP = mk("Highlight", boat, {
+		Name                = "SafeBoat_ESP",
+		FillColor           = Color3.fromRGB(255, 200, 0),
+		OutlineColor        = Color3.fromRGB(255, 120, 0),
+		FillTransparency    = 0.45,
+		OutlineTransparency = 0,
+		DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop,
+		Adornee             = boat,
+	})
+
+	local rootPart = boat.PrimaryPart or boat:FindFirstChildOfClass("BasePart")
+	if rootPart then
+		local bb = mk("BillboardGui", rootPart, {
+			Name        = "SafeBoat_BB",
+			Size        = UDim2.new(0, 200, 0, 44),
+			StudsOffset = Vector3.new(0, 5, 0),
+			AlwaysOnTop = true,
+			Adornee     = rootPart,
+		})
+		local tl = mk("TextLabel", bb, {
+			Size                   = UDim2.new(1,0,1,0),
+			BackgroundTransparency = 1,
+			Font                   = Enum.Font.GothamBold,
+			TextSize               = 14,
+			TextColor3             = Color3.fromRGB(255, 210, 30),
+			TextStrokeTransparency = 0,
+			TextStrokeColor3       = Color3.new(0,0,0),
+			Text                   = "🚢 Your Boat",
+			TextXAlignment         = Enum.TextXAlignment.Center,
+		})
+		task.spawn(function()
+			while SB.on and bb and bb.Parent do
+				local myC   = lp.Character
+				local myHRP = myC and myC:FindFirstChild("HumanoidRootPart")
+				if myHRP and rootPart and rootPart.Parent then
+					local dist = math.floor((myHRP.Position - rootPart.Position).Magnitude)
+					tl.Text = "🚢 Your Boat  ("..dist.." studs)"
+				end
+				task.wait(0.5)
+			end
+		end)
+		SB.boatESPBB = bb
+	end
+end
+ 
+local function removeBoatESP()
+	if SB.boatESP   and SB.boatESP.Parent   then SB.boatESP:Destroy()   end
+	if SB.boatESPBB and SB.boatESPBB.Parent then SB.boatESPBB:Destroy() end
+	SB.boatESP   = nil
+	SB.boatESPBB = nil
+end
+
+local function hasDangerMob()
+    local ef = WS:FindFirstChild("Enemies")
+    if not ef then return false end
+    for _, e in ipairs(ef:GetDescendants()) do
+        if e:IsA("Model") and SEA_DANGER_NAMES[e.Name] then
+            local hum = e:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then return true end
+        end
+    end
+    return false
+end
+
+local function liftAndOrbitBoat(boat, angle)
+    if not boat or not boat.Parent then return end
+
+    local myC   = lp.Character
+    local myHRP = myC and myC:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
+    local closestEnemy = nil
+    local closestDist  = math.huge
+    local ef = WS:FindFirstChild("Enemies")
+    if ef then
+        for _, e in ipairs(ef:GetChildren()) do
+            if SEA_DANGER_NAMES[e.Name] then
+                local hum = e:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    local hrp = e:FindFirstChild("HumanoidRootPart") or e:FindFirstChild("Torso")
+                    if hrp then
+                        local d = (myHRP.Position - hrp.Position).Magnitude
+                        if d < closestDist then
+                            closestDist  = d
+                            closestEnemy = hrp
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local center = closestEnemy and closestEnemy.Position or myHRP.Position
+    local rad    = math.rad(angle)
+    local tx     = center.X + SB.orbitRadius * math.cos(rad)
+    local ty     = center.Y + SB.liftY
+    local tz     = center.Z + SB.orbitRadius * math.sin(rad)
+
+    pcall(function()
+        local cf = CFrame.new(tx, ty, tz)
+        if boat.PrimaryPart then
+            boat:SetPrimaryPartCFrame(cf)
+        else
+            local part = boat:FindFirstChildOfClass("BasePart")
+            if part then part.CFrame = cf end
+        end
+    end)
+end
+
+
+local function startSafeBoat()
+    if SB.on then return end
+    SB.on    = true
+
+    showN("Safe Boat", "Monitoring sea enemies...", C.OK)
+    addEvent("🚢 Safe Boat", "Sea enemy monitor ON", C.OK)
+
+    local lastBoat = nil
+
+    SB.thread = task.spawn(function()
+        while SB.on do
+            local boat = findOurBoat()
+
+            if not boat then
+                if lastBoat then
+                    removeBoatESP()
+                    lastBoat = nil
+                end
+                SB.dangerActive = false
+                task.wait(0.1)
+                continue
+            end
+
+            if lastBoat ~= boat then
+                removeBoatESP()
+                attachBoatESP(boat)
+                lastBoat = boat
+            end
+
+            if hasDangerMob() then
+                if not SB.dangerActive then
+                    SB.dangerActive = true
+                    showN("Safe Boat", "⚠️ Sea danger! Lifting boat!", C.ERR)
+                    addEvent("🚢 Danger", "Sea mob detected", C.ERR)
+                end
+
+                local primary = boat.PrimaryPart
+                if primary then
+                    local targetY = primary.Position.Y + SB.liftY
+                    for _, part in ipairs(boat:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            pcall(function()
+                                part.CFrame = part.CFrame + Vector3.new(0, targetY - primary.Position.Y, 0)
+                            end)
+                        end
+                    end
+                end
+            else
+                if SB.dangerActive then
+                    SB.dangerActive = false
+                    showN("Safe Boat", "✅ Sea clear! Boat released.", C.OK)
+                    addEvent("🚢 Safe", "Enemy gone — boat free", C.OK)
+                end
+            end
+
+            task.wait(0.01)
+        end
+    end)
+end
+
+local function stopSafeBoat()
+    SB.on           = false
+    SB.dangerActive = false
+    if SB.renderConn then SB.renderConn:Disconnect(); SB.renderConn = nil end
+    if SB.thread then task.cancel(SB.thread); SB.thread = nil end
+    removeBoatESP()
+    showN("Safe Boat", "Disabled", C.DIM)
+    addEvent("🚢 Safe Boat", "Sea enemy monitor OFF", C.DIM)
+end
+
 --  GUI BUILDER HELPERS
 local function lbl(par, p)
 	return mk("TextLabel", par, {
@@ -2150,7 +2382,7 @@ do
 	UI.hopNowBtn = mk("TextButton", hopNowRow, { Size=UDim2.new(1,0,1,0), BackgroundColor3=C.HOP, BorderSizePixel=0, Text="Hop Now", TextColor3=C.BG, TextSize=12, Font=Enum.Font.GothamBold, AutoButtonColor=false, ZIndex=4 })
 	stroke(UI.hopNowBtn, C.BOR2, 1); corner(UI.hopNowBtn, 4)
 	local hopMaxRow = inlineRow(sec4, 4)
-	local hopMaxBox = inlineBox(hopMaxRow, 0, K.IW-70, "Max players (default: 3)")
+	local hopMaxBox = inlineBox(hopMaxRow, 0, K.IW-70, "Max players")
 	local hopMaxBtn = inlineBtn(hopMaxRow, K.IW-66, 62, "SET", C.HOP)
 	hopMaxBtn.MouseButton1Click:Connect(function()
 		local n = tonumber(hopMaxBox.Text)
@@ -2215,37 +2447,60 @@ do
 			showN("Fake Level","On — LV "..fmtN(n),C.FAKE)
 		end
 	end)
+end
+do
+	local secSB = section("controls", 9, "Safe Boat (Sea Event)")
 
-	local sec8 = section("controls", 8, "Movement")
-	UI.infJumpBtn = secBtn(sec8, 2, "Infinite Jump: Off", false, C.OK)
-	UI.infJumpBtn.MouseButton1Click:Connect(function()
-		S.infJump = not S.infJump; setInfJump(S.infJump)
-		tog(UI.infJumpBtn, S.infJump, C.OK, C.BTN_OFF, "Infinite Jump: On", "Infinite Jump: Off")
-		showN("Infinite Jump", S.infJump and "On" or "Off", S.infJump and C.OK or C.ERR)
+	UI.sbBtn = secBtn(secSB, 3, "Safe Boat: Off", false, C.OK)
+
+	local liftRow = inlineRow(secSB, 4)
+	local liftBox = inlineBox(liftRow, 0, K.IW - 70, "Lift height")
+	local liftSet = inlineBtn(liftRow, K.IW - 66, 62, "SET", C.OK)
+
+	local radRow = inlineRow(secSB, 5)
+	local radBox = inlineBox(radRow, 0, K.IW - 70, "Orbit radius")
+	local radSet = inlineBtn(radRow, K.IW - 66, 62, "SET", C.OK)
+ 
+	-- Status label
+	UI.sbStatusLbl = secLbl(secSB, 6, "OFF", C.DIM, 9)
+ 
+	-- Events
+	UI.sbBtn.MouseButton1Click:Connect(function()
+		if SB.on then
+			stopSafeBoat()
+			tog(UI.sbBtn, false, C.OK, C.BTN_OFF, "Safe Boat: On", "Safe Boat: Off")
+			setText(UI.sbStatusLbl, "OFF"); setCol(UI.sbStatusLbl, C.DIM)
+		else
+			startSafeBoat()
+			tog(UI.sbBtn, true, C.OK, C.BTN_OFF, "Safe Boat: On", "Safe Boat: Off")
+			setText(UI.sbStatusLbl, "ON — watching Enemies"); setCol(UI.sbStatusLbl, C.OK)
+		end
 	end)
-	local speedRow = inlineRow(sec8, 3)
-	local speedBox = inlineBox(speedRow, 0, K.IW-70, "Speed ×  (1–20)")
-	local speedSetBtn = inlineBtn(speedRow, K.IW-66, 62, "SET", C.V2)
-	UI.speedLbl = secLbl(sec8, 4, "Speed: 1×  (WalkSpeed 16)", C.DIM, 9)
-	local speedResetRow = inlineRow(sec8, 5)
-	local speedResetBtn = mk("TextButton", speedResetRow, { Size=UDim2.new(1,0,1,0), BackgroundColor3=C.BTN_OFF, BorderSizePixel=0, Text="Reset Speed (1×)", TextColor3=C.WRN, TextSize=12, Font=Enum.Font.GothamBold, AutoButtonColor=false, ZIndex=4 })
-	stroke(speedResetBtn, C.BOR2, 1); corner(speedResetBtn, 4)
-	speedSetBtn.MouseButton1Click:Connect(function()
-		local n = tonumber(speedBox.Text)
-		if n and n >= 1 and n <= 20 then
-			applySpeed(n); speedBox.Text = ""; speedBox.PlaceholderText = "Current: "..n.."×"
-			setText(UI.speedLbl, "Speed: "..n.."×  (WalkSpeed "..math.floor(BASE_WS*n)..")"); S.last[UI.speedLbl] = nil
-			showN("Speed", n.."× — WalkSpeed "..math.floor(BASE_WS*n), C.V2)
-		else showN("Speed","Enter 1–20",C.WRN) end
+ 
+	liftSet.MouseButton1Click:Connect(function()
+		local n = tonumber(liftBox.Text)
+		if n and n >= 10 and n <= 500 then
+			SB.liftY = n
+			liftBox.Text = ""; liftBox.PlaceholderText = "Lift: "..n
+			showN("Safe Boat", "Lift height → "..n.." studs", C.OK)
+		else
+			showN("Safe Boat", "Enter 10–500", C.WRN)
+		end
 	end)
-	speedResetBtn.MouseButton1Click:Connect(function()
-		applySpeed(1); speedBox.Text = ""; speedBox.PlaceholderText = "Speed ×  (1–20)"
-		setText(UI.speedLbl, "Speed: 1×  (WalkSpeed 16)"); S.last[UI.speedLbl] = nil
-		showN("Speed","Reset to 1×",C.DIM)
+ 
+	radSet.MouseButton1Click:Connect(function()
+		local n = tonumber(radBox.Text)
+		if n and n >= 1 and n <= 9999 then
+			SB.orbitRadius = n
+			radBox.Text = ""; radBox.PlaceholderText = "Radius: "..n
+			showN("Safe Boat", "Orbit radius → "..n.." studs", C.OK)
+		else
+			showN("Safe Boat", "Enter 1–9999", C.WRN)
+		end
 	end)
-	addHov(UI.infJumpBtn, function() return S.infJump and C.OK or C.BTN_OFF end)
-	addHov(speedSetBtn,   function() return C.V2 end)
-	addHov(speedResetBtn, function() return C.BTN_OFF end)
+	addHov(UI.sbBtn,  function() return SB.on and C.OK or C.BTN_OFF end)
+	addHov(liftSet,   function() return C.OK end)
+	addHov(radSet,    function() return C.OK end)
 end
 
 --  BRINGMOB TAB
@@ -2255,15 +2510,15 @@ do
 	UI.pullBtn2 = secBtn(sec1, 3, "BringMob V2 (Warp): Off", false, C.BM2)
 
 	local bm2IntRow  = inlineRow(sec1, 4)
-	local bm2Box     = inlineBox(bm2IntRow, 0, K.IW-70, "V2 Warp interval sec (default 0.1)")
+	local bm2Box     = inlineBox(bm2IntRow, 0, K.IW-70, "V2 Warp interval sec")
 	local bm2SetBtn  = inlineBtn(bm2IntRow, K.IW-66, 62, "SET", C.BM2)
 
 	local bm2DistRow = inlineRow(sec1, 5)
-	local bm2DistBox = inlineBox(bm2DistRow, 0, K.IW-70, "V2 Range studs (default 500)")
+	local bm2DistBox = inlineBox(bm2DistRow, 0, K.IW-70, "V2 Range studs")
 	local bm2DistBtn = inlineBtn(bm2DistRow, K.IW-66, 62, "SET", C.BM2)
 
 	local bm2MaxRow  = inlineRow(sec1, 6)
-	local bm2MaxBox  = inlineBox(bm2MaxRow, 0, K.IW-70, "V2 Max mobs (default 10)")
+	local bm2MaxBox  = inlineBox(bm2MaxRow, 0, K.IW-70, "V2 Max mobs")
 	local bm2MaxBtn  = inlineBtn(bm2MaxRow, K.IW-66, 62, "SET", C.BM2)
 
 	local bm2AnchorRow = inlineRow(sec1, 7)
@@ -2492,7 +2747,7 @@ do
 	UI.hBarBg = mk("Frame", healthSec, { Size=UDim2.new(1,0,0,4), BackgroundColor3=C.BOR, ZIndex=4, LayoutOrder=3 }); corner(UI.hBarBg,2)
 	UI.hBarFl = mk("Frame", UI.hBarBg, { Size=UDim2.new(1,0,1,0), BackgroundColor3=C.OK, ZIndex=5 }); corner(UI.hBarFl,2)
 	local threshRow = inlineRow(healthSec, 4)
-	local threshBox = inlineBox(threshRow, 0, K.IW-70, "FPS threshold (default: 30)")
+	local threshBox = inlineBox(threshRow, 0, K.IW-70, "FPS threshold")
 	local threshBtn = inlineBtn(threshRow, K.IW-66, 62, "SET", C.OK)
 	threshBtn.MouseButton1Click:Connect(function()
 		local n = tonumber(threshBox.Text)
@@ -2689,7 +2944,6 @@ for _, h in ipairs({
 	{ UI.fakeLvBtn,   function() return S.fakeLevel and C.FAKE or C.BTN_OFF end },
 	{ UI.rerunBtn,    function() return S.rerun and C.RERUN or C.BTN_OFF end },
 	{ UI.specStopBtn, function() return S.specTarget and C.SPEC or C.BTN_OFF end },
-	{ UI.infJumpBtn,  function() return S.infJump and C.OK or C.BTN_OFF end },
 }) do addHov(h[1], h[2]) end
 
 -- RightCtrl  toggle
@@ -2737,10 +2991,6 @@ lp.CharacterAdded:Connect(function(char) task.wait(.5); applyHL(char) end)
 
 lp.CharacterAdded:Connect(function(char)
 	task.wait(.5)
-	if S.speedMult > 1 then
-		local hum = char:FindFirstChildOfClass("Humanoid")
-		if hum then pcall(function() hum.WalkSpeed = BASE_WS * S.speedMult end) end
-	end
 	if S.infJump then setInfJump(true) end
 	addEvent("💀 Respawned", lp.Name, C.WRN)
 end)
@@ -2798,11 +3048,24 @@ local function updateFast()
 		local dn = S.specTarget.DisplayName ~= S.specTarget.Name and (S.specTarget.DisplayName.." (@"..S.specTarget.Name..")") or S.specTarget.Name
 		setText(UI.specStatusLbl, "Spectating: "..dn); setCol(UI.specStatusLbl, C.SPEC)
 	end
-	if UI.speedLbl and S.speedMult > 1 then
-		setText(UI.speedLbl, "Speed: "..S.speedMult.."×  (WalkSpeed "..math.floor(BASE_WS*S.speedMult)..")")
-		S.last[UI.speedLbl] = nil
-	end
 end
+	if UI.sbStatusLbl then
+		if SB.on then
+			if SB.dangerActive then
+				setText(UI.sbStatusLbl, "⚠️ DANGER — Boat orbiting!")
+				setCol(UI.sbStatusLbl, C.ERR)
+			elseif not findOurBoat() then
+				setText(UI.sbStatusLbl, "⚠️ No boat found!")
+				setCol(UI.sbStatusLbl, C.WRN)
+			else
+				setText(UI.sbStatusLbl, "✅ Watching — Sea clear")
+				setCol(UI.sbStatusLbl, C.OK)
+			end
+		else
+			setText(UI.sbStatusLbl, "OFF")
+			setCol(UI.sbStatusLbl, C.DIM)
+		end
+	end
 
 local function updateStats()
 	local lv    = getStat("Level")
