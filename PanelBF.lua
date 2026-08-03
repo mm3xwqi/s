@@ -58,7 +58,7 @@ end
 local cfg={
 	RemoveDeathEffect=true,LockFps={on=false,fps=10},
 	BoostV1=false,BoostV2=false,BoostV3=false,
-	HidePlayers=false,HideEnemies=true,
+	HidePlayers=false,HideEnemies=false,
 	AutoHop=false,HopInterval=45,HopServer="singapore",HopMaxPlayers=3,
 	WebhookEnabled=false,
 	WebhookURL="https://discord.com/api/webhooks/1426870143916707840/1d9rXLCZSRTlnTBE-V0AX0CxgQLodNt-zXXSggbS6MjFpPKMTfbNR8V1VrhCcm4wgnmh",
@@ -141,7 +141,10 @@ local function fmtV(v,k) if type(v)~="number" then return tostring(v or"?") end;
 local function fmtS(n) n=math.max(0,math.floor(n)); local h=math.floor(n/3600);n=n%3600;local m=math.floor(n/60);n=n%60; return h>0 and("%dh %02dm %02ds"):format(h,m,n) or m>0 and("%dm %02ds"):format(m,n) or("%ds"):format(n) end
 local function wFmt(n) return(n<0 and"-" or"+")..tostring(math.floor(math.abs(n))):reverse():gsub("(%d%d%d)","%1,"):reverse():gsub("^,","") end
 local function getPing() local ok,p=pcall(function()return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]end); return ok and type(p)=="number" and math.floor(p) or math.floor(lp:GetNetworkPing()*1000) end
-local function ts() local ok,s=pcall(function()return os.date("!%Y-%m-%dT%H:%M:%SZ")end); return ok and s or nil end
+local function ts()
+	local ok, s = pcall(function() return os.date("!%Y-%m-%dT%H:%M:%SZ") end)
+	return (ok and type(s) == "string") and s or "1970-01-01T00:00:00Z"
+end
 local function localT() local ok,s=pcall(function()return os.date("%Y-%m-%d %H:%M:%S")end); return ok and s or("~"..math.floor(tick())) end
 local function serverT(jt) if not jt then return"In server: ?" end; local e=math.floor(tick()-jt);local h=math.floor(e/3600);local m=math.floor((e%3600)/60);local sc=e%60; return h>0 and("In server: %dh %02dm %02ds"):format(h,m,sc) or m>0 and("In server: %dm %02ds"):format(m,sc) or("In server: %ds"):format(sc) end
 local function statBar(v,cap) if not v then return string.rep("-",12).." ?" end; local f=math.floor(math.clamp(v/cap,0,1)*12); return string.rep("|",f)..string.rep("-",12-f).."  "..fmtN(v) end
@@ -366,10 +369,36 @@ local function toggleHidePlr(on)
 	end
 end
 local function toggleHidEnm(on)
-	S.hidEnm=on; local ef=WS:FindFirstChild("Enemies");if not ef then return end
-	for _,o in ipairs(ef:GetDescendants()) do if o:IsA("BasePart") then if on then if S.hidEnmP[o]==nil then S.hidEnmP[o]=o.Transparency;o.Transparency=1 end else if S.hidEnmP[o]~=nil then if o.Parent then o.Transparency=S.hidEnmP[o] end;S.hidEnmP[o]=nil end end end end
-	if on then S.enmConn=S.enmConn or ef.DescendantAdded:Connect(function(o)if S.hidEnm and o:IsA("BasePart") then task.wait(.1);if S.hidEnmP[o]==nil and o.Parent then S.hidEnmP[o]=o.Transparency;o.Transparency=1 end end end)
-	else if S.enmConn then S.enmConn:Disconnect();S.enmConn=nil end; for p,t in pairs(S.hidEnmP) do if p and p.Parent then pcall(function()p.Transparency=t end) end end; S.hidEnmP={} end
+	S.hidEnm=on
+	if S.enmConn then S.enmConn:Disconnect();S.enmConn=nil end  -- disconnect ก่อนเสมอ
+	local ef=WS:FindFirstChild("Enemies");if not ef then return end
+	for _,o in ipairs(ef:GetDescendants()) do 
+		if o:IsA("BasePart") then 
+			if on then 
+				if S.hidEnmP[o]==nil then S.hidEnmP[o]=o.Transparency;o.Transparency=1 end 
+			else 
+				if S.hidEnmP[o]~=nil then 
+					if o.Parent then o.Transparency=S.hidEnmP[o] end
+					S.hidEnmP[o]=nil 
+				end 
+			end 
+		end 
+	end
+	if on then 
+		S.enmConn=ef.DescendantAdded:Connect(function(o)
+			if S.hidEnm and o:IsA("BasePart") then 
+				task.wait(.1)
+				if S.hidEnmP[o]==nil and o.Parent then 
+					S.hidEnmP[o]=o.Transparency;o.Transparency=1 
+				end 
+			end 
+		end)
+	else 
+		for p,t in pairs(S.hidEnmP) do 
+			if p and p.Parent then pcall(function()p.Transparency=t end) end 
+		end
+		S.hidEnmP={}
+	end
 end
 
 -- ── BRINGMOB V1 ──────────────────────────────────────────────
@@ -524,13 +553,39 @@ local function addLog(source)
 end
 
 -- ── WEBHOOK ──────────────────────────────────────────────────
-local function _sendWH(url,payload)
-	local ok2,json=pcall(function()return HTTP:JSONEncode(payload)end);if not ok2 then return end
-	local opts={Url=url,Method="POST",Headers={["Content-Type"]="application/json"},Body=json};local sent=false
-	local function tryR(fn) if sent or not fn then return end;local ok3,r=pcall(fn,opts);if ok3 and r then sent=true end end
-	tryR(typeof(request)=="function" and request);tryR(typeof(http_request)=="function" and http_request)
-	tryR(syn and typeof(syn.request)=="function" and syn.request);tryR(http and typeof(http.request)=="function" and http.request)
-	tryR(getgenv and typeof(getgenv().request)=="function" and getgenv().request);tryR(fluxus and typeof(fluxus.request)=="function" and fluxus.request)
+local function _sendWH(url, payload)
+	if not url or url == "" then return end
+	
+	-- หา field ที่พัง
+	if payload.embeds and payload.embeds[1] and payload.embeds[1].fields then
+		for i, f in ipairs(payload.embeds[1].fields) do
+			local ok, _ = pcall(HTTP.JSONEncode, HTTP, f)
+			if not ok then
+				warn("[WH] Field #"..i.." พัง: name="..tostring(f.name).." value="..tostring(f.value))
+			end
+		end
+	end
+	
+	local ok, json = pcall(HTTP.JSONEncode, HTTP, payload)
+	if not ok or type(json) ~= "string" then
+		warn("[WH] encode fail: " .. tostring(json))
+		return
+	end
+	
+	warn("[WH] JSON OK len=" .. #json)
+	
+	local ok2, res = pcall(request, {
+		Url = url,
+		Method = "POST",
+		Headers = {["Content-Type"] = "application/json"},
+		Body = json,
+	})
+	if type(res) == "table" then
+		warn("[WH] Status=" .. tostring(res.StatusCode))
+		if res.StatusCode ~= 204 then
+			warn("[WH] Body=" .. tostring(res.Body))
+		end
+	end
 end
 local SKILL_KEYS={"Z","X","C","V","F"}
 local function getToolLv(o) local lv;pcall(function()local lo=o:FindFirstChild("Level") or o:FindFirstChildOfClass("NumberValue") or o:FindFirstChildOfClass("IntValue");if lo then lv=lo.Value end end);return lv end
@@ -564,41 +619,148 @@ local function sendHealthWebhook(avgFPS,instanceCount,elapsed)
 	local pName=lp.DisplayName~=lp.Name and(lp.DisplayName.." (@"..lp.Name..")") or lp.Name
 	_sendWH(url,{username=cfg.WebhookName or"BloxHub",embeds={{title="⚠️ Server Health Alert",description="**["..pName.."](https://www.roblox.com/users/"..lp.UserId.."/profile)**\nServer lag detected!",color=15158332,fields={{name="Avg FPS",value="```"..avgFPS.."```",inline=true},{name="Instances",value="```"..fmtN(instanceCount).."```",inline=true},{name="Ping",value="```"..getPing().."ms```",inline=true},{name="Session",value="```"..fmtS(elapsed).."```",inline=true},{name="Players",value="```"..#Pl:GetPlayers().."/"..K.MAX.."```",inline=true},{name="FPS Gauge",value=emojiBar(avgFPS,60),inline=false}},footer={text="Panel • Server Health Report"},timestamp=ts()}}})
 end
-local function sendWebhook(sessBeli,sessFrags,elapsed,source)
-	if not cfg.WebhookEnabled then return end;local url=cfg.WebhookURL;if not url or url=="" or url:find("YOUR_ID") then return end
-	source=source or"Manual";S.whTotal+=1
-	local function gs(k) return getStat(k) or 0 end
-	local lv,beli,frag=gs("Level"),gs("Beli"),gs("Fragments");local melee,sword,gun,def,fruit,bounty=gs("Melee"),gs("Sword"),gs("Gun"),gs("Defense"),gs("Blox Fruit"),gs("Bounty")
-	local spawn2=getStat("SpawnPoint") or"Unknown";local raceN,raceTier="Unknown",""
-	pcall(function()local d=lp:FindFirstChild("Data");if not d then return end;local rc=d:FindFirstChild("Race");if not rc then return end;if rc:IsA("ValueBase") and rc.Value~="" then raceN=tostring(rc.Value) end;for _,n in ipairs({"C","V","Tier","Level","T"}) do local c=rc:FindFirstChild(n);if c and(c:IsA("NumberValue") or c:IsA("IntValue")) then raceTier="V"..c.Value;break end end end)
-	local pName=lp.DisplayName~=lp.Name and(lp.DisplayName.." (@"..lp.Name..")") or lp.Name
-	local minIn=math.max((elapsed or 0)/60,.01);local bPM2=math.floor(sessBeli/minIn);local fPM2=math.floor(sessFrags/minIn)
-	local nextB=nil;for _,t in ipairs(cfg.MilestoneBeli or{}) do if beli<t then nextB=t;break end end
-	local nextF=nil;for _,t in ipairs(cfg.MilestoneFrag or{}) do if frag<t then nextF=t;break end end
-	local beliBar=nextB and(emojiBar(beli,nextB).."  "..fmtN(beli).."/"..fmtN(nextB)) or"✅ All milestones reached"
-	local fragBar=nextF and(emojiBar(frag,nextF).."  "..fmtN(frag).."/"..fmtN(nextF)) or"✅ All milestones reached"
-	local jobId="unknown";pcall(function()jobId=game.JobId end)
-	local plrLines={};for _,p in ipairs(Pl:GetPlayers()) do local plv=getStat("Level",p);local cache=S.plrC[p.UserId] or{};plrLines[#plrLines+1]="["..p.Name.."](https://www.roblox.com/users/"..p.UserId.."/profile)"..(plv and" — LV "..fmtN(math.floor(plv)) or"")..(cache.bounty and" | B "..fmtN(cache.bounty) or"") end
-	local invLines={};local bp=lp:FindFirstChild("Backpack");if bp then for _,o in ipairs(bp:GetChildren()) do if o:IsA("Tool") and o.Name~="Tool" and #invLines<5 then local lv2=getToolLv(o);invLines[#invLines+1]=lv2~=nil and("• "..o.Name.." — LV "..fmtN(math.floor(lv2))) or("• "..o.Name) end end end
-	local eqStr,eqLv="Nothing",nil;pcall(function()for _,o in ipairs((lp.Character or{}):GetChildren()) do if o:IsA("Tool") then eqStr=o.Name;eqLv=getToolLv(o);break end end end)
-	local eqDisp=eqStr~="Nothing" and(eqStr..(eqLv and" [LV "..fmtN(eqLv).."]" or"")) or"None equipped"
-	local skillLines={};if eqStr~="Nothing" then local rl=getSkillLevels(eqStr);for _,k in ipairs(SKILL_KEYS) do local r=rl[k];if r then local ready=eqLv and eqLv>=r;skillLines[#skillLines+1]=k..": "..(ready and"Ready" or("Need LV "..fmtN(r))) end end end
-	local fields={
-		{name="Player",value="["..pName.."](https://www.roblox.com/users/"..lp.UserId.."/profile)",inline=true},{name="Level",value="```"..fmtN(math.floor(lv)).."```",inline=true},{name="Race",value="```"..raceN..(raceTier~="" and" "..raceTier or"").."```",inline=true},
-		{name="Bounty",value="```"..fmtN(bounty).."```",inline=true},{name="Total Beli",value="```"..fmtN(beli).."```",inline=true},{name="Total Frags",value="```"..fmtN(frag).."```",inline=true},
-		{name="Beli Gained",value="```"..wFmt(sessBeli).."```",inline=true},{name="Frags Gained",value="```"..wFmt(sessFrags).."```",inline=true},{name="Session",value="```"..fmtS(elapsed or 0).."```",inline=true},
-		{name="Beli/Min",value="```"..wFmt(bPM2).."```",inline=true},{name="Beli/Hr",value="```"..wFmt(bPM2*60).."```",inline=true},{name="Frag/Min",value="```"..wFmt(fPM2).."```",inline=true},
-		{name="Stats",value="```\nMelee   "..statBar(melee,K.COMBAT).."\nSword   "..statBar(sword,K.COMBAT).."\nGun     "..statBar(gun,K.COMBAT).."\nDefense "..statBar(def,K.COMBAT).."\nFruit   "..statBar(fruit,K.COMBAT).."\n```",inline=false},
-		{name="Equipped",value="```"..eqDisp.."```",inline=true},{name="Skills",value="```\n"..(#skillLines>0 and table.concat(skillLines,"\n") or"-").."\n```",inline=true},
-		{name="Spawn",value="```"..tostring(spawn2).."```",inline=true},{name="Players",value="```"..#Pl:GetPlayers().."/"..K.MAX.."```",inline=true},{name="FPS / Ping",value="```"..S.fps.." FPS | "..getPing().."ms```",inline=true},
-		{name="Backpack",value="```\n"..( #invLines>0 and table.concat(invLines,"\n") or"-").."\n```",inline=false},
-		{name="Beli Progress",value=beliBar,inline=false},{name="Frag Progress",value=fragBar,inline=false},
-		{name="Server Health",value="```FPS avg: "..S.health.avgFPS.." | Parts: "..fmtN(S.health.instanceCount)..(S.health.lagDetected and" | ⚠️ LAG" or" | ✅ OK").."```",inline=false},
-		{name="Players in Server",value=#plrLines>0 and table.concat(plrLines,"\n") or"?",inline=false},
-		{name="Report #",value="```#"..S.whTotal.."```",inline=true},{name="Source",value="```"..source.."```",inline=true},{name="Time",value="```"..localT().."```",inline=true},
+local function sendWebhook(sessBeli, sessFrags, elapsed, source)
+	if not cfg.WebhookEnabled then return end
+	local url = cfg.WebhookURL
+	if not url or url == "" or url:find("YOUR_ID") then return end
+	source = tostring(source or "Manual")
+	S.whTotal = S.whTotal + 1
+
+	local ok_stats, lv, beli, frag, melee, sword, gun, def, fruit, bounty, spawn2
+	pcall(function()
+		lv     = math.floor(getStat("Level") or 0)
+		beli   = math.floor(getStat("Beli") or 0)
+		frag   = math.floor(getStat("Fragments") or 0)
+		melee  = math.floor(getStat("Melee") or 0)
+		sword  = math.floor(getStat("Sword") or 0)
+		gun    = math.floor(getStat("Gun") or 0)
+		def    = math.floor(getStat("Defense") or 0)
+		fruit  = math.floor(getStat("Blox Fruit") or 0)
+		bounty = math.floor(getStat("Bounty") or 0)
+		spawn2 = tostring(getStat("SpawnPoint") or "Unknown")
+	end)
+	lv=lv or 0; beli=beli or 0; frag=frag or 0
+	melee=melee or 0; sword=sword or 0; gun=gun or 0
+	def=def or 0; fruit=fruit or 0; bounty=bounty or 0
+	spawn2=spawn2 or "Unknown"
+
+	local jt    = (S.plrC[lp.UserId] and S.plrC[lp.UserId].join) or tick()
+	local minIn = math.max((elapsed or 0) / 60, 0.01)
+	local bPM2  = math.floor((sessBeli or 0) / minIn)
+	local fPM2  = math.floor((sessFrags or 0) / minIn)
+
+	local pName = tostring(lp.Name)
+	pcall(function()
+		if lp.DisplayName ~= lp.Name then
+			pName = lp.DisplayName .. " (@" .. lp.Name .. ")"
+		end
+	end)
+
+	local embedColor = 3066993
+	if bPM2 < (cfg.PerfBaselineBPM or 50000) * 0.5 then
+		embedColor = 15158332
+	elseif bPM2 < (cfg.PerfBaselineBPM or 50000) then
+		embedColor = 16776960
+	end
+
+	local eqStr = "Nothing"
+	pcall(function()
+		local char = lp.Character or {}
+		for _, o in ipairs(char:GetChildren()) do
+			if o:IsA("Tool") then
+				local lv2 = getToolLv(o)
+				eqStr = o.Name .. (lv2 and " LV"..fmtN(lv2) or "")
+				break
+			end
+		end
+	end)
+
+	local invStr = "-"
+	pcall(function()
+		local lines = {}
+		local bp = lp:FindFirstChild("Backpack")
+		if bp then
+			for _, o in ipairs(bp:GetChildren()) do
+				if o:IsA("Tool") and o.Name ~= "Tool" and #lines < 8 then
+					local lv2 = getToolLv(o)
+					lines[#lines+1] = o.Name .. (lv2 and " LV"..fmtN(math.floor(lv2)) or "")
+				end
+			end
+		end
+		if #lines > 0 then invStr = table.concat(lines, ", ") end
+	end)
+
+	local plrStr = "-"
+	pcall(function()
+		local lines = {}
+		for _, p in ipairs(Pl:GetPlayers()) do
+			local plv   = getStat("Level", p)
+			local cache = S.plrC[p.UserId] or {}
+			lines[#lines+1] = tostring(p.Name)
+				.. (plv and " LV"..fmtN(math.floor(plv)) or "")
+				.. (cache.bounty and " | B "..fmtN(cache.bounty) or "")
+		end
+		if #lines > 0 then plrStr = table.concat(lines, "\n") end
+	end)
+
+	local healthStr = "FPS: " .. tostring(S.health.avgFPS or 0)
+		.. " | Parts: " .. tostring(S.health.instanceCount or 0)
+		.. (S.health.lagDetected and " | LAG" or " | OK")
+
+	local descStr = pName
+		.. " | Session: " .. fmtS(elapsed or 0)
+		.. "\nBeli " .. (sessBeli>=0 and "+" or "") .. fmtN(sessBeli)
+		.. " (" .. (bPM2>=0 and "+" or "") .. fmtN(bPM2) .. "/min)"
+		.. "\nFrags " .. (sessFrags>=0 and "+" or "") .. fmtN(sessFrags)
+		.. " (" .. (fPM2>=0 and "+" or "") .. fmtN(fPM2) .. "/min)"
+
+	local fields = {}
+	local function addField(n, v, inline)
+		fields[#fields+1] = {
+			name   = tostring(n),
+			value  = tostring(v),
+			inline = inline == true,
+		}
+	end
+
+	addField("Player",        pName,                                          true)
+	addField("Level",         tostring(lv),                                   true)
+	addField("Bounty",        fmtN(bounty),                                   true)
+	addField("Total Beli",    fmtN(beli),                                     true)
+	addField("Total Frags",   fmtN(frag),                                     true)
+	addField("Beli Gained",   (sessBeli>=0 and "+" or "")..fmtN(sessBeli),    true)
+	addField("Frags Gained",  (sessFrags>=0 and "+" or "")..fmtN(sessFrags),  true)
+	addField("Session",       fmtS(elapsed or 0),                             true)
+	addField("Beli/Min",      (bPM2>=0 and "+" or "")..fmtN(bPM2),            true)
+	addField("Beli/Hr",       (bPM2>=0 and "+" or "")..fmtN(bPM2*60),         true)
+	addField("Frag/Min",      (fPM2>=0 and "+" or "")..fmtN(fPM2),            true)
+	addField("Melee",         fmtN(melee),                                    true)
+	addField("Sword",         fmtN(sword),                                    true)
+	addField("Gun",           fmtN(gun),                                      true)
+	addField("Defense",       fmtN(def),                                      true)
+	addField("Blox Fruit",    fmtN(fruit),                                    true)
+	addField("Equipped",      eqStr,                                          true)
+	addField("Spawn",         spawn2,                                         true)
+	addField("Players",       tostring(#Pl:GetPlayers()).."/"..tostring(K.MAX),true)
+	addField("FPS / Ping",    tostring(S.fps).." FPS | "..tostring(getPing()).."ms", true)
+	addField("Backpack",      invStr,                                         false)
+	addField("Players List",  plrStr,                                         false)
+	addField("Server Health", healthStr,                                      false)
+
+	local embed = {
+		title       = "Session Report — " .. source,
+		color       = embedColor,
+		description = descStr,
+		fields      = fields,
+		footer      = {text = "BloxHub v3 | Report #" .. tostring(S.whTotal)},
 	}
-	if source=="Auto Hop" or source=="Instant Hop" then fields[#fields+1]={name="Hop #",value="```#"..S.hopTotal.."```",inline=true};fields[#fields+1]={name="Target",value="```"..(S.hopTarget~="" and S.hopTarget or"all").."```",inline=true};fields[#fields+1]={name="Prev Job",value="```"..tostring(jobId):sub(1,36).."```",inline=false} end
-	_sendWH(url,{username=cfg.WebhookName or"BloxHub",embeds={{author={name="Panel — "..source},title="> Session Report — "..source,description="**["..pName.."](https://www.roblox.com/users/"..lp.UserId.."/profile)** | Session: **"..fmtS(elapsed or 0).."**\n\nBeli "..wFmt(sessBeli).." ("..wFmt(bPM2).."/min)\nFrags "..wFmt(sessFrags).." ("..wFmt(fPM2).."/min)",color=perfColor(bPM2),fields=fields,footer={text="Panel • Report #"..S.whTotal.." • "..source},timestamp=ts()}}})
+
+	local payload = {
+		username = tostring(cfg.WebhookName or "BloxHub"),
+		embeds   = {embed},
+	}
+
+	_sendWH(url, payload)
 end
 
 -- ── WEBHOOK TIMER / HOP / RERUN ──────────────────────────────
@@ -1360,7 +1522,13 @@ if cfg.BoostV1 then task.spawn(function()task.wait(2);S.v1=true;setV1(true);tog(
 if cfg.BoostV2 then task.spawn(function()task.wait(2);S.v2=true;setV2(true);tog(UI.v2Btn,true,C.V2,Color3.fromRGB(28,28,28),"Boost V2: On","Boost V2: Off")end) end
 if cfg.BoostV3 then task.spawn(function()task.wait(2);S.v3=true;setV3(true);tog(UI.v3Btn,true,C.V3,Color3.fromRGB(28,28,28),"Boost V3: On","Boost V3: Off")end) end
 if cfg.HidePlayers then task.spawn(function()task.wait(1);toggleHidePlr(true)end) end
-if cfg.HideEnemies  then task.spawn(function()task.wait(2);toggleHidEnm(true)end) end
+if cfg.HideEnemies then 
+    task.spawn(function()
+        task.wait(2)
+        toggleHidEnm(true)
+        tog(UI.enmBtn, true, C.ERR, Color3.fromRGB(28,28,28), "Hide Enemies: On", "Hide Enemies: Off")
+    end)
+end
 if cfg.AutoHop      then task.spawn(function()task.wait(6);startHop()end) end
 if cfg.WebhookEnabled then S.wh=true;tog(UI.whBtn,true,C.WH,Color3.fromRGB(28,28,28),"Webhook: On","Webhook: Off") end
 if cfg.LockFps.on   then pcall(function()settings().Rendering.FrameRateManager.MaxFrameRate=cfg.LockFps.fps end);pcall(function()setfpscap(cfg.LockFps.fps)end) end
