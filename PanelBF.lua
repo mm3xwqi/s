@@ -1,4 +1,4 @@
--- ── SERVICES ─────────────────────────────────────────────────
+-- SERVICES
 local Pl   = game:GetService("Players")
 local Run  = game:GetService("RunService")
 local UIS  = game:GetService("UserInputService")
@@ -35,7 +35,6 @@ do
 	})
 	F("UIListLayout", card, { Padding = UDim.new(0, 0), SortOrder = Enum.SortOrder.LayoutOrder })
 
-	-- Header
 	local hdr = F("Frame", card, { Size = UDim2.new(1,0,0,28), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101 })
 	local dot  = F("Frame", hdr,  { Size = UDim2.new(0,8,0,8), Position = UDim2.new(0,0,.5,-4), BackgroundColor3 = Color3.fromRGB(61,155,92), ZIndex = 102 })
 	F("UICorner", dot, { CornerRadius = UDim.new(1, 0) })
@@ -44,7 +43,6 @@ do
 
 	F("Frame", card, { Size = UDim2.new(1,0,0,14), BackgroundTransparency=1, LayoutOrder=2 })
 
-	-- Progress bar
 	local barBg = F("Frame", card, { Size=UDim2.new(1,0,0,3), BackgroundColor3=Color3.fromRGB(26,26,26), LayoutOrder=3, ZIndex=101 })
 	F("UICorner", barBg, { CornerRadius = UDim.new(1,0) })
 	local barFl = F("Frame", barBg, { Size=UDim2.new(0,0,1,0), BackgroundColor3=Color3.fromRGB(61,155,92), ZIndex=102 })
@@ -52,7 +50,6 @@ do
 
 	F("Frame", card, { Size=UDim2.new(1,0,0,14), BackgroundTransparency=1, LayoutOrder=4 })
 
-	-- Steps
 	local stF = F("Frame", card, { Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, BackgroundTransparency=1, LayoutOrder=5, ZIndex=101 })
 	F("UIListLayout", stF, { Padding=UDim.new(0,2), SortOrder=Enum.SortOrder.LayoutOrder })
 
@@ -82,7 +79,6 @@ do
 	local function log()
 		n = n + 1
 		local p = math.clamp(n / tot, 0, 1)
-		-- mark previous done
 		if n > 1 and sL[n-1] then
 			sL[n-1].dot.BackgroundColor3 = GREEN
 			sL[n-1].status.TextColor3    = GREEN
@@ -99,31 +95,25 @@ do
 		task.wait(.05)
 	end
 
-	-- Run loader steps
 	log()
 	if not game:IsLoaded() then game.Loaded:Wait() end
-	-- Clean up old HUD
 	for _, v in ipairs(pg:GetChildren()) do
 		if v.Name == "IntegratedStatusHUD" then v:Destroy() end
 	end
 	log()
-	-- Wait for Terrain
 	local mw = 0
 	repeat task.wait(.1); mw += .1
 	until WS:FindFirstChildOfClass("Terrain") or mw > 5
 	log()
-	-- Wait for leaderstats
 	local lw = 0
 	repeat task.wait(.2); lw += .2
 	until lp:FindFirstChild("leaderstats") or lp:FindFirstChild("Data") or lw > 8
 	log()
-	-- Wait for Character
 	if not lp.Character then
 		local cw = 0
 		repeat task.wait(.1); cw += .1 until lp.Character or cw > 8
 	end
 	log()
-	-- Wait for Enemies folder
 	local ew = 0
 	repeat task.wait(.2); ew += .2
 	until WS:FindFirstChild("Enemies") or ew > 6
@@ -156,9 +146,7 @@ do
 	end
 end
 
--- ══════════════════════════════════════════════════════════════
 --  CONFIG
--- ══════════════════════════════════════════════════════════════
 local cfg = {
 	RemoveDeathEffect  = true,
 	LockFps            = { on = false, fps = 10 },
@@ -184,9 +172,7 @@ local cfg = {
 	PerfBaselineBPM    = 50000,
 }
 
--- ══════════════════════════════════════════════════════════════
 --  COLORS / CONSTANTS
--- ══════════════════════════════════════════════════════════════
 local C = {
 	BG    = Color3.fromRGB(6,6,6),
 	PAN   = Color3.fromRGB(10,10,10),
@@ -216,7 +202,7 @@ local C = {
 	BM2   = Color3.fromRGB(185,100,0),
 	RERUN = Color3.fromRGB(40,140,185),
 	SPEC  = Color3.fromRGB(80,160,220),
-	BTN_OFF = Color3.fromRGB(28,28,28),  -- unified off-button color
+	BTN_OFF = Color3.fromRGB(28,28,28),
 }
 
 local K = {
@@ -232,9 +218,7 @@ local K = {
 }
 K.IW = K.HW - K.PAD * 2
 
--- ══════════════════════════════════════════════════════════════
---  CONNECTION MANAGER  (prevents memory leaks on cleanup)
--- ══════════════════════════════════════════════════════════════
+--  CONNECTION MANAGER
 local Conn = {}
 Conn.__index = Conn
 
@@ -252,39 +236,27 @@ function Conn:disconnectAll()
 	self._list = {}
 end
 
--- ══════════════════════════════════════════════════════════════
 --  STATE
--- ══════════════════════════════════════════════════════════════
 local S = {
-	-- boost
 	v1 = false, v2 = false, v3 = false,
-	-- visibility
 	hidPlr = cfg.HidePlayers,  hidPlrData = {}, hidPlrCC = {}, hidPlrC = {},
 	hidEnm = cfg.HideEnemies,  hidEnmP    = {}, enmConn  = nil,
-	-- hop / webhook
 	hop      = cfg.AutoHop,
 	hopThread = nil,  hopCD = cfg.HopInterval * 60, hopTick = tick(), hopTotal = 0,
 	hopTarget = cfg.HopServer:lower(),
 	wh       = cfg.WebhookEnabled,
 	whTimer  = false, whThread = nil,
 	whCD     = cfg.WebhookInterval * 60, whTick = tick(), whTotal = 0,
-	-- economy session
 	sessB = nil, sessF = nil, sessOK = false,
 	beliHist = {}, fragHist = {},
-	-- perf
 	fps = 0, fc = 0, fpsT = tick(), fpsAccum = 0, maxFps = 0,
-	-- drag
 	drag = false, dragS = nil, dragP = nil,
-	-- dedup caches
 	last = {}, lastSz = {}, lastCol = {},
 	barTw = {}, colTw = {},
-	-- character
 	selfHL = nil,
 	start  = tick(),
-	-- per-player caches
 	statC  = {}, skillC = {}, plrC = { [lp.UserId] = { join = tick() } },
 	spawnW = {}, raceW  = {}, bountyW = {},
-	-- feature flags
 	v1Parts = {}, v1Conn = nil,
 	v2Orig  = {}, v2Conn = nil, v2CharConn = nil,
 	v3Conns = Conn.new(),
@@ -294,11 +266,8 @@ local S = {
 	specTarget = nil, specConn = nil, specCharConn = nil,
 	infJump = false, infJumpConn = nil,
 	speedMult = 1,
-	-- logs
 	logs = {}, events = {},
-	-- milestones
 	milestone = { beliReached = {}, fragReached = {} },
-	-- health
 	health = {
 		fpsHist       = {},
 		instanceCount = 0,
@@ -308,7 +277,6 @@ local S = {
 		lastCheck     = 0,
 		avgFPS        = 60,
 	},
-	-- dirty flags  (set true → update next cycle, reset after draw)
 	dirty = {
 		fast     = true,
 		stats    = true,
@@ -334,9 +302,7 @@ local BM2 = {
 local bmTick  = 0
 local BASE_WS = 16
 
--- ══════════════════════════════════════════════════════════════
 --  CORE HELPERS
--- ══════════════════════════════════════════════════════════════
 local function mk(cl, par, props)
 	local o = Instance.new(cl)
 	if par then o.Parent = par end
@@ -349,7 +315,6 @@ local function tw(o, props, d)
 	TS:Create(o, TweenInfo.new(d or .2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
--- Dirty-skipping label/bar setters
 local function setText(lb, v)
 	if lb and S.last[lb] ~= v then S.last[lb] = v; lb.Text = v end
 end
@@ -378,9 +343,7 @@ local function addHov(b, getC)
 	b.MouseLeave:Connect(function()  tw(b, { BackgroundColor3 = getC() }, .12) end)
 end
 
--- ══════════════════════════════════════════════════════════════
 --  FORMAT HELPERS
--- ══════════════════════════════════════════════════════════════
 local function fmtN(n)
 	if type(n) ~= "number" then return "?" end
 	return tostring(math.floor(math.abs(n))):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
@@ -451,9 +414,7 @@ local function emojiBar(val, maxV, len)
 	return string.rep("🟩", p) .. string.rep("⬛", len - p)
 end
 
--- ══════════════════════════════════════════════════════════════
 --  STAT PATHS / RESOLVE
--- ══════════════════════════════════════════════════════════════
 local SPATHS = {
 	Level       = { "Data.Level", "leaderstats.Level", "leaderstats.Lv." },
 	Beli        = { "Data.Beli", "leaderstats.Beli", "leaderstats.Money" },
@@ -491,9 +452,7 @@ local function getStat(key, root)
 	return obj and obj.Value or nil
 end
 
--- ══════════════════════════════════════════════════════════════
 --  FAKE LEVEL
--- ══════════════════════════════════════════════════════════════
 local _realLevel = nil
 
 local function getRealLevelObj()
@@ -545,7 +504,6 @@ local function startFakeLevel(targetVal)
 				end))
 			end
 		end
-		-- re-apply on CharacterAdded
 		conns:add(lp.CharacterAdded:Connect(function()
 			task.wait(1)
 			if not S.fakeLevel then return end
@@ -557,9 +515,7 @@ local function startFakeLevel(targetVal)
 	end)
 end
 
--- ══════════════════════════════════════════════════════════════
 --  SPECTATE
--- ══════════════════════════════════════════════════════════════
 local cam = WS.CurrentCamera
 
 local function stopSpec()
@@ -605,9 +561,7 @@ local function startSpec(p)
 	end)
 end
 
--- ══════════════════════════════════════════════════════════════
 --  NOTIFICATIONS
--- ══════════════════════════════════════════════════════════════
 local gui = mk("ScreenGui", pg, {
 	Name = "IntegratedStatusHUD", ResetOnSpawn = false,
 	IgnoreGuiInset = true, DisplayOrder = 10,
@@ -623,7 +577,6 @@ local function recalcNotifPositions()
 end
 
 local function showN(name, sub, col)
-	-- evict oldest if at cap
 	if #activeNotifs >= NMAX then
 		local old = table.remove(activeNotifs, 1)
 		tw(old.frame, { Position = UDim2.new(1, NW+10, 0, old.frame.Position.Y.Offset), BackgroundTransparency = 1 }, .2)
@@ -657,7 +610,6 @@ local function showN(name, sub, col)
 	table.insert(activeNotifs, entry)
 	recalcNotifPositions()
 
-	-- fade in
 	tw(f, { BackgroundTransparency = 0 }, .2)
 	tw(nLbl, { TextTransparency = 0 }, .2)
 	tw(sLbl, { TextTransparency = 0 }, .2)
@@ -678,9 +630,7 @@ local function showN(name, sub, col)
 	end)
 end
 
--- ══════════════════════════════════════════════════════════════
---  BOOST V1  (hide all map parts)
--- ══════════════════════════════════════════════════════════════
+--  BOOST V1
 local function setV1(on)
 	if on then
 		S.v1Parts = {}
@@ -718,9 +668,7 @@ local function setV1(on)
 	end
 end
 
--- ══════════════════════════════════════════════════════════════
---  BOOST V2  (low graphics)
--- ══════════════════════════════════════════════════════════════
+--  BOOST V2
 local function setV2(on)
 	local L = game:GetService("Lighting")
 	if on then
@@ -822,9 +770,7 @@ local function setV2(on)
 	end
 end
 
--- ══════════════════════════════════════════════════════════════
---  BOOST V3  (strip all visuals)
--- ══════════════════════════════════════════════════════════════
+--  BOOST V3
 local GREY = Color3.fromRGB(163,162,165)
 
 local function stripCharCosmetics(char)
@@ -889,7 +835,6 @@ local function setV3(on)
 			task.wait(.5); if S.v3 then stripCharCosmetics(char) end
 		end))
 
-		-- block cosmetics re-equipping
 		local function watchCharChildren(char)
 			task.wait(.3)
 			if not S.v3 or not char then return end
@@ -910,9 +855,7 @@ local function setV3(on)
 	end
 end
 
--- ══════════════════════════════════════════════════════════════
 --  HIDE PLAYERS / ENEMIES
--- ══════════════════════════════════════════════════════════════
 local function setPlrVis(p, vis)
 	if not vis then
 		if S.hidPlrData[p.UserId] then return end
@@ -981,13 +924,11 @@ local function toggleHidEnm(on)
 		for o, t in pairs(S.hidEnmP) do
 			if o and o.Parent then pcall(function() o.Transparency = t end) end
 		end
-		S.hidEnmP = {}  -- clear after restore
+		S.hidEnmP = {}
 	end
 end
 
--- ══════════════════════════════════════════════════════════════
---  BRINGMOB V1  (pull physics)
--- ══════════════════════════════════════════════════════════════
+--  BRINGMOB V1
 local function bmHRP(e)  return e:FindFirstChild("HumanoidRootPart") or e:FindFirstChild("Torso") end
 local function bmHum(e)  return e:FindFirstChildOfClass("Humanoid") end
 local function bmAlive(e) local h = bmHum(e); return h and h.Health > 0 end
@@ -1037,7 +978,6 @@ end
 local function startBM()
 	BM.on = true; bmClean()
 
-	-- noclip on RenderStepped (avoids stutters in Heartbeat)
 	if BM.noclip then BM.noclip:Disconnect() end
 	BM.noclip = Run.RenderStepped:Connect(function()
 		for e in pairs(BM.data) do
@@ -1091,7 +1031,6 @@ local function startBM()
 			local mr = bmMyRoot(); if not mr then continue end
 			local ef = WS:FindFirstChild("Enemies"); if not ef then task.wait(.3); continue end
 
-			-- release dead mobs
 			for e in pairs(BM.data) do
 				if not e or not e.Parent or not bmAlive(e) then pcall(bmRelease, e) end
 			end
@@ -1181,10 +1120,8 @@ local function stopBM()
 	bmClean()
 end
 
--- ══════════════════════════════════════════════════════════════
---  BRINGMOB V2  (warp / teleport)
--- ══════════════════════════════════════════════════════════════
-local bm2XBox, bm2YBox, bm2ZBox  -- declared later in GUI section
+--  BRINGMOB V2
+local bm2XBox, bm2YBox, bm2ZBox
 
 local function stopBM2()
 	BM2.on = false
@@ -1206,7 +1143,6 @@ local function startBM2()
 		noClipFrame = noClipFrame + 1
 		warpFrame   = warpFrame   + 1
 
-		-- noclip every 5 frames
 		if noClipFrame >= 5 then
 			noClipFrame = 0
 			local ef = WS:FindFirstChild("Enemies")
@@ -1230,7 +1166,6 @@ local function startBM2()
 		local anchor  = BM2.anchorPos or myHRP.Position
 		local targetY = anchor.Y + BM.yOff
 
-		-- periodic warp-list reset
 		if BM2.resetInterval > 0 and (tick() - BM2.resetTick) >= BM2.resetInterval then
 			BM2.resetTick = tick()
 			bm2Warped = {}
@@ -1238,7 +1173,6 @@ local function startBM2()
 
 		local ef = WS:FindFirstChild("Enemies"); if not ef then return end
 
-		-- count alive warped
 		local warpedCount = 0
 		for e in pairs(bm2Warped) do
 			if e and e.Parent then
@@ -1273,9 +1207,7 @@ local function startBM2()
 	end)
 end
 
--- ══════════════════════════════════════════════════════════════
 --  MOVEMENT
--- ══════════════════════════════════════════════════════════════
 local function setInfJump(on)
 	if S.infJumpConn then S.infJumpConn:Disconnect(); S.infJumpConn = nil end
 	S.infJump = on
@@ -1297,9 +1229,7 @@ local function applySpeed(mult)
 	if hum then pcall(function() hum.WalkSpeed = BASE_WS * S.speedMult end) end
 end
 
--- ══════════════════════════════════════════════════════════════
 --  EVENTS / LOGS
--- ══════════════════════════════════════════════════════════════
 local function addEvent(evType, detail, col)
 	table.insert(S.events, 1, { time=localT(), tick=tick(), evType=evType, detail=detail or "", col=col or C.DIM })
 	if #S.events > 100 then table.remove(S.events) end
@@ -1323,9 +1253,7 @@ local function addLog(source)
 	S.dirty.log = true
 end
 
--- ══════════════════════════════════════════════════════════════
 --  WEBHOOK
--- ══════════════════════════════════════════════════════════════
 local function _sendWH(url, payload)
 	if not url or url == "" or url:find("YOUR_ID") then return end
 	local ok, json = pcall(HTTP.JSONEncode, HTTP, payload)
@@ -1344,7 +1272,6 @@ local function _sendWH(url, payload)
 	end
 end
 
--- Shared field builder
 local function buildField(n, v, inline)
 	return { name = tostring(n), value = tostring(v), inline = inline == true }
 end
@@ -1418,7 +1345,6 @@ local function getRace(p)
 	return rn, rt
 end
 
--- Webhook payloads
 local function sendMilestoneWebhook(statName, target, totalBeli, totalFrag)
 	if not cfg.WebhookEnabled then return end
 	local url = cfg.WebhookURL; if not url or url == "" then return end
@@ -1587,9 +1513,7 @@ local function sendWebhook(sessBeli, sessFrags, elapsed, source)
 	})
 end
 
--- ══════════════════════════════════════════════════════════════
 --  WH TIMER / HOP / RERUN
--- ══════════════════════════════════════════════════════════════
 local function startWHTimer()
 	S.whTimer = true; S.whCD = cfg.WebhookInterval * 60; S.whTick = tick()
 	if S.whThread then task.cancel(S.whThread) end
@@ -1647,7 +1571,6 @@ local function doHop()
 		if not sb.Enabled    then sb.Enabled    = true; task.wait(.3) end
 		if not frame.Visible then frame.Visible = true; task.wait(.3) end
 	end
-	-- keep browser open while we work
 	local watchThread = task.spawn(function()
 		while watching do
 			task.wait(.5)
@@ -1657,7 +1580,6 @@ local function doHop()
 
 	ensureOpen()
 
-	-- set region filter
 	pcall(function()
 		local regionBox = frame.Filters.SearchRegion:FindFirstChildOfClass("TextBox")
 		if regionBox then
@@ -1839,9 +1761,7 @@ local function stopRerun()
 	showN("Auto Rerun", "Disabled", C.ERR)
 end
 
--- ══════════════════════════════════════════════════════════════
 --  HEALTH CHECK / MILESTONES
--- ══════════════════════════════════════════════════════════════
 local function checkServerHealth()
 	local now = tick()
 	if now - S.health.lastCheck < 1 then return end
@@ -1895,9 +1815,7 @@ local function checkMilestones()
 	end
 end
 
--- ══════════════════════════════════════════════════════════════
 --  PLAYER WATCHER
--- ══════════════════════════════════════════════════════════════
 local function watchPlr(p)
 	if p == lp then return end
 	local uid = p.UserId
@@ -1941,9 +1859,7 @@ local function watchPlr(p)
 	end)
 end
 
--- ══════════════════════════════════════════════════════════════
 --  GUI BUILDER HELPERS
--- ══════════════════════════════════════════════════════════════
 local function lbl(par, p)
 	return mk("TextLabel", par, {
 		BackgroundTransparency = 1,
@@ -1968,18 +1884,15 @@ local full   = mk("Frame", gui, {
 })
 stroke(full, C.BOR2, 2); corner(full, 8)
 
--- Title bar
 local titleBar = mk("Frame", full, { Size=UDim2.new(1,0,0,28), BackgroundColor3=Color3.fromRGB(8,8,8), BorderSizePixel=0, ZIndex=3 })
 corner(titleBar, 8)
 mk("Frame", titleBar, { Size=UDim2.new(1,0,0,14), Position=UDim2.new(0,0,1,-14), BackgroundColor3=Color3.fromRGB(8,8,8), BorderSizePixel=0, ZIndex=3 })
 lbl(titleBar, { size=UDim2.new(1,-140,1,0), pos=UDim2.new(0,10,0,0), sz=13, col=C.WHT, txt="BloxHub  v3", z=4 })
 lbl(titleBar, { size=UDim2.new(0,120,1,0), pos=UDim2.new(1,-124,0,0), sz=8, col=C.DIM, txt="[RCtrl] hide • v3 Improved", ax=Enum.TextXAlignment.Right, z=4 })
 
--- Avatar thumbnail in title
 local miniAvaTB = mk("ImageLabel", titleBar, { Size=UDim2.new(0,20,0,20), Position=UDim2.new(0,140,0,4), BackgroundColor3=C.CARD, ZIndex=4 })
 corner(miniAvaTB, 3)
 
--- Drag
 titleBar.InputBegan:Connect(function(i)
 	if i.UserInputType == Enum.UserInputType.MouseButton1 then
 		S.drag = true; S.dragS = i.Position; S.dragP = full.Position
@@ -1996,7 +1909,6 @@ UIS.InputEnded:Connect(function(i)
 	if i.UserInputType == Enum.UserInputType.MouseButton1 then S.drag = false end
 end)
 
--- Tab bar
 local tabBar = mk("Frame", full, { Size=UDim2.new(1,0,0,K.TAB_H), Position=UDim2.new(0,0,0,28), BackgroundColor3=Color3.fromRGB(8,8,8), BorderSizePixel=0, ZIndex=3 })
 mk("Frame", tabBar, { Size=UDim2.new(1,0,0,1), Position=UDim2.new(0,0,1,-1), BackgroundColor3=C.SEP, ZIndex=4 })
 
@@ -2039,7 +1951,6 @@ for i, tab in ipairs(TABS) do
 	tabPages[tab.id] = { sf=sf, inn=inn }
 end
 
--- Tab switch with clean fade
 local function switchTab(id)
 	if S.activeTab == id then return end
 	local oldSF = tabPages[S.activeTab] and tabPages[S.activeTab].sf
@@ -2082,7 +1993,6 @@ local function switchTab(id)
 			end
 		end)
 	end
-	-- mark relevant dirty flags
 	if id == "players" then S.dirty.players = true end
 	if id == "inv"     then S.dirty.inv     = true end
 	if id == "log"     then S.dirty.log     = true end
@@ -2091,7 +2001,6 @@ for _, tab in ipairs(TABS) do
 	tabBtns[tab.id].btn.MouseButton1Click:Connect(function() switchTab(tab.id) end)
 end
 
--- Section / widget helpers
 local function section(tabId, order, titleTxt)
 	local parent = tabPages[tabId].inn
 	local f = mk("Frame", parent, { Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, BackgroundColor3=C.CARD, BorderSizePixel=0, LayoutOrder=order, ZIndex=3 })
@@ -2133,13 +2042,10 @@ local function inlineBox(row, xOff, w, ph)
 	stroke(b, C.BOR2, 1); corner(b, 4); return b
 end
 
--- ══════════════════════════════════════════════════════════════
 --  STATUS TAB
--- ══════════════════════════════════════════════════════════════
 do
 	local sec1 = section("status", 1, "Profile")
 
-	-- Avatar row
 	local avaRow = mk("Frame", sec1, { Size=UDim2.new(1,0,0,52), BackgroundTransparency=1, LayoutOrder=2, ZIndex=4 })
 	UI.ava = mk("ImageLabel", avaRow, { Size=UDim2.new(0,48,0,48), Position=UDim2.new(0,0,0,2), BackgroundColor3=C.CARD, ZIndex=5 })
 	corner(UI.ava, 5); stroke(UI.ava, C.BOR2, 1)
@@ -2155,7 +2061,6 @@ do
 		while true do tw(pDot,{BackgroundTransparency=.5},.8); task.wait(.8); tw(pDot,{BackgroundTransparency=0},.8); task.wait(.8) end
 	end)
 
-	-- Info columns (race / team / spawn)
 	local cW2    = math.floor(K.IW/3) - 4
 	local infoRow = mk("Frame", sec1, { Size=UDim2.new(1,0,0,38), BackgroundTransparency=1, LayoutOrder=3, ZIndex=4 })
 	local function infoCol(xi, lb2)
@@ -2166,13 +2071,11 @@ do
 	UI.teamLbl  = infoCol(cW2+6,       "TEAM")
 	UI.spawnLbl = infoCol((cW2+6)*2,   "SPAWN")
 
-	-- FPS / ping / time row
 	local fpsRow = mk("Frame", sec1, { Size=UDim2.new(1,0,0,18), BackgroundTransparency=1, LayoutOrder=4, ZIndex=4 })
 	UI.fpsLbl  = lbl(fpsRow, { size=UDim2.new(0,100,1,0), sz=11, col=C.OFF, txt="FPS 0", z=5 })
 	UI.pingLbl = lbl(fpsRow, { size=UDim2.new(0,100,1,0), pos=UDim2.new(0,100,0,0), sz=11, col=C.OFF, txt="PING 0ms", z=5 })
 	UI.timeLbl = lbl(fpsRow, { size=UDim2.new(0,120,1,0), pos=UDim2.new(1,-120,0,0), font=Enum.Font.Gotham, sz=9, col=C.DIM, txt="00:00:00", ax=Enum.TextXAlignment.Right, z=5 })
 
-	-- Combat stats
 	local sec2 = section("status", 2, "Combat Stats")
 	local function statRow(lb3, lo2, col2)
 		local r = mk("Frame", sec2, { Size=UDim2.new(1,0,0,32), BackgroundTransparency=1, LayoutOrder=lo2, ZIndex=4 })
@@ -2188,7 +2091,6 @@ do
 	UI.gunLbl,    UI.gunBar    = statRow("Gun",         5, C.V1)
 	UI.fruitLbl,  UI.fruitBar  = statRow("Blox Fruit",  6, C.WRN)
 
-	-- Economy
 	local sec3 = section("status", 3, "Economy")
 	local hw2  = math.floor((K.IW-4)/2)
 
@@ -2216,9 +2118,7 @@ do
 	rateCol((qw+2)*3,   "FRAG/HR",   C.FRAG, "fHRLbl")
 end
 
--- ══════════════════════════════════════════════════════════════
 --  CONTROLS TAB
--- ══════════════════════════════════════════════════════════════
 do
 	local sec1 = section("controls", 1, "Performance Boosts")
 	UI.v1Btn = secBtn(sec1, 2, "Boost V1: Off", false, C.V1)
@@ -2348,9 +2248,7 @@ do
 	addHov(speedResetBtn, function() return C.BTN_OFF end)
 end
 
--- ══════════════════════════════════════════════════════════════
 --  BRINGMOB TAB
--- ══════════════════════════════════════════════════════════════
 do
 	local sec1 = section("bringmob", 1, "BringMob Controls")
 	UI.pullBtn  = secBtn(sec1, 2, "BringMob V1 (Pull): Off", false, C.PULL)
@@ -2390,7 +2288,6 @@ do
 	local bm2RstBox = inlineBox(bm2RstRow, 0, K.IW-70, "Auto-reset every N sec (0 = off)")
 	local bm2RstBtn = inlineBtn(bm2RstRow, K.IW-66, 62, "SET", C.BM2)
 
-	-- V1 distance & Y offset
 	local numSec   = section("bringmob", 2, "V1 Distance & Y Offset")
 	local distHdr  = secLbl(numSec, 2, "Range (studs)  [current: "..BM.dist.."]", C.DIM, 9)
 	local distBox  = secBox(numSec, 3, "Dist: "..BM.dist)
@@ -2399,7 +2296,6 @@ do
 	local yOffBox = secBox(numSec, 6, "Y: "..BM.yOff)
 	local setYBtn = secBtn(numSec, 7, "Apply Y Offset (V1 & V2)", true, C.V1); setYBtn.TextColor3 = C.BG
 
-	-- Status
 	local stSec = section("bringmob", 3, "Status")
 	UI.bmCountLbl    = secLbl(stSec, 2, "BringMob V1: Off",         C.DIM, 10)
 	UI.bm2StatusLbl  = secLbl(stSec, 3, "BringMob V2: Off",         C.DIM, 10)
@@ -2410,7 +2306,6 @@ do
 	UI.bm2DistLbl    = secLbl(stSec, 8, "V2 Dist: "..BM2.dist,      C.DIM, 9)
 	UI.bm2MaxLbl     = secLbl(stSec, 9, "V2 Max Mobs: "..BM2.maxCount, C.DIM, 9)
 
-	-- Button logic
 	setDistBtn.MouseButton1Click:Connect(function()
 		local n = tonumber(distBox.Text)
 		if n and n > 0 then BM.dist=n; distBox.Text=""; distBox.PlaceholderText="Dist: "..n; setText(distHdr,"Range (studs)  [current: "..n.."]"); setText(UI.bmDistLbl,"V1 Dist: "..n); S.last[distHdr]=nil; showN("BringMob V1","Range → "..n.." studs",C.OK)
@@ -2460,9 +2355,7 @@ do
 	end)
 end
 
--- ══════════════════════════════════════════════════════════════
 --  PLAYERS TAB
--- ══════════════════════════════════════════════════════════════
 do
 	local sec1  = section("players", 1, "Server Info")
 	local pcRow = mk("Frame", sec1, { Size=UDim2.new(1,0,0,28), BackgroundTransparency=1, LayoutOrder=2, ZIndex=4 })
@@ -2537,9 +2430,7 @@ do
 	end
 end
 
--- ══════════════════════════════════════════════════════════════
 --  INVENTORY TAB
--- ══════════════════════════════════════════════════════════════
 do
 	local sec1  = section("inv", 1, "Equipped")
 	local eqRow = mk("Frame", sec1, { Size=UDim2.new(1,0,0,36), BackgroundTransparency=1, LayoutOrder=2, ZIndex=4 })
@@ -2572,11 +2463,8 @@ do
 	end
 end
 
--- ══════════════════════════════════════════════════════════════
 --  LOG TAB
--- ══════════════════════════════════════════════════════════════
 do
-	-- AFK estimator
 	local afkSec  = section("log", 1, "AFK Profit Estimator")
 	UI.afkRateLbl = secLbl(afkSec, 2, "Based on current Beli/min rate", C.DIM, 9)
 	local afkHours = { 1, 4, 8, 24 }; UI.afkRows = {}
@@ -2592,7 +2480,6 @@ do
 		}
 	end
 
-	-- Server health
 	local healthSec = section("log", 2, "Server Health")
 	local healthRow = mk("Frame", healthSec, { Size=UDim2.new(1,0,0,36), BackgroundTransparency=1, LayoutOrder=2, ZIndex=4 })
 	local hw3 = math.floor(K.IW/3) - 4
@@ -2613,7 +2500,6 @@ do
 		else showN("Server Health","Enter a number",C.WRN) end
 	end)
 
-	-- Session log
 	local logCtrlSec = section("log", 3, "Session Log")
 	UI.logCountLbl   = secLbl(logCtrlSec, 2, "0 entries", C.DIM, 9)
 	local logBtnRow  = inlineRow(logCtrlSec, 3)
@@ -2640,7 +2526,6 @@ do
 		}
 	end
 
-	-- Event timeline
 	local evSec = section("log", 5, "Event Timeline")
 	local evClearRow = inlineRow(evSec, 2)
 	local evClrBtn = mk("TextButton", evClearRow, { Size=UDim2.new(1,0,1,0), BackgroundColor3=C.BTN_OFF, BorderSizePixel=0, Text="Clear Events", TextColor3=C.WRN, TextSize=12, Font=Enum.Font.GothamBold, AutoButtonColor=false, ZIndex=4 })
@@ -2660,7 +2545,6 @@ do
 		}
 	end
 
-	-- Refresh functions
 	local srcColors = { ["Auto Hop"]=C.HOP, ["Instant Hop"]=C.HOP, ["Manual"]=C.OK, ["Webhook Time"]=C.WH }
 	local function refreshLogUI()
 		setText(UI.logCountLbl, #S.logs.." entries (max 50)")
@@ -2727,9 +2611,7 @@ do
 	UI._refreshHealthUI = refreshHealthUI
 end
 
--- ══════════════════════════════════════════════════════════════
---  BUTTON EVENTS (shared toggles)
--- ══════════════════════════════════════════════════════════════
+--  BUTTON EVENTS
 UI.v1Btn.MouseButton1Click:Connect(function()
 	S.v1 = not S.v1; task.spawn(setV1, S.v1)
 	tog(UI.v1Btn, S.v1, C.V1, C.BTN_OFF, "Boost V1: On", "Boost V1: Off")
@@ -2791,7 +2673,6 @@ UI.hopNowBtn.MouseButton1Click:Connect(function()
 	end)
 end)
 
--- Hover effects (batch)
 for _, h in ipairs({
 	{ UI.v1Btn,       function() return S.v1 and C.V1 or C.BTN_OFF end },
 	{ UI.v2Btn,       function() return S.v2 and C.V2 or C.BTN_OFF end },
@@ -2811,7 +2692,7 @@ for _, h in ipairs({
 	{ UI.infJumpBtn,  function() return S.infJump and C.OK or C.BTN_OFF end },
 }) do addHov(h[1], h[2]) end
 
--- ── RightCtrl  toggle (fade GUI + notifications) ─────────────
+-- RightCtrl  toggle
 UIS.InputBegan:Connect(function(i, gp)
 	if not gp and i.KeyCode == Enum.KeyCode.RightControl then
 		_vis = not _vis
@@ -2839,9 +2720,7 @@ UIS.InputBegan:Connect(function(i, gp)
 	end
 end)
 
--- ══════════════════════════════════════════════════════════════
 --  SELF HIGHLIGHT
--- ══════════════════════════════════════════════════════════════
 local function applyHL(char)
 	if S.selfHL and S.selfHL.Parent then S.selfHL:Destroy() end
 	S.selfHL = nil
@@ -2866,9 +2745,7 @@ lp.CharacterAdded:Connect(function(char)
 	addEvent("💀 Respawned", lp.Name, C.WRN)
 end)
 
--- ══════════════════════════════════════════════════════════════
 --  UPDATE FUNCTIONS
--- ══════════════════════════════════════════════════════════════
 local function updateFast()
 	local e    = tick() - S.start
 	local ping = getPing()
@@ -2878,7 +2755,6 @@ local function updateFast()
 	setCol(UI.pingLbl, ping < 80 and C.OK or ping < 150 and C.WRN or C.ERR)
 	setText(UI.timeLbl, ("%02d:%02d:%02d"):format(math.floor(e/3600), math.floor(e%3600/60), math.floor(e%60)))
 
-	-- Hop countdown
 	if S.hop then
 		local sv = math.max(0, math.floor(S.hopCD))
 		setText(UI.hopCD, ("%02d:%02d"):format(math.floor(sv/60), sv%60))
@@ -2887,7 +2763,6 @@ local function updateFast()
 		setText(UI.hopCD, "DISABLED"); setCol(UI.hopCD, C.DIM)
 	end
 
-	-- WH countdown
 	if S.whTimer then
 		local sv = math.max(0, math.floor(S.whCD))
 		setText(UI.whCD, ("%02d:%02d next send"):format(math.floor(sv/60), sv%60))
@@ -2896,14 +2771,12 @@ local function updateFast()
 		setText(UI.whCD, "DISABLED"); setCol(UI.whCD, C.DIM)
 	end
 
-	-- BringMob V1 count
 	if BM.on then
 		local pc = 0; for _ in pairs(BM.data) do pc += 1 end
 		setText(UI.bmCountLbl, "V1 Pulled: "..pc.."/"..BM.batch.." | Dist: "..BM.dist)
 		setCol(UI.bmCountLbl, C.PULL)
 	end
 
-	-- BringMob V2
 	if BM2.on then
 		setText(UI.bm2StatusLbl, "V2 ON | "..BM2.interval.."s | Max:"..BM2.maxCount.." | Dist:"..BM2.dist)
 		setCol(UI.bm2StatusLbl, C.BM2)
@@ -2918,7 +2791,6 @@ local function updateFast()
 		end
 	end
 
-	-- Misc
 	if S.fakeLevel and S.fakeLevelVal then
 		setText(UI.fakeLvStatus, "ACTIVE — LV "..fmtN(S.fakeLevelVal)); setCol(UI.fakeLvStatus, C.FAKE)
 	end
@@ -3025,7 +2897,6 @@ local function updatePlayers()
 	local barCol = ratio >= 1 and C.ERR or ratio >= .75 and C.WRN or C.WHT
 	tw(UI.svrBar, { BackgroundColor3 = barCol }, .2); setCol(UI.pcLbl, barCol); setBar(UI.svrBar, ratio)
 
-	-- total bounty
 	local totalB = 0
 	for _, p in ipairs(list) do
 		local c = S.plrC[p.UserId]
@@ -3034,7 +2905,6 @@ local function updatePlayers()
 	end
 	setText(UI.bountyLbl, fmtN(totalB))
 
-	-- sort by distance
 	local myC  = lp.Character
 	local myR  = myC and myC:FindFirstChild("HumanoidRootPart")
 	local distC = {}
@@ -3083,10 +2953,7 @@ local function updatePlayers()
 	end
 end
 
--- ══════════════════════════════════════════════════════════════
 --  MAIN LOOPS
--- ══════════════════════════════════════════════════════════════
--- FPS counter: use deltaTime to avoid accumulation drift
 Run.RenderStepped:Connect(function(dt)
 	S.fc      = S.fc + 1
 	S.fpsAccum = S.fpsAccum + dt
@@ -3103,39 +2970,31 @@ Run.Heartbeat:Connect(function()
 	if not _vis then return end
 	_frame = (_frame + 1) % 3600
 
-	-- fast (~every 3 frames)
 	if _frame % 3 == 0 then updateFast() end
 
-	-- stats (~every 12 frames)
 	if _frame % 12 == 0 then
 		updateStats()
 		S.dirty.stats = false
 	end
 
-	-- inventory (only active tab, ~every 12)
 	if _frame % 12 == 0 and S.activeTab == "inv" then
 		updateInv(); S.dirty.inv = false
 	end
 
-	-- players (only active tab, ~every 18)
 	if _frame % 18 == 0 and S.activeTab == "players" then
 		updatePlayers(); S.dirty.players = false
 	end
 
-	-- health (~every 60)
 	if _frame % 60 == 0 then checkServerHealth() end
 
-	-- milestones (~every 120)
 	if _frame % 120 == 0 then checkMilestones() end
 
-	-- rates (~every 5 sec)
 	if _frame % 300 == 0 then
 		updateRates()
 		pushH(S.beliHist, getStat("Beli"))
 		pushH(S.fragHist, getStat("Fragments"))
 	end
 
-	-- log tab refresh (~every 0.5 sec, only when tab is active or dirty)
 	if _frame % 30 == 0 and (S.activeTab == "log" or S.dirty.log) then
 		if UI._refreshLogUI    then UI._refreshLogUI()    end
 		if UI._refreshEventUI  then UI._refreshEventUI()  end
@@ -3145,9 +3004,7 @@ Run.Heartbeat:Connect(function()
 	end
 end)
 
--- ══════════════════════════════════════════════════════════════
 --  PLAYER EVENTS
--- ══════════════════════════════════════════════════════════════
 Pl.PlayerAdded:Connect(function(p)
 	task.wait(1)
 	S.plrC[p.UserId] = S.plrC[p.UserId] or {}; S.plrC[p.UserId].join = tick()
@@ -3167,7 +3024,6 @@ Pl.PlayerRemoving:Connect(function(p)
 		stopSpec(); setText(UI.specStatusLbl,"Not spectating"); setCol(UI.specStatusLbl,C.DIM)
 		tw(UI.specStopBtn,{BackgroundColor3=C.BTN_OFF},.15); UI.specStopBtn.TextColor3=C.DIM
 	end
-	-- clean up all watcher connections for this player
 	for _, t in ipairs({ S.spawnW, S.raceW, S.bountyW, S.hidPlrC }) do
 		if t[uid] then t[uid]:Disconnect(); t[uid] = nil end
 	end
@@ -3180,9 +3036,7 @@ for _, p in ipairs(Pl:GetPlayers()) do
 	if p ~= lp then watchPlr(p) end
 end
 
--- ══════════════════════════════════════════════════════════════
 --  SKILL PRE-CACHE
--- ══════════════════════════════════════════════════════════════
 local function preCacheSkills()
 	if not lp.Character then return end
 	local char = lp.Character
@@ -3201,9 +3055,7 @@ end
 lp.CharacterAdded:Connect(function() S.skillC = {}; task.spawn(preCacheSkills) end)
 task.spawn(preCacheSkills)
 
--- ══════════════════════════════════════════════════════════════
 --  INIT
--- ══════════════════════════════════════════════════════════════
 if cfg.RemoveDeathEffect then
 	local function rde()
 		pcall(function()
