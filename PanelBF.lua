@@ -129,13 +129,11 @@ do
 	end
 end
 
--- ============================================================
--- CONFIG — Default values
--- ใช้ BloxHubConfig = { ... } ก่อน loadstring เพื่อ override
--- ============================================================
+-- CONFIG
 local _cfgDefault = {
 	RemoveDeathEffect = true,
-	BoostV1 = false, BoostV2 = false, BoostV3 = false,
+	BoostV1 = false, BoostV2 = false,
+	HidePlayers = false, HideEnemies = false,
 	AutoHop = false, HopInterval = 45, HopServer = "singapore", HopMaxPlayers = 3,
 	WebhookEnabled = false,
 	WebhookURL  = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN",
@@ -143,19 +141,15 @@ local _cfgDefault = {
 	WebhookInterval = 30,
 }
 
--- copy default ลง cfg ก่อน
 local cfg = {}
 for k, v in pairs(_cfgDefault) do cfg[k] = v end
 
--- ถ้ามี BloxHubConfig (set ก่อน loadstring) ให้ merge เข้า default
 if type(BloxHubConfig) == "table" then
 	for k, v in pairs(BloxHubConfig) do
-		if cfg[k] ~= nil then  -- รับเฉพาะ key ที่มีใน default เท่านั้น
-			cfg[k] = v
-		end
+		if cfg[k] ~= nil then cfg[k] = v end
 	end
 end
-BloxHubConfig = nil  -- cleanup global
+BloxHubConfig = nil
 
 -- COLORS
 local C = {
@@ -167,7 +161,7 @@ local C = {
 	BELI=Color3.fromRGB(65,155,90), FRAG=Color3.fromRGB(125,65,185),
 	HOP=Color3.fromRGB(175,55,125), WH=Color3.fromRGB(55,120,185),
 	PULL=Color3.fromRGB(185,65,65), BM2=Color3.fromRGB(185,100,0),
-	V1=Color3.fromRGB(50,130,185), V2=Color3.fromRGB(185,135,40), V3=Color3.fromRGB(185,65,145),
+	V1=Color3.fromRGB(50,130,185), V2=Color3.fromRGB(185,65,145),
 	TABON=Color3.fromRGB(70,155,90), TABOFF=Color3.fromRGB(15,15,15),
 	SPEC=Color3.fromRGB(80,160,220), BTN_OFF=Color3.fromRGB(28,28,28),
 }
@@ -183,15 +177,25 @@ function Conn:disconnectAll() for _, c in ipairs(self._list) do pcall(function()
 
 -- STATE
 local S = {
-	v1=false, v2=false, v3=false,
+	v1=false, v2=false,
+	-- Hide Players / Enemies
+	hidPlr=cfg.HidePlayers, hidPlrData={}, hidPlrCC={}, hidPlrC={},
+	hidEnm=cfg.HideEnemies, hidEnmP={}, enmConn=nil,
+	-- Hop
 	hop=cfg.AutoHop, hopThread=nil, hopCD=cfg.HopInterval*60, hopTick=tick(), hopTotal=0,
 	hopTarget=cfg.HopServer:lower(),
+	-- Webhook
 	wh=cfg.WebhookEnabled, whTimer=false, whThread=nil,
 	whCD=cfg.WebhookInterval*60, whTick=tick(), whTotal=0,
+	-- Session
 	sessB=nil, sessF=nil, sessOK=false, sessStart=nil,
+	-- FPS
 	fps=0, fc=0, fpsT=tick(), fpsAccum=0, maxFps=0,
+	-- Drag
 	drag=false, dragS=nil, dragP=nil,
+	-- UI cache
 	last={}, lastSz={}, lastCol={}, barTw={}, colTw={},
+	-- Misc
 	selfHL=nil, start=tick(),
 	plrC={[lp.UserId]={join=tick()}}, statC={}, skillC={},
 	spawnW={}, raceW={}, bountyW={},
@@ -200,8 +204,7 @@ local S = {
 	beliSamples={}, fragSamples={},
 	beliRate=0, fragRate=0,
 	v1Parts={}, v1Conn=nil,
-	v2Orig={}, v2Conn=nil, v2CharConn=nil,
-	v3Conns=Conn.new(),
+	v2Conns=Conn.new(),
 }
 
 local BM = { on=false, task=nil, data={}, noclip=nil, pin=nil, dist=500, batch=20, force=150000, snap=12, yOff=-15 }
@@ -479,45 +482,7 @@ local function setV1(on)
 	end
 end
 
--- BOOST V2
-local function setV2(on)
-	local L=game:GetService("Lighting")
-	if on then
-		S.v2Orig={GS=L.GlobalShadows,FE=L.FogEnd,FS=L.FogStart,SS=L.ShadowSoftness,BR=L.Brightness,AM=L.Ambient,OA=L.OutdoorAmbient,CT=L.ClockTime,QL=settings().Rendering.QualityLevel}
-		L.GlobalShadows=false; L.FogEnd=9e9; L.FogStart=9e9; L.ShadowSoftness=0; L.Brightness=0
-		L.Ambient=Color3.new(.5,.5,.5); L.OutdoorAmbient=Color3.new(.5,.5,.5); L.ClockTime=14
-		settings().Rendering.QualityLevel=1
-		local ter=WS:FindFirstChildOfClass("Terrain")
-		if ter then S.v2Orig.WW=ter.WaterWaveSize; S.v2Orig.WS2=ter.WaterWaveSpeed; ter.WaterWaveSize=0; ter.WaterWaveSpeed=0; ter.WaterReflectance=0; ter.WaterTransparency=1 end
-		for _,c in ipairs(L:GetChildren()) do if c:IsA("PostEffect") then c.Enabled=false end end
-		local function stripObj(o)
-			if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Smoke") or o:IsA("Fire") or o:IsA("Sparkles") then o.Enabled=false; if o.Rate~=nil then o.Rate=0 end
-			elseif o:IsA("Beam") or o:IsA("PointLight") or o:IsA("SpotLight") or o:IsA("SurfaceLight") then o.Enabled=false
-			elseif o:IsA("BillboardGui") or o:IsA("SurfaceGui") then o.Enabled=false
-			elseif o:IsA("BasePart") and o:IsDescendantOf(WS) and not o:IsDescendantOf(lp.Character or {}) then o.Material=Enum.Material.SmoothPlastic; o.Reflectance=0; o.CastShadow=false
-			elseif o:IsA("Decal") or o:IsA("Texture") then o.Transparency=1
-			elseif o:IsA("SpecialMesh") then o.TextureId=""
-			elseif o:IsA("MeshPart") and not o:IsDescendantOf(lp.Character or {}) then o.TextureID=""; o.RenderFidelity=Enum.RenderFidelity.Performance; o.CastShadow=false end
-		end
-		task.spawn(function() local list=game:GetDescendants(); for i,o in ipairs(list) do pcall(stripObj,o); if i%200==0 then task.wait() end end end)
-		if S.v2Conn then S.v2Conn:Disconnect() end
-		S.v2Conn=game.DescendantAdded:Connect(function(o) if S.v2 then task.defer(function() pcall(stripObj,o) end) end end)
-	else
-		if S.v2Conn then S.v2Conn:Disconnect(); S.v2Conn=nil end
-		local o=S.v2Orig
-		if o.GS~=nil then L.GlobalShadows=o.GS end; if o.FE~=nil then L.FogEnd=o.FE end
-		if o.FS~=nil then L.FogStart=o.FS end; if o.SS~=nil then L.ShadowSoftness=o.SS end
-		if o.BR~=nil then L.Brightness=o.BR end; if o.AM~=nil then L.Ambient=o.AM end
-		if o.OA~=nil then L.OutdoorAmbient=o.OA end; if o.CT~=nil then L.ClockTime=o.CT end
-		pcall(function() settings().Rendering.QualityLevel=o.QL or 5 end)
-		local ter=WS:FindFirstChildOfClass("Terrain")
-		if ter and o.WW~=nil then ter.WaterWaveSize=o.WW; ter.WaterWaveSpeed=o.WS2 end
-		for _,c in ipairs(L:GetChildren()) do if c:IsA("PostEffect") then c.Enabled=true end end
-		S.v2Orig={}
-	end
-end
-
--- BOOST V3
+-- BOOST V2 (Best) — formerly V3
 local GREY=Color3.fromRGB(163,162,165)
 local function stripVisualObj(o)
 	if o:IsA("MeshPart") then o.RenderFidelity=Enum.RenderFidelity.Performance; o.CastShadow=false; o.TextureID=""; o.Color=GREY
@@ -537,24 +502,95 @@ local function stripCharCosmetics(char)
 	for _,obj in ipairs(char:GetDescendants()) do pcall(stripVisualObj, obj) end
 end
 
-local function setV3(on)
+local function setV2(on)
 	if on then
 		task.spawn(function() local list=WS:GetDescendants(); for i,o in ipairs(list) do pcall(stripVisualObj,o); if i%200==0 then task.wait() end end end)
 		stripCharCosmetics(lp.Character)
-		S.v3Conns:disconnectAll()
-		S.v3Conns:add(WS.DescendantAdded:Connect(function(o) if S.v3 then task.defer(function() pcall(stripVisualObj,o) end) end end))
-		S.v3Conns:add(lp.CharacterAdded:Connect(function(char) task.wait(.5); if S.v3 then stripCharCosmetics(char) end end))
+		S.v2Conns:disconnectAll()
+		S.v2Conns:add(WS.DescendantAdded:Connect(function(o) if S.v2 then task.defer(function() pcall(stripVisualObj,o) end) end end))
+		S.v2Conns:add(lp.CharacterAdded:Connect(function(char) task.wait(.5); if S.v2 then stripCharCosmetics(char) end end))
 		local function watchChar(char)
-			task.wait(.3); if not S.v3 or not char then return end
-			S.v3Conns:add(char.ChildAdded:Connect(function(child)
-				if not S.v3 then return end
-				pcall(function() if child:IsA("Accessory") or child:IsA("Shirt") or child:IsA("Pants") or child:IsA("ShirtGraphic") then task.wait(.1); if S.v3 then child:Destroy() end end end)
+			task.wait(.3); if not S.v2 or not char then return end
+			S.v2Conns:add(char.ChildAdded:Connect(function(child)
+				if not S.v2 then return end
+				pcall(function() if child:IsA("Accessory") or child:IsA("Shirt") or child:IsA("Pants") or child:IsA("ShirtGraphic") then task.wait(.1); if S.v2 then child:Destroy() end end end)
 			end))
 		end
-		S.v3Conns:add(lp.CharacterAdded:Connect(watchChar))
+		S.v2Conns:add(lp.CharacterAdded:Connect(watchChar))
 		if lp.Character then watchChar(lp.Character) end
 	else
-		S.v3Conns:disconnectAll()
+		S.v2Conns:disconnectAll()
+	end
+end
+
+-- HIDE PLAYERS / ENEMIES
+local function setPlrVis(p, vis)
+	if not vis then
+		if S.hidPlrData[p.UserId] then return end
+		S.hidPlrData[p.UserId] = true
+		pcall(function() if p.Character then p.Character:Destroy() end end)
+	else
+		S.hidPlrData[p.UserId] = nil
+	end
+end
+
+local function toggleHidePlr(on)
+	S.hidPlr = on
+	for _, p in ipairs(Pl:GetPlayers()) do
+		if p ~= lp then setPlrVis(p, not on) end
+	end
+	if on then
+		for _, p in ipairs(Pl:GetPlayers()) do
+			if p ~= lp then
+				if S.hidPlrC[p.UserId] then S.hidPlrC[p.UserId]:Disconnect() end
+				S.hidPlrC[p.UserId] = p.CharacterAdded:Connect(function()
+					S.hidPlrData[p.UserId] = nil
+					if S.hidPlr then task.wait(.5); setPlrVis(p, false) end
+				end)
+			end
+		end
+		if not S.hidPlrCC.pa then
+			S.hidPlrCC.pa = Pl.PlayerAdded:Connect(function(p)
+				if p == lp then return end
+				task.spawn(function()
+					if not p.Character then p.CharacterAdded:Wait() end
+					task.wait(.5)
+					if S.hidPlr then setPlrVis(p, false) end
+				end)
+			end)
+		end
+	else
+		if S.hidPlrCC.pa then S.hidPlrCC.pa:Disconnect(); S.hidPlrCC.pa = nil end
+		for uid, c in pairs(S.hidPlrC) do c:Disconnect(); S.hidPlrC[uid] = nil end
+	end
+end
+
+local function toggleHidEnm(on)
+	S.hidEnm = on
+	if S.enmConn then S.enmConn:Disconnect(); S.enmConn = nil end
+	local ef = WS:FindFirstChild("Enemies")
+	if not ef then return end
+	if on then
+		for _, o in ipairs(ef:GetDescendants()) do
+			if o:IsA("BasePart") and S.hidEnmP[o] == nil then
+				S.hidEnmP[o] = o.Transparency
+				o.Transparency = 1
+			end
+		end
+		S.enmConn = ef.DescendantAdded:Connect(function(o)
+			if S.hidEnm and o:IsA("BasePart") then
+				task.wait(.1)
+				if S.hidEnmP[o] == nil and o.Parent then
+					S.hidEnmP[o] = o.Transparency
+					o.Transparency = 1
+				end
+			end
+		end)
+	else
+		for o, t in pairs(S.hidEnmP) do
+			if o and o.Parent then pcall(function() o.Transparency = t end) end
+		end
+		S.hidEnmP = {}
 	end
 end
 
@@ -1113,7 +1149,6 @@ do
 	rateCol((qw+2)*2,"FRAG/MIN",C.FRAG,"fPMLbl"); rateCol((qw+2)*3,"FRAG/HR",C.FRAG,"fHRLbl")
 
 	mk("Frame",sec3,{Size=UDim2.new(1,0,0,1),BackgroundColor3=C.SEP,ZIndex=4,LayoutOrder=6})
-	local projHdr=mk("TextLabel",sec3,{Size=UDim2.new(1,0,0,14),BackgroundTransparency=1,Font=Enum.Font.GothamBold,TextSize=9,TextColor3=C.DIM,Text="PROJECTED TOTAL  (at current rate)",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=7,ZIndex=4})
 	local projRow1=mk("Frame",sec3,{Size=UDim2.new(1,0,0,32),BackgroundTransparency=1,LayoutOrder=8,ZIndex=4})
 	lbl(projRow1,{size=UDim2.new(0,hw2,0,12),sz=8,col=C.DIM,txt="BELI IN 1H",z=5})
 	UI.projB1H=lbl(projRow1,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,0,0,12),sz=12,col=C.BELI,txt="...",z=5})
@@ -1136,11 +1171,14 @@ end
 do
 	local sec1=section("controls",1,"Performance Boosts")
 	UI.v1Btn=secBtn(sec1,2,"Boost V1: Off",false,C.V1)
-	UI.v2Btn=secBtn(sec1,3,"Boost V2: Off",false,C.V2)
-	UI.v3Btn=secBtn(sec1,4,"Boost V3: Off",false,C.V3)
+	UI.v2Btn=secBtn(sec1,3,"Boost V2 (Best): Off",false,C.V2)
 
-	local sec2=section("controls",2,"FPS Lock")
-	local fpsRow=inlineRow(sec2,2)
+	local sec2=section("controls",2,"Visibility")
+	UI.hidBtn=secBtn(sec2,2,"Delete Players: Off",false,C.WHT)
+	UI.enmBtn=secBtn(sec2,3,"Hide Enemies: Off",false,C.ERR)
+
+	local sec3=section("controls",3,"FPS Lock")
+	local fpsRow=inlineRow(sec3,2)
 	local capBox=inlineBox(fpsRow,0,K.IW-64,"Target FPS e.g. 60")
 	local setFpsBtn=inlineBtn(fpsRow,K.IW-60,56,"SET",C.OK)
 	local function onFpsSet()
@@ -1155,12 +1193,12 @@ do
 	setFpsBtn.MouseButton1Click:Connect(onFpsSet)
 	capBox.FocusLost:Connect(function(enter) if enter then onFpsSet() end end)
 
-	local sec3=section("controls",3,"Auto Hop")
-	UI.hopBtn=secBtn(sec3,2,"Auto Hop: Off",false,C.HOP)
-	local hopNowRow=inlineRow(sec3,3)
+	local sec4=section("controls",4,"Auto Hop")
+	UI.hopBtn=secBtn(sec4,2,"Auto Hop: Off",false,C.HOP)
+	local hopNowRow=inlineRow(sec4,3)
 	UI.hopNowBtn=mk("TextButton",hopNowRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.HOP,BorderSizePixel=0,Text="Hop Now",TextColor3=C.BG,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
 	stroke(UI.hopNowBtn,C.BOR2,1); corner(UI.hopNowBtn,4)
-	local hopMaxRow=inlineRow(sec3,4)
+	local hopMaxRow=inlineRow(sec4,4)
 	local hopMaxBox=inlineBox(hopMaxRow,0,K.IW-70,"Max players (default 3)")
 	local hopMaxBtn=inlineBtn(hopMaxRow,K.IW-66,62,"SET",C.HOP)
 	hopMaxBtn.MouseButton1Click:Connect(function()
@@ -1168,19 +1206,19 @@ do
 		if n and n>=0 then cfg.HopMaxPlayers=n; hopMaxBox.Text=""; hopMaxBox.PlaceholderText="Max: "..n; showN("Auto Hop","Hop ≤"..n.." players",C.HOP)
 		else showN("Auto Hop","Enter a number",C.WRN) end
 	end)
-	UI.hopCD=secLbl(sec3,5,"DISABLED",C.HOP,10)
+	UI.hopCD=secLbl(sec4,5,"DISABLED",C.HOP,10)
 
-	local sec4=section("controls",4,"Webhook")
-	secLbl(sec4,2,"WEBHOOK URL",C.DIM,8)
-	local whUrlBox=secBox(sec4,3,"Paste Discord Webhook URL...",26)
+	local sec5=section("controls",5,"Webhook")
+	secLbl(sec5,2,"WEBHOOK URL",C.DIM,8)
+	local whUrlBox=secBox(sec5,3,"Paste Discord Webhook URL...",26)
 	whUrlBox.Text=cfg.WebhookURL; whUrlBox.ClearTextOnFocus=false
-	secLbl(sec4,4,"BOT NAME",C.DIM,8)
-	local whNameBox=secBox(sec4,5,cfg.WebhookName,22)
+	secLbl(sec5,4,"BOT NAME",C.DIM,8)
+	local whNameBox=secBox(sec5,5,cfg.WebhookName,22)
 	whNameBox.Text=cfg.WebhookName; whNameBox.ClearTextOnFocus=false
-	local applyRow=inlineRow(sec4,6)
+	local applyRow=inlineRow(sec5,6)
 	local applyBtn=mk("TextButton",applyRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.WH,BorderSizePixel=0,Text="Save URL & Name",TextColor3=C.BG,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
 	stroke(applyBtn,C.BOR2,1); corner(applyBtn,4)
-	UI.whApplyStatus=secLbl(sec4,7,"Not saved yet",C.DIM,9)
+	UI.whApplyStatus=secLbl(sec5,7,"Not saved yet",C.DIM,9)
 	applyBtn.MouseButton1Click:Connect(function()
 		local url=whUrlBox.Text
 		if url=="" or not url:find("discord.com/api/webhooks") then
@@ -1189,13 +1227,13 @@ do
 		cfg.WebhookURL=url; cfg.WebhookName=whNameBox.Text~="" and whNameBox.Text or "BloxHub"
 		setText(UI.whApplyStatus,"Saved — "..cfg.WebhookName); setCol(UI.whApplyStatus,C.OK); showN("Webhook","URL saved",C.WH)
 	end)
-	mk("Frame",sec4,{Size=UDim2.new(1,0,0,1),BackgroundColor3=C.SEP,ZIndex=4,LayoutOrder=8})
-	UI.whBtn=secBtn(sec4,9,"Webhook: Off",false,C.WH)
-	UI.whTimBtn=secBtn(sec4,10,"WH Timer: Off",false,C.WH)
-	local whTestRow=inlineRow(sec4,11)
+	mk("Frame",sec5,{Size=UDim2.new(1,0,0,1),BackgroundColor3=C.SEP,ZIndex=4,LayoutOrder=8})
+	UI.whBtn=secBtn(sec5,9,"Webhook: Off",false,C.WH)
+	UI.whTimBtn=secBtn(sec5,10,"WH Timer: Off",false,C.WH)
+	local whTestRow=inlineRow(sec5,11)
 	UI.whTestBtn=mk("TextButton",whTestRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.BTN_OFF,BorderSizePixel=0,Text="Send Test Report",TextColor3=C.WRN,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
 	stroke(UI.whTestBtn,C.BOR2,1); corner(UI.whTestBtn,4)
-	UI.whCD=secLbl(sec4,12,"DISABLED",C.WH,10)
+	UI.whCD=secLbl(sec5,12,"DISABLED",C.WH,10)
 end
 
 -- BRINGMOB TAB
@@ -1450,13 +1488,18 @@ UI.v1Btn.MouseButton1Click:Connect(function()
 end)
 UI.v2Btn.MouseButton1Click:Connect(function()
 	S.v2=not S.v2; task.spawn(setV2,S.v2)
-	tog(UI.v2Btn,S.v2,C.V2,C.BTN_OFF,"Boost V2: On","Boost V2: Off")
-	showN("Boost V2",S.v2 and "On — Low graphics" or "Off",S.v2 and C.V2 or C.ERR)
+	tog(UI.v2Btn,S.v2,C.V2,C.BTN_OFF,"Boost V2 (Best): On","Boost V2 (Best): Off")
+	showN("Boost V2 (Best)",S.v2 and "On — All visuals stripped" or "Off",S.v2 and C.V2 or C.ERR)
 end)
-UI.v3Btn.MouseButton1Click:Connect(function()
-	S.v3=not S.v3; task.spawn(setV3,S.v3)
-	tog(UI.v3Btn,S.v3,C.V3,C.BTN_OFF,"Boost V3: On","Boost V3: Off")
-	showN("Boost V3",S.v3 and "On — All visuals stripped" or "Off",S.v3 and C.V3 or C.ERR)
+UI.hidBtn.MouseButton1Click:Connect(function()
+	S.hidPlr=not S.hidPlr; toggleHidePlr(S.hidPlr)
+	tog(UI.hidBtn,S.hidPlr,C.WHT,C.BTN_OFF,"Delete Players: On","Delete Players: Off")
+	showN("Delete Players",S.hidPlr and "Players hidden" or "Players restored",S.hidPlr and C.OK or C.ERR)
+end)
+UI.enmBtn.MouseButton1Click:Connect(function()
+	S.hidEnm=not S.hidEnm; task.spawn(toggleHidEnm,S.hidEnm)
+	tog(UI.enmBtn,S.hidEnm,C.ERR,C.BTN_OFF,"Hide Enemies: On","Hide Enemies: Off")
+	showN("Hide Enemies",S.hidEnm and "Enemies hidden" or "Enemies shown",S.hidEnm and C.ERR or C.DIM)
 end)
 UI.whBtn.MouseButton1Click:Connect(function()
 	S.wh=not S.wh; cfg.WebhookEnabled=S.wh
@@ -1495,7 +1538,8 @@ end)
 for _,h in ipairs({
 	{UI.v1Btn,function() return S.v1 and C.V1 or C.BTN_OFF end},
 	{UI.v2Btn,function() return S.v2 and C.V2 or C.BTN_OFF end},
-	{UI.v3Btn,function() return S.v3 and C.V3 or C.BTN_OFF end},
+	{UI.hidBtn,function() return S.hidPlr and C.WHT or C.BTN_OFF end},
+	{UI.enmBtn,function() return S.hidEnm and C.ERR or C.BTN_OFF end},
 	{UI.hopBtn,function() return S.hop and C.HOP or C.BTN_OFF end},
 	{UI.hopNowBtn,function() return C.HOP end},
 	{UI.whBtn,function() return S.wh and C.WH or C.BTN_OFF end},
@@ -1730,7 +1774,15 @@ Pl.PlayerAdded:Connect(function(p)
 	watchPlr(p)
 	local dn=p.DisplayName~=p.Name and (p.DisplayName.." (@"..p.Name..")") or p.Name
 	showN(dn,"Joined the server",C.OK)
+	if S.hidPlr then
+		task.spawn(function()
+			if not p.Character then p.CharacterAdded:Wait() end
+			task.wait(.5)
+			if S.hidPlr then setPlrVis(p, false) end
+		end)
+	end
 end)
+
 Pl.PlayerRemoving:Connect(function(p)
 	local uid=p.UserId
 	showN(p.Name,"Left the server",C.ERR)
@@ -1741,6 +1793,8 @@ Pl.PlayerRemoving:Connect(function(p)
 	for _,t in ipairs({S.spawnW,S.raceW,S.bountyW}) do
 		if t[uid] then t[uid]:Disconnect(); t[uid]=nil end
 	end
+	if S.hidPlrC[uid] then S.hidPlrC[uid]:Disconnect(); S.hidPlrC[uid]=nil end
+	S.hidPlrData[uid]=nil
 	S.plrC[uid]=nil; S.statC[uid]=nil
 end)
 for _,p in ipairs(Pl:GetPlayers()) do if p~=lp then watchPlr(p) end end
@@ -1756,8 +1810,9 @@ if cfg.RemoveDeathEffect then
 	rde(); lp.CharacterAdded:Connect(function() task.wait(.5); rde() end)
 end
 if cfg.BoostV1 then task.spawn(function() task.wait(2); S.v1=true; setV1(true); tog(UI.v1Btn,true,C.V1,C.BTN_OFF,"Boost V1: On","Boost V1: Off") end) end
-if cfg.BoostV2 then task.spawn(function() task.wait(2); S.v2=true; setV2(true); tog(UI.v2Btn,true,C.V2,C.BTN_OFF,"Boost V2: On","Boost V2: Off") end) end
-if cfg.BoostV3 then task.spawn(function() task.wait(2); S.v3=true; setV3(true); tog(UI.v3Btn,true,C.V3,C.BTN_OFF,"Boost V3: On","Boost V3: Off") end) end
+if cfg.BoostV2 then task.spawn(function() task.wait(2); S.v2=true; setV2(true); tog(UI.v2Btn,true,C.V2,C.BTN_OFF,"Boost V2 (Best): On","Boost V2 (Best): Off") end) end
+if cfg.HidePlayers then task.spawn(function() task.wait(1); toggleHidePlr(true); tog(UI.hidBtn,true,C.WHT,C.BTN_OFF,"Delete Players: On","Delete Players: Off") end) end
+if cfg.HideEnemies then task.spawn(function() task.wait(2); toggleHidEnm(true); tog(UI.enmBtn,true,C.ERR,C.BTN_OFF,"Hide Enemies: On","Hide Enemies: Off") end) end
 if cfg.AutoHop then task.spawn(function() task.wait(6); startHop() end) end
 if cfg.WebhookEnabled then S.wh=true; tog(UI.whBtn,true,C.WH,C.BTN_OFF,"Webhook: On","Webhook: Off") end
 
