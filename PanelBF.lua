@@ -139,6 +139,8 @@ local _cfgDefault = {
 	WebhookURL  = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN",
 	WebhookName = "BloxHub",
 	WebhookInterval = 30,
+	AutoRerun    = true,
+	AutoRerunURL = "https://raw.githubusercontent.com/mm3xwqi/s/refs/heads/main/PanelBF.lua",
 }
 
 local cfg = {}
@@ -164,6 +166,7 @@ local C = {
 	V1=Color3.fromRGB(50,130,185), V2=Color3.fromRGB(185,65,145),
 	TABON=Color3.fromRGB(70,155,90), TABOFF=Color3.fromRGB(15,15,15),
 	SPEC=Color3.fromRGB(80,160,220), BTN_OFF=Color3.fromRGB(28,28,28),
+	RERUN=Color3.fromRGB(40,140,185), -- AUTO RERUN color
 }
 
 local K = { HW=500, HH=620, PAD=10, COMBAT=2800, MAX=Pl.MaxPlayers, S2M=0.28, TAB_H=36 }
@@ -205,6 +208,8 @@ local S = {
 	beliRate=0, fragRate=0,
 	v1Parts={}, v1Conn=nil,
 	v2Conns=Conn.new(),
+	-- AUTO RERUN
+	rerun=false, rerunThread=nil,
 }
 
 local BM = { on=false, task=nil, data={}, noclip=nil, pin=nil, dist=500, batch=20, force=150000, snap=12, yOff=-15 }
@@ -482,7 +487,7 @@ local function setV1(on)
 	end
 end
 
--- BOOST V2 (Best) — formerly V3
+-- BOOST V2 (Best)
 local GREY=Color3.fromRGB(163,162,165)
 local function stripVisualObj(o)
 	if o:IsA("MeshPart") then o.RenderFidelity=Enum.RenderFidelity.Performance; o.CastShadow=false; o.TextureID=""; o.Color=GREY
@@ -940,6 +945,53 @@ local function stopHop()
 	end)
 end
 
+-- AUTO RERUN
+local function startRerun()
+	S.rerun = true
+	if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
+	task.spawn(function()
+		if not cfg.AutoRerunURL or cfg.AutoRerunURL == "" then
+			showN("Auto Rerun", "No URL set!", C.ERR)
+			S.rerun = false
+			return
+		end
+		local loader = string.format(
+			'task.wait(5)\nlocal ok,src=pcall(game.HttpGet,game,"%s",true)\nif ok and src then local f=loadstring(src) if f then pcall(f) end end',
+			cfg.AutoRerunURL
+		)
+		local queued = false
+		local methods = {
+			function() return queueonteleport end,
+			function() return queue_on_teleport end,
+			function() return getgenv and getgenv().queueonteleport end,
+		}
+		for _, fn in ipairs(methods) do
+			local ok2, f = pcall(fn)
+			if ok2 and type(f) == "function" then
+				local ok3 = pcall(f, loader)
+				if ok3 then queued = true; break end
+			end
+		end
+		if queued then
+			showN("Auto Rerun", "Ready! Runs after hop", C.RERUN)
+		else
+			showN("Auto Rerun", "queue function unavailable", C.ERR)
+			S.rerun = false
+			if UI and UI.rerunBtn then
+				tog(UI.rerunBtn, false, C.RERUN, C.BTN_OFF, "Auto Rerun: On", "Auto Rerun: Off")
+			end
+		end
+	end)
+end
+
+local function stopRerun()
+	S.rerun = false
+	if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
+	pcall(function() queueonteleport("") end)
+	pcall(function() queue_on_teleport("") end)
+	showN("Auto Rerun", "Disabled", C.ERR)
+end
+
 -- PLAYER WATCHER
 local function watchPlr(p)
 	if p==lp then return end
@@ -1234,6 +1286,46 @@ do
 	UI.whTestBtn=mk("TextButton",whTestRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.BTN_OFF,BorderSizePixel=0,Text="Send Test Report",TextColor3=C.WRN,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
 	stroke(UI.whTestBtn,C.BOR2,1); corner(UI.whTestBtn,4)
 	UI.whCD=secLbl(sec5,12,"DISABLED",C.WH,10)
+
+	-- AUTO RERUN SECTION
+	local sec6=section("controls",6,"Auto Rerun")
+	secLbl(sec6,2,"Script re-executes after every hop",C.DIM,9)
+	secLbl(sec6,3,"RERUN URL",C.DIM,8)
+	local rerunUrlBox=secBox(sec6,4,"Paste raw script URL...",26)
+	rerunUrlBox.Text=cfg.AutoRerunURL; rerunUrlBox.ClearTextOnFocus=false
+	local rerunSaveRow=inlineRow(sec6,5)
+	local rerunSaveBtn=mk("TextButton",rerunSaveRow,{
+		Size=UDim2.new(1,0,1,0), BackgroundColor3=C.RERUN, BorderSizePixel=0,
+		Text="Save URL", TextColor3=C.BG, TextSize=12, Font=Enum.Font.GothamBold,
+		AutoButtonColor=false, ZIndex=4,
+	})
+	stroke(rerunSaveBtn,C.BOR2,1); corner(rerunSaveBtn,4)
+	UI.rerunSaveStatus=secLbl(sec6,6,"Not saved yet",C.DIM,9)
+	rerunSaveBtn.MouseButton1Click:Connect(function()
+		local url=rerunUrlBox.Text
+		if url=="" or not url:find("http") then
+			setText(UI.rerunSaveStatus,"Invalid URL"); setCol(UI.rerunSaveStatus,C.ERR)
+			showN("Auto Rerun","Invalid URL!",C.ERR); return
+		end
+		cfg.AutoRerunURL=url
+		setText(UI.rerunSaveStatus,"Saved!"); setCol(UI.rerunSaveStatus,C.OK)
+		showN("Auto Rerun","URL saved",C.RERUN)
+		-- re-queue immediately if rerun is already active
+		if S.rerun then stopRerun(); task.wait(.1); startRerun(); tog(UI.rerunBtn,true,C.RERUN,C.BTN_OFF,"Auto Rerun: On","Auto Rerun: Off") end
+	end)
+	mk("Frame",sec6,{Size=UDim2.new(1,0,0,1),BackgroundColor3=C.SEP,ZIndex=4,LayoutOrder=7})
+	UI.rerunBtn=secBtn(sec6,8,"Auto Rerun: Off",false,C.RERUN)
+	UI.rerunBtn.MouseButton1Click:Connect(function()
+		if S.rerun then
+			stopRerun()
+			tog(UI.rerunBtn,false,C.RERUN,C.BTN_OFF,"Auto Rerun: On","Auto Rerun: Off")
+		else
+			startRerun()
+			-- tog reflects actual state after startRerun sets S.rerun
+			task.wait(.05)
+			tog(UI.rerunBtn,S.rerun,C.RERUN,C.BTN_OFF,"Auto Rerun: On","Auto Rerun: Off")
+		end
+	end)
 end
 
 -- BRINGMOB TAB
@@ -1548,6 +1640,7 @@ for _,h in ipairs({
 	{UI.pullBtn,function() return BM.on and C.PULL or C.BTN_OFF end},
 	{UI.pullBtn2,function() return BM2.on and C.BM2 or C.BTN_OFF end},
 	{UI.specStopBtn,function() return S.specTarget and C.SPEC or C.BTN_OFF end},
+	{UI.rerunBtn,function() return S.rerun and C.RERUN or C.BTN_OFF end}, -- AUTO RERUN hover
 }) do addHov(h[1],h[2]) end
 
 -- RightCtrl toggle
@@ -1815,6 +1908,16 @@ if cfg.HidePlayers then task.spawn(function() task.wait(1); toggleHidePlr(true);
 if cfg.HideEnemies then task.spawn(function() task.wait(2); toggleHidEnm(true); tog(UI.enmBtn,true,C.ERR,C.BTN_OFF,"Hide Enemies: On","Hide Enemies: Off") end) end
 if cfg.AutoHop then task.spawn(function() task.wait(6); startHop() end) end
 if cfg.WebhookEnabled then S.wh=true; tog(UI.whBtn,true,C.WH,C.BTN_OFF,"Webhook: On","Webhook: Off") end
+
+-- AUTO RERUN init
+if cfg.AutoRerun and cfg.AutoRerunURL and cfg.AutoRerunURL ~= "" then
+	task.spawn(function()
+		task.wait(3)
+		startRerun()
+		task.wait(.05)
+		tog(UI.rerunBtn, S.rerun, C.RERUN, C.BTN_OFF, "Auto Rerun: On", "Auto Rerun: Off")
+	end)
+end
 
 switchTab("status")
 _closeLoader()
