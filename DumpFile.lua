@@ -121,9 +121,9 @@ local SkipServices = {
     JointsService=true, LogService=true, MarketplaceService=true,
     MaterialService=true, NetworkClient=true, NetworkServer=true,
     NotificationService=true, PathfindingService=true, PhysicsService=true,
-    Players=true, ProximityPromptService=true, ReplicatedFirst=true,
-    RunService=true, ScriptContext=true, Selection=true,
-    Stats=true, Team=true, Teams=true, TestService=true, TimerService=true,
+    Players=true, ProximityPromptService=false, ReplicatedFirst=false,
+    RunService=false, ScriptContext=true, Selection=true,
+    Stats=true, Team=false, Teams=false, TestService=true, TimerService=true,
 }
 
 -- ============================================
@@ -361,7 +361,7 @@ local function RunDump(doInstances, doRemotes, doGameInfo, labelPrefix)
     local instanceCount, remoteCount = 0, 0
 
     if doInstances then
-        Notify(prefix .. "Scanning Instances...", "This may take a moment", 99)
+        Notify(prefix .. "Scanning Instances...", "This may take a moment", 5)
         local text, count = DumpInstances(all)
         instanceCount = count
         SaveFile(folder .. "/Instances.txt", text ~= "" and text or "-- (no instances found)")
@@ -369,7 +369,7 @@ local function RunDump(doInstances, doRemotes, doGameInfo, labelPrefix)
     end
 
     if doRemotes then
-        Notify(prefix .. "Scanning Remotes...", "Searching for Remote/Bindable", 99)
+        Notify(prefix .. "Scanning Remotes...", "Searching for Remote/Bindable", 5)
         local text, count = DumpRemotes(all)
         remoteCount = count
         SaveFile(folder .. "/Remotes.txt", text ~= "" and text or "-- (no remotes found)")
@@ -377,7 +377,7 @@ local function RunDump(doInstances, doRemotes, doGameInfo, labelPrefix)
     end
 
     if doGameInfo then
-        Notify(prefix .. "Collecting Game Info...", "Reading DataModel properties", 99)
+        Notify(prefix .. "Collecting Game Info...", "Reading DataModel properties", 5)
         SaveFile(folder .. "/GameInfo.txt", DumpGameInfo())
         Notify(prefix .. "Game Info Done", "Saved to " .. folder, 4)
     end
