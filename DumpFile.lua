@@ -1,118 +1,97 @@
 -- ============================================
 -- Roblox Game Dumper + Mercury GUI v7.5
--- Fix: BuildPath safe | continue → if/else | makefolder robust
 -- ============================================
 
 local Mercury = loadstring(game:HttpGet("https://raw.githubusercontent.com/deeeity/mercury-lib/master/src.lua"))()
-local HttpService = game:GetService("HttpService")
-local Workspace   = game:GetService("Workspace")
-local Players     = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local Players   = game:GetService("Players")
+local MPS       = game:GetService("MarketplaceService")
 
 if not writefile then
-    warn("writefile not available! Executor required.")
+    warn("[Dumper] writefile not available. Executor required.")
     return
 end
 
 local BaseFolder = "Dump Filter"
 
 -- ============================================
--- Safe Map Name (MarketplaceService)
+-- Map Name via MarketplaceService
 -- ============================================
 local MapName = "Map_" .. tostring(game.PlaceId)
 
-local ok, info = pcall(function()
-    return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
-end)
-
+local ok, info = pcall(function() return MPS:GetProductInfo(game.PlaceId) end)
 if ok and info and info.Name and info.Name ~= "" then
-    local raw = tostring(info.Name)
-    MapName = raw:gsub("[\\/:%*%?\"<>|%c]", "_"):sub(1, 50)
-    if MapName == "" or MapName:match("^_+$") then
-        MapName = "Map_" .. tostring(game.PlaceId)
-    end
+    local raw = tostring(info.Name):gsub("[\\/:%*%?\"<>|%c]", "_"):sub(1, 50)
+    if raw ~= "" and not raw:match("^_+$") then MapName = raw end
 end
 
-print("[Dumper] Map Name: " .. MapName)
+print("[Dumper] Map: " .. MapName)
 
 -- ============================================
--- File / Folder Helpers
+-- Folder / File Helpers
 -- ============================================
 local function EnsureFolder(path)
-    local parts = {}
-    for seg in path:gmatch("[^/]+") do
-        table.insert(parts, seg)
-    end
     local built = ""
-    for i, seg in ipairs(parts) do
-        built = (i == 1) and seg or (built .. "/" .. seg)
-        local ok, err = pcall(makefolder, built)
-        if not ok then
-            local existOk = pcall(function()
-                listfiles(built)
-            end)
-            if not existOk then
-                warn("[Dumper] makefolder FAILED: " .. built .. " | " .. tostring(err))
+    for seg in path:gmatch("[^/]+") do
+        built = built == "" and seg or (built .. "/" .. seg)
+        local ok2, err = pcall(makefolder, built)
+        if not ok2 then
+            local exists = pcall(listfiles, built)
+            if not exists then
+                warn("[Dumper] makefolder failed: " .. built .. " | " .. tostring(err))
                 return false
             end
         end
     end
-    print("[Dumper] Folder ready: " .. path)
     return true
 end
 
 local function SaveFile(path, content)
     if not content or content == "" then
-        warn("[Dumper] SaveFile skipped (empty content): " .. path)
+        warn("[Dumper] Skipped empty file: " .. path)
         return false
     end
-    local ok, err = pcall(writefile, path, content)
-    if not ok then
-        warn("[Dumper] writefile FAILED: " .. tostring(err) .. " | " .. path)
+    local ok2, err = pcall(writefile, path, content)
+    if not ok2 then
+        warn("[Dumper] writefile failed: " .. path .. " | " .. tostring(err))
         return false
     end
-    print("[Dumper] Saved (" .. #content .. " bytes): " .. path)
+    print("[Dumper] Saved " .. #content .. " bytes → " .. path)
     return true
 end
 
 -- ============================================
--- BuildPath
+-- BuildPath (iterative, stack-safe)
 -- ============================================
 local function BuildPath(instance)
-    local chain = {}
-    local cur   = instance
-    local limit = 64
+    local chain, cur, limit = {}, instance, 64
     while cur and cur ~= game and limit > 0 do
         table.insert(chain, 1, cur)
-        local ok, p = pcall(function() return cur.Parent end)
-        if not ok then break end
-        cur   = p
-        limit = limit - 1
+        local p_ok, p = pcall(function() return cur.Parent end)
+        if not p_ok then break end
+        cur, limit = p, limit - 1
     end
-
     if #chain == 0 then return '"unknown"' end
 
-    local root    = chain[1]
-    local rootOk, rootParent = pcall(function() return root.Parent end)
+    local root = chain[1]
+    local rp_ok, rp = pcall(function() return root.Parent end)
     local result
-
-    if rootOk and rootParent == game then
-        local ok2, cn = pcall(function() return root.ClassName end)
-        result = ok2 and string.format('game:GetService("%s")', cn) or string.format('game["%s"]', root.Name or "?")
+    if rp_ok and rp == game then
+        local cn_ok, cn = pcall(function() return root.ClassName end)
+        result = cn_ok and ('game:GetService("' .. cn .. '")') or ('game["' .. (root.Name or "?") .. '"]')
     else
-        result = string.format('["%s"]', root.Name or "?")
+        result = '["' .. (root.Name or "?") .. '"]'
     end
 
     for i = 2, #chain do
-        local seg   = chain[i]
-        local ok3, nm = pcall(function() return seg.Name end)
-        result = result .. string.format('["%s"]', ok3 and nm or "?")
+        local nm_ok, nm = pcall(function() return chain[i].Name end)
+        result = result .. '["' .. (nm_ok and nm or "?") .. '"]'
     end
-
     return result
 end
 
 -- ============================================
--- Whitelist
+-- Whitelists
 -- ============================================
 local ImportantClasses = {
     Part=true, MeshPart=true, UnionOperation=true, WedgePart=true,
@@ -148,78 +127,81 @@ local SkipServices = {
 }
 
 -- ============================================
--- Player Character Check
+-- Player Character Guard
 -- ============================================
 local function IsPlayerCharacter(instance)
     for _, p in ipairs(Players:GetPlayers()) do
-        local char = p.Character
-        if char then
-            local ok, result = pcall(function() return instance:IsDescendantOf(char) end)
-            if ok and result then return true end
+        if p.Character then
+            local ok2, res = pcall(function() return instance:IsDescendantOf(p.Character) end)
+            if ok2 and res then return true end
         end
     end
     return false
 end
 
 -- ============================================
--- Dump Instances
+-- GetDescendants with progress (shared)
 -- ============================================
-local function DumpFilter()
-    local lines = {}
-    local count = 0
-    local BATCH = 50
-
-    local ok, all = pcall(function() return game:GetDescendants() end)
-    if not ok or not all then
+local function GetAll()
+    local ok2, all = pcall(function() return game:GetDescendants() end)
+    if not ok2 or not all then
         warn("[Dumper] GetDescendants() failed!")
-        return "", 0
+        return nil
     end
     print("[Dumper] Total descendants: " .. #all)
+    return all
+end
 
-    for i, instance in ipairs(all) do
-        if i % BATCH == 0 then
-            task.wait()
-        end
+-- ============================================
+-- Notify Helper  (ลด boilerplate)
+-- ============================================
+local GUI  -- forward declare; assigned below
+local function Notify(title, text, duration)
+    GUI:Notification{ Title = title, Text = text, Duration = duration or 4 }
+end
 
-        local alive = pcall(function() return instance.Parent end)
+-- ============================================
+-- Dump Instances
+-- ============================================
+local function DumpInstances(all)
+    local lines, count = {}, 0
+    for i, inst in ipairs(all) do
+        if i % 50 == 0 then task.wait() end
 
-        if alive and not IsPlayerCharacter(instance) then
-            local parentOk, parent = pcall(function() return instance.Parent end)
-            local isSkipService = false
-            if parentOk and parent == game then
-                local nameOk, nm = pcall(function() return instance.Name end)
-                if nameOk and SkipServices[nm] then
-                    isSkipService = true
-                end
-            end
+        local alive = pcall(function() return inst.Parent end)
+        if alive and not IsPlayerCharacter(inst) then
 
-            if not isSkipService then
-                local classOk, cls = pcall(function() return instance.ClassName end)
+            local par_ok, par = pcall(function() return inst.Parent end)
+            local skip = par_ok and par == game and (function()
+                local nm_ok, nm = pcall(function() return inst.Name end)
+                return nm_ok and SkipServices[nm]
+            end)()
 
-                if classOk and ImportantClasses[cls] then
-                    local path = BuildPath(instance)
-                    local nameOk2, nm2 = pcall(function() return instance.Name end)
-                    local dispName = nameOk2 and nm2 or "?"
+            if not skip then
+                local cls_ok, cls = pcall(function() return inst.ClassName end)
+                if cls_ok and ImportantClasses[cls] then
+                    local nm_ok2, nm2 = pcall(function() return inst.Name end)
+                    table.insert(lines, string.format('%s  -- [%s] "%s"', BuildPath(inst), cls, nm_ok2 and nm2 or "?"))
 
-                    table.insert(lines, string.format('%s  -- [%s] "%s"', path, cls, dispName))
-
-                    local attrOk, attrs = pcall(function() return instance:GetAttributes() end)
-                    if attrOk and attrs then
-                        for attrName, attrVal in pairs(attrs) do
-                            table.insert(lines, string.format('--   .Attr[%s] = %s', attrName, tostring(attrVal)))
+                    local attr_ok, attrs = pcall(function() return inst:GetAttributes() end)
+                    if attr_ok and attrs then
+                        for k, v in pairs(attrs) do
+                            table.insert(lines, string.format('--   .Attr[%s] = %s', k, tostring(v)))
                         end
                     end
 
                     if cls == "Animation" then
-                        local ok2, v = pcall(function() return instance.AnimationId end)
-                        if ok2 then table.insert(lines, string.format('--   .AnimationId = "%s"', v)) end
+                        local ok2, v = pcall(function() return inst.AnimationId end)
+                        if ok2 then table.insert(lines, '--   .AnimationId = "' .. v .. '"') end
                     elseif cls == "Sound" then
-                        local ok2, sid = pcall(function() return instance.SoundId end)
-                        local ok3, vol = pcall(function() return instance.Volume end)
-                        if ok2 then table.insert(lines, string.format('--   .SoundId = "%s" Volume=%s', sid, ok3 and tostring(vol) or "?")) end
+                        local ok2, sid = pcall(function() return inst.SoundId end)
+                        local ok3, vol = pcall(function() return inst.Volume end)
+                        if ok2 then
+                            table.insert(lines, string.format('--   .SoundId = "%s" Volume=%s', sid, ok3 and tostring(vol) or "?"))
+                        end
                     elseif cls == "SpecialMesh" or cls == "MeshPart" then
-                        local ok2, mid = pcall(function() return instance.MeshId end)
-                        local ok3, tid = pcall(function() return instance.TextureId end)
+                        local ok2, mid = pcall(function() return inst.MeshId end)
+                        local ok3, tid = pcall(function() return inst.TextureId end)
                         table.insert(lines, string.format('--   .MeshId="%s" .TextureId="%s"',
                             ok2 and mid or "N/A", ok3 and tid or "N/A"))
                     end
@@ -230,44 +212,36 @@ local function DumpFilter()
             end
         end
     end
-
-    print("[Dumper] Filtered instances: " .. count)
+    print("[Dumper] Instances found: " .. count)
     return table.concat(lines, "\n"), count
 end
 
 -- ============================================
 -- Dump Remotes
 -- ============================================
-local function DumpRemotes()
-    local lines = {}
-    local count = 0
-    local BATCH = 100
+local RemoteClasses = {
+    RemoteEvent=true, RemoteFunction=true,
+    BindableEvent=true, BindableFunction=true,
+}
 
-    local ok, all = pcall(function() return game:GetDescendants() end)
-    if not ok or not all then return "", 0 end
-
-    for i, instance in ipairs(all) do
-        if i % BATCH == 0 then
-            task.wait()
-        end
-
-        local classOk, cls = pcall(function() return instance.ClassName end)
-        if classOk then
-            if cls == "RemoteEvent" or cls == "RemoteFunction"
-            or cls == "BindableEvent" or cls == "BindableFunction" then
-                local path = BuildPath(instance)
-                table.insert(lines, string.format('%s  -- [%s]', path, cls))
-                local attrOk, attrs = pcall(function() return instance:GetAttributes() end)
-                if attrOk and attrs then
-                    for k, v in pairs(attrs) do
-                        table.insert(lines, string.format('--   .Attr[%s] = %s', k, tostring(v)))
-                    end
+local function DumpRemotes(all)
+    local lines, count = {}, 0
+    for i, inst in ipairs(all) do
+        if i % 100 == 0 then task.wait() end
+        local cls_ok, cls = pcall(function() return inst.ClassName end)
+        if cls_ok and RemoteClasses[cls] then
+            table.insert(lines, string.format('%s  -- [%s]', BuildPath(inst), cls))
+            local attr_ok, attrs = pcall(function() return inst:GetAttributes() end)
+            if attr_ok and attrs then
+                for k, v in pairs(attrs) do
+                    table.insert(lines, string.format('--   .Attr[%s] = %s', k, tostring(v)))
                 end
-                count = count + 1
-                table.insert(lines, "")
             end
+            count = count + 1
+            table.insert(lines, "")
         end
     end
+    print("[Dumper] Remotes found: " .. count)
     return table.concat(lines, "\n"), count
 end
 
@@ -275,10 +249,10 @@ end
 -- Dump Game Info
 -- ============================================
 local function DumpGameInfo()
-    local function safe(fn) local ok, v = pcall(fn); return ok and tostring(v) or "N/A" end
-    local lines = {
+    local function safe(fn) local ok2, v = pcall(fn); return ok2 and tostring(v) or "N/A" end
+    return table.concat({
         "-- === GAME INFO ===",
-        "-- Map Name:         " .. safe(function() return game.Name end),
+        "-- Map Name:         " .. MapName,
         "-- PlaceId:          " .. safe(function() return game.PlaceId end),
         "-- GameId:           " .. safe(function() return game.GameId end),
         "-- PlaceVersion:     " .. safe(function() return game.PlaceVersion end),
@@ -291,8 +265,7 @@ local function DumpGameInfo()
         "-- Gravity:                  " .. safe(function() return Workspace.Gravity end),
         "-- StreamingEnabled:         " .. safe(function() return Workspace.StreamingEnabled end),
         "-- FallenPartsDestroyHeight: " .. safe(function() return Workspace.FallenPartsDestroyHeight end),
-    }
-    return table.concat(lines, "\n")
+    }, "\n")
 end
 
 -- ============================================
@@ -300,6 +273,14 @@ end
 -- ============================================
 local SpyActive = false
 local SpyLines  = {}
+
+local function FlushSpy(tag)
+    if #SpyLines == 0 then return end
+    local sf = BaseFolder .. "/SpyLogs"
+    EnsureFolder(sf)
+    SaveFile(sf .. "/Spy_" .. tag .. "_" .. os.time() .. ".txt", table.concat(SpyLines, "\n"))
+    SpyLines = {}
+end
 
 local function StartRemoteSpy()
     if SpyActive then return end
@@ -309,17 +290,17 @@ local function StartRemoteSpy()
     local function argsToStr(args)
         local t = {}
         for i, v in ipairs(args) do
-            table.insert(t, string.format("[%d]=%s(%s)", i, tostring(v), typeof(v)))
+            t[i] = string.format("[%d]=%s(%s)", i, tostring(v), typeof(v))
         end
         return table.concat(t, ", ")
     end
 
-    local ok, all = pcall(function() return game:GetDescendants() end)
-    if not ok or not all then return end
+    local ok2, all = pcall(function() return game:GetDescendants() end)
+    if not ok2 or not all then return end
 
     for _, remote in ipairs(all) do
-        local classOk, cls = pcall(function() return remote.ClassName end)
-        if classOk then
+        local cls_ok, cls = pcall(function() return remote.ClassName end)
+        if cls_ok then
             if cls == "RemoteEvent" then
                 local old = remote.FireServer
                 remote.FireServer = function(self, ...)
@@ -338,131 +319,139 @@ local function StartRemoteSpy()
         end
     end
 
-    spawn(function()
+    task.spawn(function()
         while SpyActive do
-            wait(10)
-            if #SpyLines > 0 then
-                local sf = BaseFolder .. "/SpyLogs"
-                EnsureFolder(sf)
-                local snap = table.concat(SpyLines, "\n")
-                SpyLines = {}
-                SaveFile(sf .. "/Spy_" .. os.time() .. ".txt", snap)
-            end
+            task.wait(10)
+            FlushSpy("Auto")
         end
     end)
 end
 
 local function StopRemoteSpy()
     SpyActive = false
-    if #SpyLines > 0 then
-        local sf = BaseFolder .. "/SpyLogs"
-        EnsureFolder(sf)
-        SaveFile(sf .. "/Spy_Final_" .. os.time() .. ".txt", table.concat(SpyLines, "\n"))
-        SpyLines = {}
+    FlushSpy("Final")
+end
+
+-- ============================================
+-- Core Dump Runner (shared between buttons)
+-- ============================================
+local function RunDump(doInstances, doRemotes, doGameInfo, labelPrefix)
+    local prefix = labelPrefix or ""
+
+    -- Setup folders
+    Notify(prefix .. "Starting...", "Creating output folder", 3)
+    if not EnsureFolder(BaseFolder) then
+        Notify(prefix .. "Folder Error", "Cannot create: " .. BaseFolder, 5)
+        return
     end
+
+    local folder = BaseFolder .. "/" .. MapName .. "_" .. tostring(os.time())
+    if not EnsureFolder(folder) then
+        Notify(prefix .. "Folder Error", "Cannot create subfolder", 5)
+        return
+    end
+
+    -- Fetch descendants once for all tasks
+    local all = GetAll()
+    if not all then
+        Notify(prefix .. "Scan Failed", "GetDescendants() returned nothing", 5)
+        return
+    end
+
+    local instanceCount, remoteCount = 0, 0
+
+    if doInstances then
+        Notify(prefix .. "Scanning Instances...", "This may take a moment", 99)
+        local text, count = DumpInstances(all)
+        instanceCount = count
+        SaveFile(folder .. "/Instances.txt", text ~= "" and text or "-- (no instances found)")
+        Notify(prefix .. "Instances Done", count .. " instances saved", 4)
+    end
+
+    if doRemotes then
+        Notify(prefix .. "Scanning Remotes...", "Searching for Remote/Bindable", 99)
+        local text, count = DumpRemotes(all)
+        remoteCount = count
+        SaveFile(folder .. "/Remotes.txt", text ~= "" and text or "-- (no remotes found)")
+        Notify(prefix .. "Remotes Done", count .. " remotes saved", 4)
+    end
+
+    if doGameInfo then
+        Notify(prefix .. "Collecting Game Info...", "Reading DataModel properties", 99)
+        SaveFile(folder .. "/GameInfo.txt", DumpGameInfo())
+        Notify(prefix .. "Game Info Done", "Saved to " .. folder, 4)
+    end
+
+    -- Summary
+    task.wait(0.5)
+    local summary = {}
+    if doInstances then table.insert(summary, "Instances: " .. instanceCount) end
+    if doRemotes   then table.insert(summary, "Remotes: "   .. remoteCount)   end
+    if doGameInfo  then table.insert(summary, "GameInfo: saved")               end
+
+    Notify(
+        prefix .. "Dump Complete",
+        table.concat(summary, " | ") .. "\n" .. folder,
+        8
+    )
+
+    if setclipboard then setclipboard(folder) end
+    print("[Dumper] Output: " .. folder)
 end
 
 -- ============================================
 -- Mercury GUI
 -- ============================================
-local GUI = Mercury:Create{
+GUI = Mercury:Create{
     Name = "Game Dumper v7.5",
     Size = UDim2.fromOffset(520, 420),
     Theme = Mercury.Themes.Dark,
-    Link = "https://github.com/deeeity/mercury-lib"
+    Link  = "https://github.com/deeeity/mercury-lib"
 }
 
-local MainTab = GUI:Tab{Name = "Dump", Icon = "rbxassetid://8569322835"}
+local MainTab = GUI:Tab{ Name = "Dump", Icon = "rbxassetid://8569322835" }
 
 MainTab:Button{
-    Name = "Full Dump",
-    Description = "Dump Instances + Remotes + Game Info",
-    Callback = function()
-        task.spawn(function()
-            GUI:Notification{Title = "Starting Dump...", Text = "Creating folders", Duration = 3}
-
-            local rootOk = EnsureFolder(BaseFolder)
-            if not rootOk then
-                GUI:Notification{Title = "Folder Error", Text = "Failed to create: " .. BaseFolder, Duration = 5}
-                return
-            end
-
-            local folder = BaseFolder .. "/" .. MapName .. "_" .. tostring(os.time())
-            local fOk = EnsureFolder(folder)
-            if not fOk then
-                GUI:Notification{Title = "Subfolder Error", Text = "Failed to create subfolder", Duration = 5}
-                return
-            end
-
-            GUI:Notification{Title = "[1/3] Dumping Instances", Text = "Scanning instances...", Duration = 99}
-            local filterText, filterCount = DumpFilter()
-            SaveFile(folder .. "/Dump Filter.txt", filterText ~= "" and filterText or "-- (no instances found)")
-            GUI:Notification{Title = "[1/3] Instances Done", Text = filterCount .. " instances saved", Duration = 4}
-
-            GUI:Notification{Title = "[2/3] Dumping Remotes", Text = "Scanning remotes...", Duration = 99}
-            local remText, remCount = DumpRemotes()
-            SaveFile(folder .. "/Remotes.txt", remText ~= "" and remText or "-- (no remotes found)")
-            GUI:Notification{Title = "[2/3] Remotes Done", Text = remCount .. " remotes saved", Duration = 4}
-
-            GUI:Notification{Title = "[3/3] Dumping Game Info", Text = "Collecting game info...", Duration = 99}
-            local infoText = DumpGameInfo()
-            SaveFile(folder .. "/GameInfo.txt", infoText)
-            GUI:Notification{Title = "[3/3] Game Info Done", Text = "Saved", Duration = 4}
-
-            task.wait(1)
-            GUI:Notification{
-                Title = "Dump Complete",
-                Text = string.format("Instances: %d | Remotes: %d\n%s", filterCount, remCount, folder),
-                Duration = 8
-            }
-            if setclipboard then setclipboard(folder) end
-        end)
+    Name        = "Full Dump",
+    Description = "Scan Instances + Remotes + Game Info in one pass",
+    Callback    = function()
+        task.spawn(RunDump, true, true, true, "[Full] ")
     end
 }
 
 MainTab:Button{
-    Name = "Dump Instances",
+    Name        = "Dump Instances",
     Description = "Scan and save all whitelisted instances",
-    Callback = function()
-        EnsureFolder(BaseFolder)
-        local f = BaseFolder .. "/" .. MapName .. "_Instances_" .. os.time()
-        EnsureFolder(f)
-
-        local text, count = DumpFilter()
-        if text == "" then text = "-- (no instances found)" end
-
-        local saved = SaveFile(f .. "/Dump Filter.txt", text)
-        if saved then
-            GUI:Notification{Title = "Instances Done", Text = count .. " instances | " .. f, Duration = 5}
-        else
-            GUI:Notification{Title = "Save Failed", Text = "Check console", Duration = 5}
-        end
+    Callback    = function()
+        task.spawn(RunDump, true, false, false, "[Instances] ")
     end
 }
 
 MainTab:Button{
-    Name = "Dump Remotes",
+    Name        = "Dump Remotes",
     Description = "Scan and save RemoteEvent / RemoteFunction / Bindable",
-    Callback = function()
-        EnsureFolder(BaseFolder)
-        local f = BaseFolder .. "/" .. MapName .. "_Remotes_" .. os.time()
-        EnsureFolder(f)
-        local text, count = DumpRemotes()
-        if text == "" then text = "-- (no remotes found)" end
-        SaveFile(f .. "/Remotes.txt", text)
-        GUI:Notification{Title = "Remotes Done", Text = "Remotes: " .. count, Duration = 3}
+    Callback    = function()
+        task.spawn(RunDump, false, true, false, "[Remotes] ")
     end
 }
 
 MainTab:Button{
-    Name = "Clear All Dumps",
+    Name        = "Dump Game Info",
+    Description = "Save DataModel + Workspace properties",
+    Callback    = function()
+        task.spawn(RunDump, false, false, true, "[GameInfo] ")
+    end
+}
+
+MainTab:Button{
+    Name        = "Clear All Dumps",
     Description = "Delete the entire Dump Filter folder",
-    Callback = function()
+    Callback    = function()
         if delfolder then
             pcall(delfolder, BaseFolder)
-            GUI:Notification{Title = "Cleared", Text = "Dump folder deleted", Duration = 3}
+            Notify("Clear Complete", "Dump folder deleted", 3)
         else
-            GUI:Notification{Title = "delfolder Not Supported", Text = "Delete manually in workspace", Duration = 3}
+            Notify("Not Supported", "delfolder unavailable — delete manually", 3)
         end
     end
 }
@@ -470,20 +459,31 @@ MainTab:Button{
 -- ============================================
 -- Spy Tab
 -- ============================================
-local SpyTab = GUI:Tab{Name = "Remote Spy", Icon = "rbxassetid://8569322835"}
+local SpyTab = GUI:Tab{ Name = "Remote Spy", Icon = "rbxassetid://8569322835" }
 
 SpyTab:Toggle{
-    Name = "Remote Spy",
+    Name         = "Remote Spy",
     StartingState = false,
-    Description = "Hook FireServer / InvokeServer — auto-saves every 10s",
-    Callback = function(state)
-        if state then StartRemoteSpy() else StopRemoteSpy() end
+    Description  = "Hook FireServer / InvokeServer — auto-saves every 10s",
+    Callback     = function(state)
+        if state then
+            StartRemoteSpy()
+            Notify("[Spy] Active", "Hooking FireServer / InvokeServer — saves every 10s", 4)
+        else
+            StopRemoteSpy()
+            Notify("[Spy] Stopped", "Final log flushed to SpyLogs/", 4)
+        end
     end
 }
 
-GUI:Credit{Name = "Game Dumper", Description = "v7.5 – Safe BuildPath + layered makefolder", V3rm = "N/A", Discord = "N/A"}
-GUI:Notification{Title = "Game Dumper v7.5 Loaded", Text = "Map: " .. MapName, Duration = 5}
+GUI:Credit{
+    Name        = "Game Dumper",
+    Description = "v7.5 – Safe BuildPath | shared scan | unified notify",
+    V3rm        = "N/A",
+    Discord     = "N/A"
+}
 
+Notify("Game Dumper v7.5 Loaded", "Map: " .. MapName, 5)
 print("=== Game Dumper v7.5 ===")
-print("[Dumper] Map: " .. MapName)
+print("[Dumper] Map:  " .. MapName)
 print("[Dumper] Base: " .. BaseFolder)
