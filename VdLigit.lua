@@ -101,6 +101,7 @@ local SKILL_ANIM_IDS = {
     [137846825408335] = true,
     [75258958842388] = true,
     [96744338559260] = true,
+    [96839438835309] = true,
     
 }
 
@@ -1201,7 +1202,7 @@ local UnloadBox = Tabs["UI Settings"]:AddLeftGroupbox("Unload Script")
 UnloadBox:AddButton({Text="Unload Script",Func=function() Library:Unload() end,
     DoubleClick=false,Tooltip="Stops all loops and destroys the UI."})
 
--- ── Unload ────────────────────────────────────────────────
+-- ── Unload
 Library:OnUnload(function()
     state.running = false
     for char,conns in pairs(killerAnimConns) do
