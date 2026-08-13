@@ -5,131 +5,34 @@ local UIS  = game:GetService("UserInputService")
 local TS   = game:GetService("TweenService")
 local WS   = game:GetService("Workspace")
 local HTTP = game:GetService("HttpService")
-local lp   = Pl.LocalPlayer
-local pg   = lp:WaitForChild("PlayerGui")
+local TeleportService = game:GetService("TeleportService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- LOADER
-do
-	local G = Instance.new("ScreenGui", pg)
-	G.Name, G.ResetOnSpawn, G.IgnoreGuiInset, G.DisplayOrder = "PanelLoad", false, true, 999
-
-	local function F(c, par, p)
-		local o = Instance.new(c, par)
-		if p then for k, v in pairs(p) do pcall(function() o[k] = v end) end end
-		return o
-	end
-
-	local card = F("Frame", G, {
-		Size = UDim2.new(0, 340, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-		Position = UDim2.new(.5, -170, .5, -100),
-		BackgroundColor3 = Color3.fromRGB(13,13,13), ZIndex = 100,
-	})
-	F("UICorner",  card, { CornerRadius = UDim.new(0,12) })
-	F("UIStroke",  card, { Color = Color3.fromRGB(34,34,34), Thickness = 1 })
-	F("UIPadding", card, { PaddingLeft=UDim.new(0,22), PaddingRight=UDim.new(0,22), PaddingTop=UDim.new(0,22), PaddingBottom=UDim.new(0,18) })
-	F("UIListLayout", card, { Padding=UDim.new(0,0), SortOrder=Enum.SortOrder.LayoutOrder })
-
-	local hdr = F("Frame", card, { Size=UDim2.new(1,0,0,28), BackgroundTransparency=1, LayoutOrder=1, ZIndex=101 })
-	local dot  = F("Frame", hdr, { Size=UDim2.new(0,8,0,8), Position=UDim2.new(0,0,.5,-4), BackgroundColor3=Color3.fromRGB(61,155,92), ZIndex=102 })
-	F("UICorner", dot, { CornerRadius=UDim.new(1,0) })
-	F("TextLabel", hdr, { Size=UDim2.new(1,-60,1,0), Position=UDim2.new(0,18,0,0), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=14, TextColor3=Color3.fromRGB(232,232,232), Text="BloxHub  v3", TextXAlignment=Enum.TextXAlignment.Left, ZIndex=102 })
-	F("TextLabel", hdr, { Size=UDim2.new(0,60,1,0), Position=UDim2.new(1,-60,0,0), BackgroundTransparency=1, Font=Enum.Font.Gotham, TextSize=10, TextColor3=Color3.fromRGB(68,68,68), Text="Clean", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=102 })
-
-	F("Frame", card, { Size=UDim2.new(1,0,0,14), BackgroundTransparency=1, LayoutOrder=2 })
-	local barBg = F("Frame", card, { Size=UDim2.new(1,0,0,3), BackgroundColor3=Color3.fromRGB(26,26,26), LayoutOrder=3, ZIndex=101 })
-	F("UICorner", barBg, { CornerRadius=UDim.new(1,0) })
-	local barFl = F("Frame", barBg, { Size=UDim2.new(0,0,1,0), BackgroundColor3=Color3.fromRGB(61,155,92), ZIndex=102 })
-	F("UICorner", barFl, { CornerRadius=UDim.new(1,0) })
-	F("Frame", card, { Size=UDim2.new(1,0,0,14), BackgroundTransparency=1, LayoutOrder=4 })
-
-	local stF = F("Frame", card, { Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, BackgroundTransparency=1, LayoutOrder=5, ZIndex=101 })
-	F("UIListLayout", stF, { Padding=UDim.new(0,2), SortOrder=Enum.SortOrder.LayoutOrder })
-
-	local sN = { "Waiting for game", "Game ready", "Workspace ready", "Leaderstats", "Character ready", "Building GUI", "Done" }
-	local sL = {}
-	for i, name in ipairs(sN) do
-		local row = F("Frame", stF, { Size=UDim2.new(1,0,0,22), BackgroundTransparency=1, LayoutOrder=i, ZIndex=102 })
-		local d   = F("Frame", row, { Size=UDim2.new(0,7,0,7), Position=UDim2.new(0,0,.5,-3.5), BackgroundColor3=Color3.fromRGB(58,58,58), ZIndex=103 })
-		F("UICorner", d, { CornerRadius=UDim.new(1,0) })
-		sL[i] = {
-			dot    = d,
-			name   = F("TextLabel", row, { Size=UDim2.new(1,-60,1,0), Position=UDim2.new(0,17,0,0), BackgroundTransparency=1, Font=Enum.Font.Gotham, TextSize=11, TextColor3=Color3.fromRGB(85,85,85), Text=name, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=103 }),
-			status = F("TextLabel", row, { Size=UDim2.new(0,50,1,0), Position=UDim2.new(1,-50,0,0), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, TextColor3=Color3.fromRGB(68,68,68), Text="—", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=103 }),
-		}
-	end
-
-	F("Frame", card, { Size=UDim2.new(1,0,0,12), BackgroundTransparency=1, LayoutOrder=6 })
-	F("Frame", card, { Size=UDim2.new(1,0,0,1), BackgroundColor3=Color3.fromRGB(28,28,28), LayoutOrder=7, ZIndex=101 })
-	F("Frame", card, { Size=UDim2.new(1,0,0,10), BackgroundTransparency=1, LayoutOrder=8 })
-	local footer = F("Frame", card, { Size=UDim2.new(1,0,0,16), BackgroundTransparency=1, LayoutOrder=9, ZIndex=101 })
-	F("TextLabel", footer, { Size=UDim2.new(0,100,1,0), BackgroundTransparency=1, Font=Enum.Font.Gotham, TextSize=10, TextColor3=Color3.fromRGB(60,60,60), Text="v3 • Clean", TextXAlignment=Enum.TextXAlignment.Left, ZIndex=102 })
-	local pcLbl = F("TextLabel", footer, { Size=UDim2.new(0,50,1,0), Position=UDim2.new(1,-50,0,0), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=11, TextColor3=Color3.fromRGB(61,155,92), Text="0%", TextXAlignment=Enum.TextXAlignment.Right, ZIndex=102 })
-
-	local GREEN = Color3.fromRGB(61,155,92)
-	local n, tot = 0, #sN
-	local function log()
-		n = n + 1
-		local p = math.clamp(n/tot, 0, 1)
-		if n > 1 and sL[n-1] then
-			sL[n-1].dot.BackgroundColor3 = GREEN
-			sL[n-1].status.TextColor3    = GREEN
-			sL[n-1].status.Text          = "done"
-			sL[n-1].name.TextColor3      = Color3.fromRGB(136,136,136)
-		end
-		if sL[n] then
-			sL[n].dot.BackgroundColor3 = GREEN
-			sL[n].name.TextColor3      = Color3.fromRGB(190,190,190)
-			sL[n].status.Text          = "—"
-		end
-		pcLbl.Text = math.floor(p*100).."%"
-		TS:Create(barFl, TweenInfo.new(.18), { Size=UDim2.new(p,0,1,0) }):Play()
-		task.wait(.05)
-	end
-
-	log()
-	if not game:IsLoaded() then game.Loaded:Wait() end
-	for _, v in ipairs(pg:GetChildren()) do
-		if v.Name == "IntegratedStatusHUD" then v:Destroy() end
-	end
-	log()
-	local mw = 0
-	repeat task.wait(.1); mw += .1 until WS:FindFirstChildOfClass("Terrain") or mw > 5
-	log()
-	local lw = 0
-	repeat task.wait(.2); lw += .2 until lp:FindFirstChild("leaderstats") or lp:FindFirstChild("Data") or lw > 8
-	log()
-	if not lp.Character then
-		local cw = 0
-		repeat task.wait(.1); cw += .1 until lp.Character or cw > 8
-	end
-	log(); log()
-	task.wait(.05)
-
-	_closeLoader = function()
-		if sL[n] then
-			sL[n].dot.BackgroundColor3 = GREEN
-			sL[n].status.TextColor3    = GREEN
-			sL[n].status.Text          = "done"
-		end
-		pcLbl.Text = "100%"
-		TS:Create(barFl, TweenInfo.new(.2), { Size=UDim2.new(1,0,1,0) }):Play()
-		task.wait(.7)
-		TS:Create(card, TweenInfo.new(.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-			Position = UDim2.new(.5,-170,.6,-100), BackgroundTransparency=1,
-		}):Play()
-		for _, s in ipairs(sL) do
-			pcall(function()
-				TS:Create(s.name,   TweenInfo.new(.2), { TextTransparency=1 }):Play()
-				TS:Create(s.status, TweenInfo.new(.2), { TextTransparency=1 }):Play()
-				TS:Create(s.dot,    TweenInfo.new(.2), { BackgroundTransparency=1 }):Play()
-			end)
-		end
-		task.wait(.35)
-		G:Destroy()
-	end
+local lp = Pl.LocalPlayer
+if not lp then
+    repeat task.wait(0.5) until Pl.LocalPlayer
+    lp = Pl.LocalPlayer
 end
 
--- CONFIG
+-- =====================================
+--          M1 AURA CONFIG & REMOTES
+-- =====================================
+local MAX_DISTANCE = 100
+local MIN_DISTANCE = 1
+local SESSION_ID = "32501259"
+local m1_enabled = false
+local targetCount = 0
+local firstTargetName = "None"
+
+local Net = ReplicatedStorage:FindFirstChild("Modules")
+if Net then Net = Net:FindFirstChild("Net") end
+local RegisterAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
+local RegisterHit = Net and Net:FindFirstChild("RE/RegisterHit")
+
+-- =====================================
+--          BLOXHUB CONFIG & STATE
+-- =====================================
 local _cfgDefault = {
 	RemoveDeathEffect = true,
 	BoostV1 = false, BoostV2 = false,
@@ -145,32 +48,12 @@ local _cfgDefault = {
 
 local cfg = {}
 for k, v in pairs(_cfgDefault) do cfg[k] = v end
-
 if type(BloxHubConfig) == "table" then
 	for k, v in pairs(BloxHubConfig) do
 		if cfg[k] ~= nil then cfg[k] = v end
 	end
 end
 BloxHubConfig = nil
-
--- COLORS
-local C = {
-	BG=Color3.fromRGB(6,6,6), PAN=Color3.fromRGB(10,10,10), CARD=Color3.fromRGB(20,20,20),
-	HOV=Color3.fromRGB(28,28,28), SEP=Color3.fromRGB(40,40,40), BOR=Color3.fromRGB(55,55,55),
-	BOR2=Color3.fromRGB(80,80,80), WHT=Color3.fromRGB(200,200,200), OFF=Color3.fromRGB(185,185,185),
-	MUT=Color3.fromRGB(130,130,130), DIM=Color3.fromRGB(95,95,95),
-	OK=Color3.fromRGB(70,155,90), WRN=Color3.fromRGB(185,145,50), ERR=Color3.fromRGB(185,70,70),
-	BELI=Color3.fromRGB(65,155,90), FRAG=Color3.fromRGB(125,65,185),
-	HOP=Color3.fromRGB(175,55,125), WH=Color3.fromRGB(55,120,185),
-	PULL=Color3.fromRGB(185,65,65), BM2=Color3.fromRGB(185,100,0),
-	V1=Color3.fromRGB(50,130,185), V2=Color3.fromRGB(185,65,145),
-	TABON=Color3.fromRGB(70,155,90), TABOFF=Color3.fromRGB(15,15,15),
-	SPEC=Color3.fromRGB(80,160,220), BTN_OFF=Color3.fromRGB(28,28,28),
-	RERUN=Color3.fromRGB(40,140,185), -- AUTO RERUN color
-}
-
-local K = { HW=500, HH=620, PAD=10, COMBAT=2800, MAX=Pl.MaxPlayers, S2M=0.28, TAB_H=36 }
-K.IW = K.HW - K.PAD*2
 
 -- CONNECTION MANAGER
 local Conn = {}; Conn.__index = Conn
@@ -181,81 +64,33 @@ function Conn:disconnectAll() for _, c in ipairs(self._list) do pcall(function()
 -- STATE
 local S = {
 	v1=false, v2=false,
-	-- Hide Players / Enemies
 	hidPlr=cfg.HidePlayers, hidPlrData={}, hidPlrCC={}, hidPlrC={},
 	hidEnm=cfg.HideEnemies, hidEnmP={}, enmConn=nil,
-	-- Hop
 	hop=cfg.AutoHop, hopThread=nil, hopCD=cfg.HopInterval*60, hopTick=tick(), hopTotal=0,
 	hopTarget=cfg.HopServer:lower(),
-	-- Webhook
 	wh=cfg.WebhookEnabled, whTimer=false, whThread=nil,
 	whCD=cfg.WebhookInterval*60, whTick=tick(), whTotal=0,
-	-- Session
 	sessB=nil, sessF=nil, sessOK=false, sessStart=nil,
-	-- FPS
 	fps=0, fc=0, fpsT=tick(), fpsAccum=0, maxFps=0,
-	-- Drag
-	drag=false, dragS=nil, dragP=nil,
-	-- UI cache
-	last={}, lastSz={}, lastCol={}, barTw={}, colTw={},
-	-- Misc
-	selfHL=nil, start=tick(),
+	start=tick(),
 	plrC={[lp.UserId]={join=tick()}}, statC={}, skillC={},
 	spawnW={}, raceW={}, bountyW={},
-	activeTab="status",
 	specTarget=nil, specConn=nil, specCharConn=nil,
 	beliSamples={}, fragSamples={},
-	beliRate=0, fragRate=0,
 	v1Parts={}, v1Conn=nil,
 	v2Conns=Conn.new(),
-	-- AUTO RERUN
 	rerun=false, rerunThread=nil,
 }
 
 local BM = { on=false, task=nil, data={}, noclip=nil, pin=nil, dist=500, batch=20, force=150000, snap=12, yOff=-15 }
 local BM2 = { on=false, task=nil, dist=500, interval=0.05, anchorPos=nil, resetInterval=60, resetTick=0, maxCount=10 }
 local bmTick = 0
-local BASE_WS = 16
+local K_MAX = Pl.MaxPlayers
 local BRINGMOB_BLACKLIST = { Terrorshark=true }
 
--- CORE HELPERS
-local function mk(cl, par, props)
-	local o = Instance.new(cl)
-	if par then o.Parent = par end
-	if props then for k, v in pairs(props) do pcall(function() o[k]=v end) end end
-	return o
-end
-local function corner(p,r) return mk("UICorner",p,{CornerRadius=UDim.new(0,r or 5)}) end
-local function stroke(p,c,t) return mk("UIStroke",p,{Color=c or C.BOR,Thickness=t or 1}) end
-local function tw(o,props,d) TS:Create(o,TweenInfo.new(d or .2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),props):Play() end
-
-local function setText(lb,v) if lb and S.last[lb]~=v then S.last[lb]=v; lb.Text=v end end
-local function setCol(lb,c)
-	if not lb or S.lastCol[lb]==c then return end
-	S.lastCol[lb]=c
-	if S.colTw[lb] then S.colTw[lb]:Cancel() end
-	S.colTw[lb]=TS:Create(lb,TweenInfo.new(.18,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{TextColor3=c})
-	S.colTw[lb]:Play()
-end
-local function setBar(f,sc)
-	local sv=math.clamp(sc,0,1)
-	if S.lastSz[f]==sv then return end
-	S.lastSz[f]=sv
-	if S.barTw[f] then S.barTw[f]:Cancel() end
-	S.barTw[f]=TS:Create(f,TweenInfo.new(.22,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(sv,0,1,0)})
-	S.barTw[f]:Play()
-end
-local function tog(b,on,onC,offC,onT,offT)
-	tw(b,{BackgroundColor3=on and onC or offC},.18)
-	b.Text=on and onT or offT
-	b.TextColor3=on and C.BG or C.MUT
-end
-local function addHov(b,getC)
-	b.MouseEnter:Connect(function() tw(b,{BackgroundColor3=C.HOV},.12) end)
-	b.MouseLeave:Connect(function() tw(b,{BackgroundColor3=getC()},.12) end)
-end
-
--- FORMAT HELPERS
+-- =====================================
+--          HELPERS & UTILS
+-- =====================================
 local function fmtN(n)
 	if type(n)~="number" then return "?" end
 	return tostring(math.floor(math.abs(n))):reverse():gsub("(%d%d%d)","%1,"):reverse():gsub("^,","")
@@ -286,32 +121,13 @@ local function ts()
 	local ok,s=pcall(function() return os.date("!%Y-%m-%dT%H:%M:%SZ") end)
 	return (ok and type(s)=="string") and s or "1970-01-01T00:00:00Z"
 end
-local function localT()
-	local ok,s=pcall(function() return os.date("%Y-%m-%d %H:%M:%S") end)
-	return ok and s or ("~"..math.floor(tick()))
-end
-local function serverT(jt)
-	if not jt then return "In server: ?" end
-	local e=math.floor(tick()-jt)
-	local h=math.floor(e/3600); local m=math.floor((e%3600)/60); local sc=e%60
-	if h>0 then return ("In server: %dh %02dm %02ds"):format(h,m,sc) end
-	if m>0 then return ("In server: %dm %02ds"):format(m,sc) end
-	return ("In server: %ds"):format(sc)
-end
 local function fmtSpawn(s)
 	if not s or s=="" then return "Unknown" end
 	s=tostring(s):gsub("([a-z])([A-Z])","%1 %2"):gsub("_"," "):gsub("(%a)([%w]*)",function(f2,r) return f2:upper()..r:lower() end)
 	return s
 end
-local function emojiBar(val,maxV,len)
-	len=len or 10
-	local p=math.clamp(math.floor((val/math.max(maxV,1))*len),0,len)
-	return string.rep("🟩",p)..string.rep("⬛",len-p)
-end
 
--- ACCURATE RATE CALCULATION
 local SAMPLE_WINDOW = 600
-
 local function pushSample(tbl, val)
 	if type(val) ~= "number" then return end
 	local now = tick()
@@ -344,7 +160,7 @@ local function calcRateLR(samples)
 	return math.floor(slope * 60)
 end
 
--- STAT PATHS / RESOLVE
+-- STAT PATHS & RESOLVE
 local SPATHS = {
 	Level      = {"Data.Level","leaderstats.Level","leaderstats.Lv."},
 	Beli       = {"Data.Beli","leaderstats.Beli","leaderstats.Money"},
@@ -384,7 +200,6 @@ end
 
 -- SPECTATE
 local cam = WS.CurrentCamera
-
 local function stopSpec()
 	if S.specConn     then S.specConn:Disconnect();     S.specConn=nil end
 	if S.specCharConn then S.specCharConn:Disconnect(); S.specCharConn=nil end
@@ -409,48 +224,6 @@ local function startSpec(p)
 		local found=false
 		for _, pl in ipairs(Pl:GetPlayers()) do if pl==S.specTarget then found=true; break end end
 		if not found then stopSpec() end
-	end)
-end
-
--- NOTIFICATIONS
-local gui=mk("ScreenGui",pg,{Name="IntegratedStatusHUD",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=10})
-local NW,NH,NGAP,NMAX=260,44,6,5
-local activeNotifs={}
-
-local function recalcNotifPositions()
-	for i,e in ipairs(activeNotifs) do
-		tw(e.frame,{Position=UDim2.new(1,-(NW+10),0,60+(i-1)*(NH+NGAP))},.2)
-	end
-end
-
-local function showN(name,sub,col)
-	if #activeNotifs>=NMAX then
-		local old=table.remove(activeNotifs,1)
-		tw(old.frame,{Position=UDim2.new(1,NW+10,0,old.frame.Position.Y.Offset),BackgroundTransparency=1},.2)
-		for _,c in ipairs(old.frame:GetDescendants()) do
-			pcall(function()
-				if c:IsA("TextLabel") then tw(c,{TextTransparency=1},.2)
-				elseif c:IsA("Frame") then tw(c,{BackgroundTransparency=1},.2)
-				elseif c:IsA("UIStroke") then tw(c,{Transparency=1},.2) end
-			end)
-		end
-		task.delay(.26,function() if old.frame and old.frame.Parent then old.frame:Destroy() end end)
-	end
-	local f=mk("Frame",gui,{Size=UDim2.new(0,NW,0,NH),Position=UDim2.new(1,NW+10,0,60),BackgroundColor3=C.PAN,BackgroundTransparency=1,ZIndex=60})
-	stroke(f,C.BOR2,1); corner(f,6)
-	local dot2=mk("Frame",f,{Size=UDim2.new(0,8,0,8),Position=UDim2.new(0,10,0,10),BackgroundColor3=col or C.OK,ZIndex=61}); corner(dot2,4)
-	local nLbl=mk("TextLabel",f,{Size=UDim2.new(1,-28,0,16),Position=UDim2.new(0,24,0,4),BackgroundTransparency=1,Font=Enum.Font.GothamBold,TextSize=11,TextColor3=C.WHT,Text=name,TextTruncate=Enum.TextTruncate.AtEnd,TextTransparency=1,ZIndex=61})
-	local sLbl=mk("TextLabel",f,{Size=UDim2.new(1,-28,0,12),Position=UDim2.new(0,24,0,24),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=9,TextColor3=C.DIM,Text=sub or "",TextTruncate=Enum.TextTruncate.AtEnd,TextTransparency=1,ZIndex=61})
-	dot2.BackgroundTransparency=1
-	local entry={frame=f}; table.insert(activeNotifs,entry); recalcNotifPositions()
-	tw(f,{BackgroundTransparency=0},.2); tw(nLbl,{TextTransparency=0},.2); tw(sLbl,{TextTransparency=0},.2); tw(dot2,{BackgroundTransparency=0},.2)
-	task.delay(3,function()
-		local idx=nil; for i,e in ipairs(activeNotifs) do if e==entry then idx=i; break end end
-		if not idx then return end
-		table.remove(activeNotifs,idx); recalcNotifPositions()
-		tw(f,{Position=UDim2.new(1,NW+10,0,f.Position.Y.Offset),BackgroundTransparency=1},.25)
-		tw(nLbl,{TextTransparency=1},.25); tw(sLbl,{TextTransparency=1},.25); tw(dot2,{BackgroundTransparency=1},.25)
-		task.delay(.3,function() if f and f.Parent then f:Destroy() end end)
 	end)
 end
 
@@ -487,7 +260,7 @@ local function setV1(on)
 	end
 end
 
--- BOOST V2 (Best)
+-- BOOST V2
 local GREY=Color3.fromRGB(163,162,165)
 local function stripVisualObj(o)
 	if o:IsA("MeshPart") then o.RenderFidelity=Enum.RenderFidelity.Performance; o.CastShadow=false; o.TextureID=""; o.Color=GREY
@@ -647,10 +420,10 @@ local function startBM()
 				local nt=Vector3.new((mr.Position+d.offset).X,mr.Position.Y+BM.yOff,(mr.Position+d.offset).Z)
 				d.fixedPos=nt
 				if d.bp and d.bp.Parent then pcall(function() d.bp.Position=nt end)
-				else d.bp=mk("BodyPosition",hrp,{Name="BringMobBP_Fixed",MaxForce=Vector3.new(1e9,1e9,1e9),P=500000,D=10000,Position=nt}) end
+				else d.bp=Instance.new("BodyPosition",hrp) d.bp.Name="BringMobBP_Fixed" d.bp.MaxForce=Vector3.new(1e9,1e9,1e9) d.bp.P=500000 d.bp.D=10000 d.bp.Position=nt end
 			end
 			if d.bp and d.bp.Parent then pcall(function() d.bp.Position=Vector3.new(d.bp.Position.X,mr.Position.Y+BM.yOff,d.bp.Position.Z) end) end
-			if not d.bg or not d.bg.Parent then d.bg=mk("BodyGyro",hrp,{Name="BringMobBG",MaxTorque=Vector3.new(1e9,1e9,1e9),P=100000,D=2000,CFrame=hrp.CFrame}) end
+			if not d.bg or not d.bg.Parent then d.bg=Instance.new("BodyGyro",hrp) d.bg.Name="BringMobBG" d.bg.MaxTorque=Vector3.new(1e9,1e9,1e9) d.bg.P=100000 d.bg.D=2000 d.bg.CFrame=hrp.CFrame end
 			pcall(function() hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
 		end
 	end)
@@ -668,8 +441,8 @@ local function startBM()
 						local hrp=bmHRP(e)
 						if hrp then
 							pcall(function() if d.bp and d.bp.Parent then d.bp:Destroy() end end)
-							local fbp=mk("BodyPosition",hrp,{Name="BringMobBP_Fixed",MaxForce=Vector3.new(1e9,1e9,1e9),P=500000,D=10000,Position=hrp.Position})
-							local bg=mk("BodyGyro",hrp,{Name="BringMobBG",MaxTorque=Vector3.new(1e9,1e9,1e9),P=100000,D=2000,CFrame=hrp.CFrame})
+							local fbp=Instance.new("BodyPosition",hrp) fbp.Name="BringMobBP_Fixed" fbp.MaxForce=Vector3.new(1e9,1e9,1e9) fbp.P=500000 fbp.D=10000 fbp.Position=hrp.Position
+							local bg=Instance.new("BodyGyro",hrp) bg.Name="BringMobBG" bg.MaxTorque=Vector3.new(1e9,1e9,1e9) bg.P=100000 bg.D=2000 bg.CFrame=hrp.CFrame
 							pcall(function() local h=bmHum(e); if h then h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end end)
 							d.bp=fbp; d.bg=bg; d.arrived=true; d.fixedPos=hrp.Position
 						end
@@ -689,7 +462,7 @@ local function startBM()
 					if pulling>=BM.batch then continue end
 					local off=bmGetOff()
 					local tp=Vector3.new((ap+off).X,ap.Y+BM.yOff,(ap+off).Z)
-					local bp=mk("BodyPosition",hrp,{Name="BringMobBP",MaxForce=Vector3.new(1e9,1e9,1e9),P=BM.force,D=2000,Position=tp})
+					local bp=Instance.new("BodyPosition",hrp) bp.Name="BringMobBP" bp.MaxForce=Vector3.new(1e9,1e9,1e9) bp.P=BM.force bp.D=2000 bp.Position=tp
 					pcall(function() local h=bmHum(e); if h then h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end end)
 					pcall(function() for _,p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end end)
 					BM.data[e]={bp=bp,arrived=false,offset=off,stuckTime=0,lastPos=hrp.Position}; pulling=pulling+1
@@ -704,10 +477,10 @@ local function startBM()
 				if dist2<=BM.snap then
 					pcall(function() d.bp:Destroy() end)
 					pcall(function() hrp.AssemblyLinearVelocity=Vector3.zero end)
-					local bv=mk("BodyVelocity",hrp,{Name="BringMobBV",MaxForce=Vector3.new(1e9,1e9,1e9),Velocity=Vector3.zero})
+					local bv=Instance.new("BodyVelocity",hrp) bv.Name="BringMobBV" bv.MaxForce=Vector3.new(1e9,1e9,1e9) bv.Velocity=Vector3.zero
 					task.wait()
-					local fbp=mk("BodyPosition",hrp,{Name="BringMobBP_Fixed",MaxForce=Vector3.new(1e9,1e9,1e9),P=500000,D=10000,Position=hrp.Position})
-					local bg=mk("BodyGyro",hrp,{Name="BringMobBG",MaxTorque=Vector3.new(1e9,1e9,1e9),P=100000,D=2000,CFrame=hrp.CFrame})
+					local fbp=Instance.new("BodyPosition",hrp) fbp.Name="BringMobBP_Fixed" fbp.MaxForce=Vector3.new(1e9,1e9,1e9) fbp.P=500000 fbp.D=10000 fbp.Position=hrp.Position
+					local bg=Instance.new("BodyGyro",hrp) bg.Name="BringMobBG" bg.MaxTorque=Vector3.new(1e9,1e9,1e9) bg.P=100000 bg.D=2000 bg.CFrame=hrp.CFrame
 					pcall(function() local h=bmHum(e); if h then h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end end)
 					task.delay(.5,function() if bv and bv.Parent then pcall(function() bv:Destroy() end) end end)
 					d.bp=fbp; d.bg=bg; d.bv=bv; d.arrived=true; d.fixedPos=hrp.Position
@@ -810,7 +583,7 @@ local function sendWebhook(sessBeli,sessFrags,elapsed,source)
 		buildField("Melee",fmtN(melee),true), buildField("Sword",fmtN(sword),true),
 		buildField("Gun",fmtN(gun),true), buildField("Defense",fmtN(def),true),
 		buildField("Blox Fruit",fmtN(fruit),true), buildField("Spawn",spawn2,true),
-		buildField("Players",tostring(#Pl:GetPlayers()).."/"..K.MAX,true),
+		buildField("Players",tostring(#Pl:GetPlayers()).."/"..K_MAX,true),
 		buildField("FPS / Ping",S.fps.." FPS | "..getPing().."ms",true),
 	}
 	_sendWH(url,{
@@ -818,12 +591,11 @@ local function sendWebhook(sessBeli,sessFrags,elapsed,source)
 		embeds={{
 			title="Session Report — "..source, color=3066993,
 			description=pName.." | "..fmtS(elapsed or 0).."\nBeli "..sessBStr.." ("..wFmt(bPM).."/min)\nFrags "..sessFS.." ("..wFmt(fPM).."/min)",
-			fields=fields, footer={text="BloxHub v3 | Report #"..S.whTotal}, timestamp=ts(),
+			fields=fields, footer={text="BloxHub Unified | Report #"..S.whTotal}, timestamp=ts(),
 		}},
 	})
 end
 
--- WH TIMER
 local function startWHTimer()
 	S.whTimer=true; S.whCD=cfg.WebhookInterval*60; S.whTick=tick()
 	if S.whThread then task.cancel(S.whThread) end
@@ -855,30 +627,39 @@ local function doHop()
 	local cb=getStat("Beli") or 0; local cf=getStat("Fragments") or 0
 	local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
 	task.spawn(function() sendWebhook(S.sessOK and math.floor(cb-(S.sessB or cb)) or 0, S.sessOK and math.floor(cf-(S.sessF or cf)) or 0, tick()-jt,"Auto Hop") end)
-	local sb=pg:FindFirstChild("ServerBrowser"); if not sb then return end
-	local frame=sb:FindFirstChild("Frame"); if not frame then return end
+	
+	local pg = lp:FindFirstChild("PlayerGui")
+	local sb = pg and pg:FindFirstChild("ServerBrowser")
+	if not sb then return end
+	local frame = sb:FindFirstChild("Frame")
+	if not frame then return end
+
 	local watching=true
-	local watchThread=task.spawn(function()
+	task.spawn(function()
 		while watching do task.wait(.5); if not sb.Enabled or not frame.Visible then sb.Enabled=true; frame.Visible=true end end
 	end)
+
 	if not sb.Enabled then sb.Enabled=true; task.wait(.3) end
 	if not frame.Visible then frame.Visible=true; task.wait(.3) end
+
 	pcall(function()
 		local rb=frame.Filters.SearchRegion:FindFirstChildOfClass("TextBox")
 		if rb then rb.Text=S.hopTarget~="" and S.hopTarget or ""; rb:ReleaseFocus() end
 	end)
 	pcall(function() frame.Refresh:Activate() end)
 	task.wait(3)
+
 	local inside=frame:FindFirstChild("FakeScroll") and frame.FakeScroll:FindFirstChild("Inside")
 	if not inside then watching=false; return end
 	local maxP=cfg.HopMaxPlayers or 3; local tried={}
+
 	local function findBest()
 		local best,bestC=nil,math.huge
 		local fs=frame:FindFirstChild("FakeScroll"); if not fs then return nil end
 		local absPos=fs.AbsolutePosition; local absSz=fs.AbsoluteSize
 		local cx=absPos.X+absSz.X/2; local cy=absPos.Y+absSz.Y/2
-		local function scrollDown() pcall(function() game:GetService("VirtualInputManager"):SendMouseWheelEvent(cx,cy,false,game) end) end
-		local function scrollUp() pcall(function() game:GetService("VirtualInputManager"):SendMouseWheelEvent(cx,cy,true,game) end) end
+		local function scrollDown() pcall(function() VirtualInputManager:SendMouseWheelEvent(cx,cy,false,game) end) end
+		local function scrollUp() pcall(function() VirtualInputManager:SendMouseWheelEvent(cx,cy,true,game) end) end
 		local seenJobs={}
 		local function readRows()
 			local foundNew=false
@@ -905,23 +686,25 @@ local function doHop()
 			while noNew<10 do
 				for _=1,3 do scrollDown() end; task.wait(.25)
 				if readRows() then noNew=0 else noNew=noNew+1 end
-				if best then showN("Auto Hop","Found! "..bestC.." players",C.HOP); return best end
+				if best then return best end
 			end
 			if pass<3 then tried={}; pcall(function() frame.Refresh:Activate() end); task.wait(4) end
 		end
 		return best
 	end
+
 	local function tryHop()
 		local server=findBest()
 		if server then
-			tried[server.jobId]=true; showN("Auto Hop","Found: "..server.cur.." players",C.HOP)
-			local fc; fc=game:GetService("TeleportService").TeleportInitFailed:Connect(function()
+			tried[server.jobId]=true
+			local fc; fc=TeleportService.TeleportInitFailed:Connect(function()
 				if fc then fc:Disconnect(); fc=nil end; task.wait(1); tryHop()
 			end)
 			for _,c in ipairs(getconnections(server.jb.MouseButton1Click)) do c:Fire() end
 			task.delay(5,function() if fc then fc:Disconnect(); fc=nil end end)
-		else showN("Auto Hop","No server found",C.ERR) end
+		end
 	end
+
 	tryHop(); task.delay(10,function() watching=false end)
 end
 
@@ -940,7 +723,9 @@ end
 local function stopHop()
 	S.hop=false; if S.hopThread then task.cancel(S.hopThread); S.hopThread=nil end; S.hopCD=cfg.HopInterval*60
 	pcall(function()
-		local sb=pg:FindFirstChild("ServerBrowser"); if not sb then return end
+		local pg = lp:FindFirstChild("PlayerGui")
+		local sb = pg and pg:FindFirstChild("ServerBrowser")
+		if not sb then return end
 		sb.Enabled=false; local f=sb:FindFirstChild("Frame"); if f then f.Visible=false end
 	end)
 end
@@ -951,7 +736,6 @@ local function startRerun()
 	if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
 	task.spawn(function()
 		if not cfg.AutoRerunURL or cfg.AutoRerunURL == "" then
-			showN("Auto Rerun", "No URL set!", C.ERR)
 			S.rerun = false
 			return
 		end
@@ -972,15 +756,7 @@ local function startRerun()
 				if ok3 then queued = true; break end
 			end
 		end
-		if queued then
-			showN("Auto Rerun", "Ready! Runs after hop", C.RERUN)
-		else
-			showN("Auto Rerun", "queue function unavailable", C.ERR)
-			S.rerun = false
-			if UI and UI.rerunBtn then
-				tog(UI.rerunBtn, false, C.RERUN, C.BTN_OFF, "Auto Rerun: On", "Auto Rerun: Off")
-			end
-		end
+		if not queued then S.rerun = false end
 	end)
 end
 
@@ -989,7 +765,6 @@ local function stopRerun()
 	if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
 	pcall(function() queueonteleport("") end)
 	pcall(function() queue_on_teleport("") end)
-	showN("Auto Rerun", "Disabled", C.ERR)
 end
 
 -- PLAYER WATCHER
@@ -1014,859 +789,713 @@ local function watchPlr(p)
 	end)
 end
 
--- GUI HELPERS
-local function lbl(par,p)
-	return mk("TextLabel",par,{
-		BackgroundTransparency=1, Font=p.font or Enum.Font.GothamBold, TextSize=p.sz or 13,
-		TextColor3=p.col or C.OFF, Text=p.txt or "", Size=p.size or UDim2.new(1,0,0,18),
-		Position=p.pos or UDim2.new(0,0,0,0), TextXAlignment=p.ax or Enum.TextXAlignment.Left,
-		TextYAlignment=p.ay or Enum.TextYAlignment.Center, TextTruncate=p.tr or Enum.TextTruncate.None, ZIndex=p.z or 2,
-	})
+-- =====================================
+--          M1 AURA LOGIC
+-- =====================================
+local function getTargetPart(enemy)
+    if not enemy or not enemy.Parent then return nil end
+    local part = enemy:FindFirstChild("LeftLowerLeg")
+    if part and part:IsA("BasePart") then return part end
+    part = enemy:FindFirstChild("Head")
+    if part and part:IsA("BasePart") then return part end
+    part = enemy:FindFirstChild("HumanoidRootPart")
+    if part and part:IsA("BasePart") then return part end
+    for _, child in ipairs(enemy:GetChildren()) do
+        if child:IsA("BasePart") then return child end
+    end
+    return nil
 end
 
-local _vis=true
-local hudPos=UDim2.new(.5,-K.HW/2,.5,-K.HH/2)
-local full=mk("Frame",gui,{Size=UDim2.new(0,K.HW,0,K.HH),Position=hudPos,BackgroundColor3=C.PAN,BorderSizePixel=0,ClipsDescendants=true,ZIndex=2})
-stroke(full,C.BOR2,2); corner(full,8)
+local function getEnemiesInRange()
+    local character = lp.Character
+    if not character then return {} end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return {} end
+    local myPos = hrp.Position
 
-local titleBar=mk("Frame",full,{Size=UDim2.new(1,0,0,28),BackgroundColor3=Color3.fromRGB(8,8,8),BorderSizePixel=0,ZIndex=3})
-corner(titleBar,8)
-mk("Frame",titleBar,{Size=UDim2.new(1,0,0,14),Position=UDim2.new(0,0,1,-14),BackgroundColor3=Color3.fromRGB(8,8,8),BorderSizePixel=0,ZIndex=3})
-lbl(titleBar,{size=UDim2.new(1,-140,1,0),pos=UDim2.new(0,10,0,0),sz=13,col=C.WHT,txt="BloxHub  v3",z=4})
-lbl(titleBar,{size=UDim2.new(0,120,1,0),pos=UDim2.new(1,-124,0,0),sz=8,col=C.DIM,txt="[RCtrl] hide • v3 Clean",ax=Enum.TextXAlignment.Right,z=4})
+    local enemiesFolder = WS:FindFirstChild("Enemies")
+    if not enemiesFolder then return {} end
 
-local miniAvaTB=mk("ImageLabel",titleBar,{Size=UDim2.new(0,20,0,20),Position=UDim2.new(0,140,0,4),BackgroundColor3=C.CARD,ZIndex=4}); corner(miniAvaTB,3)
-
-titleBar.InputBegan:Connect(function(i)
-	if i.UserInputType==Enum.UserInputType.MouseButton1 then S.drag=true; S.dragS=i.Position; S.dragP=full.Position end
-end)
-UIS.InputChanged:Connect(function(i)
-	if S.drag and i.UserInputType==Enum.UserInputType.MouseMovement then
-		local ok,d=pcall(function() return i.Position-S.dragS end)
-		if not ok then S.drag=false; return end
-		full.Position=UDim2.new(S.dragP.X.Scale,S.dragP.X.Offset+d.X,S.dragP.Y.Scale,S.dragP.Y.Offset+d.Y)
-	end
-end)
-UIS.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then S.drag=false end end)
-
-local tabBar=mk("Frame",full,{Size=UDim2.new(1,0,0,K.TAB_H),Position=UDim2.new(0,0,0,28),BackgroundColor3=Color3.fromRGB(8,8,8),BorderSizePixel=0,ZIndex=3})
-mk("Frame",tabBar,{Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,1,-1),BackgroundColor3=C.SEP,ZIndex=4})
-
-local BODY_Y=28+K.TAB_H
-local pageContainer=mk("Frame",full,{Size=UDim2.new(1,0,0,K.HH-BODY_Y),Position=UDim2.new(0,0,0,BODY_Y),BackgroundTransparency=1,ClipsDescendants=true,ZIndex=2})
-
-local TABS={
-	{id="status",label="Status"},{id="controls",label="Controls"},
-	{id="bringmob",label="BringMob"},{id="players",label="Players"},
-	{id="log",label="Log"},
-}
-local tabBtns={}; local tabPages={}
-local tabW=math.floor(K.HW/#TABS)
-
-for i,tab in ipairs(TABS) do
-	local x=(i-1)*tabW; local w=(i==#TABS) and (K.HW-(i-1)*tabW) or tabW
-	local tb=mk("TextButton",tabBar,{Size=UDim2.new(0,w,1,-1),Position=UDim2.new(0,x,0,0),BackgroundColor3=C.TABOFF,BorderSizePixel=0,Text=tab.label,TextColor3=C.DIM,TextSize=11,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	local underline=mk("Frame",tb,{Size=UDim2.new(0,0,0,2),Position=UDim2.new(0,0,1,-2),BackgroundColor3=C.TABON,BorderSizePixel=0,ZIndex=5}); corner(underline,1)
-	tabBtns[tab.id]={btn=tb,line=underline}
-	local sf=mk("ScrollingFrame",pageContainer,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BOR2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,Visible=false,ZIndex=3})
-	local inn=mk("Frame",sf,{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,ZIndex=3})
-	mk("UIPadding",inn,{PaddingLeft=UDim.new(0,K.PAD),PaddingRight=UDim.new(0,K.PAD),PaddingTop=UDim.new(0,8),PaddingBottom=UDim.new(0,8)})
-	mk("UIListLayout",inn,{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder})
-	tabPages[tab.id]={sf=sf,inn=inn}
+    local results = {}
+    for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+        if enemy and enemy.Parent then
+            local humanoid = enemy:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health and humanoid.Health > 0 then
+                local part = getTargetPart(enemy)
+                if part and part.Parent then
+                    local ok, pos = pcall(function() return part.Position end)
+                    if ok and pos then
+                        local dist = (pos - myPos).Magnitude
+                        if dist <= MAX_DISTANCE and dist >= MIN_DISTANCE then
+                            table.insert(results, {enemy = enemy, part = part, dist = dist})
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return results
 end
 
-local function switchTab(id)
-	if S.activeTab==id then return end
-	local oldSF=tabPages[S.activeTab] and tabPages[S.activeTab].sf
-	if oldSF then
-		tw(oldSF,{BackgroundTransparency=1},.1)
-		for _,obj in ipairs(oldSF:GetDescendants()) do pcall(function() if obj:IsA("TextLabel") or obj:IsA("TextButton") then TS:Create(obj,TweenInfo.new(.1),{TextTransparency=1}):Play() end end) end
-		task.delay(.12,function() oldSF.Visible=false; oldSF.BackgroundTransparency=1 end)
-	end
-	S.activeTab=id
-	for tid,tb in pairs(tabBtns) do
-		local on=(tid==id)
-		tw(tb.btn,{BackgroundColor3=on and Color3.fromRGB(16,16,16) or C.TABOFF},.12)
-		tb.btn.TextColor3=on and C.WHT or C.DIM
-		tw(tb.line,{Size=UDim2.new(on and 1 or 0,0,0,2)},.15)
-	end
-	local newSF=tabPages[id] and tabPages[id].sf
-	if newSF then
-		for _,obj in ipairs(newSF:GetDescendants()) do pcall(function() if obj:IsA("TextLabel") or obj:IsA("TextButton") then obj.TextTransparency=1 end end) end
-		task.delay(.05,function()
-			newSF.Visible=true
-			for _,obj in ipairs(newSF:GetDescendants()) do pcall(function() if obj:IsA("TextLabel") or obj:IsA("TextButton") then TS:Create(obj,TweenInfo.new(.15),{TextTransparency=0}):Play() end end) end
-		end)
-	end
-end
-for _,tab in ipairs(TABS) do tabBtns[tab.id].btn.MouseButton1Click:Connect(function() switchTab(tab.id) end) end
+local function AttackMultiple(enemyList)
+    if not m1_enabled or #enemyList == 0 then return end
 
-local function section(tabId,order,titleTxt)
-	local parent=tabPages[tabId].inn
-	local f=mk("Frame",parent,{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundColor3=C.CARD,BorderSizePixel=0,LayoutOrder=order,ZIndex=3})
-	corner(f,5); stroke(f,C.BOR,1)
-	mk("UIPadding",f,{PaddingLeft=UDim.new(0,8),PaddingRight=UDim.new(0,8),PaddingTop=UDim.new(0,6),PaddingBottom=UDim.new(0,6)})
-	mk("UIListLayout",f,{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder})
-	if titleTxt then
-		mk("TextLabel",f,{Size=UDim2.new(1,0,0,14),BackgroundTransparency=1,Font=Enum.Font.GothamBold,TextSize=11,TextColor3=C.DIM,Text=titleTxt:upper(),TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=0,ZIndex=4})
-		mk("Frame",f,{Size=UDim2.new(1,0,0,1),BackgroundColor3=C.SEP,ZIndex=4,LayoutOrder=1})
-	end
-	return f
-end
-local function secLbl(parent,lo,txt,col,sz) return mk("TextLabel",parent,{Size=UDim2.new(1,0,0,(sz or 13)+2),BackgroundTransparency=1,Font=Enum.Font.GothamBold,TextSize=sz or 13,TextColor3=col or C.OFF,Text=txt,TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=lo,ZIndex=4}) end
-local function secBtn(parent,lo,txt,on,col)
-	local b=mk("TextButton",parent,{Size=UDim2.new(1,0,0,26),BackgroundColor3=on and col or C.BTN_OFF,BorderSizePixel=0,LayoutOrder=lo,Text=txt,TextColor3=on and C.BG or C.MUT,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	stroke(b,C.BOR2,1); corner(b,4); return b
-end
-local function secBox(parent,lo,ph,h)
-	local b=mk("TextBox",parent,{Size=UDim2.new(1,0,0,h or 26),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText=ph,PlaceholderColor3=C.DIM,LayoutOrder=lo,ZIndex=4})
-	stroke(b,C.BOR2,1); corner(b,4); return b
-end
-local function inlineRow(parent,lo) return mk("Frame",parent,{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,LayoutOrder=lo,ZIndex=4}) end
-local function inlineBtn(row,xOff,w,txt,col)
-	local b=mk("TextButton",row,{Size=UDim2.new(0,w,1,0),Position=UDim2.new(0,xOff,0,0),BackgroundColor3=col,BorderSizePixel=0,Text=txt,TextColor3=C.BG,TextSize=11,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	stroke(b,C.BOR2,1); corner(b,4); return b
-end
-local function inlineBox(row,xOff,w,ph)
-	local b=mk("TextBox",row,{Size=UDim2.new(0,w,1,0),Position=UDim2.new(0,xOff,0,0),BackgroundColor3=Color3.fromRGB(16,16,16),BorderSizePixel=0,Font=Enum.Font.Gotham,TextSize=11,TextColor3=C.WHT,Text="",PlaceholderText=ph,PlaceholderColor3=C.DIM,ZIndex=4})
-	stroke(b,C.BOR2,1); corner(b,4); return b
+    local hitTable = {}
+    local primaryPart = nil
+    for _, entry in ipairs(enemyList) do
+        if entry.enemy and entry.enemy.Parent and entry.part and entry.part.Parent then
+            table.insert(hitTable, {entry.enemy, entry.part})
+            if not primaryPart then
+                primaryPart = entry.part
+            end
+        end
+    end
+
+    if #hitTable == 0 then return end
+
+    if RegisterAttack and RegisterHit then
+        pcall(function()
+            RegisterAttack:FireServer(0.5)
+            task.wait()
+            RegisterHit:FireServer(primaryPart, hitTable, nil, SESSION_ID)
+        end)
+    end
 end
 
-local UI={}
+-- =====================================
+--          RAYFIELD UI SETUP
+-- =====================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- STATUS TAB
-do
-	local sec1=section("status",1,"Profile")
-	local avaRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,52),BackgroundTransparency=1,LayoutOrder=2,ZIndex=4})
-	UI.ava=mk("ImageLabel",avaRow,{Size=UDim2.new(0,48,0,48),Position=UDim2.new(0,0,0,2),BackgroundColor3=C.CARD,ZIndex=5}); corner(UI.ava,5); stroke(UI.ava,C.BOR2,1)
-	task.spawn(function()
-		local ok,t=pcall(function() return Pl:GetUserThumbnailAsync(lp.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size100x100) end)
-		if ok and t then UI.ava.Image=t; miniAvaTB.Image=t end
-	end)
-	UI.charLbl=lbl(avaRow,{size=UDim2.new(1,-56,0,18),pos=UDim2.new(0,54,0,2),sz=13,col=C.WHT,txt="Loading...",tr=Enum.TextTruncate.AtEnd,z=5})
-	UI.lvlLbl=lbl(avaRow,{size=UDim2.new(1,-56,0,13),pos=UDim2.new(0,54,0,20),font=Enum.Font.Gotham,sz=10,col=C.MUT,txt="LV. 0",z=5})
-	local pDot=mk("Frame",avaRow,{Size=UDim2.new(0,7,0,7),Position=UDim2.new(0,54,0,36),BackgroundColor3=C.OK,ZIndex=5}); corner(pDot,4)
-	lbl(avaRow,{size=UDim2.new(0,60,0,11),pos=UDim2.new(0,64,0,34),sz=9,col=C.DIM,txt="ONLINE",z=5})
-	task.spawn(function() while true do tw(pDot,{BackgroundTransparency=.5},.8); task.wait(.8); tw(pDot,{BackgroundTransparency=0},.8); task.wait(.8) end end)
+local Window = Rayfield:CreateWindow({
+   Name = "BloxHub Unified Hub",
+   Icon = 0,
+   LoadingTitle = "BloxHub + M1 Aura",
+   LoadingSubtitle = "Rayfield Interface Suite",
+   Theme = "Default",
 
-	local cW2=math.floor(K.IW/3)-4
-	local infoRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,38),BackgroundTransparency=1,LayoutOrder=3,ZIndex=4})
-	local function infoCol(xi,lb2)
-		lbl(infoRow,{size=UDim2.new(0,cW2,0,11),pos=UDim2.new(0,xi,0,0),sz=8,col=C.DIM,txt=lb2,z=5})
-		return lbl(infoRow,{size=UDim2.new(0,cW2,0,15),pos=UDim2.new(0,xi,0,11),sz=11,col=C.OFF,txt="???",tr=Enum.TextTruncate.AtEnd,z=5})
-	end
-	UI.raceLbl=infoCol(0,"RACE"); UI.teamLbl=infoCol(cW2+6,"TEAM"); UI.spawnLbl=infoCol((cW2+6)*2,"SPAWN")
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
 
-	local fpsRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,18),BackgroundTransparency=1,LayoutOrder=4,ZIndex=4})
-	UI.fpsLbl=lbl(fpsRow,{size=UDim2.new(0,110,1,0),sz=11,col=C.OFF,txt="FPS 0",z=5})
-	UI.pingLbl=lbl(fpsRow,{size=UDim2.new(0,110,1,0),pos=UDim2.new(0,110,0,0),sz=11,col=C.OFF,txt="PING 0ms",z=5})
-	UI.timeLbl=lbl(fpsRow,{size=UDim2.new(0,120,1,0),pos=UDim2.new(1,-120,0,0),font=Enum.Font.Gotham,sz=9,col=C.DIM,txt="00:00:00",ax=Enum.TextXAlignment.Right,z=5})
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = nil,
+      FileName = "BloxHubUnifiedConfig"
+   },
 
-	local sec2=section("status",2,"Combat Stats")
-	local function statRow(lb3,lo2,col2)
-		local r=mk("Frame",sec2,{Size=UDim2.new(1,0,0,32),BackgroundTransparency=1,LayoutOrder=lo2,ZIndex=4})
-		lbl(r,{size=UDim2.new(0,80,0,12),sz=9,col=C.DIM,txt=lb3:upper(),z=5})
-		local vl=lbl(r,{size=UDim2.new(0,80,0,15),pos=UDim2.new(0,0,0,12),sz=12,col=C.OFF,txt="0",z=5})
-		local bb=mk("Frame",r,{Size=UDim2.new(1,-88,0,4),Position=UDim2.new(0,88,0,14),BackgroundColor3=C.BOR,ZIndex=4}); corner(bb,2)
-		local bf=mk("Frame",bb,{Size=UDim2.new(0,0,1,0),BackgroundColor3=col2 or C.V1,ZIndex=5}); corner(bf,2)
-		return vl,bf
-	end
-	UI.meleeLbl,UI.meleeBar=statRow("Melee",2,C.V1); UI.defLbl,UI.defBar=statRow("Defense",3,C.V1)
-	UI.swordLbl,UI.swordBar=statRow("Sword",4,C.V1); UI.gunLbl,UI.gunBar=statRow("Gun",5,C.V1)
-	UI.fruitLbl,UI.fruitBar=statRow("Blox Fruit",6,C.WRN)
+   Discord = {
+      Enabled = false,
+      Invite = "noinvitelink",
+      RememberJoins = true
+   },
 
-	local sec3=section("status",3,"Economy & Rates")
-	local hw2=math.floor((K.IW-4)/2)
+   KeySystem = false
+})
 
-	local ecoRow1=mk("Frame",sec3,{Size=UDim2.new(1,0,0,32),BackgroundTransparency=1,LayoutOrder=2,ZIndex=4})
-	lbl(ecoRow1,{size=UDim2.new(0,hw2,0,12),sz=8,col=C.DIM,txt="TOTAL BELI",z=5})
-	UI.beliLbl=lbl(ecoRow1,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,0,0,12),sz=14,col=C.BELI,txt="0",z=5})
-	lbl(ecoRow1,{size=UDim2.new(0,hw2,0,12),pos=UDim2.new(0,hw2+4,0,0),sz=8,col=C.DIM,txt="TOTAL FRAGMENTS",z=5})
-	UI.fragLbl=lbl(ecoRow1,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,hw2+4,0,12),sz=14,col=C.FRAG,txt="0",z=5})
-
-	local ecoRow2=mk("Frame",sec3,{Size=UDim2.new(1,0,0,32),BackgroundTransparency=1,LayoutOrder=3,ZIndex=4})
-	lbl(ecoRow2,{size=UDim2.new(0,hw2,0,12),sz=8,col=C.DIM,txt="SESSION BELI",z=5})
-	UI.sessBLbl=lbl(ecoRow2,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,0,0,12),sz=12,col=C.BELI,txt="+0",z=5})
-	lbl(ecoRow2,{size=UDim2.new(0,hw2,0,12),pos=UDim2.new(0,hw2+4,0,0),sz=8,col=C.DIM,txt="SESSION FRAG",z=5})
-	UI.sessFLbl=lbl(ecoRow2,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,hw2+4,0,12),sz=12,col=C.FRAG,txt="+0",z=5})
-
-	mk("Frame",sec3,{Size=UDim2.new(1,0,0,1),BackgroundColor3=C.SEP,ZIndex=4,LayoutOrder=4})
-	local qw=math.floor(K.IW/4)-2
-	local rateRow=mk("Frame",sec3,{Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,LayoutOrder=5,ZIndex=4})
-	local function rateCol(xi2,lb4,col4,key)
-		lbl(rateRow,{size=UDim2.new(0,qw,0,11),pos=UDim2.new(0,xi2,0,0),sz=8,col=C.DIM,txt=lb4,z=5})
-		UI[key]=lbl(rateRow,{size=UDim2.new(0,qw,0,15),pos=UDim2.new(0,xi2,0,13),sz=11,col=col4,txt="+0",z=5})
-	end
-	rateCol(0,"BELI/MIN",C.BELI,"bPMLbl"); rateCol(qw+2,"BELI/HR",C.BELI,"bHRLbl")
-	rateCol((qw+2)*2,"FRAG/MIN",C.FRAG,"fPMLbl"); rateCol((qw+2)*3,"FRAG/HR",C.FRAG,"fHRLbl")
-
-	mk("Frame",sec3,{Size=UDim2.new(1,0,0,1),BackgroundColor3=C.SEP,ZIndex=4,LayoutOrder=6})
-	local projRow1=mk("Frame",sec3,{Size=UDim2.new(1,0,0,32),BackgroundTransparency=1,LayoutOrder=8,ZIndex=4})
-	lbl(projRow1,{size=UDim2.new(0,hw2,0,12),sz=8,col=C.DIM,txt="BELI IN 1H",z=5})
-	UI.projB1H=lbl(projRow1,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,0,0,12),sz=12,col=C.BELI,txt="...",z=5})
-	lbl(projRow1,{size=UDim2.new(0,hw2,0,12),pos=UDim2.new(0,hw2+4,0,0),sz=8,col=C.DIM,txt="FRAG IN 1H",z=5})
-	UI.projF1H=lbl(projRow1,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,hw2+4,0,12),sz=12,col=C.FRAG,txt="...",z=5})
-	local projRow2=mk("Frame",sec3,{Size=UDim2.new(1,0,0,32),BackgroundTransparency=1,LayoutOrder=9,ZIndex=4})
-	lbl(projRow2,{size=UDim2.new(0,hw2,0,12),sz=8,col=C.DIM,txt="BELI IN 4H",z=5})
-	UI.projB4H=lbl(projRow2,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,0,0,12),sz=12,col=C.BELI,txt="...",z=5})
-	lbl(projRow2,{size=UDim2.new(0,hw2,0,12),pos=UDim2.new(0,hw2+4,0,0),sz=8,col=C.DIM,txt="FRAG IN 4H",z=5})
-	UI.projF4H=lbl(projRow2,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,hw2+4,0,12),sz=12,col=C.FRAG,txt="...",z=5})
-	local projRow3=mk("Frame",sec3,{Size=UDim2.new(1,0,0,32),BackgroundTransparency=1,LayoutOrder=10,ZIndex=4})
-	lbl(projRow3,{size=UDim2.new(0,hw2,0,12),sz=8,col=C.DIM,txt="BELI IN 8H",z=5})
-	UI.projB8H=lbl(projRow3,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,0,0,12),sz=12,col=C.BELI,txt="...",z=5})
-	lbl(projRow3,{size=UDim2.new(0,hw2,0,12),pos=UDim2.new(0,hw2+4,0,0),sz=8,col=C.DIM,txt="FRAG IN 8H",z=5})
-	UI.projF8H=lbl(projRow3,{size=UDim2.new(0,hw2,0,16),pos=UDim2.new(0,hw2+4,0,12),sz=12,col=C.FRAG,txt="...",z=5})
-	UI.rateSrcLbl=secLbl(sec3,11,"Waiting for data...",C.DIM,8)
+local function notify(title, text)
+    pcall(function()
+        Rayfield:Notify({
+            Title = title or "BloxHub",
+            Content = text or "",
+            Duration = 3
+        })
+    end)
 end
 
--- CONTROLS TAB
-do
-	local sec1=section("controls",1,"Performance Boosts")
-	UI.v1Btn=secBtn(sec1,2,"Boost V1: Off",false,C.V1)
-	UI.v2Btn=secBtn(sec1,3,"Boost V2 (Best): Off",false,C.V2)
+-- TABS
+local M1Tab        = Window:CreateTab("M1 Aura", 4483362458)
+local BringMobTab  = Window:CreateTab("BringMob", 4483362458)
+local StatusTab    = Window:CreateTab("Status & Stats", 4483362458)
+local BoostTab     = Window:CreateTab("Performance", 4483362458)
+local HopWHTab     = Window:CreateTab("Hop & Webhook", 4483362458)
+local AutoRerunTab = Window:CreateTab("Auto Rerun", 4483362458)
+local SpectateTab  = Window:CreateTab("Spectate", 4483362458)
 
-	local sec2=section("controls",2,"Visibility")
-	UI.hidBtn=secBtn(sec2,2,"Delete Players: Off",false,C.WHT)
-	UI.enmBtn=secBtn(sec2,3,"Hide Enemies: Off",false,C.ERR)
+-- 1. TAB: M1 AURA
+local M1Toggle = M1Tab:CreateToggle({
+   Name = "Enable M1 Aura",
+   CurrentValue = false,
+   Flag = "M1AuraToggle",
+   Callback = function(Value)
+      m1_enabled = Value
+   end,
+})
 
-	local sec3=section("controls",3,"FPS Lock")
-	local fpsRow=inlineRow(sec3,2)
-	local capBox=inlineBox(fpsRow,0,K.IW-64,"Target FPS e.g. 60")
-	local setFpsBtn=inlineBtn(fpsRow,K.IW-60,56,"SET",C.OK)
-	local function onFpsSet()
-		local n=tonumber(capBox.Text)
-		if n and n>0 then
-			pcall(function() settings().Rendering.FrameRateManager.MaxFrameRate=n end)
-			pcall(function() setfpscap(n) end)
-			capBox.Text=""; capBox.PlaceholderText=n.." FPS"
-			showN("FPS Lock","Set to "..n.." FPS",C.OK)
-		end
-	end
-	setFpsBtn.MouseButton1Click:Connect(onFpsSet)
-	capBox.FocusLost:Connect(function(enter) if enter then onFpsSet() end end)
+local M1DistSlider = M1Tab:CreateSlider({
+   Name = "Max Distance",
+   Range = {1, 300},
+   Increment = 1,
+   Suffix = "Studs",
+   CurrentValue = MAX_DISTANCE,
+   Flag = "M1DistSlider",
+   Callback = function(Value)
+      MAX_DISTANCE = Value
+   end,
+})
 
-	local sec4=section("controls",4,"Auto Hop")
-	UI.hopBtn=secBtn(sec4,2,"Auto Hop: Off",false,C.HOP)
-	local hopNowRow=inlineRow(sec4,3)
-	UI.hopNowBtn=mk("TextButton",hopNowRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.HOP,BorderSizePixel=0,Text="Hop Now",TextColor3=C.BG,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	stroke(UI.hopNowBtn,C.BOR2,1); corner(UI.hopNowBtn,4)
-	local hopMaxRow=inlineRow(sec4,4)
-	local hopMaxBox=inlineBox(hopMaxRow,0,K.IW-70,"Max players (default 3)")
-	local hopMaxBtn=inlineBtn(hopMaxRow,K.IW-66,62,"SET",C.HOP)
-	hopMaxBtn.MouseButton1Click:Connect(function()
-		local n=tonumber(hopMaxBox.Text)
-		if n and n>=0 then cfg.HopMaxPlayers=n; hopMaxBox.Text=""; hopMaxBox.PlaceholderText="Max: "..n; showN("Auto Hop","Hop ≤"..n.." players",C.HOP)
-		else showN("Auto Hop","Enter a number",C.WRN) end
-	end)
-	UI.hopCD=secLbl(sec4,5,"DISABLED",C.HOP,10)
+local M1StatusParagraph = M1Tab:CreateParagraph({
+    Title = "M1 Aura Status",
+    Content = "Status: OFF\nTargets: 0 (None)"
+})
 
-	local sec5=section("controls",5,"Webhook")
-	secLbl(sec5,2,"WEBHOOK URL",C.DIM,8)
-	local whUrlBox=secBox(sec5,3,"Paste Discord Webhook URL...",26)
-	whUrlBox.Text=cfg.WebhookURL; whUrlBox.ClearTextOnFocus=false
-	secLbl(sec5,4,"BOT NAME",C.DIM,8)
-	local whNameBox=secBox(sec5,5,cfg.WebhookName,22)
-	whNameBox.Text=cfg.WebhookName; whNameBox.ClearTextOnFocus=false
-	local applyRow=inlineRow(sec5,6)
-	local applyBtn=mk("TextButton",applyRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.WH,BorderSizePixel=0,Text="Save URL & Name",TextColor3=C.BG,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	stroke(applyBtn,C.BOR2,1); corner(applyBtn,4)
-	UI.whApplyStatus=secLbl(sec5,7,"Not saved yet",C.DIM,9)
-	applyBtn.MouseButton1Click:Connect(function()
-		local url=whUrlBox.Text
-		if url=="" or not url:find("discord.com/api/webhooks") then
-			setText(UI.whApplyStatus,"Invalid URL"); setCol(UI.whApplyStatus,C.ERR); showN("Webhook","Invalid URL!",C.ERR); return
-		end
-		cfg.WebhookURL=url; cfg.WebhookName=whNameBox.Text~="" and whNameBox.Text or "BloxHub"
-		setText(UI.whApplyStatus,"Saved — "..cfg.WebhookName); setCol(UI.whApplyStatus,C.OK); showN("Webhook","URL saved",C.WH)
-	end)
-	mk("Frame",sec5,{Size=UDim2.new(1,0,0,1),BackgroundColor3=C.SEP,ZIndex=4,LayoutOrder=8})
-	UI.whBtn=secBtn(sec5,9,"Webhook: Off",false,C.WH)
-	UI.whTimBtn=secBtn(sec5,10,"WH Timer: Off",false,C.WH)
-	local whTestRow=inlineRow(sec5,11)
-	UI.whTestBtn=mk("TextButton",whTestRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.BTN_OFF,BorderSizePixel=0,Text="Send Test Report",TextColor3=C.WRN,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	stroke(UI.whTestBtn,C.BOR2,1); corner(UI.whTestBtn,4)
-	UI.whCD=secLbl(sec5,12,"DISABLED",C.WH,10)
+-- 2. TAB: BRINGMOB
+local BM1Toggle = BringMobTab:CreateToggle({
+   Name = "BringMob V1 (Pull)",
+   CurrentValue = false,
+   Flag = "BM1Toggle",
+   Callback = function(Value)
+      if Value then
+          startBM()
+          notify("BringMob V1", "Pull ON | Range: "..BM.dist)
+      else
+          stopBM()
+          notify("BringMob V1", "Disabled")
+      end
+   end,
+})
 
-	-- AUTO RERUN SECTION
-	local sec6=section("controls",6,"Auto Rerun")
-	secLbl(sec6,2,"Script re-executes after every hop",C.DIM,9)
-	secLbl(sec6,3,"RERUN URL",C.DIM,8)
-	local rerunUrlBox=secBox(sec6,4,"Paste raw script URL...",26)
-	rerunUrlBox.Text=cfg.AutoRerunURL; rerunUrlBox.ClearTextOnFocus=false
-	local rerunSaveRow=inlineRow(sec6,5)
-	local rerunSaveBtn=mk("TextButton",rerunSaveRow,{
-		Size=UDim2.new(1,0,1,0), BackgroundColor3=C.RERUN, BorderSizePixel=0,
-		Text="Save URL", TextColor3=C.BG, TextSize=12, Font=Enum.Font.GothamBold,
-		AutoButtonColor=false, ZIndex=4,
-	})
-	stroke(rerunSaveBtn,C.BOR2,1); corner(rerunSaveBtn,4)
-	UI.rerunSaveStatus=secLbl(sec6,6,"Not saved yet",C.DIM,9)
-	rerunSaveBtn.MouseButton1Click:Connect(function()
-		local url=rerunUrlBox.Text
-		if url=="" or not url:find("http") then
-			setText(UI.rerunSaveStatus,"Invalid URL"); setCol(UI.rerunSaveStatus,C.ERR)
-			showN("Auto Rerun","Invalid URL!",C.ERR); return
-		end
-		cfg.AutoRerunURL=url
-		setText(UI.rerunSaveStatus,"Saved!"); setCol(UI.rerunSaveStatus,C.OK)
-		showN("Auto Rerun","URL saved",C.RERUN)
-		-- re-queue immediately if rerun is already active
-		if S.rerun then stopRerun(); task.wait(.1); startRerun(); tog(UI.rerunBtn,true,C.RERUN,C.BTN_OFF,"Auto Rerun: On","Auto Rerun: Off") end
-	end)
-	mk("Frame",sec6,{Size=UDim2.new(1,0,0,1),BackgroundColor3=C.SEP,ZIndex=4,LayoutOrder=7})
-	UI.rerunBtn=secBtn(sec6,8,"Auto Rerun: Off",false,C.RERUN)
-	UI.rerunBtn.MouseButton1Click:Connect(function()
-		if S.rerun then
-			stopRerun()
-			tog(UI.rerunBtn,false,C.RERUN,C.BTN_OFF,"Auto Rerun: On","Auto Rerun: Off")
-		else
-			startRerun()
-			-- tog reflects actual state after startRerun sets S.rerun
-			task.wait(.05)
-			tog(UI.rerunBtn,S.rerun,C.RERUN,C.BTN_OFF,"Auto Rerun: On","Auto Rerun: Off")
-		end
-	end)
+local BM1DistSlider = BringMobTab:CreateSlider({
+   Name = "V1 Pull Range",
+   Range = {50, 1500},
+   Increment = 10,
+   Suffix = "Studs",
+   CurrentValue = BM.dist,
+   Flag = "BM1DistSlider",
+   Callback = function(Value)
+      BM.dist = Value
+   end,
+})
+
+BringMobTab:CreateSection("BringMob V2 (Warp)")
+
+local BM2Toggle = BringMobTab:CreateToggle({
+   Name = "BringMob V2 (Warp)",
+   CurrentValue = false,
+   Flag = "BM2Toggle",
+   Callback = function(Value)
+      if Value then
+          startBM2()
+          notify("BringMob V2", "Warp ON | Max: "..BM2.maxCount)
+      else
+          stopBM2()
+          notify("BringMob V2", "Disabled")
+      end
+   end,
+})
+
+local BM2DistSlider = BringMobTab:CreateSlider({
+   Name = "V2 Warp Range",
+   Range = {50, 1500},
+   Increment = 10,
+   Suffix = "Studs",
+   CurrentValue = BM2.dist,
+   Flag = "BM2DistSlider",
+   Callback = function(Value)
+      BM2.dist = Value
+   end,
+})
+
+local BM2MaxSlider = BringMobTab:CreateSlider({
+   Name = "V2 Max Mobs",
+   Range = {1, 50},
+   Increment = 1,
+   Suffix = "mobs",
+   CurrentValue = BM2.maxCount,
+   Flag = "BM2MaxSlider",
+   Callback = function(Value)
+      BM2.maxCount = Value
+   end,
+})
+
+local BM2IntervalInput = BringMobTab:CreateInput({
+   Name = "V2 Warp Interval (sec)",
+   PlaceholderText = "Default: 0.05",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local n = tonumber(Text)
+      if n and n > 0 then
+          BM2.interval = n
+          notify("BringMob V2", "Interval set to " .. n .. "s")
+      end
+   end,
+})
+
+BringMobTab:CreateButton({
+   Name = "Set Anchor = My Position",
+   Callback = function()
+      local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+      if hrp then
+          BM2.anchorPos = hrp.Position
+          BM2.resetTick = tick()
+          notify("BringMob V2", ("Anchor set to %.0f, %.0f, %.0f"):format(hrp.Position.X, hrp.Position.Y, hrp.Position.Z))
+      end
+   end,
+})
+
+BringMobTab:CreateButton({
+   Name = "Clear Anchor (Follow Mode)",
+   Callback = function()
+      BM2.anchorPos = nil
+      notify("BringMob V2", "Cleared anchor -> Follow Mode")
+   end,
+})
+
+BringMobTab:CreateSection("Shared Settings")
+
+local YOffsetSlider = BringMobTab:CreateSlider({
+   Name = "Y Offset (V1 & V2)",
+   Range = {-50, 50},
+   Increment = 1,
+   Suffix = "Studs",
+   CurrentValue = BM.yOff,
+   Flag = "YOffsetSlider",
+   Callback = function(Value)
+      BM.yOff = Value
+   end,
+})
+
+local BMStatusParagraph = BringMobTab:CreateParagraph({
+    Title = "BringMob Status",
+    Content = "V1: OFF\nV2: OFF\nY Offset: -15"
+})
+
+-- 3. TAB: STATUS & STATS
+local ProfileParagraph = StatusTab:CreateParagraph({
+    Title = "Profile & Game Info",
+    Content = "Loading profile..."
+})
+
+local CombatParagraph = StatusTab:CreateParagraph({
+    Title = "Combat Stats",
+    Content = "Loading stats..."
+})
+
+local EconomyParagraph = StatusTab:CreateParagraph({
+    Title = "Economy & Rates",
+    Content = "Loading economy..."
+})
+
+local PerfParagraph = StatusTab:CreateParagraph({
+    Title = "Performance & Server",
+    Content = "Loading FPS/Ping..."
+})
+
+-- 4. TAB: PERFORMANCE & VISUALS
+local V1Toggle = BoostTab:CreateToggle({
+   Name = "Boost V1 (Hide Map)",
+   CurrentValue = cfg.BoostV1,
+   Flag = "V1Toggle",
+   Callback = function(Value)
+      S.v1 = Value
+      setV1(Value)
+      notify("Boost V1", Value and "Map Hidden" or "Off")
+   end,
+})
+
+local V2Toggle = BoostTab:CreateToggle({
+   Name = "Boost V2 (Strip Visuals / Best FPS)",
+   CurrentValue = cfg.BoostV2,
+   Flag = "V2Toggle",
+   Callback = function(Value)
+      S.v2 = Value
+      setV2(Value)
+      notify("Boost V2", Value and "Visuals Stripped" or "Off")
+   end,
+})
+
+local HidePlrToggle = BoostTab:CreateToggle({
+   Name = "Delete Other Players",
+   CurrentValue = cfg.HidePlayers,
+   Flag = "HidePlrToggle",
+   Callback = function(Value)
+      S.hidPlr = Value
+      toggleHidePlr(Value)
+      notify("Hide Players", Value and "Players Hidden" or "Off")
+   end,
+})
+
+local HideEnmToggle = BoostTab:CreateToggle({
+   Name = "Hide Enemies",
+   CurrentValue = cfg.HideEnemies,
+   Flag = "HideEnmToggle",
+   Callback = function(Value)
+      S.hidEnm = Value
+      toggleHidEnm(Value)
+      notify("Hide Enemies", Value and "Enemies Hidden" or "Off")
+   end,
+})
+
+BoostTab:CreateInput({
+   Name = "Set FPS Cap",
+   PlaceholderText = "e.g. 60",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local n = tonumber(Text)
+      if n and n > 0 then
+          pcall(function() settings().Rendering.FrameRateManager.MaxFrameRate = n end)
+          pcall(function() setfpscap(n) end)
+          notify("FPS Cap", "Set to " .. n .. " FPS")
+      end
+   end,
+})
+
+-- 5. TAB: HOP & WEBHOOK
+local HopToggle = HopWHTab:CreateToggle({
+   Name = "Auto Hop",
+   CurrentValue = cfg.AutoHop,
+   Flag = "AutoHopToggle",
+   Callback = function(Value)
+      if Value then
+          startHop()
+          notify("Auto Hop", "Every " .. cfg.HopInterval .. " min")
+      else
+          stopHop()
+          notify("Auto Hop", "Disabled")
+      end
+   end,
+})
+
+HopWHTab:CreateButton({
+   Name = "Hop Now",
+   Callback = function()
+      notify("Auto Hop", "Hopping server...")
+      task.spawn(doHop)
+   end,
+})
+
+HopWHTab:CreateInput({
+   Name = "Hop Max Players",
+   PlaceholderText = tostring(cfg.HopMaxPlayers),
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local n = tonumber(Text)
+      if n and n >= 0 then
+          cfg.HopMaxPlayers = n
+          notify("Auto Hop", "Max players: " .. n)
+      end
+   end,
+})
+
+HopWHTab:CreateSection("Discord Webhook")
+
+HopWHTab:CreateInput({
+   Name = "Webhook URL",
+   PlaceholderText = cfg.WebhookURL,
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      if Text ~= "" and Text:find("discord.com/api/webhooks") then
+          cfg.WebhookURL = Text
+          notify("Webhook", "URL Saved")
+      end
+   end,
+})
+
+HopWHTab:CreateInput({
+   Name = "Bot Name",
+   PlaceholderText = cfg.WebhookName,
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      if Text ~= "" then
+          cfg.WebhookName = Text
+          notify("Webhook", "Bot Name Saved")
+      end
+   end,
+})
+
+local WHToggle = HopWHTab:CreateToggle({
+   Name = "Enable Webhook",
+   CurrentValue = cfg.WebhookEnabled,
+   Flag = "WHToggle",
+   Callback = function(Value)
+      S.wh = Value
+      cfg.WebhookEnabled = Value
+      notify("Webhook", Value and "Enabled" or "Disabled")
+   end,
+})
+
+local WHTimerToggle = HopWHTab:CreateToggle({
+   Name = "Webhook Timer",
+   CurrentValue = false,
+   Flag = "WHTimerToggle",
+   Callback = function(Value)
+      if Value then
+          startWHTimer()
+          notify("WH Timer", "Every " .. cfg.WebhookInterval .. " min")
+      else
+          stopWHTimer()
+          notify("WH Timer", "Disabled")
+      end
+   end,
+})
+
+HopWHTab:CreateButton({
+   Name = "Send Test Webhook",
+   Callback = function()
+      local cb = getStat("Beli") or 0
+      local cf = getStat("Fragments") or 0
+      local jt = S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
+      sendWebhook(S.sessOK and math.floor(cb-(S.sessB or cb)) or 0, S.sessOK and math.floor(cf-(S.sessF or cf)) or 0, tick()-jt, "Test")
+      notify("Webhook", "Test sent!")
+   end,
+})
+
+local HopWHParagraph = HopWHTab:CreateParagraph({
+    Title = "Timer Status",
+    Content = "Next Hop: Disabled\nNext Webhook: Disabled"
+})
+
+-- 6. TAB: AUTO RERUN & EXTRA
+local RerunToggle = AutoRerunTab:CreateToggle({
+   Name = "Enable Auto Rerun",
+   CurrentValue = cfg.AutoRerun,
+   Flag = "RerunToggle",
+   Callback = function(Value)
+      if Value then
+          startRerun()
+          notify("Auto Rerun", "Enabled")
+      else
+          stopRerun()
+          notify("Auto Rerun", "Disabled")
+      end
+   end,
+})
+
+AutoRerunTab:CreateInput({
+   Name = "Auto Rerun Script URL",
+   PlaceholderText = cfg.AutoRerunURL,
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      if Text ~= "" and Text:find("http") then
+          cfg.AutoRerunURL = Text
+          notify("Auto Rerun", "URL Saved!")
+          if S.rerun then
+              stopRerun()
+              startRerun()
+          end
+      end
+   end,
+})
+
+AutoRerunTab:CreateToggle({
+   Name = "Remove Death Effect",
+   CurrentValue = cfg.RemoveDeathEffect,
+   Flag = "RDEText",
+   Callback = function(Value)
+      cfg.RemoveDeathEffect = Value
+   end,
+})
+
+-- 7. TAB: SPECTATE
+local function getPlayerListNames()
+    local t = {}
+    for _, p in ipairs(Pl:GetPlayers()) do
+        if p ~= lp then
+            table.insert(t, p.Name)
+        end
+    end
+    if #t == 0 then table.insert(t, "None") end
+    return t
 end
 
--- BRINGMOB TAB
-do
-	local sec1=section("bringmob",1,"BringMob Controls")
-	UI.pullBtn=secBtn(sec1,2,"BringMob V1 (Pull): Off",false,C.PULL)
-	UI.pullBtn2=secBtn(sec1,3,"BringMob V2 (Warp): Off",false,C.BM2)
+local specTargetPlayer = nil
 
-	local bm2IntRow=inlineRow(sec1,4)
-	local bm2Box=inlineBox(bm2IntRow,0,K.IW-70,"V2 Warp interval sec")
-	local bm2SetBtn=inlineBtn(bm2IntRow,K.IW-66,62,"SET",C.BM2)
+local SpecDropdown = SpectateTab:CreateDropdown({
+   Name = "Target Player",
+   Options = getPlayerListNames(),
+   CurrentOption = {"None"},
+   MultipleOptions = false,
+   Flag = "SpecDropdown",
+   Callback = function(Options)
+      local name = Options[1]
+      if name and name ~= "None" then
+          specTargetPlayer = Pl:FindFirstChild(name)
+      else
+          specTargetPlayer = nil
+      end
+   end,
+})
 
-	local bm2DistRow=inlineRow(sec1,5)
-	local bm2DistBox=inlineBox(bm2DistRow,0,K.IW-70,"V2 Range studs")
-	local bm2DistBtn=inlineBtn(bm2DistRow,K.IW-66,62,"SET",C.BM2)
+SpectateTab:CreateButton({
+   Name = "Refresh Player Dropdown",
+   Callback = function()
+      SpecDropdown:Refresh(getPlayerListNames())
+      notify("Spectate", "Player list refreshed")
+   end,
+})
 
-	local bm2MaxRow=inlineRow(sec1,6)
-	local bm2MaxBox=inlineBox(bm2MaxRow,0,K.IW-70,"V2 Max mobs")
-	local bm2MaxBtn=inlineBtn(bm2MaxRow,K.IW-66,62,"SET",C.BM2)
+SpectateTab:CreateButton({
+   Name = "Start Spectating",
+   Callback = function()
+      if specTargetPlayer then
+          startSpec(specTargetPlayer)
+          notify("Spectate", "Spectating " .. specTargetPlayer.Name)
+      else
+          notify("Spectate", "Select a valid player first!")
+      end
+   end,
+})
 
-	local bm2AnchorRow=inlineRow(sec1,7)
-	local bm2AnchorBtn=mk("TextButton",bm2AnchorRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.BM2,BorderSizePixel=0,Text="Set Anchor = My Position",TextColor3=C.BG,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	stroke(bm2AnchorBtn,C.BOR2,1); corner(bm2AnchorBtn,4)
+SpectateTab:CreateButton({
+   Name = "Stop Spectating",
+   Callback = function()
+      stopSpec()
+      notify("Spectate", "Stopped spectating")
+   end,
+})
 
-	local bm2ClearRow=inlineRow(sec1,8)
-	local bm2ClearBtn=mk("TextButton",bm2ClearRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.BTN_OFF,BorderSizePixel=0,Text="Clear Anchor (Follow Me)",TextColor3=C.WRN,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	stroke(bm2ClearBtn,C.BOR2,1); corner(bm2ClearBtn,4)
-
-	local xyzRow=inlineRow(sec1,9)
-	local xyzW=math.floor((K.IW-8)/3)-2
-	local bm2XBox=inlineBox(xyzRow,0,xyzW,"X"); local bm2YBox=inlineBox(xyzRow,xyzW+4,xyzW,"Y"); local bm2ZBox=inlineBox(xyzRow,(xyzW+4)*2,xyzW,"Z")
-
-	local xyzApplyRow=inlineRow(sec1,10)
-	local xyzApplyBtn=mk("TextButton",xyzApplyRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.BTN_OFF,BorderSizePixel=0,Text="Apply XYZ as Anchor",TextColor3=C.BM2,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	stroke(xyzApplyBtn,C.BOR2,1); corner(xyzApplyBtn,4)
-
-	local bm2RstRow=inlineRow(sec1,11)
-	local bm2RstBox=inlineBox(bm2RstRow,0,K.IW-70,"Auto-reset every N sec (0=off)")
-	local bm2RstBtn=inlineBtn(bm2RstRow,K.IW-66,62,"SET",C.BM2)
-
-	local numSec=section("bringmob",2,"V1 Distance & Y Offset")
-	local distHdr=secLbl(numSec,2,"Range (studs)  [current: "..BM.dist.."]",C.DIM,9)
-	local distBox=secBox(numSec,3,"Dist: "..BM.dist)
-	local setDistBtn=secBtn(numSec,4,"Apply V1 Distance",true,C.OK); setDistBtn.TextColor3=C.BG
-	local yHdr=secLbl(numSec,5,"Y Offset  [current: "..BM.yOff.."]  (V1 & V2)",C.DIM,9)
-	local yOffBox=secBox(numSec,6,"Y: "..BM.yOff)
-	local setYBtn=secBtn(numSec,7,"Apply Y Offset (V1 & V2)",true,C.V1); setYBtn.TextColor3=C.BG
-
-	local stSec=section("bringmob",3,"Status")
-	UI.bmCountLbl=secLbl(stSec,2,"BringMob V1: Off",C.DIM,10)
-	UI.bm2StatusLbl=secLbl(stSec,3,"BringMob V2: Off",C.DIM,10)
-	UI.bm2AnchorLbl=secLbl(stSec,4,"V2 Anchor: —",C.DIM,9)
-	UI.bm2ResetLbl=secLbl(stSec,5,"V2 Reset: —",C.DIM,9)
-	UI.bmYLbl=secLbl(stSec,6,"Y Offset (shared): "..BM.yOff,C.DIM,9)
-	UI.bmDistLbl=secLbl(stSec,7,"V1 Dist: "..BM.dist,C.DIM,9)
-	UI.bm2DistLbl=secLbl(stSec,8,"V2 Dist: "..BM2.dist,C.DIM,9)
-	UI.bm2MaxLbl=secLbl(stSec,9,"V2 Max Mobs: "..BM2.maxCount,C.DIM,9)
-
-	setDistBtn.MouseButton1Click:Connect(function()
-		local n=tonumber(distBox.Text); if n and n>0 then BM.dist=n; distBox.Text=""; distBox.PlaceholderText="Dist: "..n; setText(distHdr,"Range (studs)  [current: "..n.."]"); S.last[distHdr]=nil; setText(UI.bmDistLbl,"V1 Dist: "..n); showN("BringMob V1","Range → "..n.." studs",C.OK)
-		else showN("BringMob","Enter a valid number!",C.WRN) end
-	end)
-	setYBtn.MouseButton1Click:Connect(function()
-		local n=tonumber(yOffBox.Text); if n~=nil then BM.yOff=n; yOffBox.Text=""; yOffBox.PlaceholderText="Y: "..n; setText(yHdr,"Y Offset  [current: "..n.."]  (V1 & V2)"); S.last[yHdr]=nil; setText(UI.bmYLbl,"Y Offset (shared): "..n); S.last[UI.bmYLbl]=nil; showN("BringMob","Y Offset → "..n,C.V1)
-		else showN("BringMob","Enter a number e.g. -15",C.WRN) end
-	end)
-	UI.pullBtn.MouseButton1Click:Connect(function()
-		if BM.on then stopBM(); tog(UI.pullBtn,false,C.PULL,C.BTN_OFF,"BringMob V1 (Pull): On","BringMob V1 (Pull): Off"); setText(UI.bmCountLbl,"BringMob V1: Off"); setCol(UI.bmCountLbl,C.DIM); showN("BringMob V1","Disabled",C.ERR)
-		else startBM(); tog(UI.pullBtn,true,C.PULL,C.BTN_OFF,"BringMob V1 (Pull): On","BringMob V1 (Pull): Off"); showN("BringMob V1","Pull ON | Dist: "..BM.dist.."  Y: "..BM.yOff,C.PULL) end
-	end)
-	UI.pullBtn2.MouseButton1Click:Connect(function()
-		if BM2.on then stopBM2(); tog(UI.pullBtn2,false,C.BM2,C.BTN_OFF,"BringMob V2 (Warp): On","BringMob V2 (Warp): Off"); setText(UI.bm2StatusLbl,"BringMob V2: Off"); setCol(UI.bm2StatusLbl,C.DIM); showN("BringMob V2","Disabled",C.ERR)
-		else startBM2(); tog(UI.pullBtn2,true,C.BM2,C.BTN_OFF,"BringMob V2 (Warp): On","BringMob V2 (Warp): Off"); setText(UI.bm2StatusLbl,"BringMob V2: ON"); setCol(UI.bm2StatusLbl,C.BM2); showN("BringMob V2","Warp+Noclip ON | Max: "..BM2.maxCount,C.BM2) end
-	end)
-	bm2AnchorBtn.MouseButton1Click:Connect(function()
-		local hrp=lp.Character and lp.Character:FindFirstChild("HumanoidRootPart"); if not hrp then showN("BringMob V2","No Character!",C.WRN); return end
-		BM2.anchorPos=hrp.Position; BM2.resetTick=tick()
-		local p=hrp.Position; bm2XBox.Text=tostring(math.floor(p.X)); bm2YBox.Text=tostring(math.floor(p.Y)); bm2ZBox.Text=tostring(math.floor(p.Z))
-		local aStr=("%.0f, %.0f, %.0f"):format(p.X,p.Y,p.Z); setText(UI.bm2AnchorLbl,"V2 Anchor (Fixed): "..aStr); S.last[UI.bm2AnchorLbl]=nil; showN("BringMob V2","Anchor → "..aStr,C.BM2)
-	end)
-	xyzApplyBtn.MouseButton1Click:Connect(function()
-		local x,y,z=tonumber(bm2XBox.Text),tonumber(bm2YBox.Text),tonumber(bm2ZBox.Text)
-		if not x or not y or not z then showN("BringMob V2","Fill X Y Z first!",C.WRN); return end
-		BM2.anchorPos=Vector3.new(x,y,z); BM2.resetTick=tick()
-		local aStr=("%.0f, %.0f, %.0f"):format(x,y,z); setText(UI.bm2AnchorLbl,"V2 Anchor: "..aStr); S.last[UI.bm2AnchorLbl]=nil; showN("BringMob V2","Anchor (manual) → "..aStr,C.BM2)
-	end)
-	bm2ClearBtn.MouseButton1Click:Connect(function()
-		BM2.anchorPos=nil; bm2XBox.Text=""; bm2YBox.Text=""; bm2ZBox.Text=""
-		setText(UI.bm2AnchorLbl,"V2 Anchor: Follow Mode"); S.last[UI.bm2AnchorLbl]=nil; showN("BringMob V2","Cleared → Follow mode",C.WRN)
-	end)
-	bm2SetBtn.MouseButton1Click:Connect(function()
-		local n=tonumber(bm2Box.Text); if n and n>0 then BM2.interval=n; bm2Box.Text=""; bm2Box.PlaceholderText="Interval: "..n.."s"; showN("BringMob V2","Interval → "..n.."s",C.BM2) else showN("BringMob V2","Enter number e.g. 0.1",C.WRN) end
-	end)
-	bm2DistBtn.MouseButton1Click:Connect(function()
-		local n=tonumber(bm2DistBox.Text); if n and n>0 then BM2.dist=n; bm2DistBox.Text=""; bm2DistBox.PlaceholderText="V2 Range: "..n; setText(UI.bm2DistLbl,"V2 Dist: "..n); S.last[UI.bm2DistLbl]=nil; showN("BringMob V2","Range → "..n,C.BM2) else showN("BringMob V2","Enter number e.g. 500",C.WRN) end
-	end)
-	bm2MaxBtn.MouseButton1Click:Connect(function()
-		local n=tonumber(bm2MaxBox.Text); if n and n>0 then BM2.maxCount=math.floor(n); bm2MaxBox.Text=""; bm2MaxBox.PlaceholderText="Max mobs: "..BM2.maxCount; setText(UI.bm2MaxLbl,"V2 Max Mobs: "..BM2.maxCount); S.last[UI.bm2MaxLbl]=nil; showN("BringMob V2","Max mobs → "..BM2.maxCount,C.BM2) else showN("BringMob V2","Enter a number e.g. 10",C.WRN) end
-	end)
-	bm2RstBtn.MouseButton1Click:Connect(function()
-		local n=tonumber(bm2RstBox.Text); if n~=nil and n>=0 then BM2.resetInterval=n; bm2RstBox.Text=""; bm2RstBox.PlaceholderText="Reset: "..(n==0 and"never" or n.."s"); showN("BringMob V2","Auto-reset → "..(n==0 and"never" or n.."s"),C.BM2) else showN("BringMob V2","Enter a number (0=off)",C.WRN) end
-	end)
-end
-
--- PLAYERS TAB
-do
-	local sec1=section("players",1,"Server Info")
-	local pcRow=mk("Frame",sec1,{Size=UDim2.new(1,0,0,28),BackgroundTransparency=1,LayoutOrder=2,ZIndex=4})
-	lbl(pcRow,{size=UDim2.new(0,90,0,12),sz=8,col=C.DIM,txt="PLAYERS",z=5})
-	UI.pcLbl=lbl(pcRow,{size=UDim2.new(0,90,0,16),pos=UDim2.new(0,0,0,12),sz=13,col=C.WHT,txt="? / "..K.MAX,z=5})
-	lbl(pcRow,{size=UDim2.new(0,90,0,12),pos=UDim2.new(1,-94,0,0),sz=8,col=C.DIM,txt="TOTAL BOUNTY",ax=Enum.TextXAlignment.Right,z=5})
-	UI.bountyLbl=lbl(pcRow,{size=UDim2.new(0,90,0,16),pos=UDim2.new(1,-94,0,12),sz=11,col=Color3.fromRGB(185,120,40),txt="0",ax=Enum.TextXAlignment.Right,z=5})
-	local svrBg=mk("Frame",sec1,{Size=UDim2.new(1,0,0,3),BackgroundColor3=C.BOR,ZIndex=4,LayoutOrder=3}); corner(svrBg,1)
-	UI.svrBar=mk("Frame",svrBg,{Size=UDim2.new(0,0,1,0),BackgroundColor3=C.WHT,ZIndex=5}); corner(UI.svrBar,1)
-
-	local specSec=section("players",2,"Spectate")
-	UI.specStatusLbl=secLbl(specSec,2,"Not spectating",C.DIM,10)
-	local specStopRow=inlineRow(specSec,3)
-	UI.specStopBtn=mk("TextButton",specStopRow,{Size=UDim2.new(1,0,1,0),BackgroundColor3=C.BTN_OFF,BorderSizePixel=0,Text="Stop Spectate",TextColor3=C.DIM,TextSize=12,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=4})
-	stroke(UI.specStopBtn,C.BOR2,1); corner(UI.specStopBtn,4)
-	UI.specStopBtn.MouseButton1Click:Connect(function()
-		if S.specTarget then
-			local n=S.specTarget.DisplayName; stopSpec()
-			setText(UI.specStatusLbl,"Not spectating"); setCol(UI.specStatusLbl,C.DIM)
-			tw(UI.specStopBtn,{BackgroundColor3=C.BTN_OFF},.15); UI.specStopBtn.TextColor3=C.DIM
-			showN("Spectate","Stopped — "..n,C.DIM)
-		end
-	end)
-
-	local listSec=section("players",3,"Player List")
-	local plrSF=mk("ScrollingFrame",listSec,{Size=UDim2.new(1,0,0,300),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BOR2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,ZIndex=4,LayoutOrder=2})
-	mk("UIListLayout",plrSF,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
-
-	UI.plrRows={}; UI.plrRowMap={}
-	local SPEC_BTN_W=38
-	for i=1,20 do
-		local row=mk("Frame",plrSF,{Size=UDim2.new(1,-4,0,66),BackgroundColor3=Color3.fromRGB(16,16,16),ZIndex=5,LayoutOrder=i,Visible=false})
-		stroke(row,C.BOR,1); corner(row,4)
-		local specBtn=mk("TextButton",row,{Size=UDim2.new(0,SPEC_BTN_W,0,24),Position=UDim2.new(1,-(SPEC_BTN_W+6),0,4),BackgroundColor3=C.SPEC,BorderSizePixel=0,Text="SPEC",TextColor3=C.BG,TextSize=10,Font=Enum.Font.GothamBold,AutoButtonColor=false,ZIndex=7})
-		stroke(specBtn,C.BOR2,1); corner(specBtn,3)
-		UI.plrRows[i]={
-			row=row, specBtn=specBtn,
-			nameLbl=lbl(row,{size=UDim2.new(1,-(SPEC_BTN_W+16),0,14),pos=UDim2.new(0,6,0,3),sz=11,col=C.WHT,txt="",tr=Enum.TextTruncate.AtEnd,z=6}),
-			lvlLbl=lbl(row,{size=UDim2.new(0,50,0,14),pos=UDim2.new(1,-(SPEC_BTN_W+60),0,3),sz=10,col=C.MUT,txt="",ax=Enum.TextXAlignment.Right,z=6}),
-			raceLbl=lbl(row,{size=UDim2.new(0,120,0,12),pos=UDim2.new(0,6,0,19),font=Enum.Font.Gotham,sz=9,col=Color3.fromRGB(80,140,200),txt="",tr=Enum.TextTruncate.AtEnd,z=6}),
-			spawnLbl=lbl(row,{size=UDim2.new(0,150,0,12),pos=UDim2.new(0,130,0,19),font=Enum.Font.Gotham,sz=9,col=C.DIM,txt="",tr=Enum.TextTruncate.AtEnd,z=6}),
-			bountyLbl=lbl(row,{size=UDim2.new(1,-90,0,12),pos=UDim2.new(0,6,0,33),font=Enum.Font.Gotham,sz=9,col=Color3.fromRGB(185,120,40),txt="",tr=Enum.TextTruncate.AtEnd,z=6}),
-			distLbl=lbl(row,{size=UDim2.new(0,82,0,12),pos=UDim2.new(1,-86,0,33),font=Enum.Font.Gotham,sz=9,col=Color3.fromRGB(130,130,185),txt="",ax=Enum.TextXAlignment.Right,z=6}),
-			timeLbl=lbl(row,{size=UDim2.new(1,-6,0,12),pos=UDim2.new(0,6,0,51),font=Enum.Font.Gotham,sz=9,col=Color3.fromRGB(130,170,200),txt="",tr=Enum.TextTruncate.AtEnd,z=6}),
-		}
-		local idx=i
-		row.InputBegan:Connect(function(input)
-			if input.UserInputType~=Enum.UserInputType.MouseButton1 then return end
-			local p=UI.plrRowMap[idx]; if not p then return end
-			pcall(function() setclipboard("https://www.roblox.com/users/"..p.UserId.."/profile") end)
-			showN(p.Name,"Profile URL copied!",C.WH)
-		end)
-		specBtn.MouseButton1Click:Connect(function()
-			local p=UI.plrRowMap[idx]; if not p then return end
-			if p==lp then showN("Spectate","Cannot spectate yourself",C.WRN); return end
-			if S.specTarget==p then
-				stopSpec(); setText(UI.specStatusLbl,"Not spectating"); setCol(UI.specStatusLbl,C.DIM)
-				tw(UI.specStopBtn,{BackgroundColor3=C.BTN_OFF},.15); UI.specStopBtn.TextColor3=C.DIM; showN("Spectate","Stopped",C.DIM)
-			else
-				startSpec(p)
-				local dn=p.DisplayName~=p.Name and (p.DisplayName.." (@"..p.Name..")") or p.Name
-				setText(UI.specStatusLbl,"Spectating: "..dn); setCol(UI.specStatusLbl,C.SPEC)
-				tw(UI.specStopBtn,{BackgroundColor3=C.SPEC},.15); UI.specStopBtn.TextColor3=C.BG
-				showN("Spectate","Now watching "..dn,C.SPEC)
-			end
-		end)
-		specBtn.MouseEnter:Connect(function() tw(specBtn,{BackgroundColor3=Color3.fromRGB(100,180,240)},.1) end)
-		specBtn.MouseLeave:Connect(function()
-			local p=UI.plrRowMap[idx]; tw(specBtn,{BackgroundColor3=(p and S.specTarget==p) and Color3.fromRGB(220,80,80) or C.SPEC},.1)
-		end)
-	end
-end
-
--- LOG TAB
-do
-	local logCtrlSec=section("log",1,"Session Log")
-	UI.logCountLbl=secLbl(logCtrlSec,2,"0 entries",C.DIM,9)
-	local logBtnRow=inlineRow(logCtrlSec,3)
-	local hw4=math.floor((K.IW-4)/2)
-	local logNowBtn=inlineBtn(logBtnRow,0,hw4,"Log Now",C.OK)
-	local logClrBtn=inlineBtn(logBtnRow,hw4+4,hw4,"Clear All",C.ERR)
-
-	local logListSec=section("log",2,"History  (newest first)")
-	local logSF=mk("ScrollingFrame",logListSec,{Size=UDim2.new(1,0,0,420),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=C.BOR2,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ClipsDescendants=true,ZIndex=4,LayoutOrder=2})
-	mk("UIListLayout",logSF,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
-	UI.logRows={}
-	for i=1,50 do
-		local card=mk("Frame",logSF,{Size=UDim2.new(1,-4,0,90),BackgroundColor3=Color3.fromRGB(14,14,14),ZIndex=5,LayoutOrder=i,Visible=false})
-		stroke(card,C.BOR,1); corner(card,4)
-		mk("UIPadding",card,{PaddingLeft=UDim.new(0,8),PaddingRight=UDim.new(0,8),PaddingTop=UDim.new(0,5),PaddingBottom=UDim.new(0,5)})
-		mk("UIListLayout",card,{Padding=UDim.new(0,2),SortOrder=Enum.SortOrder.LayoutOrder})
-		UI.logRows[i]={
-			card=card,
-			line1=mk("TextLabel",card,{Size=UDim2.new(1,0,0,13),BackgroundTransparency=1,Font=Enum.Font.GothamBold,TextSize=11,TextColor3=C.WHT,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=1,ZIndex=6}),
-			line2=mk("TextLabel",card,{Size=UDim2.new(1,0,0,13),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=10,TextColor3=C.BELI,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=2,ZIndex=6}),
-			line3=mk("TextLabel",card,{Size=UDim2.new(1,0,0,13),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=10,TextColor3=C.FRAG,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=3,ZIndex=6}),
-			line4=mk("TextLabel",card,{Size=UDim2.new(1,0,0,11),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=9,TextColor3=C.DIM,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=4,ZIndex=6}),
-			line5=mk("TextLabel",card,{Size=UDim2.new(1,0,0,11),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=9,TextColor3=C.DIM,Text="",TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=5,ZIndex=6}),
-		}
-	end
-
-	S.logs={}
-	local function addLog(source)
-		local b=getStat("Beli") or 0; local f=getStat("Fragments") or 0
-		local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
-		local elapsed=tick()-jt
-		local sB=S.sessOK and math.floor(b-(S.sessB or b)) or 0
-		local sF=S.sessOK and math.floor(f-(S.sessF or f)) or 0
-		local bPM=calcRateLR(S.beliSamples); local fPM=calcRateLR(S.fragSamples)
-		table.insert(S.logs,1,{
-			time=localT(), source=source or "Manual",
-			beli=sB, frags=sF, elapsed=elapsed,
-			bPM=bPM, fPM=fPM,
-			totalBeli=b, totalFrag=f,
-		})
-		if #S.logs>50 then table.remove(S.logs) end
-	end
-
-	local function refreshLogUI()
-		setText(UI.logCountLbl,#S.logs.." entries (max 50)")
-		for i=1,50 do
-			local row=UI.logRows[i]; local entry=S.logs[i]
-			if entry then
-				row.card.Visible=true
-				setText(row.line1,"#"..i.."  ["..entry.source.."]  —  "..entry.time)
-				setText(row.line2,"Beli  "..(entry.beli>=0 and"+" or"")..fmtN(entry.beli).."   (Rate: "..wFmt(entry.bPM).."/min  "..wFmt(entry.bPM*60).."/hr)")
-				setText(row.line3,"Frag  "..(entry.frags>=0 and"+" or"")..fmtN(entry.frags).."   (Rate: "..wFmt(entry.fPM).."/min  "..wFmt(entry.fPM*60).."/hr)")
-				setText(row.line4,"Duration: "..fmtS(entry.elapsed).."  |  Total Beli: "..fmtN(entry.totalBeli or 0))
-				setText(row.line5,"Total Frags: "..fmtN(entry.totalFrag or 0))
-			else
-				row.card.Visible=false
-			end
-		end
-	end
-
-	logNowBtn.MouseButton1Click:Connect(function() addLog("Manual"); refreshLogUI(); showN("Log","Saved entry #"..#S.logs,C.OK) end)
-	logClrBtn.MouseButton1Click:Connect(function() S.logs={}; refreshLogUI(); showN("Log","Cleared",C.ERR) end)
-	UI._refreshLogUI=refreshLogUI
-	UI._addLog=addLog
-end
-
--- BUTTON EVENTS
-UI.v1Btn.MouseButton1Click:Connect(function()
-	S.v1=not S.v1; task.spawn(setV1,S.v1)
-	tog(UI.v1Btn,S.v1,C.V1,C.BTN_OFF,"Boost V1: On","Boost V1: Off")
-	showN("Boost V1",S.v1 and "On — Map hidden" or "Off",S.v1 and C.V1 or C.ERR)
-end)
-UI.v2Btn.MouseButton1Click:Connect(function()
-	S.v2=not S.v2; task.spawn(setV2,S.v2)
-	tog(UI.v2Btn,S.v2,C.V2,C.BTN_OFF,"Boost V2 (Best): On","Boost V2 (Best): Off")
-	showN("Boost V2 (Best)",S.v2 and "On — All visuals stripped" or "Off",S.v2 and C.V2 or C.ERR)
-end)
-UI.hidBtn.MouseButton1Click:Connect(function()
-	S.hidPlr=not S.hidPlr; toggleHidePlr(S.hidPlr)
-	tog(UI.hidBtn,S.hidPlr,C.WHT,C.BTN_OFF,"Delete Players: On","Delete Players: Off")
-	showN("Delete Players",S.hidPlr and "Players hidden" or "Players restored",S.hidPlr and C.OK or C.ERR)
-end)
-UI.enmBtn.MouseButton1Click:Connect(function()
-	S.hidEnm=not S.hidEnm; task.spawn(toggleHidEnm,S.hidEnm)
-	tog(UI.enmBtn,S.hidEnm,C.ERR,C.BTN_OFF,"Hide Enemies: On","Hide Enemies: Off")
-	showN("Hide Enemies",S.hidEnm and "Enemies hidden" or "Enemies shown",S.hidEnm and C.ERR or C.DIM)
-end)
-UI.whBtn.MouseButton1Click:Connect(function()
-	S.wh=not S.wh; cfg.WebhookEnabled=S.wh
-	tog(UI.whBtn,S.wh,C.WH,C.BTN_OFF,"Webhook: On","Webhook: Off")
-	showN("Webhook",S.wh and "Enabled" or "Disabled",S.wh and C.WH or C.ERR)
-end)
-UI.whTestBtn.MouseButton1Click:Connect(function()
-	task.spawn(function()
-		local cb=getStat("Beli") or 0; local cf=getStat("Fragments") or 0
-		local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
-		sendWebhook(S.sessOK and math.floor(cb-(S.sessB or cb)) or 0, S.sessOK and math.floor(cf-(S.sessF or cf)) or 0, tick()-jt,"Test")
-		showN("Test Webhook","Sent! #"..S.whTotal,C.WH)
-	end)
-end)
-UI.whTimBtn.MouseButton1Click:Connect(function()
-	if S.whTimer then stopWHTimer(); tog(UI.whTimBtn,false,C.WH,C.BTN_OFF,"WH Timer: On","WH Timer: Off"); showN("WH Timer","Disabled",C.ERR)
-	else
-		if not S.wh then S.wh=true; cfg.WebhookEnabled=true; tog(UI.whBtn,true,C.WH,C.BTN_OFF,"Webhook: On","Webhook: Off") end
-		startWHTimer(); tog(UI.whTimBtn,true,C.WH,C.BTN_OFF,"WH Timer: On","WH Timer: Off"); showN("WH Timer","Every "..cfg.WebhookInterval.." min",C.WH)
-	end
-end)
-UI.hopBtn.MouseButton1Click:Connect(function()
-	if S.hop then stopHop(); tog(UI.hopBtn,false,C.HOP,C.BTN_OFF,"Auto Hop: On","Auto Hop: Off"); showN("Auto Hop","Disabled",C.ERR)
-	else startHop(); tog(UI.hopBtn,true,C.HOP,C.BTN_OFF,"Auto Hop: On","Auto Hop: Off"); showN("Auto Hop","Every "..cfg.HopInterval.." min",C.HOP) end
-end)
-UI.hopNowBtn.MouseButton1Click:Connect(function()
-	showN("Hop Now","Hopping...",C.HOP)
-	task.spawn(function()
-		local cb=getStat("Beli") or 0; local cf=getStat("Fragments") or 0
-		local jt=S.plrC[lp.UserId] and S.plrC[lp.UserId].join or tick()
-		sendWebhook(S.sessOK and math.floor(cb-(S.sessB or cb)) or 0, S.sessOK and math.floor(cf-(S.sessF or cf)) or 0, tick()-jt,"Instant Hop")
-		doHop()
-	end)
-end)
-
-for _,h in ipairs({
-	{UI.v1Btn,function() return S.v1 and C.V1 or C.BTN_OFF end},
-	{UI.v2Btn,function() return S.v2 and C.V2 or C.BTN_OFF end},
-	{UI.hidBtn,function() return S.hidPlr and C.WHT or C.BTN_OFF end},
-	{UI.enmBtn,function() return S.hidEnm and C.ERR or C.BTN_OFF end},
-	{UI.hopBtn,function() return S.hop and C.HOP or C.BTN_OFF end},
-	{UI.hopNowBtn,function() return C.HOP end},
-	{UI.whBtn,function() return S.wh and C.WH or C.BTN_OFF end},
-	{UI.whTestBtn,function() return C.BTN_OFF end},
-	{UI.whTimBtn,function() return S.whTimer and C.WH or C.BTN_OFF end},
-	{UI.pullBtn,function() return BM.on and C.PULL or C.BTN_OFF end},
-	{UI.pullBtn2,function() return BM2.on and C.BM2 or C.BTN_OFF end},
-	{UI.specStopBtn,function() return S.specTarget and C.SPEC or C.BTN_OFF end},
-	{UI.rerunBtn,function() return S.rerun and C.RERUN or C.BTN_OFF end}, -- AUTO RERUN hover
-}) do addHov(h[1],h[2]) end
-
--- RightCtrl toggle
-UIS.InputBegan:Connect(function(i,gp)
-	if not gp and i.KeyCode==Enum.KeyCode.RightControl then
-		_vis=not _vis
-		if _vis then
-			full.Visible=true
-			TS:Create(full,TweenInfo.new(.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{BackgroundTransparency=0}):Play()
-			for _,obj in ipairs(full:GetDescendants()) do
-				pcall(function() if obj:IsA("TextLabel") or obj:IsA("TextButton") then TS:Create(obj,TweenInfo.new(.25),{TextTransparency=0}):Play() end end)
-			end
-		else
-			TS:Create(full,TweenInfo.new(.3,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{BackgroundTransparency=1}):Play()
-			for _,obj in ipairs(full:GetDescendants()) do
-				pcall(function() if obj:IsA("TextLabel") or obj:IsA("TextButton") then TS:Create(obj,TweenInfo.new(.2),{TextTransparency=1}):Play() end end)
-			end
-			task.delay(.32,function() full.Visible=false end)
-		end
-	end
-end)
-
--- SELF HIGHLIGHT
-local function applyHL(char)
-	if S.selfHL and S.selfHL.Parent then S.selfHL:Destroy() end; S.selfHL=nil
-	if not char then return end
-	S.selfHL=mk("Highlight",char,{Name="ESP_SelfHL",FillColor=Color3.new(1,1,1),OutlineColor=Color3.new(0,0,0),FillTransparency=.5,OutlineTransparency=0,DepthMode=Enum.HighlightDepthMode.AlwaysOnTop,Adornee=char})
-end
-if lp.Character then task.delay(.5,function() applyHL(lp.Character) end) end
-lp.CharacterAdded:Connect(function(char) task.wait(.5); applyHL(char) end)
-
--- UPDATE FUNCTIONS
-local function updateFast()
-	local e=tick()-S.start
-	local ping=getPing()
-	setText(UI.fpsLbl,"FPS "..S.fps.." / Max "..S.maxFps)
-	setText(UI.pingLbl,"PING "..ping.."ms")
-	setCol(UI.pingLbl,ping<80 and C.OK or ping<150 and C.WRN or C.ERR)
-	setText(UI.timeLbl,("%02d:%02d:%02d"):format(math.floor(e/3600),math.floor(e%3600/60),math.floor(e%60)))
-	if S.hop then
-		local sv=math.max(0,math.floor(S.hopCD))
-		setText(UI.hopCD,("Next hop: %02d:%02d"):format(math.floor(sv/60),sv%60)); setCol(UI.hopCD,C.HOP)
-	else setText(UI.hopCD,"DISABLED"); setCol(UI.hopCD,C.DIM) end
-	if S.whTimer then
-		local sv=math.max(0,math.floor(S.whCD))
-		setText(UI.whCD,("Next send: %02d:%02d"):format(math.floor(sv/60),sv%60)); setCol(UI.whCD,C.WH)
-	else setText(UI.whCD,"DISABLED"); setCol(UI.whCD,C.DIM) end
-	if BM.on then
-		local pc=0; for _ in pairs(BM.data) do pc=pc+1 end
-		setText(UI.bmCountLbl,"V1 Pulled: "..pc.."/"..BM.batch.." | Dist: "..BM.dist); setCol(UI.bmCountLbl,C.PULL)
-	end
-	if BM2.on then
-		setText(UI.bm2StatusLbl,"V2 ON | "..BM2.interval.."s | Max:"..BM2.maxCount.." | Dist:"..BM2.dist); setCol(UI.bm2StatusLbl,C.BM2)
-		local aStr=BM2.anchorPos and ("%.0f,%.0f,%.0f"):format(BM2.anchorPos.X,BM2.anchorPos.Y,BM2.anchorPos.Z) or "Follow Mode"
-		setText(UI.bm2AnchorLbl,"V2 Anchor: "..aStr)
-		if BM2.resetInterval>0 then
-			local left=math.max(0,math.floor(BM2.resetInterval-(tick()-BM2.resetTick)))
-			setText(UI.bm2ResetLbl,"V2 Reset in: "..left.."s"); setCol(UI.bm2ResetLbl,left<5 and C.WRN or C.DIM)
-		else setText(UI.bm2ResetLbl,"V2 Reset: never"); setCol(UI.bm2ResetLbl,C.DIM) end
-	end
-	if S.specTarget then
-		local dn=S.specTarget.DisplayName~=S.specTarget.Name and (S.specTarget.DisplayName.." (@"..S.specTarget.Name..")") or S.specTarget.Name
-		setText(UI.specStatusLbl,"Spectating: "..dn); setCol(UI.specStatusLbl,C.SPEC)
-	end
-end
-
-local function updateStats()
-	local lv=getStat("Level"); local beli=getStat("Beli"); local frags=getStat("Fragments")
-	local melee=getStat("Melee"); local def=getStat("Defense")
-	local sword=getStat("Sword"); local gun=getStat("Gun")
-	local fruit=getStat("Blox Fruit"); local sp=getStat("SpawnPoint")
-
-	setText(UI.charLbl,lp.DisplayName~=lp.Name and (lp.DisplayName.." (@"..lp.Name..")") or lp.Name)
-	setText(UI.lvlLbl,"LV. "..fmtV(lv,"Level"))
-	setText(UI.beliLbl,fmtV(beli,"Beli")); setCol(UI.beliLbl,C.BELI)
-	setText(UI.fragLbl,fmtV(frags,"Fragments")); setCol(UI.fragLbl,C.FRAG)
-
-	if not S.sessOK and beli and frags then
-		S.sessB=beli; S.sessF=frags; S.sessOK=true; S.sessStart=tick()
-	end
-	if S.sessOK then
-		local gb=math.floor((beli or 0)-S.sessB); local gf=math.floor((frags or 0)-S.sessF)
-		setText(UI.sessBLbl,(gb>=0 and"+" or"")..fmtV(gb,"Beli")); setCol(UI.sessBLbl,gb>=0 and C.BELI or C.ERR)
-		setText(UI.sessFLbl,(gf>=0 and"+" or"")..fmtV(gf,"Fragments")); setCol(UI.sessFLbl,gf>=0 and C.FRAG or C.ERR)
-	end
-
-	setText(UI.meleeLbl,fmtV(melee)); setBar(UI.meleeBar,(melee or 0)/K.COMBAT)
-	setText(UI.defLbl,fmtV(def));   setBar(UI.defBar,(def or 0)/K.COMBAT)
-	setText(UI.swordLbl,fmtV(sword)); setBar(UI.swordBar,(sword or 0)/K.COMBAT)
-	setText(UI.gunLbl,fmtV(gun));   setBar(UI.gunBar,(gun or 0)/K.COMBAT)
-	setText(UI.fruitLbl,fmtV(fruit)); setBar(UI.fruitBar,(fruit or 0)/K.COMBAT)
-
-	local rn,rt
-	pcall(function()
-		local ro=lp:FindFirstChild("Data") and lp.Data:FindFirstChild("Race"); if not ro then return end
-		if ro:IsA("ValueBase") and ro.Value~="" then rn=tostring(ro.Value) end
-		local c=ro:FindFirstChild("C"); if c then rt=c.Value end
-	end)
-	setText(UI.raceLbl,rn and (rn..(rt and " [V"..rt.."]" or "")) or "Not V4")
-	setText(UI.teamLbl,lp.Team and lp.Team.Name or "N/A")
-	setText(UI.spawnLbl,sp~=nil and fmtSpawn(tostring(sp)) or "??")
-end
-
-local function updateRates()
-	local b=getStat("Beli"); local f=getStat("Fragments")
-	if b then pushSample(S.beliSamples,b) end
-	if f then pushSample(S.fragSamples,f) end
-
-	local bPM=calcRateLR(S.beliSamples)
-	local fPM=calcRateLR(S.fragSamples)
-	local ns=#S.beliSamples
-
-	local function rs(v)
-		local sg=v>=0 and"+" or""
-		return math.abs(v)>=1e6 and sg..("%.1fM"):format(v/1e6) or math.abs(v)>=1e3 and sg..("%.1fK"):format(v/1e3) or sg..tostring(v)
-	end
-	setText(UI.bPMLbl,rs(bPM));    setCol(UI.bPMLbl,bPM>=0 and C.BELI or C.ERR)
-	setText(UI.bHRLbl,rs(bPM*60)); setCol(UI.bHRLbl,bPM>=0 and C.BELI or C.ERR)
-	setText(UI.fPMLbl,rs(fPM));    setCol(UI.fPMLbl,fPM>=0 and C.FRAG or C.ERR)
-	setText(UI.fHRLbl,rs(fPM*60)); setCol(UI.fHRLbl,fPM>=0 and C.FRAG or C.ERR)
-
-	local spanSec=ns>=2 and math.floor(S.beliSamples[ns].t-S.beliSamples[1].t) or 0
-	local quality=ns>=10 and "High" or ns>=5 and "Medium" or ns>=2 and "Low" or "Collecting..."
-	setText(UI.rateSrcLbl,"Rate accuracy: "..quality.."  ("..ns.." samples, "..fmtS(spanSec).." span)")
-	setCol(UI.rateSrcLbl,ns>=10 and C.OK or ns>=5 and C.WRN or C.ERR)
-
-	if b and f and ns>=2 then
-		local projB1H=math.max(0,b+bPM*60);   local projF1H=math.max(0,f+fPM*60)
-		local projB4H=math.max(0,b+bPM*240);  local projF4H=math.max(0,f+fPM*240)
-		local projB8H=math.max(0,b+bPM*480);  local projF8H=math.max(0,f+fPM*480)
-		setText(UI.projB1H,fmtN(projB1H));  setCol(UI.projB1H,C.BELI)
-		setText(UI.projF1H,fmtN(projF1H));  setCol(UI.projF1H,C.FRAG)
-		setText(UI.projB4H,fmtN(projB4H));  setCol(UI.projB4H,C.BELI)
-		setText(UI.projF4H,fmtN(projF4H));  setCol(UI.projF4H,C.FRAG)
-		setText(UI.projB8H,fmtN(projB8H));  setCol(UI.projB8H,C.BELI)
-		setText(UI.projF8H,fmtN(projF8H));  setCol(UI.projF8H,C.FRAG)
-	else
-		for _,k in ipairs({"projB1H","projF1H","projB4H","projF4H","projB8H","projF8H"}) do
-			setText(UI[k],"Collecting..."); setCol(UI[k],C.DIM)
-		end
-	end
-end
-
-local function updatePlayers()
-	local list=Pl:GetPlayers()
-	local ratio=math.clamp(#list/K.MAX,0,1)
-	setText(UI.pcLbl,#list.." / "..K.MAX)
-	local barCol=ratio>=1 and C.ERR or ratio>=.75 and C.WRN or C.WHT
-	tw(UI.svrBar,{BackgroundColor3=barCol},.2); setCol(UI.pcLbl,barCol); setBar(UI.svrBar,ratio)
-	local totalB=0
-	for _,p in ipairs(list) do
-		local c=S.plrC[p.UserId]; if c and c.bounty then totalB=totalB+c.bounty
-		else local bo=getStatObj(p,"Bounty"); if bo then totalB=totalB+(bo.Value or 0) end end
-	end
-	setText(UI.bountyLbl,fmtN(totalB))
-	local myC=lp.Character; local myR=myC and myC:FindFirstChild("HumanoidRootPart")
-	local distC={}
-	for _,p in ipairs(list) do
-		if p~=lp then
-			local d=math.huge
-			if myR then
-				local th=p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-				if th then local ok,mag=pcall(function() return (myR.Position-th.Position).Magnitude end); if ok then d=mag end end
-			end
-			distC[p.UserId]=d
-		end
-	end
-	table.sort(list,function(a,b2)
-		if a==lp then return true end; if b2==lp then return false end
-		return (distC[a.UserId] or math.huge)<(distC[b2.UserId] or math.huge)
-	end)
-	for i=1,20 do
-		local pf=UI.plrRows[i]; local p=list[i]; UI.plrRowMap[i]=p or nil
-		if p and pf then
-			pf.row.Visible=true
-			local ns=p.DisplayName~=p.Name and (p.DisplayName.." (@"..p.Name..")") or p.Name
-			setText(pf.nameLbl,ns); setCol(pf.nameLbl,p==lp and C.OK or C.WHT)
-			local plv=getStat("Level",p); setText(pf.lvlLbl,plv~=nil and ("LV"..fmtV(plv,"Level")) or "LV??")
-			local isSpec=S.specTarget==p
-			tw(pf.specBtn,{BackgroundColor3=isSpec and Color3.fromRGB(220,80,80) or (p==lp and Color3.fromRGB(40,40,40) or C.SPEC)},.12)
-			pf.specBtn.Text=isSpec and "STOP" or "SPEC"; pf.specBtn.Active=(p~=lp)
-			if p~=lp then
-				local cache=S.plrC[p.UserId] or {}
-				setText(pf.raceLbl,cache.race and ("Race: "..cache.race..(cache.raceTier and " V/T "..cache.raceTier or "")) or "Race: ?")
-				setText(pf.spawnLbl,cache.spawn and ("Loc: "..fmtSpawn(tostring(cache.spawn))) or "Loc: ?")
-				setText(pf.bountyLbl,cache.bounty~=nil and ("Bounty: "..fmtN(cache.bounty)) or "Bounty: ?")
-				local rd=distC[p.UserId] or math.huge
-				setText(pf.distLbl,rd==math.huge and "?" or (fmtN(math.floor(rd*K.S2M)).."m"))
-				setText(pf.timeLbl,serverT(cache.join))
-			else
-				setText(pf.raceLbl,""); setText(pf.spawnLbl,""); setText(pf.bountyLbl,"")
-				setText(pf.distLbl,"YOU"); setCol(pf.distLbl,C.OK)
-				setText(pf.timeLbl,serverT(S.plrC[lp.UserId] and S.plrC[lp.UserId].join))
-			end
-		elseif pf then pf.row.Visible=false; UI.plrRowMap[i]=nil end
-	end
-end
-
--- MAIN LOOPS
+-- =====================================
+--          MAIN LOOPS & UPDATES
+-- =====================================
+-- FPS Tracker
 Run.RenderStepped:Connect(function(dt)
-	S.fc=S.fc+1; S.fpsAccum=S.fpsAccum+dt
-	if S.fpsAccum>=0.5 then
-		S.fps=math.floor(S.fc/S.fpsAccum); S.fc=0; S.fpsAccum=0
-		if S.fps>S.maxFps then S.maxFps=S.fps end
+	S.fc = S.fc + 1
+	S.fpsAccum = S.fpsAccum + dt
+	if S.fpsAccum >= 0.5 then
+		S.fps = math.floor(S.fc / S.fpsAccum)
+		S.fc = 0
+		S.fpsAccum = 0
+		if S.fps > S.maxFps then S.maxFps = S.fps end
 	end
 end)
 
-local _frame=0
+-- M1 Aura Main Loop
+task.spawn(function()
+    while true do
+        local enemies = getEnemiesInRange()
+        targetCount = #enemies
+        if targetCount > 0 then
+            table.sort(enemies, function(a, b) return a.dist < b.dist end)
+            firstTargetName = enemies[1].enemy.Name or "Unknown"
+        else
+            firstTargetName = "None"
+        end
+
+        if m1_enabled and targetCount > 0 then
+            AttackMultiple(enemies)
+        end
+
+        task.wait(0.05)
+    end
+end)
+
+-- Real-time UI Paragraph Updater
+local _frame = 0
 Run.Heartbeat:Connect(function()
-	if not _vis then return end
-	_frame=(_frame+1)%3600
-	if _frame%3==0 then updateFast() end
-	if _frame%12==0 then updateStats() end
-	if _frame%18==0 and S.activeTab=="players" then updatePlayers() end
-	if _frame%300==0 then updateRates() end
-	if _frame%30==0 and S.activeTab=="log" then
-		if UI._refreshLogUI then UI._refreshLogUI() end
+	_frame = (_frame + 1) % 3600
+
+	-- M1 & BringMob Status Update
+	if _frame % 10 == 0 then
+		M1StatusParagraph:Set({
+			Title = "M1 Aura Status",
+			Content = string.format("Status: %s\nTargets in range: %d (%s)\nDistance: %d studs", m1_enabled and "ON" or "OFF", targetCount, firstTargetName, MAX_DISTANCE)
+		})
+
+		local bm1Text = BM.on and string.format("ON | Dist: %d | Y: %d", BM.dist, BM.yOff) or "OFF"
+		local bm2Text = BM2.on and string.format("ON | Dist: %d | Max: %d | Interval: %.2fs", BM2.dist, BM2.maxCount, BM2.interval) or "OFF"
+		local anchorText = BM2.anchorPos and string.format("%.0f, %.0f, %.0f", BM2.anchorPos.X, BM2.anchorPos.Y, BM2.anchorPos.Z) or "Follow Mode"
+		BMStatusParagraph:Set({
+			Title = "BringMob Status",
+			Content = string.format("V1 (Pull): %s\nV2 (Warp): %s\nAnchor: %s\nY Offset: %d", bm1Text, bm2Text, anchorText, BM.yOff)
+		})
+	end
+
+	-- Stats & Performance Update
+	if _frame % 15 == 0 then
+		local lv = getStat("Level") or 0
+		local beli = getStat("Beli") or 0
+		local frags = getStat("Fragments") or 0
+		local melee = getStat("Melee") or 0
+		local def = getStat("Defense") or 0
+		local sword = getStat("Sword") or 0
+		local gun = getStat("Gun") or 0
+		local fruit = getStat("Blox Fruit") or 0
+		local sp = getStat("SpawnPoint") or "Unknown"
+
+		local rn, rt
+		pcall(function()
+			local ro = lp:FindFirstChild("Data") and lp.Data:FindFirstChild("Race")
+			if ro and ro:IsA("ValueBase") and ro.Value ~= "" then rn = tostring(ro.Value) end
+			local c = ro and ro:FindFirstChild("C")
+			if c then rt = c.Value end
+		end)
+
+		ProfileParagraph:Set({
+			Title = "Profile & Game Info",
+			Content = string.format("Name: %s\nLevel: %s\nRace: %s\nTeam: %s\nSpawn: %s",
+				lp.DisplayName ~= lp.Name and (lp.DisplayName .. " (@" .. lp.Name .. ")") or lp.Name,
+				fmtN(lv),
+				rn and (rn .. (rt and " [V" .. rt .. "]" or "")) or "Not V4",
+				lp.Team and lp.Team.Name or "N/A",
+				fmtSpawn(tostring(sp))
+			)
+		})
+
+		CombatParagraph:Set({
+			Title = "Combat Stats",
+			Content = string.format("Melee: %s | Defense: %s\nSword: %s | Gun: %s\nBlox Fruit: %s",
+				fmtN(melee), fmtN(def), fmtN(sword), fmtN(gun), fmtN(fruit)
+			)
+		})
+
+		if not S.sessOK and beli > 0 and frags > 0 then
+			S.sessB = beli; S.sessF = frags; S.sessOK = true; S.sessStart = tick()
+		end
+
+		local sessBeliStr = "+0"
+		local sessFragStr = "+0"
+		if S.sessOK then
+			local gb = math.floor(beli - S.sessB)
+			local gf = math.floor(frags - S.sessF)
+			sessBeliStr = (gb >= 0 and "+" or "") .. fmtN(gb)
+			sessFragStr = (gf >= 0 and "+" or "") .. fmtN(gf)
+		end
+
+		local bPM = calcRateLR(S.beliSamples)
+		local fPM = calcRateLR(S.fragSamples)
+
+		EconomyParagraph:Set({
+			Title = "Economy & Rates",
+			Content = string.format("Total Beli: %s | Total Frags: %s\nSession Beli: %s | Session Frags: %s\nBeli/Min: %s | Beli/Hr: %s\nFrag/Min: %s | Frag/Hr: %s",
+				fmtN(beli), fmtN(frags), sessBeliStr, sessFragStr,
+				wFmt(bPM), wFmt(bPM * 60), wFmt(fPM), wFmt(fPM * 60)
+			)
+		})
+
+		local ping = getPing()
+		local elapsed = tick() - S.start
+		PerfParagraph:Set({
+			Title = "Performance & Server",
+			Content = string.format("FPS: %d (Max: %d) | Ping: %dms\nTime Elapsed: %02d:%02d:%02d\nPlayers: %d/%d",
+				S.fps, S.maxFps, ping,
+				math.floor(elapsed / 3600), math.floor((elapsed % 3600) / 60), math.floor(elapsed % 60),
+				#Pl:GetPlayers(), K_MAX
+			)
+		})
+
+		local hopStr = S.hop and string.format("%02dm %02ds", math.floor(math.max(0, S.hopCD) / 60), math.floor(math.max(0, S.hopCD) % 60)) or "Disabled"
+		local whStr = S.whTimer and string.format("%02dm %02ds", math.floor(math.max(0, S.whCD) / 60), math.floor(math.max(0, S.whCD) % 60)) or "Disabled"
+		HopWHParagraph:Set({
+			Title = "Timer Status",
+			Content = string.format("Next Hop: %s\nNext Webhook: %s", hopStr, whStr)
+		})
+	end
+
+	if _frame % 300 == 0 then
+		local b = getStat("Beli")
+		local f = getStat("Fragments")
+		if b then pushSample(S.beliSamples, b) end
+		if f then pushSample(S.fragSamples, f) end
 	end
 end)
 
 -- PLAYER EVENTS
 Pl.PlayerAdded:Connect(function(p)
-	task.wait(1); S.plrC[p.UserId]=S.plrC[p.UserId] or {}; S.plrC[p.UserId].join=tick()
+	task.wait(1)
+	S.plrC[p.UserId] = S.plrC[p.UserId] or {}
+	S.plrC[p.UserId].join = tick()
 	watchPlr(p)
-	local dn=p.DisplayName~=p.Name and (p.DisplayName.." (@"..p.Name..")") or p.Name
-	showN(dn,"Joined the server",C.OK)
+	local dn = p.DisplayName ~= p.Name and (p.DisplayName .. " (@" .. p.Name .. ")") or p.Name
+	notify("Player Joined", dn)
 	if S.hidPlr then
 		task.spawn(function()
 			if not p.Character then p.CharacterAdded:Wait() end
@@ -1877,47 +1506,44 @@ Pl.PlayerAdded:Connect(function(p)
 end)
 
 Pl.PlayerRemoving:Connect(function(p)
-	local uid=p.UserId
-	showN(p.Name,"Left the server",C.ERR)
-	if S.specTarget==p then
-		stopSpec(); setText(UI.specStatusLbl,"Not spectating"); setCol(UI.specStatusLbl,C.DIM)
-		tw(UI.specStopBtn,{BackgroundColor3=C.BTN_OFF},.15); UI.specStopBtn.TextColor3=C.DIM
+	local uid = p.UserId
+	notify("Player Left", p.Name)
+	if S.specTarget == p then stopSpec() end
+	for _, t in ipairs({S.spawnW, S.raceW, S.bountyW}) do
+		if t[uid] then t[uid]:Disconnect(); t[uid] = nil end
 	end
-	for _,t in ipairs({S.spawnW,S.raceW,S.bountyW}) do
-		if t[uid] then t[uid]:Disconnect(); t[uid]=nil end
-	end
-	if S.hidPlrC[uid] then S.hidPlrC[uid]:Disconnect(); S.hidPlrC[uid]=nil end
-	S.hidPlrData[uid]=nil
-	S.plrC[uid]=nil; S.statC[uid]=nil
+	if S.hidPlrC[uid] then S.hidPlrC[uid]:Disconnect(); S.hidPlrC[uid] = nil end
+	S.hidPlrData[uid] = nil
+	S.plrC[uid] = nil
+	S.statC[uid] = nil
 end)
-for _,p in ipairs(Pl:GetPlayers()) do if p~=lp then watchPlr(p) end end
 
--- INIT
+for _, p in ipairs(Pl:GetPlayers()) do
+	if p ~= lp then watchPlr(p) end
+end
+
+-- AUTO INIT
 if cfg.RemoveDeathEffect then
 	local function rde()
 		pcall(function()
-			local d=game:GetService("ReplicatedStorage"):WaitForChild("Effect",10):WaitForChild("Container",10):WaitForChild("Death",10)
+			local d = ReplicatedStorage:WaitForChild("Effect", 10):WaitForChild("Container", 10):WaitForChild("Death", 10)
 			if d then d:Destroy() end
 		end)
 	end
-	rde(); lp.CharacterAdded:Connect(function() task.wait(.5); rde() end)
+	rde()
+	lp.CharacterAdded:Connect(function() task.wait(.5); rde() end)
 end
-if cfg.BoostV1 then task.spawn(function() task.wait(2); S.v1=true; setV1(true); tog(UI.v1Btn,true,C.V1,C.BTN_OFF,"Boost V1: On","Boost V1: Off") end) end
-if cfg.BoostV2 then task.spawn(function() task.wait(2); S.v2=true; setV2(true); tog(UI.v2Btn,true,C.V2,C.BTN_OFF,"Boost V2 (Best): On","Boost V2 (Best): Off") end) end
-if cfg.HidePlayers then task.spawn(function() task.wait(1); toggleHidePlr(true); tog(UI.hidBtn,true,C.WHT,C.BTN_OFF,"Delete Players: On","Delete Players: Off") end) end
-if cfg.HideEnemies then task.spawn(function() task.wait(2); toggleHidEnm(true); tog(UI.enmBtn,true,C.ERR,C.BTN_OFF,"Hide Enemies: On","Hide Enemies: Off") end) end
-if cfg.AutoHop then task.spawn(function() task.wait(6); startHop() end) end
-if cfg.WebhookEnabled then S.wh=true; tog(UI.whBtn,true,C.WH,C.BTN_OFF,"Webhook: On","Webhook: Off") end
 
--- AUTO RERUN init
+if cfg.BoostV1 then task.spawn(function() task.wait(2); S.v1 = true; setV1(true) end) end
+if cfg.BoostV2 then task.spawn(function() task.wait(2); S.v2 = true; setV2(true) end) end
+if cfg.HidePlayers then task.spawn(function() task.wait(1); toggleHidePlr(true) end) end
+if cfg.HideEnemies then task.spawn(function() task.wait(2); toggleHidEnm(true) end) end
+if cfg.AutoHop then task.spawn(function() task.wait(6); startHop() end) end
+if cfg.WebhookEnabled then S.wh = true end
+
 if cfg.AutoRerun and cfg.AutoRerunURL and cfg.AutoRerunURL ~= "" then
 	task.spawn(function()
 		task.wait(3)
 		startRerun()
-		task.wait(.05)
-		tog(UI.rerunBtn, S.rerun, C.RERUN, C.BTN_OFF, "Auto Rerun: On", "Auto Rerun: Off")
 	end)
 end
-
-switchTab("status")
-_closeLoader()
