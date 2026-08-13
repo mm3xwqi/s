@@ -740,7 +740,6 @@ local TimingBox = Tabs.Parry:AddLeftGroupbox("Timing Settings")
 local StatusBox = Tabs.Parry:AddRightGroupbox("Parry Live Status")
 
 ParryBox:AddToggle("AutoParry",{Text="Auto Parry (Right Click)",Default=state.cfg.ap_enabled,
-    Tooltip="Anim + Hitbox detection",
     Callback=function(v)
         state.cfg.ap_enabled=v
         if uiLabels.status then uiLabels.status:SetText("Status: "..(v and "Active" or "Disabled")) end
@@ -756,7 +755,6 @@ ParryBox:AddSlider("AnimParryRadius",{Text="Anim Detect Radius",Default=state.cf
     Callback=function(v) state.cfg.ap_animRadius=v end})
 ParryBox:AddSlider("PendingRadius",{Text="Pending Swing Radius",Default=state.cfg.ap_pendingRadius,
     Min=10,Max=35,Rounding=0,Suffix=" studs",
-    Tooltip="เก็บ swing เป็น pending ถ้า killer อยู่นอก Anim Radius แต่ยังใน Pending Radius",
     Callback=function(v) state.cfg.ap_pendingRadius=v end})
 ParryBox:AddSlider("HitboxRadius",{Text="Hitbox Detect Buffer",Default=state.cfg.ap_hitboxRadius,
     Min=5,Max=25,Rounding=0,Suffix=" studs",
@@ -767,7 +765,6 @@ ParryBox:AddSlider("ParryCooldown",{Text="Parry Cooldown",Default=state.cfg.ap_c
 
 TimingBox:AddSlider("AnimPreDelay",{Text="Anim Pre-Delay",Default=state.cfg.ap_animPreDelay,
     Min=0.0,Max=0.3,Rounding=2,Suffix="s",
-    Tooltip="หน่วงก่อนกด parry (0=กดทันที)",
     Callback=function(v) state.cfg.ap_animPreDelay=v end})
 
 uiLabels.status     = StatusBox:AddLabel("Status: Disabled")
@@ -801,5 +798,3 @@ Library:OnUnload(function()
     _G.vdHub = nil
     print("[vdHub v2.8] Unloaded!")
 end)
-
-print("[vdHub v2.8] Loaded! Pallet ID fix + killer-only detection.")
