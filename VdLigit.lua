@@ -42,6 +42,11 @@ local state = {
         ap_pendingRadius  = 22,
         ap_hitboxRadius   = 16,
         ap_hitboxPreDelay = 0.0,
+        esp_enabled  = false,
+        esp_showName = true,
+        esp_showDist = true,
+        esp_showBox  = true,
+        esp_maxDist  = 500,
     }
 }
 _G.vdHub = state
@@ -656,6 +661,135 @@ task.spawn(function()
     end
 end)
 
+local espObjects = {}
+
+local function removeESP(char)
+    if espObjects[char] then
+        for _, obj in pairs(espObjects[char]) do
+            pcall(function() obj:Destroy() end)
+        end
+        espObjects[char] = nil
+    end
+end
+
+local function createESP(char, kRoot)
+    removeESP(char)
+    local store = {}
+    espObjects[char] = store
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name                = "VDHub_ESP_Highlight"
+    highlight.FillColor           = Color3.fromRGB(255, 0, 0)
+    highlight.OutlineColor        = Color3.fromRGB(255, 0, 0)
+    highlight.FillTransparency    = 0.6
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Adornee             = char
+    highlight.Parent              = char
+    store.highlight               = highlight
+
+    local billGui = Instance.new("BillboardGui")
+    billGui.Name        = "VDHub_ESP_Bill"
+    billGui.AlwaysOnTop = true
+    billGui.Size        = UDim2.new(0, 120, 0, 44)
+    billGui.StudsOffset = Vector3.new(0, 3.5, 0)
+    billGui.Adornee     = kRoot
+    billGui.Parent      = game:GetService("CoreGui")
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Size                   = UDim2.new(1, 0, 0.5, 0)
+    nameLabel.Position               = UDim2.new(0, 0, 0, 0)
+    nameLabel.TextColor3             = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.Font                   = Enum.Font.GothamBold
+    nameLabel.TextSize               = 13
+    nameLabel.Text                   = char.Name
+    nameLabel.Parent                 = billGui
+
+    local distLabel = Instance.new("TextLabel")
+    distLabel.BackgroundTransparency = 1
+    distLabel.Size                   = UDim2.new(1, 0, 0.5, 0)
+    distLabel.Position               = UDim2.new(0, 0, 0.5, 0)
+    distLabel.TextColor3             = Color3.fromRGB(255, 200, 0)
+    distLabel.TextStrokeTransparency = 0
+    distLabel.Font                   = Enum.Font.Gotham
+    distLabel.TextSize               = 11
+    distLabel.Text                   = ""
+    distLabel.Parent                 = billGui
+
+    store.billGui   = billGui
+    store.nameLabel = nameLabel
+    store.distLabel = distLabel
+end
+
+local espTrackedChars = {}
+
+task.spawn(function()
+    while state.running do
+        local c = state.cfg
+        if c.esp_enabled then
+            local me = myRoot()
+            for _, kRoot in ipairs(killerRoots) do
+                local char = kRoot and kRoot.Parent
+                if char then
+                    if not espTrackedChars[char] then
+                        espTrackedChars[char] = true
+                        createESP(char, kRoot)
+                        char.AncestryChanged:Connect(function()
+                            if not char.Parent then
+                                removeESP(char)
+                                espTrackedChars[char] = nil
+                            end
+                        end)
+                    end
+                    local store = espObjects[char]
+                    if store then
+                        local dist = nil
+                        if me then
+                            pcall(function()
+                                dist = (me.Position - kRoot.Position).Magnitude
+                            end)
+                        end
+                        local inRange = (not dist) or (dist <= c.esp_maxDist)
+                        if store.highlight then
+                            store.highlight.Enabled = c.esp_showBox and inRange
+                        end
+                        if store.billGui then
+                            store.billGui.Enabled = inRange
+                        end
+                        if store.nameLabel then
+                            store.nameLabel.Visible = c.esp_showName
+                        end
+                        if store.distLabel then
+                            store.distLabel.Visible = c.esp_showDist
+                            if dist then
+                                store.distLabel.Text = string.format("[%.0f studs]", dist)
+                            end
+                        end
+                    end
+                end
+            end
+            for char in pairs(espTrackedChars) do
+                local stillKiller = false
+                for _, kRoot in ipairs(killerRoots) do
+                    if kRoot.Parent == char then stillKiller = true; break end
+                end
+                if not stillKiller then
+                    removeESP(char)
+                    espTrackedChars[char] = nil
+                end
+            end
+        else
+            for char in pairs(espTrackedChars) do
+                removeESP(char)
+                espTrackedChars[char] = nil
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+
 local parryAdornment = Instance.new("CylinderHandleAdornment")
 parryAdornment.Name         = "VDHub_ParryHollowRing"
 parryAdornment.Height       = 0.05
@@ -700,6 +834,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
     Main            = Window:AddTab("Main Features","user"),
     Parry           = Window:AddTab("Auto Parry","shield"),
+    ESP             = Window:AddTab("ESP","eye"),
     ["UI Settings"] = Window:AddTab("UI Settings","settings"),
 }
 
@@ -769,23 +904,34 @@ TimingBox:AddSlider("AnimPreDelay",{Text="Anim Pre-Delay",Default=state.cfg.ap_a
 
 uiLabels.status     = StatusBox:AddLabel("Status: Disabled")
 uiLabels.killerDist = StatusBox:AddLabel("Killer: None")
-StatusBox:AddLabel("L1: Anim (instant + pending)")
-StatusBox:AddLabel("L2: Hitbox spawn/size")
 
 if state.cfg.ap_enabled and uiLabels.status then
     uiLabels.status:SetText("Status: Active")
 end
 
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({"MenuKeybind"})
-ThemeManager:SetFolder("ViolenceDistrictHub")
-SaveManager:SetFolder("ViolenceDistrictHub/settings")
-SaveManager:BuildConfigSection(Tabs["UI Settings"])
-ThemeManager:ApplyToTab(Tabs["UI Settings"])
+pcall(function() ThemeManager:SetLibrary(Library) end)
+pcall(function() SaveManager:SetLibrary(Library) end)
+pcall(function() SaveManager:IgnoreThemeSettings() end)
+pcall(function() SaveManager:SetIgnoreIndexes({"MenuKeybind"}) end)
+pcall(function() ThemeManager:SetFolder("ViolenceDistrictHub") end)
+pcall(function() SaveManager:SetFolder("ViolenceDistrictHub/settings") end)
+pcall(function() SaveManager:BuildConfigSection(Tabs["UI Settings"]) end)
+pcall(function() ThemeManager:ApplyToTab(Tabs["UI Settings"]) end)
 
-local UnloadBox = Tabs["UI Settings"]:AddRightGroupbox("Unload Script")
+local ESPBox = Tabs.ESP:AddLeftGroupbox("Killer ESP")
+
+ESPBox:AddToggle("ESPEnabled",{Text="Enable Killer ESP",Default=state.cfg.esp_enabled,
+    Callback=function(v) state.cfg.esp_enabled=v end})
+ESPBox:AddToggle("ESPShowBox",{Text="Show Highlight",Default=state.cfg.esp_showBox,
+    Callback=function(v) state.cfg.esp_showBox=v end})
+ESPBox:AddToggle("ESPShowName",{Text="Show Name",Default=state.cfg.esp_showName,
+    Callback=function(v) state.cfg.esp_showName=v end})
+ESPBox:AddToggle("ESPShowDist",{Text="Show Distance",Default=state.cfg.esp_showDist,
+    Callback=function(v) state.cfg.esp_showDist=v end})
+ESPBox:AddSlider("ESPMaxDist",{Text="Max Distance",Default=state.cfg.esp_maxDist,Min=50,Max=1000,Rounding=0,Suffix=" studs",
+    Callback=function(v) state.cfg.esp_maxDist=v end})
+
+local UnloadBox = Tabs["UI Settings"]:AddLeftGroupbox("Unload Script")
 UnloadBox:AddButton({Text="Unload Script",Func=function() Library:Unload() end,
     DoubleClick=false,Tooltip="Stops all loops and destroys the UI."})
 
@@ -793,6 +939,9 @@ Library:OnUnload(function()
     state.running = false
     for char,conns in pairs(killerAnimConns) do
         for _,c in ipairs(conns) do pcall(c.Disconnect,c) end
+    end
+    for char in pairs(espTrackedChars) do
+        removeESP(char)
     end
     pcall(function() parryAdornment:Destroy() end)
     _G.vdHub = nil
