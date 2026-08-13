@@ -20,8 +20,8 @@ local state = {
         p_enabled         = false,
         interactionRadius = 8,
         stunReach         = 7,
-        cooldown          = 0.35,
-        hz                = 120,
+        cooldown          = 0.15,
+        hz                = 240,
         p_dropKey         = 32,
         antiBait          = true,
         sc_enabled        = false,
@@ -34,7 +34,7 @@ local state = {
         fv_deadband       = 35,
         fv_ignoreAxis     = false,
         ap_enabled        = false,
-        ap_cooldown       = 0.1,
+        ap_cooldown       = 0.05,
         ap_showCircle     = true,
         ap_circleColor    = Color3.fromRGB(0, 255, 200),
         ap_animRadius     = 14,
@@ -47,9 +47,73 @@ local state = {
         esp_showDist = true,
         esp_showBox  = true,
         esp_maxDist  = 500,
+        -- Player ESP
+        p_esp_enabled  = false,
+        p_esp_showDist = true,
+        p_esp_maxDist  = 500,
     }
 }
 _G.vdHub = state
+
+-- ============================================================
+-- ANIMATION ID WHITELIST
+-- ============================================================
+local HIT_ANIM_IDS = {
+    [113255068724446] = true,
+    [110355011987939] = true,
+    [117042998468241] = true,
+    [133963973694098] = true,
+    [132817836308238] = true,
+    [82666958311998]  = true,
+    [78432063483146]  = true,
+    [78935059863801]  = true,
+    [92098503722633]  = true,
+    [105374834496520] = true,
+    [111920872708571] = true,
+    [117070354890871] = false,
+    [106871536134254] = true,
+    [109402730355822] = true,
+    [115244153053858] = true,
+    [130593238885843] = true,
+    [138720291317243] = true,
+    [135002183282873] = true,
+    [122812055447896] = true,
+    [78935059863801] = true,
+}
+
+local SKILL_ANIM_IDS = {
+    [109928123357793] = true,
+    [98163597193511]  = true,
+    [125224839697689] = true,
+    [117886494230451] = true,
+    [80411309607666]  = true,
+    [138045669415653] = true,
+    [93136435416899]  = true,
+    [139928639611415] = true,
+    [84093948968516]  = true,
+    [137688077908355] = true,
+    [86266790353635]  = true,
+    [92125118598365]  = true,
+    [78165980406995]  = true,
+    [135403091566760] = true,
+    [121108316060822] = true,
+    [99210996402874]  = true,
+    [137846825408335] = true,
+    [75258958842388] = true,
+    [96744338559260] = true,
+    
+}
+
+local function getAnimAssetId(track)
+    local ok, animId = pcall(function()
+        return track.Animation and track.Animation.AnimationId or ""
+    end)
+    if not ok then return nil end
+    local id = tonumber(animId:match("(%d+)$"))
+    return id
+end
+
+-- ============================================================
 
 local function pressKey(keyCodeEnum, keyCodeNum)
     task.spawn(function()
@@ -203,10 +267,6 @@ local function refreshKiller()
             if root then killers[#killers + 1] = root end
         end
     end
-    print("[vdHub] Killers found:", #killers)
-    for i,r in ipairs(killers) do
-        print("  Killer"..i..":", r.Parent and r.Parent.Name)
-    end
     killerRoots = killers
     local me = myRoot()
     local mp = me and me.Position
@@ -227,6 +287,9 @@ pcall(refreshPallets); pcall(refreshKiller)
 task.spawn(function() while state.running do pcall(refreshPallets); task.wait(1.5) end end)
 task.spawn(function() while state.running do pcall(refreshKiller); task.wait(0.3) end end)
 
+-- ============================================================
+-- FIX: antiBait — ถ้า killer ยืนนิ่ง (speed < 1) → drop เลย
+-- ============================================================
 local function checkKillerApproach(kRoot, palPos, maxReach)
     local kPos = kRoot.Position
     local dx,dy,dz = palPos.X-kPos.X, palPos.Y-kPos.Y, palPos.Z-kPos.Z
@@ -236,11 +299,17 @@ local function checkKillerApproach(kRoot, palPos, maxReach)
         local dirX = dx / (dist > 0.001 and dist or 1)
         local dirZ = dz / (dist > 0.001 and dist or 1)
         local kVel = kRoot.AssemblyLinearVelocity or kRoot.Velocity
+        local speed = math.sqrt(kVel.X*kVel.X + kVel.Z*kVel.Z)
+        -- killer ยืนนิ่ง → drop ทันที ไม่ถือว่า bait
+        if speed < 1 then return true, true end
         if (kVel.X*dirX + kVel.Z*dirZ) < -2.5 then return true, false end
     end
     return true, true
 end
 
+-- ============================================================
+-- PALLET LOOP
+-- ============================================================
 task.spawn(function()
     while state.running do
         local c = state.cfg
@@ -286,10 +355,13 @@ task.spawn(function()
         pStat.elig = elig; pStat.inZone = zone; pStat.baiting = isBaiting
         local nd = nearD and math.sqrt(nearD) or nil
         pStat.nearD = (nd and nd <= 200) and nd or nil
-        task.wait(1 / (c.hz or 120))
+        task.wait(1 / (c.hz or 240))
     end
 end)
 
+-- ============================================================
+-- SKILLCHECK
+-- ============================================================
 local function readSkillRots(Line, Goal)
     local lr, gr
     pcall(function() lr = Line.Rotation; gr = Goal.Rotation end)
@@ -339,6 +411,9 @@ task.spawn(function()
     end
 end)
 
+-- ============================================================
+-- FAST VAULT — FIX: force face direction ทันที ไม่รอ lerp
+-- ============================================================
 local function fvAngle(tfx,tfz,lx,lz)
     local d = math.clamp(tfx*lx + tfz*lz, -1, 1)
     local a = math.deg(math.acos(d))
@@ -357,46 +432,128 @@ local function fvNearest(mx,my,mz,lx,lz,r2)
     return best, math.sqrt(bd), fvAngle(best[4],best[5],lx,lz)
 end
 
+-- หา HRP ของ character โดย pcall ป้องกัน race condition
+local function getHRP()
+    local ch = lp.Character
+    if not ch then return nil end
+    local ok, hrp = pcall(function() return ch:WaitForChild("HumanoidRootPart", 0) end)
+    if ok and hrp then return hrp end
+    return ch:FindFirstChild("HumanoidRootPart")
+end
+
 task.spawn(function()
+    local lastVaultTarget = nil   -- vault trigger ที่กำลัง lock อยู่
+    local lockFrames = 0          -- จำนวน frame ที่ยัง lock ทิศ
+
     while state.running do
         local c = state.cfg
         if c.fv_enabled then
-            local root = myRoot()
+            local root = getHRP()
             if root and #vaults > 0 then
                 local cf = root.CFrame
                 local p  = cf and cf.Position
                 if p then
-                    local lx,lz
-                    pcall(function() local clv = workspace.CurrentCamera.CFrame.LookVector; lx,lz=clv.X,clv.Z end)
-                    if not lx then local lv=cf.LookVector; lx,lz=lv.X,lv.Z end
-                    local lm = math.sqrt(lx*lx+lz*lz)
-                    if lm > 0.0001 then lx,lz = lx/lm,lz/lm end
-                    local trig,dist,ang = fvNearest(p.X,p.Y,p.Z,lx,lz,c.fv_radius*c.fv_radius)
-                    fvStat.near = trig~=nil; fvStat.nearD=dist; fvStat.ang=ang
+                    -- ดึง look vector จาก camera ก่อน ถ้าได้
+                    local lx, lz
+                    pcall(function()
+                        local cam = workspace.CurrentCamera
+                        if cam then
+                            local clv = cam.CFrame.LookVector
+                            lx, lz = clv.X, clv.Z
+                        end
+                    end)
+                    if not lx then
+                        local lv = cf.LookVector
+                        lx, lz = lv.X, lv.Z
+                    end
+
+                    -- normalize
+                    local lm = math.sqrt(lx*lx + lz*lz)
+                    if lm > 0.0001 then lx,lz = lx/lm, lz/lm end
+
+                    local trig, dist, ang = fvNearest(p.X, p.Y, p.Z, lx, lz, c.fv_radius * c.fv_radius)
+                    fvStat.near = trig ~= nil
+                    fvStat.nearD = dist
+                    fvStat.ang = ang
+
                     local spd = 0
-                    pcall(function() local v=root.Velocity; spd=math.sqrt(v.X*v.X+v.Z*v.Z) end)
+                    pcall(function()
+                        local v = root.AssemblyLinearVelocity or root.Velocity
+                        spd = math.sqrt(v.X*v.X + v.Z*v.Z)
+                    end)
                     fvStat.spd = spd
+
                     local angOK = c.fv_ignoreAxis or (ang and ang > c.fv_deadband)
+
                     if trig and spd > c.fv_minSpeed and angOK then
-                        pcall(function()
+                        -- FIX: เปลี่ยน target → reset lock counter
+                        if lastVaultTarget ~= trig then
+                            lastVaultTarget = trig
+                            lockFrames = 12  -- lock 12 frame (~50ms ที่ 240hz)
+                        end
+
+                        -- force face ทิศ vault trigger ทันทีทุก frame ที่ lock อยู่
+                        if lockFrames > 0 then
+                            lockFrames = lockFrames - 1
                             local pos = root.Position
-                            root.CFrame = CFrame.new(pos, pos + Vector3.new(trig[4],0,trig[5]))
-                        end)
-                        fvStat.holding=true; fvStat.vaults=fvStat.vaults+1
+                            local targetDir = Vector3.new(trig[4], 0, trig[5])
+                            -- ใช้ pcall ป้องกัน network ownership error
+                            local ok2, err = pcall(function()
+                                root.CFrame = CFrame.new(pos, pos + targetDir)
+                            end)
+                            if not ok2 then
+                                -- fallback: ใช้BodyGyro ถ้า CFrame ตรง set ไม่ได้
+                                local bg = root:FindFirstChildOfClass("BodyGyro")
+                                if not bg then
+                                    bg = Instance.new("BodyGyro")
+                                    bg.MaxTorque = Vector3.new(0, 4e5, 0)
+                                    bg.P = 1e6
+                                    bg.D = 0
+                                    bg.Name = "VDHub_FV_Gyro"
+                                    bg.Parent = root
+                                end
+                                bg.CFrame = CFrame.new(pos, pos + targetDir)
+                            else
+                                -- ลบ gyro ถ้า CFrame ตรงได้แล้ว
+                                local bg = root:FindFirstChild("VDHub_FV_Gyro")
+                                if bg then bg:Destroy() end
+                            end
+                        end
+                        fvStat.holding = true
+                        fvStat.vaults  = fvStat.vaults + 1
                     else
-                        fvStat.holding=false
+                        -- ออกจาก vault zone → clear lock
+                        if not trig then
+                            lastVaultTarget = nil
+                            lockFrames = 0
+                            -- ลบ gyro ถ้ายังค้างอยู่
+                            if root then
+                                local bg = root:FindFirstChild("VDHub_FV_Gyro")
+                                if bg then bg:Destroy() end
+                            end
+                        end
+                        fvStat.holding = false
                     end
                 end
             else
-                fvStat.near,fvStat.holding,fvStat.nearD,fvStat.ang = false,false,nil,nil
+                fvStat.near, fvStat.holding, fvStat.nearD, fvStat.ang = false, false, nil, nil
             end
         else
-            fvStat.near,fvStat.holding = false,false
+            -- fv disabled → ลบ gyro ทิ้ง
+            fvStat.near, fvStat.holding = false, false
+            local root2 = getHRP()
+            if root2 then
+                local bg = root2:FindFirstChild("VDHub_FV_Gyro")
+                if bg then bg:Destroy() end
+            end
         end
         task.wait(1/240)
     end
 end)
 
+-- ============================================================
+-- AUTO PARRY
+-- ============================================================
 local ignoredKW = {
     "break","pallet","kick","destroy","gen","generator","vault","window",
     "pickup","carry","hook","drop","search","stun","blind","cabinet",
@@ -422,9 +579,12 @@ local function isAttackAnim(n)
 end
 
 local function getSwingScore(track)
-    if not track then return 0 end
+    if not track then return 0, false end
+    local animId = getAnimAssetId(track)
+    if animId and SKILL_ANIM_IDS[animId] then return -999, true end
+    if animId and HIT_ANIM_IDS[animId]   then return 100,  false end
     local nm = string.lower(track.Name or "")
-    if isIgnoredAnim(nm) then return -100 end
+    if isIgnoredAnim(nm) then return 0, false end
     local score = 0
     if isAttackAnim(nm) then score = score + 50 end
     local pri = track.Priority
@@ -438,11 +598,11 @@ local function getSwingScore(track)
     if len > 0.25 and len < 2.0 then score = score + 20
     elseif len == 0 then score = score + 5 end
     if nm:match("^%d+$") and isAction then score = score + 15 end
-    return score
+    return score, false
 end
 
 local lastParryTime = 0
-local PARRY_COOLDOWN = 0.4
+local PARRY_COOLDOWN = 0.2
 
 local function parry(reason, extraDelay)
     if not state.cfg.ap_enabled then return end
@@ -483,15 +643,15 @@ local killerAnimConns  = {}
 
 local function onKillerAnimPlayed(track, kRoot)
     if not state.cfg.ap_enabled then return end
-    local score = getSwingScore(track)
-    if score < 20 then return end
+    local score, isSkill = getSwingScore(track)
+    if isSkill or score < 20 then return end
     local me = myRoot()
     if not me then return end
     if not (kRoot and kRoot.Parent) then return end
     local dist = (me.Position - kRoot.Position).Magnitude
     local animR = state.cfg.ap_animRadius or 12
     if dist <= animR then
-        local preDelay = state.cfg.ap_animPreDelay or 0.05
+        local preDelay = state.cfg.ap_animPreDelay or 0
         parry("Anim:"..track.Name..string.format("(%.1f)",dist),
               preDelay * math.clamp(dist/animR, 0.2, 1.0))
     else
@@ -611,7 +771,7 @@ task.spawn(function()
             local me       = myRoot()
             local now      = tick()
             local animR    = state.cfg.ap_animRadius or 12
-            local preDelay = state.cfg.ap_animPreDelay or 0.05
+            local preDelay = state.cfg.ap_animPreDelay or 0
             local closestDist = nil
             local remaining = {}
             for _, sw in ipairs(pendingSwings) do
@@ -657,17 +817,19 @@ task.spawn(function()
                 end)
             end
         end
-        task.wait(0.05)
+        task.wait(0.02)
     end
 end)
 
-local espObjects = {}
+-- ============================================================
+-- KILLER ESP
+-- ============================================================
+local espObjects     = {}
+local espTrackedChars = {}
 
 local function removeESP(char)
     if espObjects[char] then
-        for _, obj in pairs(espObjects[char]) do
-            pcall(function() obj:Destroy() end)
-        end
+        for _, obj in pairs(espObjects[char]) do pcall(function() obj:Destroy() end) end
         espObjects[char] = nil
     end
 end
@@ -723,8 +885,6 @@ local function createESP(char, kRoot)
     store.distLabel = distLabel
 end
 
-local espTrackedChars = {}
-
 task.spawn(function()
     while state.running do
         local c = state.cfg
@@ -746,26 +906,14 @@ task.spawn(function()
                     local store = espObjects[char]
                     if store then
                         local dist = nil
-                        if me then
-                            pcall(function()
-                                dist = (me.Position - kRoot.Position).Magnitude
-                            end)
-                        end
+                        if me then pcall(function() dist = (me.Position - kRoot.Position).Magnitude end) end
                         local inRange = (not dist) or (dist <= c.esp_maxDist)
-                        if store.highlight then
-                            store.highlight.Enabled = c.esp_showBox and inRange
-                        end
-                        if store.billGui then
-                            store.billGui.Enabled = inRange
-                        end
-                        if store.nameLabel then
-                            store.nameLabel.Visible = c.esp_showName
-                        end
+                        if store.highlight then store.highlight.Enabled = c.esp_showBox and inRange end
+                        if store.billGui   then store.billGui.Enabled   = inRange end
+                        if store.nameLabel then store.nameLabel.Visible = c.esp_showName end
                         if store.distLabel then
                             store.distLabel.Visible = c.esp_showDist
-                            if dist then
-                                store.distLabel.Text = string.format("[%.0f studs]", dist)
-                            end
+                            if dist then store.distLabel.Text = string.format("[%.0f studs]", dist) end
                         end
                     end
                 end
@@ -775,21 +923,121 @@ task.spawn(function()
                 for _, kRoot in ipairs(killerRoots) do
                     if kRoot.Parent == char then stillKiller = true; break end
                 end
-                if not stillKiller then
-                    removeESP(char)
-                    espTrackedChars[char] = nil
-                end
+                if not stillKiller then removeESP(char); espTrackedChars[char] = nil end
             end
         else
-            for char in pairs(espTrackedChars) do
-                removeESP(char)
-                espTrackedChars[char] = nil
+            for char in pairs(espTrackedChars) do removeESP(char); espTrackedChars[char] = nil end
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- ============================================================
+-- PLAYER ESP (สีฟ้า — ระยะใต้เท้า)
+-- ============================================================
+local playerEspObjects = {}
+local playerEspTracked = {}
+
+local function removePlayerESP(char)
+    if playerEspObjects[char] then
+        for _, obj in pairs(playerEspObjects[char]) do pcall(function() obj:Destroy() end) end
+        playerEspObjects[char] = nil
+    end
+end
+
+local function createPlayerESP(char, root)
+    removePlayerESP(char)
+    local store = {}
+    playerEspObjects[char] = store
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name                = "VDHub_PlayerESP_Highlight"
+    highlight.FillColor           = Color3.fromRGB(0, 150, 255)
+    highlight.OutlineColor        = Color3.fromRGB(0, 200, 255)
+    highlight.FillTransparency    = 0.6
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Adornee             = char
+    highlight.Parent              = char
+    store.highlight               = highlight
+
+    -- BillboardGui ติดใต้เท้า
+    local billGui = Instance.new("BillboardGui")
+    billGui.Name        = "VDHub_PlayerESP_Bill"
+    billGui.AlwaysOnTop = true
+    billGui.Size        = UDim2.new(0, 100, 0, 20)
+    billGui.StudsOffset = Vector3.new(0, -3.2, 0)
+    billGui.Adornee     = root
+    billGui.Parent      = game:GetService("CoreGui")
+
+    local distLabel = Instance.new("TextLabel")
+    distLabel.BackgroundTransparency = 1
+    distLabel.Size                   = UDim2.new(1, 0, 1, 0)
+    distLabel.TextColor3             = Color3.fromRGB(0, 200, 255)
+    distLabel.TextStrokeTransparency = 0
+    distLabel.Font                   = Enum.Font.GothamBold
+    distLabel.TextSize               = 11
+    distLabel.Text                   = ""
+    distLabel.Parent                 = billGui
+
+    store.billGui   = billGui
+    store.distLabel = distLabel
+end
+
+task.spawn(function()
+    while state.running do
+        local c = state.cfg
+        if c.p_esp_enabled then
+            local me = myRoot()
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= lp and not isKillerPlayer(plr) then
+                    local char = plr.Character
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                    if char and root then
+                        if not playerEspTracked[char] then
+                            playerEspTracked[char] = true
+                            createPlayerESP(char, root)
+                            char.AncestryChanged:Connect(function()
+                                if not char.Parent then
+                                    removePlayerESP(char)
+                                    playerEspTracked[char] = nil
+                                end
+                            end)
+                        end
+                        local store = playerEspObjects[char]
+                        if store then
+                            local dist = nil
+                            if me then pcall(function() dist = (me.Position - root.Position).Magnitude end) end
+                            local inRange = (not dist) or (dist <= c.p_esp_maxDist)
+                            if store.highlight then store.highlight.Enabled = inRange end
+                            if store.billGui   then store.billGui.Enabled   = inRange and c.p_esp_showDist end
+                            if store.distLabel and dist then
+                                store.distLabel.Text = string.format("%.0f studs", dist)
+                            end
+                        end
+                    end
+                end
+            end
+            -- cleanup คนที่ออกไปแล้ว
+            for char in pairs(playerEspTracked) do
+                local alive = false
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr.Character == char then alive = true; break end
+                end
+                if not alive then removePlayerESP(char); playerEspTracked[char] = nil end
+            end
+        else
+            for char in pairs(playerEspTracked) do
+                removePlayerESP(char); playerEspTracked[char] = nil
             end
         end
         task.wait(0.1)
     end
 end)
 
+-- ============================================================
+-- PARRY RING
+-- ============================================================
 local parryAdornment = Instance.new("CylinderHandleAdornment")
 parryAdornment.Name         = "VDHub_ParryHollowRing"
 parryAdornment.Height       = 0.05
@@ -818,6 +1066,9 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- ============================================================
+-- UI
+-- ============================================================
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 Library     = loadstring(game:HttpGet(repo.."Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo.."addons/ThemeManager.lua"))()
@@ -825,7 +1076,7 @@ local SaveManager  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
 
 local Window = Library:CreateWindow({
     Title            = "Violence District Hub",
-    Footer           = "v2.8 | Pallet ID + Killer-only fix",
+    Footer           = "v3.0 | Player ESP + FV Fix",
     Icon             = 95816097006870,
     NotifySide       = "Right",
     ShowCustomCursor = true,
@@ -838,6 +1089,7 @@ local Tabs = {
     ["UI Settings"] = Window:AddTab("UI Settings","settings"),
 }
 
+-- ── Main Tab ──────────────────────────────────────────────
 local PalletBox = Tabs.Main:AddLeftGroupbox("Auto Pallet Stun")
 local VaultBox  = Tabs.Main:AddRightGroupbox("Fast Vault")
 local SkillBox  = Tabs.Main:AddRightGroupbox("Auto Skillcheck")
@@ -851,7 +1103,8 @@ PalletBox:AddSlider("StunReach",{Text="Stun Reach",Default=state.cfg.stunReach,M
     Callback=function(v) state.cfg.stunReach=v end})
 PalletBox:AddSlider("InteractRadius",{Text="Interact Radius",Default=state.cfg.interactionRadius,Min=4,Max=25,Rounding=0,Suffix=" studs",
     Callback=function(v) state.cfg.interactionRadius=v end})
-PalletBox:AddSlider("PalletCooldown",{Text="Drop Cooldown",Default=state.cfg.cooldown,Min=0.1,Max=1.5,Rounding=2,Suffix="s",
+PalletBox:AddSlider("PalletCooldown",{Text="Drop Cooldown",Default=state.cfg.cooldown,
+    Min=0.05,Max=1.5,Rounding=2,Suffix="s",
     Callback=function(v) state.cfg.cooldown=v end})
 
 VaultBox:AddToggle("AutoVault",{Text="Always Fast Vault",Default=state.cfg.fv_enabled,
@@ -870,6 +1123,7 @@ SkillBox:AddSlider("ScOffset",{Text="Hit Zone Offset",Default=state.cfg.sc_offse
 SkillBox:AddSlider("ScLead",{Text="Lead Angle",Default=state.cfg.sc_lead,Min=0,Max=10,Rounding=0,Suffix="°",
     Callback=function(v) state.cfg.sc_lead=v end})
 
+-- ── Parry Tab ─────────────────────────────────────────────
 local ParryBox  = Tabs.Parry:AddLeftGroupbox("Auto Parry Settings")
 local TimingBox = Tabs.Parry:AddLeftGroupbox("Timing Settings")
 local StatusBox = Tabs.Parry:AddRightGroupbox("Parry Live Status")
@@ -895,7 +1149,7 @@ ParryBox:AddSlider("HitboxRadius",{Text="Hitbox Detect Buffer",Default=state.cfg
     Min=5,Max=25,Rounding=0,Suffix=" studs",
     Callback=function(v) state.cfg.ap_hitboxRadius=v end})
 ParryBox:AddSlider("ParryCooldown",{Text="Parry Cooldown",Default=state.cfg.ap_cooldown,
-    Min=0.1,Max=2.0,Rounding=2,Suffix="s",
+    Min=0.05,Max=2.0,Rounding=2,Suffix="s",
     Callback=function(v) state.cfg.ap_cooldown=v; PARRY_COOLDOWN=v end})
 
 TimingBox:AddSlider("AnimPreDelay",{Text="Anim Pre-Delay",Default=state.cfg.ap_animPreDelay,
@@ -909,16 +1163,9 @@ if state.cfg.ap_enabled and uiLabels.status then
     uiLabels.status:SetText("Status: Active")
 end
 
-pcall(function() ThemeManager:SetLibrary(Library) end)
-pcall(function() SaveManager:SetLibrary(Library) end)
-pcall(function() SaveManager:IgnoreThemeSettings() end)
-pcall(function() SaveManager:SetIgnoreIndexes({"MenuKeybind"}) end)
-pcall(function() ThemeManager:SetFolder("ViolenceDistrictHub") end)
-pcall(function() SaveManager:SetFolder("ViolenceDistrictHub/settings") end)
-pcall(function() SaveManager:BuildConfigSection(Tabs["UI Settings"]) end)
-pcall(function() ThemeManager:ApplyToTab(Tabs["UI Settings"]) end)
-
-local ESPBox = Tabs.ESP:AddLeftGroupbox("Killer ESP")
+-- ── ESP Tab ───────────────────────────────────────────────
+local ESPBox       = Tabs.ESP:AddLeftGroupbox("Killer ESP")
+local PlayerESPBox = Tabs.ESP:AddRightGroupbox("Player ESP")
 
 ESPBox:AddToggle("ESPEnabled",{Text="Enable Killer ESP",Default=state.cfg.esp_enabled,
     Callback=function(v) state.cfg.esp_enabled=v end})
@@ -928,22 +1175,46 @@ ESPBox:AddToggle("ESPShowName",{Text="Show Name",Default=state.cfg.esp_showName,
     Callback=function(v) state.cfg.esp_showName=v end})
 ESPBox:AddToggle("ESPShowDist",{Text="Show Distance",Default=state.cfg.esp_showDist,
     Callback=function(v) state.cfg.esp_showDist=v end})
-ESPBox:AddSlider("ESPMaxDist",{Text="Max Distance",Default=state.cfg.esp_maxDist,Min=50,Max=1000,Rounding=0,Suffix=" studs",
+ESPBox:AddSlider("ESPMaxDist",{Text="Max Distance",Default=state.cfg.esp_maxDist,
+    Min=50,Max=1000,Rounding=0,Suffix=" studs",
     Callback=function(v) state.cfg.esp_maxDist=v end})
+
+PlayerESPBox:AddToggle("PlayerESPEnabled",{Text="Enable Player ESP",Default=state.cfg.p_esp_enabled,
+    Callback=function(v) state.cfg.p_esp_enabled=v end})
+PlayerESPBox:AddToggle("PlayerESPShowDist",{Text="Show Distance (under feet)",Default=state.cfg.p_esp_showDist,
+    Callback=function(v) state.cfg.p_esp_showDist=v end})
+PlayerESPBox:AddSlider("PlayerESPMaxDist",{Text="Max Distance",Default=state.cfg.p_esp_maxDist,
+    Min=50,Max=1000,Rounding=0,Suffix=" studs",
+    Callback=function(v) state.cfg.p_esp_maxDist=v end})
+
+-- ── UI Settings Tab ───────────────────────────────────────
+pcall(function() ThemeManager:SetLibrary(Library) end)
+pcall(function() SaveManager:SetLibrary(Library) end)
+pcall(function() SaveManager:IgnoreThemeSettings() end)
+pcall(function() SaveManager:SetIgnoreIndexes({"MenuKeybind"}) end)
+pcall(function() ThemeManager:SetFolder("ViolenceDistrictHub") end)
+pcall(function() SaveManager:SetFolder("ViolenceDistrictHub/settings") end)
+pcall(function() SaveManager:BuildConfigSection(Tabs["UI Settings"]) end)
+pcall(function() ThemeManager:ApplyToTab(Tabs["UI Settings"]) end)
 
 local UnloadBox = Tabs["UI Settings"]:AddLeftGroupbox("Unload Script")
 UnloadBox:AddButton({Text="Unload Script",Func=function() Library:Unload() end,
     DoubleClick=false,Tooltip="Stops all loops and destroys the UI."})
 
+-- ── Unload ────────────────────────────────────────────────
 Library:OnUnload(function()
     state.running = false
     for char,conns in pairs(killerAnimConns) do
         for _,c in ipairs(conns) do pcall(c.Disconnect,c) end
     end
-    for char in pairs(espTrackedChars) do
-        removeESP(char)
+    for char in pairs(espTrackedChars) do removeESP(char) end
+    for char in pairs(playerEspTracked) do removePlayerESP(char) end
+    local root = getHRP()
+    if root then
+        local bg = root:FindFirstChild("VDHub_FV_Gyro")
+        if bg then pcall(function() bg:Destroy() end) end
     end
     pcall(function() parryAdornment:Destroy() end)
     _G.vdHub = nil
-    print("[vdHub v2.8] Unloaded!")
+    print("[vdHub v3.0] Unloaded!")
 end)
