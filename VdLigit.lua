@@ -215,8 +215,8 @@ end
 
 -- [[ TEAM DETECTION ]]
 
-local killerTeamKeywords = { "Killer" }
-local spectatorKeywords  = { "Spectator" }
+local killerTeamKeywords = { "Killer", "killer" }
+local spectatorKeywords  = { "Spectator", "Spectator" }
 
 local function isSpectator()
 	local team = lp.Team
@@ -1169,7 +1169,7 @@ RunService.RenderStepped:Connect(function()
 							local dynamicFont = math.clamp(math.floor(height * 0.18), 8, 11)
 							local sidePadding = math.clamp(math.floor(width * 0.15), 4, 8)
 							local lineHeight  = math.clamp(math.floor(height * 0.22), 10, 14)
-							local hideIfFar   = dist > 150
+							local hideIfFar   = dist > 500
 
 							elem.container.Visible = true
 							elem.boxFrame.Visible  = showBox
@@ -1408,7 +1408,7 @@ local function calculateSpearAim(origin, targetPos, targetVel)
 	local SPEED, GRAVITY
 	if skillReady then
 		SPEED   = 200
-		GRAVITY = 150
+		GRAVITY = 135
 	else
 		SPEED   = 160
 		GRAVITY = 135
