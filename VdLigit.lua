@@ -1198,14 +1198,10 @@ RunService.RenderStepped:Connect(function()
 									elem.knockedLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 								end
 
-								elem.hookCountLabel.Text  = string.format("Hook: %s", tostring(hookCount))
-								elem.hookedProgLabel.Text = string.format("HookProg: %s", tostring(hookedProg))
+                                elem.hookCountLabel.Text = string.format("Hook: %d", tonumber(hookCount) or 0)
+                                elem.hookedProgLabel.Text = string.format("HookProg: %.1f", tonumber(hookedProg) or 0)
 
-								if type(healProg) == "number" then
-									elem.healProgLabel.Text = string.format("HealProg: %.1f", healProg)
-								else
-									elem.healProgLabel.Text = string.format("HealProg: %s", tostring(healProg))
-								end
+                                elem.healProgLabel.Text = string.format("HealProg: %.1f", tonumber(healProg) or 0)
 
 								if elem.parryDaggerLabel then
 									local hasDagger = char:FindFirstChild("Parrying Dagger") ~= nil
@@ -1471,7 +1467,7 @@ end)
 
 local adAngle = 0
 local adDir = 1
-local adSpeed = 999
+local adSpeed = 180
 local adMax = 1
 
 RunService.Heartbeat:Connect(function()
