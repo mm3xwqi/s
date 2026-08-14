@@ -1457,8 +1457,45 @@ local UnloadBox = Tabs["UI Settings"]:AddLeftGroupbox("Unload Script")
 UnloadBox:AddButton({Text="Unload Script",Func=function() Library:Unload() end,
 	DoubleClick=false,Tooltip="Stops all loops and destroys the UI."})
 
+local moonwalkEnabled = false
+local moonwalkKey = Enum.KeyCode.R
+local UserInputService = game:GetService("UserInputService")
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == moonwalkKey then
+		moonwalkEnabled = not moonwalkEnabled
+		print("[vdHub] Moonwalk Legit: " .. (moonwalkEnabled and "ON" or "OFF"))
+	end
+end)
+
+local adAngle = 0
+local adDir = 1
+local adSpeed = 999
+local adMax = 1
+
+RunService.Heartbeat:Connect(function()
+	if not state.running then return end
+	if not moonwalkEnabled then return end
+
+	local ch = lp.Character
+	if not ch then return end
+
+	local root = ch:FindFirstChild("HumanoidRootPart")
+	local hum  = ch:FindFirstChildOfClass("Humanoid")
+	if not root or not hum then return end
+
+	local moveDir = hum.MoveDirection
+	if moveDir.Magnitude < 0.1 then return end
+
+	local pos = root.Position
+	local backDir = Vector3.new(-moveDir.X, 0, -moveDir.Z).Unit
+	root.CFrame = CFrame.new(pos, pos + backDir)
+end)
+
 Library:OnUnload(function()
 	state.running = false
+	moonwalkEnabled = false
 	pcall(function() espGui:Destroy() end)
 	for char, conns in pairs(killerAnimConns) do
 		for _,c in ipairs(conns) do pcall(c.Disconnect,c) end
