@@ -21,12 +21,16 @@ local cam = Workspace.CurrentCamera
 local state = {
 	running = true,
 	cfg = {
-		-- Spear Aimlock
-		spear_enabled   = false,
-		spear_key       = Enum.KeyCode.E,
-		spear_isHolding = false,
+		spear_enabled        = false,
+		spear_key            = Enum.KeyCode.E,
+		spear_isHolding      = false,
+		spear_speed_ready    = 200,
+		spear_speed_cd       = 160,
+		spear_gravity_ready  = 135,
+		spear_gravity_cd     = 135,
+        spear_gravity_ready = 1.4,
+        spear_gravity_cd    = 1.5,
 
-		-- Auto Pallet
 		p_enabled         = false,
 		interactionRadius = 8,
 		stunReach         = 7,
@@ -35,24 +39,28 @@ local state = {
 		p_dropKey         = 32,
 		antiBait          = true,
 
-		-- Auto Skillcheck
 		sc_enabled  = false,
 		sc_lead     = 2,
 		sc_offset   = 102,
 		sc_key      = 32,
 
-		-- Auto Parry
+		fv_enabled    = false,
+		fv_radius     = 6,
+		fv_minSpeed   = 15.5,
+		fv_deadband   = 38,
+		fv_target     = 36,
+		fv_ignoreAxis = false,
+
 		ap_enabled        = false,
 		ap_cooldown       = 0.05,
 		ap_showCircle     = true,
 		ap_circleColor    = Color3.fromRGB(0, 255, 200),
-		ap_animRadius     = 14,
+		ap_animRadius     = 10,
 		ap_animPreDelay   = 0,
-		ap_pendingRadius  = 22,
+		ap_pendingRadius  = 25,
 		ap_hitboxRadius   = 16,
 		ap_hitboxPreDelay = 0.0,
 
-		-- Killer ESP
 		esp_enabled       = false,
 		esp_showName      = true,
 		esp_showDist      = true,
@@ -60,7 +68,6 @@ local state = {
 		esp_showBox       = true,
 		esp_maxDist       = 500,
 
-		-- Player ESP
 		p_esp_enabled       = false,
 		p_esp_showName      = true,
 		p_esp_showDist      = true,
@@ -71,8 +78,6 @@ local state = {
 	}
 }
 _G.vdHub = state
-
--- [[ ANIM ID TABLES ]]
 
 local HIT_ANIM_IDS = {
 	[113255068724446] = true,
@@ -142,8 +147,6 @@ local PARRY_ITEM_COOLDOWNS = {
 
 local PARRY_USE_DELAY = 0.5
 
--- [[ HELPER FUNCTIONS ]]
-
 local function getAnimAssetId(track)
 	local ok, animId = pcall(function()
 		return track.Animation and track.Animation.AnimationId or ""
@@ -199,6 +202,8 @@ local function busy()
 	return ok and (v == true)
 end
 
+local lastDrop, droppedPallets = {}, {}
+
 local function isPalletDropped(pal)
 	if not pal or not pal.board or not pal.board.Parent then return true end
 	if droppedPallets[pal.id] then return true end
@@ -212,8 +217,6 @@ local function isPalletDropped(pal)
 	end
 	return false
 end
-
--- [[ TEAM DETECTION ]]
 
 local killerTeamKeywords = { "Killer", "killer" }
 local spectatorKeywords  = { "Spectator", "Spectator" }
@@ -256,11 +259,9 @@ local function isKillerPlayer(plr)
 	end
 	return false
 end
--- [[ PALLET & KILLER REFRESH ]]
 
 local pallets = {}
 local killerRoots = {}
-local lastDrop, droppedPallets = {}, {}
 local uiLabels = { status = nil, killerDist = nil, parryDaggerCD = nil }
 local pStat = { elig=false, inZone=false, hp=true, nearD=nil, killD=nil, baiting=false }
 local scLast = { l=nil, g=nil, win=nil }
@@ -336,17 +337,146 @@ pcall(refreshPallets); pcall(refreshKiller)
 task.spawn(function() while state.running do pcall(refreshPallets); task.wait(1.5) end end)
 task.spawn(function() while state.running do pcall(refreshKiller); task.wait(0.3) end end)
 
--- [[ AUTO PALLET ]]
+local vaults = {}
+local fvStat = { near = false, holding = false, nearD = nil, vaults = 0, ang = nil }
+local fvHold = false
+
+local function refreshVaults()
+	local vaultPts = {}
+	for _, d in ipairs(Workspace:GetDescendants()) do
+		local ok, nm = pcall(function() return string.lower(d.Name) end)
+		if not ok then continue end
+		if (nm == "vaulttrigger" or nm == "vaultpoint" or nm == "palletpointslide") and d:IsA("BasePart") then
+			local cf = d.CFrame
+			if cf then
+				local lv = cf.LookVector
+				local fx, fz = lv.X, lv.Z
+				local mag = math.sqrt((fx * fx) + (fz * fz))
+				if mag > 0.0001 then
+					local pp = cf.Position
+					vaultPts[#vaultPts + 1] = { pp.X, pp.Y, pp.Z, fx / mag, fz / mag }
+				end
+			end
+		end
+	end
+	vaults = vaultPts
+end
+
+local function fvAngle(tfx, tfz, lx, lz)
+	local d = math.clamp((tfx * lx) + (tfz * lz), -1, 1)
+	local a = math.deg(math.acos(d))
+	if a > 90 then a = 180 - a end
+	return a
+end
+
+local function fvNearest(mx, my, mz, lx, lz, r2)
+	local best, bd
+	for i = 1, #vaults do
+		local v = vaults[i]
+		local dx, dy, dz = mx - v[1], my - v[2], mz - v[3]
+		local d2 = (dx * dx) + (dy * dy) + (dz * dz)
+		if (not bd or (d2 < bd)) and (d2 <= r2) then
+			bd, best = d2, v
+		end
+	end
+	if not best then return nil end
+	return best, math.sqrt(bd), fvAngle(best[4], best[5], lx, lz)
+end
+
+local function fvRotateCharacter(root, dirX, dirZ)
+	if not root then return end
+	pcall(function()
+		local pos = root.Position
+		local targetLook = pos + Vector3.new(dirX, 0, dirZ)
+		root.CFrame = CFrame.new(pos, targetLook)
+	end)
+end
+
+pcall(refreshVaults)
+task.spawn(function()
+	while state.running do
+		pcall(refreshVaults)
+		task.wait(1.5)
+	end
+end)
+
+task.spawn(function()
+	while state.running do
+		local c = state.cfg
+		if c.fv_enabled and isSurvivor() then
+			local root = myRoot()
+			if root and (#vaults > 0) then
+				local cf = root.CFrame
+				local p = cf and cf.Position
+				if p then
+					local lx, lz
+					pcall(function()
+						local clv = cam.CFrame.LookVector
+						lx, lz = clv.X, clv.Z
+					end)
+					if not lx then
+						local lv = cf.LookVector
+						lx, lz = lv.X, lv.Z
+					end
+
+					local lm = math.sqrt((lx * lx) + (lz * lz))
+					if lm > 0.0001 then
+						lx, lz = lx / lm, lz / lm
+					end
+
+					local trig, dist, ang = fvNearest(p.X, p.Y, p.Z, lx, lz, c.fv_radius * c.fv_radius)
+					fvStat.near = trig ~= nil
+					fvStat.nearD = dist
+					fvStat.ang = ang
+
+					local spd = 0
+					pcall(function()
+						local v = root.Velocity
+						spd = math.sqrt((v.X * v.X) + (v.Z * v.Z))
+					end)
+					fvStat.spd = spd
+
+					local gate = (trig ~= nil) and (spd > c.fv_minSpeed)
+					local angOK = c.fv_ignoreAxis or (ang and (ang > c.fv_deadband))
+
+					if gate and not fvHold and angOK then
+						fvHold = true
+						fvStat.vaults = fvStat.vaults + 1
+					elseif not gate then
+						fvHold = false
+					end
+
+					if fvHold and trig then
+						fvRotateCharacter(root, trig[4], trig[5])
+						fvStat.holding = true
+					else
+						fvStat.holding = false
+					end
+				end
+			else
+				fvStat.near, fvStat.holding, fvStat.nearD, fvStat.ang = false, false, nil, nil
+				fvHold = false
+			end
+		else
+			fvStat.near, fvStat.holding = false, false
+			fvHold = false
+		end
+
+		task.wait(1 / 240)
+	end
+end)
 
 local function checkKillerApproach(kRoot, palPos, maxReach)
-	local kPos = kRoot.Position
+	local ok, kPos = pcall(function() return kRoot.Position end)
+	if not ok or not kPos then return false, false end
 	local dx,dy,dz = palPos.X-kPos.X, palPos.Y-kPos.Y, palPos.Z-kPos.Z
 	local dist = math.sqrt(dx*dx+dy*dy+dz*dz)
 	if dist > maxReach then return false, false end
 	if state.cfg.antiBait then
 		local dirX = dx / (dist > 0.001 and dist or 1)
 		local dirZ = dz / (dist > 0.001 and dist or 1)
-		local kVel = kRoot.AssemblyLinearVelocity or kRoot.Velocity
+		local ok2, kVel = pcall(function() return kRoot.AssemblyLinearVelocity or kRoot.Velocity end)
+		if not ok2 or not kVel then return true, true end
 		local speed = math.sqrt(kVel.X*kVel.X + kVel.Z*kVel.Z)
 		if speed < 1 then return true, true end
 		if (kVel.X*dirX + kVel.Z*dirZ) < -2.5 then return true, false end
@@ -371,23 +501,25 @@ task.spawn(function()
 				for i = 1, #pallets do
 					local pal = pallets[i]
 					if not isPalletDropped(pal) and pal.board and pal.board.Parent then
-						local palPos = pal.board.Position
-						local dx,dy,dz = mx-palPos.X, my-palPos.Y, mz-palPos.Z
-						local d2 = dx*dx+dy*dy+dz*dz
-						if not nearD or d2 < nearD then nearD = d2 end
-						if d2 <= ir2 then
-							elig = true
-							for j = 1, #killerRoots do
-								local kRoot = killerRoots[j]
-								local inRange, valid = checkKillerApproach(kRoot, palPos, c.stunReach)
-								if inRange then
-									zone = true
-									if not valid then
-										isBaiting = true
-									elseif (now - (lastDrop[pal.id] or 0)) >= c.cooldown and not busy() then
-										pressKey(Enum.KeyCode.Space, c.p_dropKey)
-										lastDrop[pal.id] = tick()
-										droppedPallets[pal.id] = true
+						local ok2, palPos = pcall(function() return pal.board.Position end)
+						if ok2 and palPos then
+							local dx,dy,dz = mx-palPos.X, my-palPos.Y, mz-palPos.Z
+							local d2 = dx*dx+dy*dy+dz*dz
+							if not nearD or d2 < nearD then nearD = d2 end
+							if d2 <= ir2 then
+								elig = true
+								for j = 1, #killerRoots do
+									local kRoot = killerRoots[j]
+									local inRange, valid = checkKillerApproach(kRoot, palPos, c.stunReach)
+									if inRange then
+										zone = true
+										if not valid then
+											isBaiting = true
+										elseif (now - (lastDrop[pal.id] or 0)) >= c.cooldown and not busy() then
+											pressKey(Enum.KeyCode.Space, c.p_dropKey)
+											lastDrop[pal.id] = tick()
+											droppedPallets[pal.id] = true
+										end
 									end
 								end
 							end
@@ -402,8 +534,6 @@ task.spawn(function()
 		task.wait(1 / (c.hz or 240))
 	end
 end)
-
--- [[ AUTO SKILLCHECK ]]
 
 local function readSkillRots(Line, Goal)
 	local lr, gr
@@ -453,8 +583,6 @@ task.spawn(function()
 		task.wait(1/240)
 	end
 end)
-
--- [[ AUTO PARRY ]]
 
 local ignoredKW = {
 	"break","pallet","kick","destroy","gen","generator","vault","window",
@@ -729,8 +857,6 @@ task.spawn(function()
 	end
 end)
 
--- [[ PARRY ITEM TRACKER ]]
-
 local function getCharAttribute(char, attrName)
 	if not char then return nil end
 	local val = char:GetAttribute(attrName)
@@ -818,8 +944,6 @@ Players.PlayerRemoving:Connect(function(plr)
 	monitoredPlayerAnimators[plr] = nil
 end)
 
--- [[ 2D ESP ]]
-
 local espGui = Instance.new("ScreenGui")
 espGui.Name           = "VDHub_2DESP_ScreenGui"
 espGui.ResetOnSpawn   = false
@@ -849,7 +973,10 @@ local function get2DScreenBounds(char)
 	local width = math.clamp(height * 0.62, 10, 450)
 	local x = topScreen.X - (width / 2)
 	local y = topScreen.Y
-	return x, y, width, height, topScreen.Z
+
+	local realDist = (cam.CFrame.Position - rootPos).Magnitude
+
+	return x, y, width, height, realDist
 end
 
 local function removeKiller2DESP(char)
@@ -1104,7 +1231,6 @@ RunService.RenderStepped:Connect(function()
 	local cam = workspace.CurrentCamera
 	if not cam then return end
 
-	-- Killer ESP
 	if c.esp_enabled then
 		for _, kRoot in ipairs(killerRoots) do
 			local char = kRoot and kRoot.Parent
@@ -1140,7 +1266,6 @@ RunService.RenderStepped:Connect(function()
 		for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
 	end
 
-	-- Player ESP
 	if c.p_esp_enabled then
 		local now = tick()
 		if (now - _playerCacheTime) > 0.5 then
@@ -1217,7 +1342,6 @@ RunService.RenderStepped:Connect(function()
 								elem.hookedProgLabel.Text = string.format("HookProg: %.1f", tonumber(hookedProg) or 0)
 								elem.healProgLabel.Text   = string.format("HealProg: %.1f", tonumber(healProg) or 0)
 
-								-- Items ESP
 								if elem.parryDaggerLabel then
 									local itemNames = {}
 									for _, obj in ipairs(char:GetChildren()) do
@@ -1233,7 +1357,6 @@ RunService.RenderStepped:Connect(function()
 									end
 								end
 
-								-- Parry item cooldown
 								if elem.parryItemLabel then
 									local ps = playerParryState[plr]
 									if ps and not ps.pending and ps.lastUsed then
@@ -1284,7 +1407,6 @@ task.spawn(function()
 	end
 end)
 
-
 local parryAdornment = Instance.new("CylinderHandleAdornment")
 parryAdornment.Name         = "VDHub_ParryHollowRing"
 parryAdornment.Height       = 0.05
@@ -1312,8 +1434,6 @@ RunService.RenderStepped:Connect(function()
 		parryAdornment.Visible = false
 	end
 end)
-
--- PARRY DAGGER CD TRACKER
 
 task.spawn(function()
 	while state.running do
@@ -1343,7 +1463,6 @@ task.spawn(function()
 	end
 end)
 
--- SPEAR AIMLOCK
 local _skillCDCache = false
 local _skillCDLastCheck = 0
 
@@ -1403,59 +1522,216 @@ local function getSpearTarget()
 end
 
 local function calculateSpearAim(origin, targetPos, targetVel)
+	local c = state.cfg
 	local skillReady = getSkillCooldownState()
-
-	local SPEED, GRAVITY
-	if skillReady then
-		SPEED   = 200
-		GRAVITY = 135
-	else
-		SPEED   = 160
-		GRAVITY = 135
-	end
+	local SPEED = skillReady and c.spear_speed_ready or c.spear_speed_cd
 
 	local toTarget  = targetPos - origin
 	local horizDist = Vector3.new(toTarget.X, 0, toTarget.Z).Magnitude
-	local t         = horizDist / SPEED
+	local t = horizDist / SPEED
 
 	local predPos = (targetVel and targetVel.Magnitude > 0.5)
-		and (targetPos + targetVel * t)
+		and (targetPos + Vector3.new(targetVel.X, 0, targetVel.Z) * t)
 		or targetPos
 
-	return predPos + Vector3.new(0, 0.5 * GRAVITY * (t * t), 0)
+	local v0y = skillReady and 36.52 or 46.05
+	local g = workspace.Gravity
+	local netDrop = (v0y * t) - (0.5 * g * t * t)
+
+	local scale = skillReady and c.spear_gravity_ready or c.spear_gravity_cd
+
+	return predPos - Vector3.new(0, netDrop * scale, 0)
 end
 
 UserInputService.InputBegan:Connect(function(input, gpe)
-	if not gpe and input.KeyCode == state.cfg.spear_key then
-		state.cfg.spear_isHolding = true
-	end
+    if not gpe and input.KeyCode == state.cfg.spear_key then
+        state.cfg.spear_isHolding = true
+    end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-	if input.KeyCode == state.cfg.spear_key then
-		state.cfg.spear_isHolding = false
-	end
+    if input.KeyCode == state.cfg.spear_key then
+        state.cfg.spear_isHolding = false
+    end
 end)
 
 RunService.RenderStepped:Connect(function()
-	if not (state.running and state.cfg.spear_enabled and state.cfg.spear_isHolding) then return end
-	local target, targetType = getSpearTarget()
-	if not target then return end
+    if not (state.running and state.cfg.spear_enabled and state.cfg.spear_isHolding) then return end
+    local target, targetType = getSpearTarget()
+    if not target then return end
 
-	local camCF = workspace.CurrentCamera.CFrame
-	local aimPos
+    local camCF = workspace.CurrentCamera.CFrame
+    local aimPos
 
-	if targetType == "spear" then
-		aimPos = target.Position
-	else
-		local targetVel = target.AssemblyLinearVelocity or target.Velocity
-		aimPos = calculateSpearAim(camCF.Position, target.Position, targetVel)
-	end
+    if targetType == "spear" then
+        aimPos = target.Position
+    else
+        local targetVel = target.AssemblyLinearVelocity or target.Velocity
+        aimPos = calculateSpearAim(camCF.Position, target.Position, targetVel)
+    end
 
-	workspace.CurrentCamera.CFrame = CFrame.lookAt(camCF.Position, aimPos)
+    workspace.CurrentCamera.CFrame = CFrame.lookAt(camCF.Position, aimPos)
 end)
 
--- [[ MOONWALK ]]
+state.cfg.spear_esp_enabled = false
+state.cfg.spear_esp_maxDist = 300
+
+local spearEspGui = Instance.new("ScreenGui")
+spearEspGui.Name           = "VDHub_SpearESP"
+spearEspGui.ResetOnSpawn   = false
+spearEspGui.DisplayOrder   = 1000
+spearEspGui.IgnoreGuiInset = true
+spearEspGui.Parent         = game:GetService("CoreGui")
+
+local spearESPs = {}
+local spearCamLock = { enabled = false }
+state.cfg.spear_cam_enabled = false
+
+local SPEAR_COLOR = Color3.fromRGB(255, 80, 0)
+
+local function isSpearPart(obj)
+	if not obj:IsA("BasePart") then return false end
+	local n = string.lower(obj.Name)
+	return n:find("spear") and n:find("projectile")
+end
+
+local function addSpearESP(model)
+	if spearESPs[model] then return end
+
+	local root = model.PrimaryPart or model:FindFirstChildOfClass("MeshPart") or model:FindFirstChildOfClass("BasePart")
+	if not root then return end
+
+	local bb = Instance.new("BillboardGui")
+	bb.AlwaysOnTop = true
+	bb.Size        = UDim2.new(0, 6, 0, 6)
+	bb.Adornee     = root
+	bb.Parent      = spearEspGui
+
+	local dot = Instance.new("Frame")
+	dot.Size             = UDim2.new(1, 0, 1, 0)
+	dot.BackgroundColor3 = SPEAR_COLOR
+	dot.BorderSizePixel  = 0
+	dot.Parent           = bb
+	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Name                   = "Dist"
+	lbl.BackgroundTransparency = 1
+	lbl.Size                   = UDim2.new(0, 60, 0, 14)
+	lbl.Position               = UDim2.new(0.5, -30, 1, 2)
+	lbl.TextColor3             = SPEAR_COLOR
+	lbl.TextStrokeTransparency = 0
+	lbl.Font                   = Enum.Font.GothamBold
+	lbl.TextSize               = 10
+	lbl.Text                   = ""
+	lbl.Parent                 = bb
+
+	local hl = Instance.new("Highlight")
+	hl.FillColor           = SPEAR_COLOR
+	hl.OutlineColor        = SPEAR_COLOR
+	hl.FillTransparency    = 0.5
+	hl.OutlineTransparency = 0
+	hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Adornee             = model
+	hl.Parent              = model
+
+	spearESPs[model] = { bb = bb, hl = hl, lbl = lbl, root = root }
+end
+
+local function removeSpearESP(part)
+	local e = spearESPs[part]
+	if not e then return end
+	pcall(function() e.bb:Destroy() end)
+	pcall(function() e.sel:Destroy() end)
+	spearESPs[part] = nil
+end
+
+local function removeSpearESP(part)
+	local e = spearESPs[part]
+	if not e then return end
+	pcall(function() e.bb:Destroy() end)
+	pcall(function() e.sel:Destroy() end)
+	spearESPs[part] = nil
+end
+
+task.spawn(function()
+	while state.running do
+		if state.cfg.spear_esp_enabled then
+			for _, obj in ipairs(Workspace:GetDescendants()) do
+				if obj:IsA("Model") and string.lower(obj.Name) == "spearprojectile" then
+					addSpearESP(obj)
+				end
+			end
+			for model in pairs(spearESPs) do
+				if not model.Parent then
+					removeSpearESP(model)
+				end
+			end
+            spearCamLock.enabled = state.cfg.spear_cam_enabled and (next(spearESPs) ~= nil)
+            if not spearCamLock.enabled and state.cfg.spear_cam_enabled then
+                workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+            end
+			spearCamLock.enabled = state.cfg.spear_cam_enabled and (next(spearESPs) ~= nil)
+		else
+			spearCamLock.enabled = false
+		end
+		task.wait(0.2)
+	end
+end)
+
+Workspace.DescendantRemoving:Connect(function(obj)
+	if spearESPs[obj] then removeSpearESP(obj) end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if not state.running or not spearCamLock.enabled then return end
+	local bestRoot, bestDist = nil, math.huge
+	local me = myRoot()
+	local myPos = me and me.Position
+	if not myPos then return end
+	for model, e in pairs(spearESPs) do
+		if model.Parent and e.root and e.root.Parent then
+			local ok, d = pcall(function() return (myPos - e.root.Position).Magnitude end)
+			if ok and d < bestDist then bestDist = d; bestRoot = e.root end
+		end
+	end
+	if bestRoot then
+		local spearPos = bestRoot.Position
+		local spearVel = bestRoot.AssemblyLinearVelocity or bestRoot.Velocity or Vector3.zero
+		local lookDir = spearVel.Magnitude > 1 and spearVel.Unit or Vector3.new(0, 0, 1)
+		-- วางกล้องข้างหลังหอกนิดนึง หันไปทางที่หอกบิน
+		local camPos = spearPos - (lookDir * 5) + Vector3.new(0, 1, 0)
+		workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
+		workspace.CurrentCamera.CFrame = CFrame.lookAt(camPos, spearPos + lookDir * 3)
+	end
+end)
+
+local _spearTick = 0
+RunService.Heartbeat:Connect(function()
+	if not state.running or not state.cfg.spear_esp_enabled then return end
+	local now = tick()
+	if now - _spearTick < 0.1 then return end
+	_spearTick = now
+
+	local me = myRoot()
+	local myPos = me and me.Position
+
+	for model, e in pairs(spearESPs) do
+		if not model.Parent then
+			removeSpearESP(model)
+			continue
+		end
+		if myPos then
+			local ok, d = pcall(function() return (myPos - e.root.Position).Magnitude end)
+			if ok and d <= state.cfg.spear_esp_maxDist then
+				e.lbl.Text   = string.format("%.0f", d)
+				e.bb.Enabled = true
+			else
+				e.bb.Enabled = false
+			end
+		end
+	end
+end)
 
 local moonwalkEnabled = false
 local moonwalkKey     = Enum.KeyCode.R
@@ -1483,8 +1759,6 @@ RunService.Heartbeat:Connect(function()
 	root.CFrame   = CFrame.new(pos, pos + backDir)
 end)
 
--- [[ UI — LIBRARY ]]
-
 local repo         = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 Library            = loadstring(game:HttpGet(repo.."Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo.."addons/ThemeManager.lua"))()
@@ -1505,14 +1779,12 @@ local Tabs = {
 	["UI Settings"] = Window:AddTab("Settings",  "settings"),
 }
 
--- [[ SURVIVOR TAB ]]
-
 local PalletBox = Tabs.Survivor:AddLeftGroupbox("Auto Pallet Stun")
 local SkillBox  = Tabs.Survivor:AddRightGroupbox("Auto Skillcheck")
+local VaultBox  = Tabs.Survivor:AddRightGroupbox("Always Fast Vault")
 local ParryBox  = Tabs.Survivor:AddLeftGroupbox("Auto Parry")
 local ParryStatusBox = Tabs.Survivor:AddRightGroupbox("Parry Status")
 
--- Pallet
 PalletBox:AddToggle("AutoPallet", {
 	Text    = "Auto Pallet Stun",
 	Default = state.cfg.p_enabled,
@@ -1543,7 +1815,6 @@ PalletBox:AddSlider("PalletCooldown", {
 	Callback = function(v) state.cfg.cooldown = v end,
 })
 
--- Skillcheck
 SkillBox:AddToggle("AutoSkillcheck", {
 	Text     = "Auto Skillcheck",
 	Default  = state.cfg.sc_enabled,
@@ -1562,7 +1833,36 @@ SkillBox:AddSlider("ScLead", {
 	Callback = function(v) state.cfg.sc_lead = v end,
 })
 
--- Auto Parry
+VaultBox:AddToggle("AlwaysFastVault", {
+	Text     = "Always Fast Vault",
+	Default  = state.cfg.fv_enabled,
+	Tooltip  = "Automatically aligns character for fast vaults",
+	Callback = function(v) state.cfg.fv_enabled = v end,
+})
+VaultBox:AddSlider("FvRadius", {
+	Text     = "Arm Radius",
+	Default  = state.cfg.fv_radius,
+	Min=4, Max=25, Rounding=0, Suffix=" studs",
+	Callback = function(v) state.cfg.fv_radius = v end,
+})
+VaultBox:AddSlider("FvMinSpeed", {
+	Text     = "Min Speed",
+	Default  = state.cfg.fv_minSpeed,
+	Min=5, Max=30, Rounding=1, Suffix=" studs/s",
+	Callback = function(v) state.cfg.fv_minSpeed = v end,
+})
+VaultBox:AddSlider("FvTurnLimit", {
+	Text     = "Turn Limit",
+	Default  = state.cfg.fv_target,
+	Min=0, Max=40, Rounding=0, Suffix="°",
+	Callback = function(v) state.cfg.fv_target = v end,
+})
+VaultBox:AddToggle("FvIgnoreAxis", {
+	Text     = "Ignore Off-Axis",
+	Default  = state.cfg.fv_ignoreAxis,
+	Callback = function(v) state.cfg.fv_ignoreAxis = v end,
+})
+
 ParryBox:AddToggle("AutoParry", {
 	Text     = "Auto Parry (Right Click)",
 	Default  = state.cfg.ap_enabled,
@@ -1616,7 +1916,6 @@ ParryBox:AddSlider("AnimPreDelay", {
 	Callback = function(v) state.cfg.ap_animPreDelay = v end,
 })
 
--- Parry Status
 uiLabels.status        = ParryStatusBox:AddLabel("Status: Disabled")
 uiLabels.killerDist    = ParryStatusBox:AddLabel("Killer: None")
 uiLabels.parryDaggerCD = ParryStatusBox:AddLabel("Parry Dagger: N/A")
@@ -1624,7 +1923,6 @@ uiLabels.parryDaggerCD = ParryStatusBox:AddLabel("Parry Dagger: N/A")
 if state.cfg.ap_enabled and uiLabels.status then
 	uiLabels.status:SetText("Status: Active")
 end
-
 
 local AimBox = Tabs.Killer:AddLeftGroupbox("Spear Aimlock")
 
@@ -1634,8 +1932,49 @@ AimBox:AddToggle("SpearAimlock", {
 	Tooltip  = "",
 	Callback = function(v) state.cfg.spear_enabled = v end,
 })
+AimBox:AddSlider("SpearGravityReady", {
+	Text     = "Aim Scale (Skill Ready)",
+	Default  = 1.4,
+	Min=0, Max=10, Rounding=1,
+	Callback = function(v) state.cfg.spear_gravity_ready = v end,
+})
+AimBox:AddSlider("SpearGravityCD", {
+	Text     = "Aim Scale (Skill CD)",
+	Default  = 1.5,
+	Min=0, Max=10, Rounding=1,
+	Callback = function(v) state.cfg.spear_gravity_cd = v end,
+})
 
--- [[ ESP TAB ]]
+local SpearESPBox = Tabs.ESP:AddLeftGroupbox("Spear ESP")
+
+SpearESPBox:AddToggle("SpearESPEnabled", {
+	Text     = "Enable Spear ESP",
+	Default  = false,
+	Callback = function(v)
+		state.cfg.spear_esp_enabled = v
+		if not v then
+			for part in pairs(spearESPs) do removeSpearESP(part) end
+		end
+	end,
+})
+SpearESPBox:AddSlider("SpearESPMaxDist", {
+	Text     = "Max Distance",
+	Default  = 300,
+	Min=50, Max=600, Rounding=0, Suffix=" studs",
+	Callback = function(v) state.cfg.spear_esp_maxDist = v end,
+})
+
+SpearESPBox:AddToggle("SpearCamLock", {
+	Text     = "Camera Track Spear",
+	Default  = false,
+	Callback = function(v)
+		state.cfg.spear_cam_enabled = v
+		if not v then
+			spearCamLock.enabled = false
+			workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+		end
+	end,
+})
 
 local ESPBox       = Tabs.ESP:AddLeftGroupbox("Killer ESP")
 local PlayerESPBox = Tabs.ESP:AddRightGroupbox("Player ESP")
@@ -1709,8 +2048,6 @@ PlayerESPBox:AddSlider("PlayerESPMaxDist", {
 	Callback = function(v) state.cfg.p_esp_maxDist = v end,
 })
 
---UI SETTINGS TAB
-
 pcall(function() ThemeManager:SetLibrary(Library) end)
 pcall(function() SaveManager:SetLibrary(Library) end)
 pcall(function() SaveManager:IgnoreThemeSettings() end)
@@ -1728,11 +2065,11 @@ UnloadBox:AddButton({
 	Tooltip    = "Stops all loops and destroys the UI.",
 })
 
---UNLOAD
-
 Library:OnUnload(function()
 	state.running   = false
 	moonwalkEnabled = false
+	fvHold          = false
+	vaults          = {}
 
 	pcall(function()
 		if parryAdornment and parryAdornment.Parent then
@@ -1749,6 +2086,9 @@ Library:OnUnload(function()
 
 	pcall(function() espGui:Destroy() end)
 
+    pcall(function() spearEspGui:Destroy() end)
+    for part in pairs(spearESPs) do removeSpearESP(part) end
+
 	for char, conns in pairs(killerAnimConns) do
 		for _,c in ipairs(conns) do pcall(c.Disconnect, c) end
 	end
@@ -1756,8 +2096,7 @@ Library:OnUnload(function()
 	for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
 	for char in pairs(player2DEspElements) do removePlayer2DESP(char) end
 
-
-	playerParryState       = {}
+	playerParryState         = {}
 	monitoredPlayerAnimators = {}
 	_G.vdHub = nil
 	print("[vdHub v3.4] Unloaded!")
