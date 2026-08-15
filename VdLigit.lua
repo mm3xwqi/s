@@ -1,7 +1,3 @@
-if _G.vdHub and _G.vdHub.stop then
-	pcall(_G.vdHub.stop)
-end
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -26,10 +22,8 @@ local state = {
 		spear_isHolding      = false,
 		spear_speed_ready    = 200,
 		spear_speed_cd       = 160,
-		spear_gravity_ready  = 135,
-		spear_gravity_cd     = 135,
-        spear_gravity_ready = 1.4,
-        spear_gravity_cd    = 1.5,
+		spear_gravity_ready  = 1.4,
+		spear_gravity_cd     = 1.5,
 
 		p_enabled         = false,
 		interactionRadius = 8,
@@ -75,6 +69,26 @@ local state = {
 		p_esp_showBox       = true,
 		p_esp_showStatus    = true,
 		p_esp_maxDist       = 500,
+
+		-- Anti Stun (Killer)
+		antiStun_enabled    = false,
+
+		-- No Flash Blind (Killer)
+		noFlashBlind        = false,
+
+		-- Break Speed (Killer)
+		breakSpeed_enabled  = false,
+		breakSpeed_value    = 1,
+
+		-- Select Mask / Use Power Mask (Killer - The Masked)
+		selectMask          = "Alex",
+
+		-- Auto Crouch (Survivor)
+		autoCrouch_enabled  = false,
+		autoCrouch_delay    = 0,
+		autoCrouch_humanize = false,
+		autoCrouch_distance = 18,
+		autoCrouch_duration = 1.5,
 	}
 }
 _G.vdHub = state
@@ -99,6 +113,7 @@ local HIT_ANIM_IDS = {
 	[138720291317243] = true,
 	[135002183282873] = true,
 	[122812055447896] = true,
+    [118907603246885] = true,
 }
 
 local SKILL_ANIM_IDS = {
@@ -260,6 +275,10 @@ local function isKillerPlayer(plr)
 	return false
 end
 
+local function shouldTrackSpear()
+	return not isSurvivor() and not isSpectator()
+end
+
 local pallets = {}
 local killerRoots = {}
 local uiLabels = { status = nil, killerDist = nil, parryDaggerCD = nil }
@@ -418,34 +437,28 @@ task.spawn(function()
 						local lv = cf.LookVector
 						lx, lz = lv.X, lv.Z
 					end
-
 					local lm = math.sqrt((lx * lx) + (lz * lz))
 					if lm > 0.0001 then
 						lx, lz = lx / lm, lz / lm
 					end
-
 					local trig, dist, ang = fvNearest(p.X, p.Y, p.Z, lx, lz, c.fv_radius * c.fv_radius)
 					fvStat.near = trig ~= nil
 					fvStat.nearD = dist
 					fvStat.ang = ang
-
 					local spd = 0
 					pcall(function()
 						local v = root.Velocity
 						spd = math.sqrt((v.X * v.X) + (v.Z * v.Z))
 					end)
 					fvStat.spd = spd
-
 					local gate = (trig ~= nil) and (spd > c.fv_minSpeed)
 					local angOK = c.fv_ignoreAxis or (ang and (ang > c.fv_deadband))
-
 					if gate and not fvHold and angOK then
 						fvHold = true
 						fvStat.vaults = fvStat.vaults + 1
 					elseif not gate then
 						fvHold = false
 					end
-
 					if fvHold and trig then
 						fvRotateCharacter(root, trig[4], trig[5])
 						fvStat.holding = true
@@ -461,7 +474,6 @@ task.spawn(function()
 			fvStat.near, fvStat.holding = false, false
 			fvHold = false
 		end
-
 		task.wait(1 / 240)
 	end
 end)
@@ -564,7 +576,7 @@ task.spawn(function()
 				if lr and gr then
 					local lo = gr + (c.sc_offset or 102) + (c.sc_lead or 2)
 					scLast.l = lr; scLast.g = gr
-					scLast.win = string.format("%.0f°..%.0f°", lo, lo+14)
+					scLast.win = string.format("%.0f\xc2\xb0..%.0f\xc2\xb0", lo, lo+14)
 					local diff = (lr - lo) % 360
 					if diff > 180 then diff = diff - 360 end
 					if diff >= 0 and diff <= 14 and not scFired then
@@ -973,9 +985,7 @@ local function get2DScreenBounds(char)
 	local width = math.clamp(height * 0.62, 10, 450)
 	local x = topScreen.X - (width / 2)
 	local y = topScreen.Y
-
 	local realDist = (cam.CFrame.Position - rootPos).Magnitude
-
 	return x, y, width, height, realDist
 end
 
@@ -989,7 +999,6 @@ end
 
 local function createKiller2DESP(char)
 	removeKiller2DESP(char)
-
 	local highlight = Instance.new("Highlight")
 	highlight.Name                = "VDHub_Killer_Highlight"
 	highlight.FillColor           = Color3.fromRGB(255, 0, 0)
@@ -999,22 +1008,18 @@ local function createKiller2DESP(char)
 	highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Adornee             = char
 	highlight.Parent              = char
-
 	local container = Instance.new("Frame")
 	container.Name                   = "Killer2DContainer"
 	container.BackgroundTransparency = 1
 	container.Size                   = UDim2.new(1, 0, 1, 0)
 	container.Parent                 = espGui
-
 	local boxFrame = Instance.new("Frame")
 	boxFrame.BackgroundTransparency = 1
 	boxFrame.Parent                 = container
-
 	local stroke = Instance.new("UIStroke")
 	stroke.Color     = Color3.fromRGB(255, 0, 0)
 	stroke.Thickness = 1.5
 	stroke.Parent    = boxFrame
-
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Size                   = UDim2.new(0, 160, 0, 16)
@@ -1025,7 +1030,6 @@ local function createKiller2DESP(char)
 	nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	nameLabel.Text                   = char.Name
 	nameLabel.Parent                 = container
-
 	local distLabel = Instance.new("TextLabel")
 	distLabel.BackgroundTransparency = 1
 	distLabel.Size                   = UDim2.new(0, 160, 0, 14)
@@ -1036,7 +1040,6 @@ local function createKiller2DESP(char)
 	distLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	distLabel.Text                   = ""
 	distLabel.Parent                 = container
-
 	killer2DEspElements[char] = {
 		container = container,
 		highlight = highlight,
@@ -1056,7 +1059,6 @@ end
 
 local function createPlayer2DESP(char)
 	removePlayer2DESP(char)
-
 	local highlight = Instance.new("Highlight")
 	highlight.Name                = "VDHub_Player_Highlight"
 	highlight.FillColor           = Color3.fromRGB(0, 150, 255)
@@ -1066,22 +1068,18 @@ local function createPlayer2DESP(char)
 	highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Adornee             = char
 	highlight.Parent              = char
-
 	local container = Instance.new("Frame")
 	container.Name                   = "Player2DContainer"
 	container.BackgroundTransparency = 1
 	container.Size                   = UDim2.new(1, 0, 1, 0)
 	container.Parent                 = espGui
-
 	local boxFrame = Instance.new("Frame")
 	boxFrame.BackgroundTransparency = 1
 	boxFrame.Parent                 = container
-
 	local stroke = Instance.new("UIStroke")
 	stroke.Color     = Color3.fromRGB(0, 170, 255)
 	stroke.Thickness = 1.5
 	stroke.Parent    = boxFrame
-
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Size                   = UDim2.new(0, 160, 0, 16)
@@ -1092,7 +1090,6 @@ local function createPlayer2DESP(char)
 	nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	nameLabel.Text                   = char.Name
 	nameLabel.Parent                 = container
-
 	local distLabel = Instance.new("TextLabel")
 	distLabel.BackgroundTransparency = 1
 	distLabel.Size                   = UDim2.new(0, 160, 0, 14)
@@ -1103,17 +1100,14 @@ local function createPlayer2DESP(char)
 	distLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	distLabel.Text                   = ""
 	distLabel.Parent                 = container
-
 	local sideFrame = Instance.new("Frame")
 	sideFrame.BackgroundTransparency = 1
 	sideFrame.Size                   = UDim2.new(0, 140, 0, 56)
 	sideFrame.Parent                 = container
-
 	local listLayoutR = Instance.new("UIListLayout")
 	listLayoutR.SortOrder = Enum.SortOrder.LayoutOrder
 	listLayoutR.Padding   = UDim.new(0, 0)
 	listLayoutR.Parent    = sideFrame
-
 	local knockedLabel = Instance.new("TextLabel")
 	knockedLabel.LayoutOrder            = 1
 	knockedLabel.BackgroundTransparency = 1
@@ -1125,7 +1119,6 @@ local function createPlayer2DESP(char)
 	knockedLabel.TextStrokeTransparency = 0
 	knockedLabel.Text                   = "Knocked: NO"
 	knockedLabel.Parent                 = sideFrame
-
 	local hookCountLabel = Instance.new("TextLabel")
 	hookCountLabel.LayoutOrder            = 2
 	hookCountLabel.BackgroundTransparency = 1
@@ -1137,7 +1130,6 @@ local function createPlayer2DESP(char)
 	hookCountLabel.TextStrokeTransparency = 0
 	hookCountLabel.Text                   = "Hook: 0"
 	hookCountLabel.Parent                 = sideFrame
-
 	local hookedProgLabel = Instance.new("TextLabel")
 	hookedProgLabel.LayoutOrder            = 3
 	hookedProgLabel.BackgroundTransparency = 1
@@ -1149,7 +1141,6 @@ local function createPlayer2DESP(char)
 	hookedProgLabel.TextStrokeTransparency = 0
 	hookedProgLabel.Text                   = "HookProg: 100"
 	hookedProgLabel.Parent                 = sideFrame
-
 	local healProgLabel = Instance.new("TextLabel")
 	healProgLabel.LayoutOrder            = 4
 	healProgLabel.BackgroundTransparency = 1
@@ -1161,17 +1152,14 @@ local function createPlayer2DESP(char)
 	healProgLabel.TextStrokeTransparency = 0
 	healProgLabel.Text                   = "HealProg: 0.0"
 	healProgLabel.Parent                 = sideFrame
-
 	local leftFrame = Instance.new("Frame")
 	leftFrame.BackgroundTransparency = 1
 	leftFrame.Size                   = UDim2.new(0, 140, 0, 28)
 	leftFrame.Parent                 = container
-
 	local listLayoutL = Instance.new("UIListLayout")
 	listLayoutL.SortOrder = Enum.SortOrder.LayoutOrder
 	listLayoutL.Padding   = UDim.new(0, 0)
 	listLayoutL.Parent    = leftFrame
-
 	local itemsLabel = Instance.new("TextLabel")
 	itemsLabel.LayoutOrder            = 1
 	itemsLabel.BackgroundTransparency = 1
@@ -1184,7 +1172,6 @@ local function createPlayer2DESP(char)
 	itemsLabel.Text                   = ""
 	itemsLabel.TextWrapped            = true
 	itemsLabel.Parent                 = leftFrame
-
 	local parryItemLabel = Instance.new("TextLabel")
 	parryItemLabel.LayoutOrder            = 2
 	parryItemLabel.BackgroundTransparency = 1
@@ -1196,7 +1183,6 @@ local function createPlayer2DESP(char)
 	parryItemLabel.TextStrokeTransparency = 0
 	parryItemLabel.Text                   = ""
 	parryItemLabel.Parent                 = leftFrame
-
 	player2DEspElements[char] = {
 		container        = container,
 		highlight        = highlight,
@@ -1220,17 +1206,14 @@ local _playerCacheTime = 0
 RunService.RenderStepped:Connect(function()
 	if not state.running then return end
 	local c = state.cfg
-
 	local spectating = isSpectator()
 	if spectating then
 		for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
 		for char in pairs(player2DEspElements) do removePlayer2DESP(char) end
 		return
 	end
-
 	local cam = workspace.CurrentCamera
 	if not cam then return end
-
 	if c.esp_enabled then
 		for _, kRoot in ipairs(killerRoots) do
 			local char = kRoot and kRoot.Parent
@@ -1265,18 +1248,15 @@ RunService.RenderStepped:Connect(function()
 	else
 		for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
 	end
-
 	if c.p_esp_enabled then
 		local now = tick()
 		if (now - _playerCacheTime) > 0.5 then
 			_cachedPlayers = Players:GetPlayers()
 			_playerCacheTime = now
 		end
-
 		local showHL  = c.p_esp_showHighlight
 		local showBox = c.p_esp_showBox
 		local showSt  = c.p_esp_showStatus
-
 		for _, plr in ipairs(_cachedPlayers) do
 			if plr ~= lp and not isKillerPlayer(plr) then
 				local char = plr.Character
@@ -1295,7 +1275,6 @@ RunService.RenderStepped:Connect(function()
 							local sidePadding = math.clamp(math.floor(width * 0.15), 4, 8)
 							local lineHeight  = math.clamp(math.floor(height * 0.22), 10, 14)
 							local hideIfFar   = dist > 500
-
 							elem.container.Visible = true
 							elem.boxFrame.Visible  = showBox
 							elem.boxFrame.Position = UDim2.new(0, x, 0, y)
@@ -1324,13 +1303,11 @@ RunService.RenderStepped:Connect(function()
 							elem.parryDaggerLabel.Size     = UDim2.new(1, 0, 0, lineHeight)
 							elem.parryItemLabel.TextSize   = dynamicFont
 							elem.parryItemLabel.Size       = UDim2.new(1, 0, 0, lineHeight)
-
 							if showSt and not hideIfFar then
 								local isKnocked  = getCharAttribute(char, "Knocked")
 								local hookCount  = getCharAttribute(char, "HookCount") or 0
 								local hookedProg = getCharAttribute(char, "HookedProgress") or 100
 								local healProg   = getCharAttribute(char, "HealProgress") or 0
-
 								if isKnocked == true then
 									elem.knockedLabel.Text       = "Knocked: YES"
 									elem.knockedLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
@@ -1341,7 +1318,6 @@ RunService.RenderStepped:Connect(function()
 								elem.hookCountLabel.Text  = string.format("Hook: %d", tonumber(hookCount) or 0)
 								elem.hookedProgLabel.Text = string.format("HookProg: %.1f", tonumber(hookedProg) or 0)
 								elem.healProgLabel.Text   = string.format("HealProg: %.1f", tonumber(healProg) or 0)
-
 								if elem.parryDaggerLabel then
 									local itemNames = {}
 									for _, obj in ipairs(char:GetChildren()) do
@@ -1356,7 +1332,6 @@ RunService.RenderStepped:Connect(function()
 										elem.parryDaggerLabel.Text = ""
 									end
 								end
-
 								if elem.parryItemLabel then
 									local ps = playerParryState[plr]
 									if ps and not ps.pending and ps.lastUsed then
@@ -1488,19 +1463,16 @@ end
 
 local function getSpearTarget()
 	local me = myRoot()
-	if not me then return nil, nil end
-
+	if not me then return nil, nil, nil end
 	local cam = workspace.CurrentCamera
-	if not cam then return nil, nil end
-
+	if not cam then return nil, nil, nil end
 	local mousePos = UserInputService:GetMouseLocation()
-
-	local best, minDist = nil, math.huge
-
+	local best, bestChar, minDist = nil, nil, math.huge
 	for _, plr in ipairs(Players:GetPlayers()) do
 		if plr ~= lp and plr.Character then
-			local root = plr.Character:FindFirstChild("HumanoidRootPart")
-			local hum  = plr.Character:FindFirstChildOfClass("Humanoid")
+			local char = plr.Character
+			local root = char:FindFirstChild("HumanoidRootPart")
+			local hum  = char:FindFirstChildOfClass("Humanoid")
 			if root and hum and hum.Health > 0 then
 				if not isKillerPlayer(plr) and not isSpectator() then
 					local screenPos, onScreen = cam:WorldToViewportPoint(root.Position)
@@ -1509,68 +1481,61 @@ local function getSpearTarget()
 						local dy = screenPos.Y - mousePos.Y
 						local screenDist = math.sqrt(dx*dx + dy*dy)
 						if screenDist < minDist then
-							minDist = screenDist
-							best = root
+							minDist  = screenDist
+							best     = root
+							bestChar = char
 						end
 					end
 				end
 			end
 		end
 	end
-
-	return best, "survivor"
+	return best, "survivor", bestChar
 end
 
 local function calculateSpearAim(origin, targetPos, targetVel)
 	local c = state.cfg
 	local skillReady = getSkillCooldownState()
-	local SPEED = skillReady and c.spear_speed_ready or c.spear_speed_cd
-
+	local SPEED  = skillReady and c.spear_speed_ready or c.spear_speed_cd
+	local gScale = skillReady and c.spear_gravity_ready or c.spear_gravity_cd
 	local toTarget  = targetPos - origin
 	local horizDist = Vector3.new(toTarget.X, 0, toTarget.Z).Magnitude
-	local t = horizDist / SPEED
-
+	local t = horizDist / math.max(SPEED, 1)
+	local aimBase = targetPos + Vector3.new(0, 0.8, 0)
 	local predPos = (targetVel and targetVel.Magnitude > 0.5)
-		and (targetPos + Vector3.new(targetVel.X, 0, targetVel.Z) * t)
-		or targetPos
-
-	local v0y = skillReady and 36.52 or 46.05
-	local g = workspace.Gravity
+		and (aimBase + Vector3.new(targetVel.X, 0, targetVel.Z) * t)
+		or aimBase
+	local g       = workspace.Gravity * gScale
+	local v0y     = skillReady and 36.52 or 46.05
 	local netDrop = (v0y * t) - (0.5 * g * t * t)
-
-	local scale = skillReady and c.spear_gravity_ready or c.spear_gravity_cd
-
-	return predPos - Vector3.new(0, netDrop * scale, 0)
+	return predPos - Vector3.new(0, netDrop, 0)
 end
 
 UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == state.cfg.spear_key then
-        state.cfg.spear_isHolding = true
-    end
+	if not gpe and input.KeyCode == state.cfg.spear_key then
+		state.cfg.spear_isHolding = true
+	end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.KeyCode == state.cfg.spear_key then
-        state.cfg.spear_isHolding = false
-    end
+	if input.KeyCode == state.cfg.spear_key then
+		state.cfg.spear_isHolding = false
+	end
 end)
 
 RunService.RenderStepped:Connect(function()
-    if not (state.running and state.cfg.spear_enabled and state.cfg.spear_isHolding) then return end
-    local target, targetType = getSpearTarget()
-    if not target then return end
-
-    local camCF = workspace.CurrentCamera.CFrame
-    local aimPos
-
-    if targetType == "spear" then
-        aimPos = target.Position
-    else
-        local targetVel = target.AssemblyLinearVelocity or target.Velocity
-        aimPos = calculateSpearAim(camCF.Position, target.Position, targetVel)
-    end
-
-    workspace.CurrentCamera.CFrame = CFrame.lookAt(camCF.Position, aimPos)
+	if not (state.running and state.cfg.spear_enabled and state.cfg.spear_isHolding) then return end
+	local target, targetType, targetChar = getSpearTarget()
+	if not target then return end
+	local camCF = workspace.CurrentCamera.CFrame
+	local aimPos
+	if targetType == "spear" then
+		aimPos = target.Position
+	else
+		local targetVel = target.AssemblyLinearVelocity or target.Velocity
+		aimPos = calculateSpearAim(camCF.Position, target.Position, targetVel)
+	end
+	workspace.CurrentCamera.CFrame = CFrame.lookAt(camCF.Position, aimPos)
 end)
 
 state.cfg.spear_esp_enabled = false
@@ -1584,36 +1549,23 @@ spearEspGui.IgnoreGuiInset = true
 spearEspGui.Parent         = game:GetService("CoreGui")
 
 local spearESPs = {}
-local spearCamLock = { enabled = false }
-state.cfg.spear_cam_enabled = false
-
 local SPEAR_COLOR = Color3.fromRGB(255, 80, 0)
-
-local function isSpearPart(obj)
-	if not obj:IsA("BasePart") then return false end
-	local n = string.lower(obj.Name)
-	return n:find("spear") and n:find("projectile")
-end
 
 local function addSpearESP(model)
 	if spearESPs[model] then return end
-
 	local root = model.PrimaryPart or model:FindFirstChildOfClass("MeshPart") or model:FindFirstChildOfClass("BasePart")
 	if not root then return end
-
 	local bb = Instance.new("BillboardGui")
 	bb.AlwaysOnTop = true
 	bb.Size        = UDim2.new(0, 6, 0, 6)
 	bb.Adornee     = root
 	bb.Parent      = spearEspGui
-
 	local dot = Instance.new("Frame")
 	dot.Size             = UDim2.new(1, 0, 1, 0)
 	dot.BackgroundColor3 = SPEAR_COLOR
 	dot.BorderSizePixel  = 0
 	dot.Parent           = bb
 	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-
 	local lbl = Instance.new("TextLabel")
 	lbl.Name                   = "Dist"
 	lbl.BackgroundTransparency = 1
@@ -1625,7 +1577,6 @@ local function addSpearESP(model)
 	lbl.TextSize               = 10
 	lbl.Text                   = ""
 	lbl.Parent                 = bb
-
 	local hl = Instance.new("Highlight")
 	hl.FillColor           = SPEAR_COLOR
 	hl.OutlineColor        = SPEAR_COLOR
@@ -1634,7 +1585,6 @@ local function addSpearESP(model)
 	hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 	hl.Adornee             = model
 	hl.Parent              = model
-
 	spearESPs[model] = { bb = bb, hl = hl, lbl = lbl, root = root }
 end
 
@@ -1642,21 +1592,13 @@ local function removeSpearESP(part)
 	local e = spearESPs[part]
 	if not e then return end
 	pcall(function() e.bb:Destroy() end)
-	pcall(function() e.sel:Destroy() end)
-	spearESPs[part] = nil
-end
-
-local function removeSpearESP(part)
-	local e = spearESPs[part]
-	if not e then return end
-	pcall(function() e.bb:Destroy() end)
-	pcall(function() e.sel:Destroy() end)
+	pcall(function() e.hl:Destroy() end)
 	spearESPs[part] = nil
 end
 
 task.spawn(function()
 	while state.running do
-		if state.cfg.spear_esp_enabled then
+		if state.cfg.spear_esp_enabled and shouldTrackSpear() then
 			for _, obj in ipairs(Workspace:GetDescendants()) do
 				if obj:IsA("Model") and string.lower(obj.Name) == "spearprojectile" then
 					addSpearESP(obj)
@@ -1667,13 +1609,10 @@ task.spawn(function()
 					removeSpearESP(model)
 				end
 			end
-            spearCamLock.enabled = state.cfg.spear_cam_enabled and (next(spearESPs) ~= nil)
-            if not spearCamLock.enabled and state.cfg.spear_cam_enabled then
-                workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
-            end
-			spearCamLock.enabled = state.cfg.spear_cam_enabled and (next(spearESPs) ~= nil)
 		else
-			spearCamLock.enabled = false
+			for model in pairs(spearESPs) do
+				removeSpearESP(model)
+			end
 		end
 		task.wait(0.2)
 	end
@@ -1683,39 +1622,15 @@ Workspace.DescendantRemoving:Connect(function(obj)
 	if spearESPs[obj] then removeSpearESP(obj) end
 end)
 
-RunService.RenderStepped:Connect(function()
-	if not state.running or not spearCamLock.enabled then return end
-	local bestRoot, bestDist = nil, math.huge
-	local me = myRoot()
-	local myPos = me and me.Position
-	if not myPos then return end
-	for model, e in pairs(spearESPs) do
-		if model.Parent and e.root and e.root.Parent then
-			local ok, d = pcall(function() return (myPos - e.root.Position).Magnitude end)
-			if ok and d < bestDist then bestDist = d; bestRoot = e.root end
-		end
-	end
-	if bestRoot then
-		local spearPos = bestRoot.Position
-		local spearVel = bestRoot.AssemblyLinearVelocity or bestRoot.Velocity or Vector3.zero
-		local lookDir = spearVel.Magnitude > 1 and spearVel.Unit or Vector3.new(0, 0, 1)
-		-- วางกล้องข้างหลังหอกนิดนึง หันไปทางที่หอกบิน
-		local camPos = spearPos - (lookDir * 5) + Vector3.new(0, 1, 0)
-		workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
-		workspace.CurrentCamera.CFrame = CFrame.lookAt(camPos, spearPos + lookDir * 3)
-	end
-end)
-
 local _spearTick = 0
 RunService.Heartbeat:Connect(function()
 	if not state.running or not state.cfg.spear_esp_enabled then return end
+	if not shouldTrackSpear() then return end
 	local now = tick()
 	if now - _spearTick < 0.1 then return end
 	_spearTick = now
-
-	local me = myRoot()
+	local me    = myRoot()
 	local myPos = me and me.Position
-
 	for model, e in pairs(spearESPs) do
 		if not model.Parent then
 			removeSpearESP(model)
@@ -1734,7 +1649,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 local moonwalkEnabled = false
-local moonwalkKey     = Enum.KeyCode.R
+local moonwalkKey     = Enum.KeyCode.F
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
@@ -1759,6 +1674,170 @@ RunService.Heartbeat:Connect(function()
 	root.CFrame   = CFrame.new(pos, pos + backDir)
 end)
 
+-- ============================================================
+-- ANTI STUN SYSTEM (Killer)
+-- ============================================================
+local STUN_ANIM_ID = "92125118598365"
+local antiStunActive = false
+
+local function attachAntiStunToChar(char)
+	local humanoid = char:WaitForChild("Humanoid")
+	humanoid.AnimationPlayed:Connect(function(track)
+		if not antiStunActive then return end
+		local anim = track.Animation
+		if anim and string.find(anim.AnimationId or "", STUN_ANIM_ID) then
+			track:AdjustSpeed(5)
+		end
+	end)
+	task.spawn(function()
+		while char and char.Parent do
+			task.wait(0.2)
+			if antiStunActive then
+				local speedBoost = char:GetAttribute("speedboost")
+				if speedBoost and speedBoost < 1 then
+					char:SetAttribute("speedboost", 1)
+				end
+				if char:GetAttribute("Immobile") then
+					char:SetAttribute("Immobile", false)
+				end
+				if char:GetAttribute("IsStunned") then
+					char:SetAttribute("IsStunned", false)
+				end
+			end
+		end
+	end)
+end
+
+if lp.Character then pcall(attachAntiStunToChar, lp.Character) end
+lp.CharacterAdded:Connect(function(ch) pcall(attachAntiStunToChar, ch) end)
+
+-- ============================================================
+-- BREAK SPEED LOOP (Killer)
+-- ============================================================
+task.spawn(function()
+	while state.running do
+		task.wait(0.2)
+		pcall(function()
+			local c = state.cfg
+			if c.breakSpeed_enabled then
+				local charModel = workspace:FindFirstChild(lp.Name)
+				if charModel then
+					if charModel:GetAttribute("breakspeed") ~= c.breakSpeed_value then
+						charModel:SetAttribute("breakspeed", c.breakSpeed_value)
+					end
+				end
+			end
+		end)
+	end
+end)
+
+-- ============================================================
+-- AUTO CROUCH SYSTEM (Survivor)
+-- ============================================================
+local lastCrouchTime = 0
+local autoCrouchAnimIds = { ["80411309607666"] = true }
+
+local function getKillerChar()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if isKillerPlayer(plr) and plr.Character then
+			return plr.Character
+		end
+	end
+	return nil
+end
+
+RunService.Heartbeat:Connect(function()
+	if not state.running then return end
+	local c = state.cfg
+	if not c.autoCrouch_enabled then return end
+	if not isSurvivor() then return end
+
+	local now = tick()
+	local cooldown = (c.autoCrouch_duration or 1.5) + 2.5
+	if now - lastCrouchTime < cooldown then return end
+
+	local ch = lp.Character
+	if not ch then return end
+	local localRoot = ch:FindFirstChild("HumanoidRootPart")
+	if not localRoot then return end
+
+	local killerChar = getKillerChar()
+	if not killerChar then return end
+	local killerRoot = killerChar:FindFirstChild("HumanoidRootPart")
+	if not killerRoot then return end
+
+	local dist = (killerRoot.Position - localRoot.Position).Magnitude
+	if dist > (c.autoCrouch_distance or 18) then return end
+
+	-- Scan killer animations
+	local killerHum = killerChar:FindFirstChildOfClass("Humanoid")
+	if not killerHum then return end
+	local detected = false
+	pcall(function()
+		local animator = killerHum:FindFirstChildOfClass("Animator")
+		if animator then
+			for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+				local anim = track.Animation
+				if anim then
+					local id = anim.AnimationId or ""
+					for animId in pairs(autoCrouchAnimIds) do
+						if id:find(animId) then
+							detected = true
+							break
+						end
+					end
+				end
+				if detected then break end
+			end
+		end
+	end)
+
+	if detected then
+		lastCrouchTime = now
+		task.spawn(function()
+			local delayVal = c.autoCrouch_delay or 0
+			if c.autoCrouch_humanize then
+				local offset = (math.random(-80, 80)) / 1000
+				delayVal = math.max(0, delayVal + offset)
+			end
+			if delayVal > 0 then task.wait(delayVal) end
+			-- Press crouch (LeftControl + C)
+			pcall(function() keypress(0x11) end)
+			pcall(function() keypress(0x43) end)
+			pcall(function()
+				VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftControl, false, game)
+				VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.C, false, game)
+			end)
+			local dur = math.clamp(c.autoCrouch_duration or 1.5, 0, 3)
+			if dur > 0 then task.wait(dur) end
+			pcall(function() keyrelease(0x11) end)
+			pcall(function() keyrelease(0x43) end)
+			pcall(function()
+				VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
+				VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.C, false, game)
+			end)
+		end)
+	end
+end)
+
+-- ============================================================
+-- NO FLASH BLIND LOOP (Killer)
+-- ============================================================
+RunService.Heartbeat:Connect(function()
+	if not state.running then return end
+	if not state.cfg.noFlashBlind then return end
+	pcall(function()
+		local selectedKiller = lp:GetAttribute("SelectedKiller")
+		if not selectedKiller then return end
+		local pg = lp:FindFirstChild("PlayerGui")
+		local killerGui = pg and pg:FindFirstChild(selectedKiller)
+		if killerGui and killerGui:FindFirstChild("Blind") then
+			killerGui.Blind.Visible = false
+		end
+	end)
+end)
+
+-- ============================================================
 local repo         = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 Library            = loadstring(game:HttpGet(repo.."Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo.."addons/ThemeManager.lua"))()
@@ -1779,16 +1858,16 @@ local Tabs = {
 	["UI Settings"] = Window:AddTab("Settings",  "settings"),
 }
 
-local PalletBox = Tabs.Survivor:AddLeftGroupbox("Auto Pallet Stun")
-local SkillBox  = Tabs.Survivor:AddRightGroupbox("Auto Skillcheck")
-local VaultBox  = Tabs.Survivor:AddRightGroupbox("Always Fast Vault")
-local ParryBox  = Tabs.Survivor:AddLeftGroupbox("Auto Parry")
+local PalletBox      = Tabs.Survivor:AddLeftGroupbox("Auto Pallet Stun")
+local SkillBox       = Tabs.Survivor:AddRightGroupbox("Auto Skillcheck")
+local VaultBox       = Tabs.Survivor:AddRightGroupbox("Always Fast Vault")
+local ParryBox       = Tabs.Survivor:AddLeftGroupbox("Auto Parry")
 local ParryStatusBox = Tabs.Survivor:AddRightGroupbox("Parry Status")
 
 PalletBox:AddToggle("AutoPallet", {
-	Text    = "Auto Pallet Stun",
-	Default = state.cfg.p_enabled,
-	Tooltip = "Automatically drop pallets on Killers",
+	Text     = "Auto Pallet Stun",
+	Default  = state.cfg.p_enabled,
+	Tooltip  = "Automatically drop pallets on Killers",
 	Callback = function(v) state.cfg.p_enabled = v end,
 })
 PalletBox:AddToggle("AntiBait", {
@@ -1823,13 +1902,13 @@ SkillBox:AddToggle("AutoSkillcheck", {
 SkillBox:AddSlider("ScOffset", {
 	Text     = "Hit Zone Offset",
 	Default  = state.cfg.sc_offset,
-	Min=80, Max=130, Rounding=0, Suffix="°",
+	Min=80, Max=130, Rounding=0, Suffix="\xc2\xb0",
 	Callback = function(v) state.cfg.sc_offset = v end,
 })
 SkillBox:AddSlider("ScLead", {
 	Text     = "Lead Angle",
 	Default  = state.cfg.sc_lead,
-	Min=0, Max=10, Rounding=0, Suffix="°",
+	Min=0, Max=10, Rounding=0, Suffix="\xc2\xb0",
 	Callback = function(v) state.cfg.sc_lead = v end,
 })
 
@@ -1854,7 +1933,7 @@ VaultBox:AddSlider("FvMinSpeed", {
 VaultBox:AddSlider("FvTurnLimit", {
 	Text     = "Turn Limit",
 	Default  = state.cfg.fv_target,
-	Min=0, Max=40, Rounding=0, Suffix="°",
+	Min=0, Max=40, Rounding=0, Suffix="\xc2\xb0",
 	Callback = function(v) state.cfg.fv_target = v end,
 })
 VaultBox:AddToggle("FvIgnoreAxis", {
@@ -1929,7 +2008,6 @@ local AimBox = Tabs.Killer:AddLeftGroupbox("Spear Aimlock")
 AimBox:AddToggle("SpearAimlock", {
 	Text     = "Spear Aimlock (Hold E)",
 	Default  = state.cfg.spear_enabled,
-	Tooltip  = "",
 	Callback = function(v) state.cfg.spear_enabled = v end,
 })
 AimBox:AddSlider("SpearGravityReady", {
@@ -1943,6 +2021,99 @@ AimBox:AddSlider("SpearGravityCD", {
 	Default  = 1.5,
 	Min=0, Max=10, Rounding=1,
 	Callback = function(v) state.cfg.spear_gravity_cd = v end,
+})
+
+-- Anti Stun Box (Killer tab)
+local AntiStunBox = Tabs.Killer:AddRightGroupbox("Anti Stun System")
+AntiStunBox:AddToggle("AntiStunEnabled", {
+	Text     = "Enable Anti Stun",
+	Default  = state.cfg.antiStun_enabled,
+	Tooltip  = "ป้องกัน Killer ถูกสตัน/หยุดจากพาเลท",
+	Callback = function(v)
+		state.cfg.antiStun_enabled = v
+		antiStunActive = v
+	end,
+})
+
+-- No Flash Blind Box (Killer tab)
+local FlashBox = Tabs.Killer:AddRightGroupbox("Flashlight Protection")
+FlashBox:AddToggle("NoFlashBlind", {
+	Text     = "No Flash Blind",
+	Default  = state.cfg.noFlashBlind,
+	Tooltip  = "ไม่โดนแฟลชจากไฟฉายของ Survivor",
+	Callback = function(v) state.cfg.noFlashBlind = v end,
+})
+
+-- Break Speed Box (Killer tab)
+local BreakSpeedBox = Tabs.Killer:AddRightGroupbox("Break Speed")
+BreakSpeedBox:AddToggle("BreakSpeedEnabled", {
+	Text     = "Enable Break Speed",
+	Default  = state.cfg.breakSpeed_enabled,
+	Callback = function(v) state.cfg.breakSpeed_enabled = v end,
+})
+BreakSpeedBox:AddSlider("BreakSpeedValue", {
+	Text     = "Break Speed Value",
+	Default  = state.cfg.breakSpeed_value,
+	Min=1, Max=1000, Rounding=0,
+	Callback = function(v) state.cfg.breakSpeed_value = v end,
+})
+
+-- The Masked Box (Killer tab)
+local MaskedBox = Tabs.Killer:AddLeftGroupbox("The Masked")
+local maskList = { "Alex", "Brandon", "Cobra", "Rabbit", "Richter", "Richard", "Tony" }
+MaskedBox:AddDropdown("SelectMask", {
+	Text    = "Select Mask",
+	Default = state.cfg.selectMask,
+	Values  = maskList,
+	Callback = function(v)
+		state.cfg.selectMask = v
+	end,
+})
+MaskedBox:AddButton({
+	Text = "Use Mask Power",
+	Func = function()
+		pcall(function()
+			game:GetService("ReplicatedStorage")
+				:WaitForChild("Remotes")
+				:WaitForChild("Killers")
+				:WaitForChild("Masked")
+				:WaitForChild("Activatepower")
+				:FireServer(state.cfg.selectMask)
+		end)
+	end,
+	Tooltip = "เรียกใช้พลังหน้ากากที่เลือก",
+})
+
+-- Auto Crouch Box (Survivor tab)
+local AutoCrouchBox = Tabs.Survivor:AddRightGroupbox("Auto Crouch")
+AutoCrouchBox:AddToggle("AutoCrouchEnabled", {
+	Text     = "Auto Crouch",
+	Default  = state.cfg.autoCrouch_enabled,
+	Tooltip  = "นั่งยองอัตโนมัติเมื่อ Killer ใช้ท่า Lunge (Abyss)",
+	Callback = function(v) state.cfg.autoCrouch_enabled = v end,
+})
+AutoCrouchBox:AddSlider("AutoCrouchDelay", {
+	Text     = "Crouch Delay",
+	Default  = state.cfg.autoCrouch_delay,
+	Min=0, Max=0.5, Rounding=2, Suffix="s",
+	Callback = function(v) state.cfg.autoCrouch_delay = v end,
+})
+AutoCrouchBox:AddToggle("AutoCrouchHumanize", {
+	Text     = "Crouch Humanizer",
+	Default  = state.cfg.autoCrouch_humanize,
+	Callback = function(v) state.cfg.autoCrouch_humanize = v end,
+})
+AutoCrouchBox:AddSlider("AutoCrouchDistance", {
+	Text     = "Crouch Distance",
+	Default  = state.cfg.autoCrouch_distance,
+	Min=5, Max=50, Rounding=0, Suffix=" studs",
+	Callback = function(v) state.cfg.autoCrouch_distance = v end,
+})
+AutoCrouchBox:AddSlider("AutoCrouchDuration", {
+	Text     = "Crouch Duration",
+	Default  = state.cfg.autoCrouch_duration,
+	Min=0, Max=3, Rounding=1, Suffix="s",
+	Callback = function(v) state.cfg.autoCrouch_duration = v end,
 })
 
 local SpearESPBox = Tabs.ESP:AddLeftGroupbox("Spear ESP")
@@ -1960,20 +2131,8 @@ SpearESPBox:AddToggle("SpearESPEnabled", {
 SpearESPBox:AddSlider("SpearESPMaxDist", {
 	Text     = "Max Distance",
 	Default  = 300,
-	Min=50, Max=600, Rounding=0, Suffix=" studs",
+	Min=50, Max=1000, Rounding=0, Suffix=" studs",
 	Callback = function(v) state.cfg.spear_esp_maxDist = v end,
-})
-
-SpearESPBox:AddToggle("SpearCamLock", {
-	Text     = "Camera Track Spear",
-	Default  = false,
-	Callback = function(v)
-		state.cfg.spear_cam_enabled = v
-		if not v then
-			spearCamLock.enabled = false
-			workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
-		end
-	end,
 })
 
 local ESPBox       = Tabs.ESP:AddLeftGroupbox("Killer ESP")
@@ -2059,10 +2218,10 @@ pcall(function() ThemeManager:ApplyToTab(Tabs["UI Settings"]) end)
 
 local UnloadBox = Tabs["UI Settings"]:AddLeftGroupbox("Unload")
 UnloadBox:AddButton({
-	Text       = "Unload Script",
-	Func       = function() Library:Unload() end,
+	Text        = "Unload Script",
+	Func        = function() Library:Unload() end,
 	DoubleClick = false,
-	Tooltip    = "Stops all loops and destroys the UI.",
+	Tooltip     = "Stops all loops and destroys the UI.",
 })
 
 Library:OnUnload(function()
@@ -2070,7 +2229,6 @@ Library:OnUnload(function()
 	moonwalkEnabled = false
 	fvHold          = false
 	vaults          = {}
-
 	pcall(function()
 		if parryAdornment and parryAdornment.Parent then
 			parryAdornment.Visible = false
@@ -2083,19 +2241,14 @@ Library:OnUnload(function()
 			if obj.Name == "VDHub_ParryHollowRing" then obj:Destroy() end
 		end
 	end)
-
 	pcall(function() espGui:Destroy() end)
-
-    pcall(function() spearEspGui:Destroy() end)
-    for part in pairs(spearESPs) do removeSpearESP(part) end
-
+	pcall(function() spearEspGui:Destroy() end)
+	for part in pairs(spearESPs) do removeSpearESP(part) end
 	for char, conns in pairs(killerAnimConns) do
 		for _,c in ipairs(conns) do pcall(c.Disconnect, c) end
 	end
-
 	for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
 	for char in pairs(player2DEspElements) do removePlayer2DESP(char) end
-
 	playerParryState         = {}
 	monitoredPlayerAnimators = {}
 	_G.vdHub = nil
