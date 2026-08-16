@@ -2027,7 +2027,7 @@ local SaveManager  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
 
 local Window = Library:CreateWindow({
 	Title            = "KKKK",
-	Footer           = "v1.0.2.0",
+	Footer           = "v1.0.2.1",
 	Icon             = 95816097006870,
 	NotifySide       = "Right",
 	ShowCustomCursor = true,
@@ -2479,5 +2479,5 @@ Library:OnUnload(function()
 	playerParryState         = {}
 	monitoredPlayerAnimators = {}
 	_G.vdHub = nil
-	print("[vdHub v1.0.2.0] Unloaded!")
+	print("[vdHub v1.0.2.1] Unloaded!")
 end)
