@@ -55,12 +55,23 @@ local state = {
 		ap_hitboxRadius   = 16,
 		ap_hitboxPreDelay = 0.0,
 
+		ap_legitMode        = false,
+		ap_legitMinDelay    = 0.01,
+		ap_legitMaxDelay    = 0.10,
+
 		esp_enabled       = false,
 		esp_showName      = true,
 		esp_showDist      = true,
 		esp_showHighlight = true,
 		esp_showBox       = true,
 		esp_maxDist       = 500,
+
+		scp_esp_enabled      = false,
+		scp_esp_showHighlight = true,
+		scp_esp_showBox      = true,
+		scp_esp_showName     = true,
+		scp_esp_showDist     = true,
+		scp_esp_maxDist      = 500,
 
 		p_esp_enabled       = false,
 		p_esp_showName      = true,
@@ -70,17 +81,17 @@ local state = {
 		p_esp_showStatus    = true,
 		p_esp_maxDist       = 500,
 
-		-- Anti Stun (Killer)
+		-- Anti Stun
 		antiStun_enabled    = false,
 
-		-- No Flash Blind (Killer)
+		-- No Flash Blind
 		noFlashBlind        = false,
 
-		-- Break Speed (Killer)
+		-- Break Speed
 		breakSpeed_enabled  = false,
 		breakSpeed_value    = 1,
 
-		-- Select Mask / Use Power Mask (Killer The Masked)
+		-- Select Mask / Use Power Mask
 		selectMask          = "Alex",
 
 		-- Auto Crouch
@@ -113,7 +124,7 @@ local HIT_ANIM_IDS = {
 	[138720291317243] = true,
 	[135002183282873] = true,
 	[122812055447896] = true,
-    [118907603246885] = true,
+	[118907603246885] = true,
 }
 
 local SKILL_ANIM_IDS = {
@@ -600,7 +611,7 @@ local ignoredKW = {
 	"break","pallet","kick","destroy","gen","generator","vault","window",
 	"pickup","carry","hook","drop","search","stun","blind","cabinet",
 	"locker","open","close","repair","interact","idle","walk","run","stomp",
-	"emote","taunt","dance","laugh","point","wave",
+	"emote","taunt","dance","laugh","point","wave","Stunned",
 }
 local attackKW = {
 	"attack","swing","slash","strike","hit","m1","lunge",
@@ -653,7 +664,13 @@ local function parry(reason, extraDelay)
 	if (now - lastParryTime) < PARRY_COOLDOWN then return end
 	lastParryTime = now
 	task.spawn(function()
-		if (extraDelay or 0) > 0 then task.wait(extraDelay) end
+		local delay = extraDelay or 0
+		if state.cfg.ap_legitMode then
+			local mn = state.cfg.ap_legitMinDelay or 0.05
+			local mx = state.cfg.ap_legitMaxDelay or 0.15
+			delay = delay + mn + math.random() * (mx - mn)
+		end
+		if delay > 0 then task.wait(delay) end
 		doRightClick()
 	end)
 	if uiLabels.killerDist then
@@ -1203,8 +1220,14 @@ end
 local _cachedPlayers = {}
 local _playerCacheTime = 0
 
-RunService.RenderStepped:Connect(function()
+-- ESP UPDATE LOOP
+local _espTick = 0
+RunService.Heartbeat:Connect(function()
 	if not state.running then return end
+	local now = tick()
+	if now - _espTick < 0.05 then return end
+	_espTick = now
+
 	local c = state.cfg
 	local spectating = isSpectator()
 	if spectating then
@@ -1214,6 +1237,8 @@ RunService.RenderStepped:Connect(function()
 	end
 	local cam = workspace.CurrentCamera
 	if not cam then return end
+
+	-- Killer ESP
 	if c.esp_enabled then
 		for _, kRoot in ipairs(killerRoots) do
 			local char = kRoot and kRoot.Parent
@@ -1248,8 +1273,9 @@ RunService.RenderStepped:Connect(function()
 	else
 		for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
 	end
+
+	-- Player ESP
 	if c.p_esp_enabled then
-		local now = tick()
 		if (now - _playerCacheTime) > 0.5 then
 			_cachedPlayers = Players:GetPlayers()
 			_playerCacheTime = now
@@ -1325,11 +1351,9 @@ RunService.RenderStepped:Connect(function()
 											itemNames[#itemNames + 1] = obj.Name
 										end
 									end
+									elem.parryDaggerLabel.Text = #itemNames > 0 and table.concat(itemNames, ", ") or ""
 									if #itemNames > 0 then
-										elem.parryDaggerLabel.Text       = table.concat(itemNames, ", ")
 										elem.parryDaggerLabel.TextColor3 = Color3.fromRGB(255, 80, 255)
-									else
-										elem.parryDaggerLabel.Text = ""
 									end
 								end
 								if elem.parryItemLabel then
@@ -1674,46 +1698,49 @@ RunService.Heartbeat:Connect(function()
 	root.CFrame   = CFrame.new(pos, pos + backDir)
 end)
 
--- ============================================================
--- ANTI STUN SYSTEM (Killer)
--- ============================================================
-local STUN_ANIM_ID = "92125118598365"
-local antiStunActive = false
+-- ANTI STUN
+local antiStunActive  = false
+local antiStunConns   = {}
 
 local function attachAntiStunToChar(char)
-	local humanoid = char:WaitForChild("Humanoid")
-	humanoid.AnimationPlayed:Connect(function(track)
-		if not antiStunActive then return end
-		local anim = track.Animation
-		if anim and string.find(anim.AnimationId or "", STUN_ANIM_ID) then
-			track:AdjustSpeed(5)
+	if not char then return end
+	local function tryAttach()
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if not hum then return end
+		local animator = hum:FindFirstChildOfClass("Animator")
+		if not animator then
+			char.DescendantAdded:Connect(function(obj)
+				if obj:IsA("Animator") then
+					task.wait(0.05)
+					tryAttach()
+				end
+			end)
+			return
 		end
-	end)
-	task.spawn(function()
-		while char and char.Parent do
-			task.wait(0.2)
-			if antiStunActive then
-				local speedBoost = char:GetAttribute("speedboost")
-				if speedBoost and speedBoost < 1 then
-					char:SetAttribute("speedboost", 1)
-				end
-				if char:GetAttribute("Immobile") then
-					char:SetAttribute("Immobile", false)
-				end
-				if char:GetAttribute("IsStunned") then
-					char:SetAttribute("IsStunned", false)
-				end
+		local conn = animator.AnimationPlayed:Connect(function(track)
+			if not antiStunActive then return end
+			local name = string.lower(track.Name or "")
+			if name:find("stun") then
+				track:AdjustSpeed(8)
+				task.defer(function()
+					pcall(function() track:Stop(0) end)
+				end)
 			end
-		end
-	end)
+		end)
+		antiStunConns[#antiStunConns + 1] = conn
+	end
+	tryAttach()
 end
 
 if lp.Character then pcall(attachAntiStunToChar, lp.Character) end
-lp.CharacterAdded:Connect(function(ch) pcall(attachAntiStunToChar, ch) end)
+lp.CharacterAdded:Connect(function(ch)
+	for _, c in ipairs(antiStunConns) do pcall(c.Disconnect, c) end
+	antiStunConns = {}
+	task.wait(0.3)
+	pcall(attachAntiStunToChar, ch)
+end)
 
--- ============================================================
--- BREAK SPEED LOOP (Killer)
--- ============================================================
+-- BREAK SPEED LOOP
 task.spawn(function()
 	while state.running do
 		task.wait(0.2)
@@ -1731,9 +1758,7 @@ task.spawn(function()
 	end
 end)
 
--- ============================================================
--- AUTO CROUCH SYSTEM (Survivor)
--- ============================================================
+-- AUTO CROUCH
 local lastCrouchTime = 0
 local autoCrouchAnimIds = { ["80411309607666"] = true }
 
@@ -1769,7 +1794,6 @@ RunService.Heartbeat:Connect(function()
 	local dist = (killerRoot.Position - localRoot.Position).Magnitude
 	if dist > (c.autoCrouch_distance or 18) then return end
 
-	-- Scan killer animations
 	local killerHum = killerChar:FindFirstChildOfClass("Humanoid")
 	if not killerHum then return end
 	local detected = false
@@ -1801,7 +1825,6 @@ RunService.Heartbeat:Connect(function()
 				delayVal = math.max(0, delayVal + offset)
 			end
 			if delayVal > 0 then task.wait(delayVal) end
-			-- Press crouch (LeftControl + C)
 			pcall(function() keypress(0x11) end)
 			pcall(function() keypress(0x43) end)
 			pcall(function()
@@ -1820,9 +1843,7 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- ============================================================
--- NO FLASH BLIND LOOP (Killer)
--- ============================================================
+-- NO FLASH BLIND
 RunService.Heartbeat:Connect(function()
 	if not state.running then return end
 	if not state.cfg.noFlashBlind then return end
@@ -1837,32 +1858,199 @@ RunService.Heartbeat:Connect(function()
 	end)
 end)
 
--- ============================================================
+-- SCP ESP
+local scpEspElements = {}
+
+local function removeSCPESP(model)
+	local e = scpEspElements[model]
+	if not e then return end
+	pcall(function() e.highlight:Destroy() end)
+	pcall(function() e.container:Destroy() end)
+	scpEspElements[model] = nil
+end
+
+local function createSCPESP(model)
+	if scpEspElements[model] then return end
+	local root = model.PrimaryPart
+		or model:FindFirstChildOfClass("MeshPart")
+		or model:FindFirstChildOfClass("BasePart")
+	if not root then return end
+
+	local hl = Instance.new("Highlight")
+	hl.Name                = "VDHub_SCP_Highlight"
+	hl.FillColor           = Color3.fromRGB(255, 60, 220)
+	hl.OutlineColor        = Color3.fromRGB(255, 0, 200)
+	hl.FillTransparency    = 0.5
+	hl.OutlineTransparency = 0
+	hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Adornee             = model
+	hl.Parent              = model
+
+	local container = Instance.new("Frame")
+	container.Name                   = "SCP2DContainer"
+	container.BackgroundTransparency = 1
+	container.Size                   = UDim2.new(1, 0, 1, 0)
+	container.Parent                 = espGui
+
+	local boxFrame = Instance.new("Frame")
+	boxFrame.BackgroundTransparency = 1
+	boxFrame.Parent                 = container
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color     = Color3.fromRGB(255, 0, 200)
+	stroke.Thickness = 1.5
+	stroke.Parent    = boxFrame
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Size                   = UDim2.new(0, 180, 0, 16)
+	nameLabel.TextColor3             = Color3.fromRGB(255, 100, 255)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.Font                   = Enum.Font.GothamBold
+	nameLabel.TextSize               = 11
+	nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
+	nameLabel.Text                   = model.Name
+	nameLabel.Parent                 = container
+
+	local distLabel = Instance.new("TextLabel")
+	distLabel.BackgroundTransparency = 1
+	distLabel.Size                   = UDim2.new(0, 180, 0, 14)
+	distLabel.TextColor3             = Color3.fromRGB(255, 60, 220)
+	distLabel.TextStrokeTransparency = 0
+	distLabel.Font                   = Enum.Font.GothamBold
+	distLabel.TextSize               = 10
+	distLabel.TextXAlignment         = Enum.TextXAlignment.Center
+	distLabel.Text                   = ""
+	distLabel.Parent                 = container
+
+	scpEspElements[model] = {
+		highlight = hl,
+		container = container,
+		boxFrame  = boxFrame,
+		nameLabel = nameLabel,
+		distLabel = distLabel,
+		rootPart  = root,
+	}
+end
+
+local function scanSCPs()
+	local found = {}
+	for _, obj in ipairs(Workspace:GetDescendants()) do
+		if obj:IsA("Model") and string.lower(obj.Name):sub(1, 3) == "scp" then
+			found[obj] = true
+			createSCPESP(obj)
+		end
+	end
+	for model in pairs(scpEspElements) do
+		if not found[model] then removeSCPESP(model) end
+	end
+end
+
+Workspace.DescendantAdded:Connect(function(obj)
+	if not state.cfg.scp_esp_enabled then return end
+	if obj:IsA("Model") and string.lower(obj.Name):sub(1, 3) == "scp" then
+		task.wait(0.1)
+		createSCPESP(obj)
+	end
+end)
+
+Workspace.DescendantRemoving:Connect(function(obj)
+	if scpEspElements[obj] then removeSCPESP(obj) end
+end)
+
+task.spawn(function()
+	while state.running do
+		if state.cfg.scp_esp_enabled then
+			pcall(scanSCPs)
+		else
+			for model in pairs(scpEspElements) do removeSCPESP(model) end
+		end
+		task.wait(1.0)
+	end
+end)
+
+-- SCP ESP
+local _scpTick = 0
+RunService.Heartbeat:Connect(function()
+	if not state.running or not state.cfg.scp_esp_enabled then return end
+	local now = tick()
+	if now - _scpTick < 0.05 then return end
+	_scpTick = now
+	local cam = workspace.CurrentCamera
+	if not cam then return end
+	for model, elem in pairs(scpEspElements) do
+		if not model.Parent then removeSCPESP(model); continue end
+		local root = elem.rootPart
+		if not root then continue end
+		if elem.highlight then
+			elem.highlight.Enabled = state.cfg.scp_esp_showHighlight
+		end
+		local camPos  = cam.CFrame.Position
+		local rootPos = root.Position
+		local dist    = (camPos - rootPos).Magnitude
+		if dist > state.cfg.scp_esp_maxDist then
+			elem.container.Visible = false
+			continue
+		end
+		local head    = model:FindFirstChild("Head")
+		local topY    = head and (head.Position.Y + 1.5) or (rootPos.Y + 4)
+		local bottomY = rootPos.Y - 3.5
+		local topSc,    topOn    = cam:WorldToViewportPoint(Vector3.new(rootPos.X, topY,    rootPos.Z))
+		local bottomSc, bottomOn = cam:WorldToViewportPoint(Vector3.new(rootPos.X, bottomY, rootPos.Z))
+		if not (topOn and bottomOn) or topSc.Z < 0 then
+			elem.container.Visible = false
+			continue
+		end
+		local h       = math.max(6, math.abs(bottomSc.Y - topSc.Y))
+		local w       = math.clamp(h * 0.62, 10, 450)
+		local x       = topSc.X - w / 2
+		local y       = topSc.Y
+		local dynFont = math.clamp(math.floor(h * 0.2), 8, 11)
+		elem.container.Visible = true
+		elem.boxFrame.Visible  = state.cfg.scp_esp_showBox
+		elem.boxFrame.Position = UDim2.new(0, x, 0, y)
+		elem.boxFrame.Size     = UDim2.new(0, w, 0, h)
+		elem.nameLabel.Visible  = state.cfg.scp_esp_showName
+		elem.nameLabel.Position = UDim2.new(0, x + (w/2) - 90, 0, y - (dynFont + 6))
+		elem.nameLabel.TextSize = dynFont
+		elem.distLabel.Visible  = state.cfg.scp_esp_showDist
+		elem.distLabel.Position = UDim2.new(0, x + (w/2) - 90, 0, y + h + 2)
+		elem.distLabel.TextSize = math.max(7, dynFont - 1)
+		elem.distLabel.Text     = string.format("[%d studs]", math.floor(dist))
+	end
+end)
+
 local repo         = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 Library            = loadstring(game:HttpGet(repo.."Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo.."addons/ThemeManager.lua"))()
 local SaveManager  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
 
 local Window = Library:CreateWindow({
-	Title            = "vdHub",
-	Footer           = "v3.4",
+	Title            = "KKKK",
+	Footer           = "v1.0.2.0",
 	Icon             = 95816097006870,
 	NotifySide       = "Right",
 	ShowCustomCursor = true,
 })
 
 local Tabs = {
+	Changelog       = Window:AddTab("Changelog", "mail"),
 	Survivor        = Window:AddTab("Survivor", "user"),
 	Killer          = Window:AddTab("Killer",   "sword"),
 	ESP             = Window:AddTab("ESP",       "eye"),
 	["UI Settings"] = Window:AddTab("Settings",  "settings"),
 }
 
+local update = Tabs.Changelog:AddLeftGroupbox("Changelog Update 17 Aug")
+update:AddLabel({ Text = "Improve Anti Stun +++" })
+update:AddLabel({ Text = "Add Scp Esp" })
+update:AddLabel({ Text = "Add Legit Mode For Auto Parry" })
+update:AddLabel({ Text = "Optimize all ESP" })
+
 local PalletBox      = Tabs.Survivor:AddLeftGroupbox("Auto Pallet Stun")
 local SkillBox       = Tabs.Survivor:AddRightGroupbox("Auto Skillcheck")
 local VaultBox       = Tabs.Survivor:AddRightGroupbox("Always Fast Vault")
 local ParryBox       = Tabs.Survivor:AddLeftGroupbox("Auto Parry")
-local ParryStatusBox = Tabs.Survivor:AddRightGroupbox("Parry Status")
 
 PalletBox:AddToggle("AutoPallet", {
 	Text     = "Auto Pallet Stun",
@@ -1952,6 +2140,23 @@ ParryBox:AddToggle("AutoParry", {
 		end
 	end,
 })
+ParryBox:AddToggle("LegitMode", {
+	Text     = "Legit Mode",
+	Default  = state.cfg.ap_legitMode,
+	Callback = function(v) state.cfg.ap_legitMode = v end,
+})
+ParryBox:AddSlider("LegitMinDelay", {
+	Text     = "Legit Min Delay",
+	Default  = state.cfg.ap_legitMinDelay,
+	Min=0.0, Max=0.3, Rounding=2, Suffix="s",
+	Callback = function(v) state.cfg.ap_legitMinDelay = v end,
+})
+ParryBox:AddSlider("LegitMaxDelay", {
+	Text     = "Legit Max Delay",
+	Default  = state.cfg.ap_legitMaxDelay,
+	Min=0.05, Max=0.5, Rounding=2, Suffix="s",
+	Callback = function(v) state.cfg.ap_legitMaxDelay = v end,
+})
 ParryBox:AddToggle("ShowParryCircle", {
 	Text     = "Show Detect Radius",
 	Default  = state.cfg.ap_showCircle,
@@ -1995,14 +2200,6 @@ ParryBox:AddSlider("AnimPreDelay", {
 	Callback = function(v) state.cfg.ap_animPreDelay = v end,
 })
 
-uiLabels.status        = ParryStatusBox:AddLabel("Status: Disabled")
-uiLabels.killerDist    = ParryStatusBox:AddLabel("Killer: None")
-uiLabels.parryDaggerCD = ParryStatusBox:AddLabel("Parry Dagger: N/A")
-
-if state.cfg.ap_enabled and uiLabels.status then
-	uiLabels.status:SetText("Status: Active")
-end
-
 local AimBox = Tabs.Killer:AddLeftGroupbox("Spear Aimlock")
 
 AimBox:AddToggle("SpearAimlock", {
@@ -2023,8 +2220,7 @@ AimBox:AddSlider("SpearGravityCD", {
 	Callback = function(v) state.cfg.spear_gravity_cd = v end,
 })
 
--- Anti Stun Box (Killer tab)
-local AntiStunBox = Tabs.Killer:AddRightGroupbox("Anti Stun System")
+local AntiStunBox = Tabs.Killer:AddRightGroupbox("Anti Stun for Killer")
 AntiStunBox:AddToggle("AntiStunEnabled", {
 	Text     = "Enable Anti Stun",
 	Default  = state.cfg.antiStun_enabled,
@@ -2034,15 +2230,13 @@ AntiStunBox:AddToggle("AntiStunEnabled", {
 	end,
 })
 
--- No Flash Blind Box (Killer tab)
-local FlashBox = Tabs.Killer:AddRightGroupbox("Flashlight Protection")
+local FlashBox = Tabs.Killer:AddRightGroupbox("Anti Flashlight")
 FlashBox:AddToggle("NoFlashBlind", {
 	Text     = "No Flash Blind",
 	Default  = state.cfg.noFlashBlind,
 	Callback = function(v) state.cfg.noFlashBlind = v end,
 })
 
--- Break Speed Box (Killer tab)
 local BreakSpeedBox = Tabs.Killer:AddRightGroupbox("Break Speed")
 BreakSpeedBox:AddToggle("BreakSpeedEnabled", {
 	Text     = "Enable Break Speed",
@@ -2056,7 +2250,6 @@ BreakSpeedBox:AddSlider("BreakSpeedValue", {
 	Callback = function(v) state.cfg.breakSpeed_value = v end,
 })
 
--- The Masked Box (Killer tab)
 local MaskedBox = Tabs.Killer:AddLeftGroupbox("The Masked")
 local maskList = { "Alex", "Brandon", "Cobra", "Rabbit", "Richter", "Richard", "Tony" }
 MaskedBox:AddDropdown("SelectMask", {
@@ -2079,10 +2272,8 @@ MaskedBox:AddButton({
 				:FireServer(state.cfg.selectMask)
 		end)
 	end,
-	Tooltip = "เรียกใช้พลังหน้ากากที่เลือก",
 })
 
--- Auto Crouch Box (Survivor tab)
 local AutoCrouchBox = Tabs.Survivor:AddRightGroupbox("Auto Crouch")
 AutoCrouchBox:AddToggle("AutoCrouchEnabled", {
 	Text     = "Auto Crouch",
@@ -2114,7 +2305,6 @@ AutoCrouchBox:AddSlider("AutoCrouchDuration", {
 })
 
 local SpearESPBox = Tabs.ESP:AddLeftGroupbox("Spear ESP")
-
 SpearESPBox:AddToggle("SpearESPEnabled", {
 	Text     = "Enable Spear ESP",
 	Default  = false,
@@ -2133,6 +2323,7 @@ SpearESPBox:AddSlider("SpearESPMaxDist", {
 })
 
 local ESPBox       = Tabs.ESP:AddLeftGroupbox("Killer ESP")
+local SCPEspBox    = Tabs.ESP:AddLeftGroupbox("SCP ESP")
 local PlayerESPBox = Tabs.ESP:AddRightGroupbox("Player ESP")
 
 ESPBox:AddToggle("ESPEnabled", {
@@ -2165,6 +2356,43 @@ ESPBox:AddSlider("ESPMaxDist", {
 	Default  = state.cfg.esp_maxDist,
 	Min=50, Max=1000, Rounding=0, Suffix=" studs",
 	Callback = function(v) state.cfg.esp_maxDist = v end,
+})
+
+SCPEspBox:AddToggle("SCPESPEnabled", {
+	Text     = "Enable SCP ESP",
+	Default  = false,
+	Callback = function(v)
+		state.cfg.scp_esp_enabled = v
+		if not v then
+			for model in pairs(scpEspElements) do removeSCPESP(model) end
+		end
+	end,
+})
+SCPEspBox:AddToggle("SCPESPShowHighlight", {
+	Text     = "Show 3D Highlight",
+	Default  = true,
+	Callback = function(v) state.cfg.scp_esp_showHighlight = v end,
+})
+SCPEspBox:AddToggle("SCPESPShowBox", {
+	Text     = "Show 2D Box",
+	Default  = true,
+	Callback = function(v) state.cfg.scp_esp_showBox = v end,
+})
+SCPEspBox:AddToggle("SCPESPShowName", {
+	Text     = "Show Name",
+	Default  = true,
+	Callback = function(v) state.cfg.scp_esp_showName = v end,
+})
+SCPEspBox:AddToggle("SCPESPShowDist", {
+	Text     = "Show Distance",
+	Default  = true,
+	Callback = function(v) state.cfg.scp_esp_showDist = v end,
+})
+SCPEspBox:AddSlider("SCPESPMaxDist", {
+	Text     = "Max Distance",
+	Default  = 500,
+	Min=50, Max=2000, Rounding=0, Suffix=" studs",
+	Callback = function(v) state.cfg.scp_esp_maxDist = v end,
 })
 
 PlayerESPBox:AddToggle("PlayerESPEnabled", {
@@ -2245,9 +2473,11 @@ Library:OnUnload(function()
 		for _,c in ipairs(conns) do pcall(c.Disconnect, c) end
 	end
 	for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
+	for model in pairs(scpEspElements) do removeSCPESP(model) end
 	for char in pairs(player2DEspElements) do removePlayer2DESP(char) end
+	scpEspElements = {}
 	playerParryState         = {}
 	monitoredPlayerAnimators = {}
 	_G.vdHub = nil
-	print("[vdHub v3.4] Unloaded!")
+	print("[vdHub v1.0.2.0] Unloaded!")
 end)
