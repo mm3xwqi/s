@@ -80,10 +80,10 @@ local state = {
 		breakSpeed_enabled  = false,
 		breakSpeed_value    = 1,
 
-		-- Select Mask / Use Power Mask (Killer - The Masked)
+		-- Select Mask / Use Power Mask (Killer The Masked)
 		selectMask          = "Alex",
 
-		-- Auto Crouch (Survivor)
+		-- Auto Crouch
 		autoCrouch_enabled  = false,
 		autoCrouch_delay    = 0,
 		autoCrouch_humanize = false,
@@ -1649,7 +1649,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 local moonwalkEnabled = false
-local moonwalkKey     = Enum.KeyCode.F
+local moonwalkKey     = Enum.KeyCode.G
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
@@ -2028,7 +2028,6 @@ local AntiStunBox = Tabs.Killer:AddRightGroupbox("Anti Stun System")
 AntiStunBox:AddToggle("AntiStunEnabled", {
 	Text     = "Enable Anti Stun",
 	Default  = state.cfg.antiStun_enabled,
-	Tooltip  = "ป้องกัน Killer ถูกสตัน/หยุดจากพาเลท",
 	Callback = function(v)
 		state.cfg.antiStun_enabled = v
 		antiStunActive = v
@@ -2040,7 +2039,6 @@ local FlashBox = Tabs.Killer:AddRightGroupbox("Flashlight Protection")
 FlashBox:AddToggle("NoFlashBlind", {
 	Text     = "No Flash Blind",
 	Default  = state.cfg.noFlashBlind,
-	Tooltip  = "ไม่โดนแฟลชจากไฟฉายของ Survivor",
 	Callback = function(v) state.cfg.noFlashBlind = v end,
 })
 
@@ -2089,7 +2087,6 @@ local AutoCrouchBox = Tabs.Survivor:AddRightGroupbox("Auto Crouch")
 AutoCrouchBox:AddToggle("AutoCrouchEnabled", {
 	Text     = "Auto Crouch",
 	Default  = state.cfg.autoCrouch_enabled,
-	Tooltip  = "นั่งยองอัตโนมัติเมื่อ Killer ใช้ท่า Lunge (Abyss)",
 	Callback = function(v) state.cfg.autoCrouch_enabled = v end,
 })
 AutoCrouchBox:AddSlider("AutoCrouchDelay", {
