@@ -1674,16 +1674,18 @@ end)
 
 local moonwalkEnabled = false
 local moonwalkKey     = Enum.KeyCode.G
+local moonwalkSway    = 0
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	if input.KeyCode == moonwalkKey then
 		moonwalkEnabled = not moonwalkEnabled
+		moonwalkSway    = 0
 		print("[vdHub] Moonwalk: " .. (moonwalkEnabled and "ON" or "OFF"))
 	end
 end)
 
-RunService.Heartbeat:Connect(function()
+RunService.Heartbeat:Connect(function(dt)
 	if not state.running then return end
 	if not moonwalkEnabled then return end
 	local ch = lp.Character
@@ -1691,11 +1693,23 @@ RunService.Heartbeat:Connect(function()
 	local root = ch:FindFirstChild("HumanoidRootPart")
 	local hum  = ch:FindFirstChildOfClass("Humanoid")
 	if not root or not hum then return end
+
 	local moveDir = hum.MoveDirection
-	if moveDir.Magnitude < 0.1 then return end
+	if moveDir.Magnitude < 0.1 then
+		moonwalkSway = 0
+		return
+	end
+
+	moonwalkSway = moonwalkSway + dt * 18
+
+	local swayAngle = math.sin(moonwalkSway) * 20
+	local tiltAngle = -4
+
 	local pos     = root.Position
 	local backDir = Vector3.new(-moveDir.X, 0, -moveDir.Z).Unit
-	root.CFrame   = CFrame.new(pos, pos + backDir)
+
+	root.CFrame = CFrame.new(pos, pos + backDir)
+		* CFrame.Angles(math.rad(tiltAngle), math.rad(swayAngle), 0)
 end)
 
 -- ANTI STUN
@@ -2027,7 +2041,7 @@ local SaveManager  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
 
 local Window = Library:CreateWindow({
 	Title            = "KKKK",
-	Footer           = "v1.0.2.1",
+	Footer           = "v1.0.2.3",
 	Icon             = 95816097006870,
 	NotifySide       = "Right",
 	ShowCustomCursor = true,
@@ -2042,10 +2056,11 @@ local Tabs = {
 }
 
 local update = Tabs.Changelog:AddLeftGroupbox("Changelog Update 17 Aug")
-update:AddLabel({ Text = "Improve Anti Stun +++" })
-update:AddLabel({ Text = "Add Scp Esp" })
-update:AddLabel({ Text = "Add Legit Mode For Auto Parry" })
-update:AddLabel({ Text = "Optimize all ESP" })
+update:AddLabel({ Text = "/ Improve Anti Stun +++" })
+update:AddLabel({ Text = "/ mprove Moonwalk Now press G" })
+update:AddLabel({ Text = "+ Add Scp Esp" })
+update:AddLabel({ Text = "+ Add Legit Mode For Auto Parry" })
+update:AddLabel({ Text = "* Optimize all ESP" })
 
 local PalletBox      = Tabs.Survivor:AddLeftGroupbox("Auto Pallet Stun")
 local SkillBox       = Tabs.Survivor:AddRightGroupbox("Auto Skillcheck")
@@ -2452,6 +2467,7 @@ UnloadBox:AddButton({
 Library:OnUnload(function()
 	state.running   = false
 	moonwalkEnabled = false
+	moonwalkSway    = 0
 	fvHold          = false
 	vaults          = {}
 	pcall(function()
@@ -2479,5 +2495,5 @@ Library:OnUnload(function()
 	playerParryState         = {}
 	monitoredPlayerAnimators = {}
 	_G.vdHub = nil
-	print("[vdHub v1.0.2.1] Unloaded!")
+	print("[vdHub v1.0.2.0] Unloaded!")
 end)
