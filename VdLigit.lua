@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
+local Camera = workspace.CurrentCamera
 
 local lp = Players.LocalPlayer
 if not lp then
@@ -25,6 +26,11 @@ local state = {
 		spear_gravity_ready  = 1.4,
 		spear_gravity_cd     = 1.5,
 
+        spear_targetPart = "Head",
+        silentAim_enabled = false,
+        silentAim_fov = 150,
+        silentAim_showFOV = false,
+
 		p_enabled         = false,
 		interactionRadius = 8,
 		stunReach         = 7,
@@ -37,6 +43,8 @@ local state = {
 		sc_lead     = 2,
 		sc_offset   = 102,
 		sc_key      = 32,
+        sc_speed_enabled = false,
+        sc_speed_value   = 1,
 
 		fv_enabled    = false,
 		fv_radius     = 6,
@@ -44,6 +52,8 @@ local state = {
 		fv_deadband   = 38,
 		fv_target     = 36,
 		fv_ignoreAxis = false,
+        fv_vaultSpeed_enabled = false,
+        fv_vaultSpeed_value   = 5,
 
 		ap_enabled        = false,
 		ap_cooldown       = 0.05,
@@ -81,20 +91,11 @@ local state = {
 		p_esp_showStatus    = true,
 		p_esp_maxDist       = 500,
 
-		-- Anti Stun
 		antiStun_enabled    = false,
-
-		-- No Flash Blind
 		noFlashBlind        = false,
-
-		-- Break Speed
 		breakSpeed_enabled  = false,
 		breakSpeed_value    = 1,
-
-		-- Select Mask / Use Power Mask
 		selectMask          = "Alex",
-
-		-- Auto Crouch
 		autoCrouch_enabled  = false,
 		autoCrouch_delay    = 0,
 		autoCrouch_humanize = false,
@@ -172,6 +173,7 @@ local PARRY_ITEM_COOLDOWNS = {
 }
 
 local PARRY_USE_DELAY = 0.5
+local PARRY_COOLDOWN = state.cfg.ap_cooldown
 
 local function getAnimAssetId(track)
 	local ok, animId = pcall(function()
@@ -290,6 +292,81 @@ local function shouldTrackSpear()
 	return not isSurvivor() and not isSpectator()
 end
 
+local function getSpearTarget()
+	local me = myRoot()
+	if not me then return nil, nil, nil end
+	local cam = workspace.CurrentCamera
+	if not cam then return nil, nil, nil end
+	local mousePos = UserInputService:GetMouseLocation()
+	local best, bestChar, minDist = nil, nil, math.huge
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= lp and plr.Character then
+			local char = plr.Character
+			local root = char:FindFirstChild("HumanoidRootPart")
+			local hum  = char:FindFirstChildOfClass("Humanoid")
+			if root and hum and hum.Health > 0 then
+				if not isKillerPlayer(plr) and not isSpectator() then
+					local screenPos, onScreen = cam:WorldToViewportPoint(root.Position)
+					if onScreen and screenPos.Z > 0 then
+						local dx = screenPos.X - mousePos.X
+						local dy = screenPos.Y - mousePos.Y
+						local screenDist = math.sqrt(dx*dx + dy*dy)
+						if screenDist < minDist then
+							minDist  = screenDist
+							best     = root
+							bestChar = char
+						end
+					end
+				end
+			end
+		end
+	end
+	return best, "survivor", bestChar
+end
+
+local function getSelectedTargetPart()
+    local bestRoot, targetType, bestChar = getSpearTarget()
+    if not bestChar then return nil end
+    local targetPartName = state.cfg.spear_targetPart or "Head"
+    local targetPart = bestChar:FindFirstChild(targetPartName) or bestChar:FindFirstChild("HumanoidRootPart") or bestChar:FindFirstChild("Head")
+    return targetPart
+end
+
+local function getClosestPlayerToMouse()
+    local mousePos = UserInputService:GetMouseLocation()
+    local closestPart = nil
+    local shortestDistance = math.huge
+    local targetPartName = state.cfg.spear_targetPart or "Head"
+    local fov = state.cfg.silentAim_fov or 150
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= lp and not isKillerPlayer(player) and not isSpectator() then
+            local char = player.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                local targetPart = char:FindFirstChild(targetPartName)
+                    or char:FindFirstChild("HumanoidRootPart")
+                    or char:FindFirstChild("Head")
+
+                if hum and hum.Health > 0 and targetPart then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+
+                    if onScreen and screenPos.Z > 0 then
+                        local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+
+                        if distance < shortestDistance and distance <= fov then
+                            shortestDistance = distance
+                            closestPart = targetPart
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return closestPart
+end
+
 local pallets = {}
 local killerRoots = {}
 local uiLabels = { status = nil, killerDist = nil, parryDaggerCD = nil }
@@ -392,6 +469,20 @@ local function refreshVaults()
 	vaults = vaultPts
 end
 
+task.spawn(function()
+	while state.running do
+		if state.cfg.sc_speed_enabled and isSurvivor() then
+			pcall(function()
+				local charModel = workspace:FindFirstChild(lp.Name)
+				if charModel then
+					charModel:SetAttribute("skillcheckspeed", state.cfg.sc_speed_value)
+				end
+			end)
+		end
+		task.wait(0.2)
+	end
+end)
+
 local function fvAngle(tfx, tfz, lx, lz)
 	local d = math.clamp((tfx * lx) + (tfz * lz), -1, 1)
 	local a = math.deg(math.acos(d))
@@ -427,6 +518,26 @@ task.spawn(function()
 	while state.running do
 		pcall(refreshVaults)
 		task.wait(1.5)
+	end
+end)
+
+task.spawn(function()
+	while state.running do
+		if state.cfg.fv_vaultSpeed_enabled and isSurvivor() then
+			pcall(function()
+				local charModel = workspace:FindFirstChild(lp.Name)
+				if charModel then
+					charModel:SetAttribute("vaultspeed", state.cfg.fv_vaultSpeed_value)
+					if charModel:GetAttribute("isvaulting") == true then
+						charModel:SetAttribute("isvaulting", false)
+					end
+					if charModel:GetAttribute("overridelookscript") == true then
+						charModel:SetAttribute("overridelookscript", false)
+					end
+				end
+			end)
+		end
+		task.wait(0.2)
 	end
 end)
 
@@ -655,13 +766,12 @@ local function getSwingScore(track)
 end
 
 local lastParryTime = 0
-local PARRY_COOLDOWN = 0.2
 
 local function parry(reason, extraDelay)
 	if not state.cfg.ap_enabled then return end
 	if not isSurvivor() then return end
 	local now = tick()
-	if (now - lastParryTime) < PARRY_COOLDOWN then return end
+	if (now - lastParryTime) < (state.cfg.ap_cooldown or PARRY_COOLDOWN) then return end
 	lastParryTime = now
 	task.spawn(function()
 		local delay = extraDelay or 0
@@ -868,6 +978,11 @@ task.spawn(function()
 				if char and not hitboxMonitored[char] then
 					hitboxMonitored[char] = true
 					attachHitboxListener(char)
+					char.AncestryChanged:Connect(function()
+						if not char.Parent then
+							hitboxMonitored[char] = nil
+						end
+					end)
 				end
 				if me then
 					local ok,d = pcall(function() return (me.Position-kRoot.Position).Magnitude end)
@@ -946,6 +1061,33 @@ local function attachPlayerAnimListener(plr)
 	end)
 end
 
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function(newChar)
+        for char in pairs(player2DEspElements) do
+            if char ~= newChar then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p == plr and p.Character ~= char then
+                        removePlayer2DESP(char)
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    plr.CharacterAdded:Connect(function(newChar)
+        task.wait(0.1)
+        for char in pairs(player2DEspElements) do
+            local found = false
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Character == char then found = true; break end
+            end
+            if not found then removePlayer2DESP(char) end
+        end
+    end)
+end
+
 task.spawn(function()
 	while state.running do
 		pcall(function()
@@ -989,8 +1131,8 @@ local function get2DScreenBounds(char)
 	local cam = workspace.CurrentCamera
 	if not cam then return nil end
 	local head = char:FindFirstChild("Head")
-	local topY    = head and (head.Position.Y + 1.2) or (root.Position.Y + 3.2)
-	local bottomY = root.Position.Y - 3.2
+	local topY    = head and (head.Position.Y + 1.5) or (root.Position.Y + 3.8)
+	local bottomY = root.Position.Y - 3.8
 	local rootPos    = root.Position
 	local topWorld    = Vector3.new(rootPos.X, topY, rootPos.Z)
 	local bottomWorld = Vector3.new(rootPos.X, bottomY, rootPos.Z)
@@ -998,8 +1140,8 @@ local function get2DScreenBounds(char)
 	local bottomScreen, bottomOn = cam:WorldToViewportPoint(bottomWorld)
 	if not (topOn and bottomOn) or topScreen.Z < 0 then return nil end
 	local height = math.abs(bottomScreen.Y - topScreen.Y)
-	if height < 6 then height = 6 end
-	local width = math.clamp(height * 0.62, 10, 450)
+	if height < 10 then height = 10 end
+	local width = math.clamp(height * 0.55, 14, 500)
 	local x = topScreen.X - (width / 2)
 	local y = topScreen.Y
 	local realDist = (cam.CFrame.Position - rootPos).Magnitude
@@ -1020,7 +1162,7 @@ local function createKiller2DESP(char)
 	highlight.Name                = "VDHub_Killer_Highlight"
 	highlight.FillColor           = Color3.fromRGB(255, 0, 0)
 	highlight.OutlineColor        = Color3.fromRGB(255, 0, 0)
-	highlight.FillTransparency    = 0.6
+	highlight.FillTransparency    = 1
 	highlight.OutlineTransparency = 0
 	highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Adornee             = char
@@ -1030,20 +1172,13 @@ local function createKiller2DESP(char)
 	container.BackgroundTransparency = 1
 	container.Size                   = UDim2.new(1, 0, 1, 0)
 	container.Parent                 = espGui
-	local boxFrame = Instance.new("Frame")
-	boxFrame.BackgroundTransparency = 1
-	boxFrame.Parent                 = container
-	local stroke = Instance.new("UIStroke")
-	stroke.Color     = Color3.fromRGB(255, 0, 0)
-	stroke.Thickness = 1.5
-	stroke.Parent    = boxFrame
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Size                   = UDim2.new(0, 160, 0, 16)
-	nameLabel.TextColor3             = Color3.fromRGB(255, 255, 255)
+	nameLabel.TextColor3             = Color3.fromRGB(255, 80, 80)
 	nameLabel.TextStrokeTransparency = 0
 	nameLabel.Font                   = Enum.Font.GothamBold
-	nameLabel.TextSize               = 11
+	nameLabel.TextSize               = 13
 	nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	nameLabel.Text                   = char.Name
 	nameLabel.Parent                 = container
@@ -1053,14 +1188,13 @@ local function createKiller2DESP(char)
 	distLabel.TextColor3             = Color3.fromRGB(255, 200, 0)
 	distLabel.TextStrokeTransparency = 0
 	distLabel.Font                   = Enum.Font.GothamBold
-	distLabel.TextSize               = 10
+	distLabel.TextSize               = 11
 	distLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	distLabel.Text                   = ""
 	distLabel.Parent                 = container
 	killer2DEspElements[char] = {
 		container = container,
 		highlight = highlight,
-		boxFrame  = boxFrame,
 		nameLabel = nameLabel,
 		distLabel = distLabel,
 	}
@@ -1080,7 +1214,7 @@ local function createPlayer2DESP(char)
 	highlight.Name                = "VDHub_Player_Highlight"
 	highlight.FillColor           = Color3.fromRGB(0, 150, 255)
 	highlight.OutlineColor        = Color3.fromRGB(0, 200, 255)
-	highlight.FillTransparency    = 0.6
+	highlight.FillTransparency    = 1
 	highlight.OutlineTransparency = 0
 	highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Adornee             = char
@@ -1090,20 +1224,13 @@ local function createPlayer2DESP(char)
 	container.BackgroundTransparency = 1
 	container.Size                   = UDim2.new(1, 0, 1, 0)
 	container.Parent                 = espGui
-	local boxFrame = Instance.new("Frame")
-	boxFrame.BackgroundTransparency = 1
-	boxFrame.Parent                 = container
-	local stroke = Instance.new("UIStroke")
-	stroke.Color     = Color3.fromRGB(0, 170, 255)
-	stroke.Thickness = 1.5
-	stroke.Parent    = boxFrame
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Size                   = UDim2.new(0, 160, 0, 16)
-	nameLabel.TextColor3             = Color3.fromRGB(255, 255, 255)
+	nameLabel.TextColor3             = Color3.fromRGB(100, 200, 255)
 	nameLabel.TextStrokeTransparency = 0
 	nameLabel.Font                   = Enum.Font.GothamBold
-	nameLabel.TextSize               = 11
+	nameLabel.TextSize               = 13
 	nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	nameLabel.Text                   = char.Name
 	nameLabel.Parent                 = container
@@ -1113,24 +1240,24 @@ local function createPlayer2DESP(char)
 	distLabel.TextColor3             = Color3.fromRGB(0, 200, 255)
 	distLabel.TextStrokeTransparency = 0
 	distLabel.Font                   = Enum.Font.GothamBold
-	distLabel.TextSize               = 10
+	distLabel.TextSize               = 11
 	distLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	distLabel.Text                   = ""
 	distLabel.Parent                 = container
-	local sideFrame = Instance.new("Frame")
-	sideFrame.BackgroundTransparency = 1
-	sideFrame.Size                   = UDim2.new(0, 140, 0, 56)
-	sideFrame.Parent                 = container
-	local listLayoutR = Instance.new("UIListLayout")
-	listLayoutR.SortOrder = Enum.SortOrder.LayoutOrder
-	listLayoutR.Padding   = UDim.new(0, 0)
-	listLayoutR.Parent    = sideFrame
+    local sideFrame = Instance.new("Frame")
+    sideFrame.BackgroundTransparency = 1
+    sideFrame.Size                   = UDim2.new(0, 150, 0, 96)
+    sideFrame.Parent                 = container
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	listLayout.Padding   = UDim.new(0, 1)
+	listLayout.Parent    = sideFrame
 	local knockedLabel = Instance.new("TextLabel")
 	knockedLabel.LayoutOrder            = 1
 	knockedLabel.BackgroundTransparency = 1
 	knockedLabel.Size                   = UDim2.new(1, 0, 0, 14)
 	knockedLabel.Font                   = Enum.Font.GothamBold
-	knockedLabel.TextSize               = 10
+	knockedLabel.TextSize               = 11
 	knockedLabel.TextColor3             = Color3.fromRGB(0, 255, 150)
 	knockedLabel.TextXAlignment         = Enum.TextXAlignment.Left
 	knockedLabel.TextStrokeTransparency = 0
@@ -1141,7 +1268,7 @@ local function createPlayer2DESP(char)
 	hookCountLabel.BackgroundTransparency = 1
 	hookCountLabel.Size                   = UDim2.new(1, 0, 0, 14)
 	hookCountLabel.Font                   = Enum.Font.GothamBold
-	hookCountLabel.TextSize               = 10
+	hookCountLabel.TextSize               = 11
 	hookCountLabel.TextColor3             = Color3.fromRGB(255, 200, 80)
 	hookCountLabel.TextXAlignment         = Enum.TextXAlignment.Left
 	hookCountLabel.TextStrokeTransparency = 0
@@ -1152,7 +1279,7 @@ local function createPlayer2DESP(char)
 	hookedProgLabel.BackgroundTransparency = 1
 	hookedProgLabel.Size                   = UDim2.new(1, 0, 0, 14)
 	hookedProgLabel.Font                   = Enum.Font.GothamBold
-	hookedProgLabel.TextSize               = 10
+	hookedProgLabel.TextSize               = 11
 	hookedProgLabel.TextColor3             = Color3.fromRGB(150, 210, 255)
 	hookedProgLabel.TextXAlignment         = Enum.TextXAlignment.Left
 	hookedProgLabel.TextStrokeTransparency = 0
@@ -1163,47 +1290,37 @@ local function createPlayer2DESP(char)
 	healProgLabel.BackgroundTransparency = 1
 	healProgLabel.Size                   = UDim2.new(1, 0, 0, 14)
 	healProgLabel.Font                   = Enum.Font.GothamBold
-	healProgLabel.TextSize               = 10
+	healProgLabel.TextSize               = 11
 	healProgLabel.TextColor3             = Color3.fromRGB(255, 130, 220)
 	healProgLabel.TextXAlignment         = Enum.TextXAlignment.Left
 	healProgLabel.TextStrokeTransparency = 0
 	healProgLabel.Text                   = "HealProg: 0.0"
 	healProgLabel.Parent                 = sideFrame
-	local leftFrame = Instance.new("Frame")
-	leftFrame.BackgroundTransparency = 1
-	leftFrame.Size                   = UDim2.new(0, 140, 0, 28)
-	leftFrame.Parent                 = container
-	local listLayoutL = Instance.new("UIListLayout")
-	listLayoutL.SortOrder = Enum.SortOrder.LayoutOrder
-	listLayoutL.Padding   = UDim.new(0, 0)
-	listLayoutL.Parent    = leftFrame
-	local itemsLabel = Instance.new("TextLabel")
-	itemsLabel.LayoutOrder            = 1
-	itemsLabel.BackgroundTransparency = 1
-	itemsLabel.Size                   = UDim2.new(1, 0, 0, 14)
-	itemsLabel.Font                   = Enum.Font.GothamBold
-	itemsLabel.TextSize               = 10
-	itemsLabel.TextColor3             = Color3.fromRGB(255, 80, 255)
-	itemsLabel.TextXAlignment         = Enum.TextXAlignment.Right
-	itemsLabel.TextStrokeTransparency = 0
-	itemsLabel.Text                   = ""
-	itemsLabel.TextWrapped            = true
-	itemsLabel.Parent                 = leftFrame
+	local parryDaggerLabel = Instance.new("TextLabel")
+	parryDaggerLabel.LayoutOrder            = 5
+	parryDaggerLabel.BackgroundTransparency = 1
+	parryDaggerLabel.Size                   = UDim2.new(1, 0, 0, 14)
+	parryDaggerLabel.Font                   = Enum.Font.GothamBold
+	parryDaggerLabel.TextSize               = 11
+	parryDaggerLabel.TextColor3             = Color3.fromRGB(255, 80, 255)
+	parryDaggerLabel.TextXAlignment         = Enum.TextXAlignment.Left
+	parryDaggerLabel.TextStrokeTransparency = 0
+	parryDaggerLabel.Text                   = ""
+	parryDaggerLabel.Parent                 = sideFrame
 	local parryItemLabel = Instance.new("TextLabel")
-	parryItemLabel.LayoutOrder            = 2
+	parryItemLabel.LayoutOrder            = 6
 	parryItemLabel.BackgroundTransparency = 1
 	parryItemLabel.Size                   = UDim2.new(1, 0, 0, 14)
 	parryItemLabel.Font                   = Enum.Font.GothamBold
-	parryItemLabel.TextSize               = 10
+	parryItemLabel.TextSize               = 11
 	parryItemLabel.TextColor3             = Color3.fromRGB(120, 220, 255)
-	parryItemLabel.TextXAlignment         = Enum.TextXAlignment.Right
+	parryItemLabel.TextXAlignment         = Enum.TextXAlignment.Left
 	parryItemLabel.TextStrokeTransparency = 0
 	parryItemLabel.Text                   = ""
-	parryItemLabel.Parent                 = leftFrame
+	parryItemLabel.Parent                 = sideFrame
 	player2DEspElements[char] = {
 		container        = container,
 		highlight        = highlight,
-		boxFrame         = boxFrame,
 		nameLabel        = nameLabel,
 		distLabel        = distLabel,
 		sideFrame        = sideFrame,
@@ -1211,8 +1328,7 @@ local function createPlayer2DESP(char)
 		hookCountLabel   = hookCountLabel,
 		hookedProgLabel  = hookedProgLabel,
 		healProgLabel    = healProgLabel,
-		leftFrame        = leftFrame,
-		parryDaggerLabel = itemsLabel,
+		parryDaggerLabel = parryDaggerLabel,
 		parryItemLabel   = parryItemLabel,
 	}
 end
@@ -1220,14 +1336,13 @@ end
 local _cachedPlayers = {}
 local _playerCacheTime = 0
 
--- ESP UPDATE LOOP
+local _espTick = 0
 local _espTick = 0
 RunService.Heartbeat:Connect(function()
 	if not state.running then return end
 	local now = tick()
-	if now - _espTick < 0.05 then return end
+	if now - _espTick < 0.01 then return end
 	_espTick = now
-
 	local c = state.cfg
 	local spectating = isSpectator()
 	if spectating then
@@ -1238,7 +1353,6 @@ RunService.Heartbeat:Connect(function()
 	local cam = workspace.CurrentCamera
 	if not cam then return end
 
-	-- Killer ESP
 	if c.esp_enabled then
 		for _, kRoot in ipairs(killerRoots) do
 			local char = kRoot and kRoot.Parent
@@ -1252,18 +1366,15 @@ RunService.Heartbeat:Connect(function()
 						elem.highlight.Enabled = c.esp_showHighlight and inRange
 					end
 					if x and inRange then
-						local dynamicFont = math.clamp(math.floor(height * 0.2), 8, 11)
+						local dynamicFont = math.clamp(math.floor(height * 0.22), 10, 14)
 						elem.container.Visible = true
-						elem.boxFrame.Visible  = c.esp_showBox
-						elem.boxFrame.Position = UDim2.new(0, x, 0, y)
-						elem.boxFrame.Size     = UDim2.new(0, width, 0, height)
 						elem.nameLabel.Visible  = c.esp_showName
-						elem.nameLabel.Position = UDim2.new(0, x + (width/2) - 80, 0, y - (dynamicFont + 6))
+						elem.nameLabel.Position = UDim2.new(0, x + (width/2) - 80, 0, y - (dynamicFont + 8))
 						elem.nameLabel.TextSize = dynamicFont
 						elem.distLabel.Visible  = c.esp_showDist
-						elem.distLabel.Position = UDim2.new(0, x + (width/2) - 80, 0, y + height + 2)
-						elem.distLabel.TextSize = math.max(7, dynamicFont - 1)
-						elem.distLabel.Text     = string.format("[%d studs]", math.floor(dist))
+						elem.distLabel.Position = UDim2.new(0, x + (width/2) - 80, 0, y + height + 3)
+						elem.distLabel.TextSize = math.max(9, dynamicFont - 1)
+						elem.distLabel.Text     = string.format("[%.0fm]", dist * 0.28)
 					else
 						elem.container.Visible = false
 					end
@@ -1274,17 +1385,23 @@ RunService.Heartbeat:Connect(function()
 		for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
 	end
 
-	-- Player ESP
 	if c.p_esp_enabled then
 		if (now - _playerCacheTime) > 0.5 then
 			_cachedPlayers = Players:GetPlayers()
 			_playerCacheTime = now
 		end
-		local showHL  = c.p_esp_showHighlight
-		local showBox = c.p_esp_showBox
-		local showSt  = c.p_esp_showStatus
-		for _, plr in ipairs(_cachedPlayers) do
-			if plr ~= lp and not isKillerPlayer(plr) then
+		local showSt = c.p_esp_showStatus
+        for char, _ in pairs(player2DEspElements) do
+            for _, plr in ipairs(_cachedPlayers) do
+                if plr.Character == char and isKillerPlayer(plr) then
+                    removePlayer2DESP(char)
+                    break
+                end
+            end
+        end
+
+        for _, plr in ipairs(_cachedPlayers) do
+            if plr ~= lp and not isKillerPlayer(plr) then
 				local char = plr.Character
 				local root = char and char:FindFirstChild("HumanoidRootPart")
 				if char and root then
@@ -1293,43 +1410,33 @@ RunService.Heartbeat:Connect(function()
 					if elem then
 						local x, y, width, height, dist = get2DScreenBounds(char)
 						local inRange = (not dist) or (dist <= c.p_esp_maxDist)
+						local hideIfFar = dist and dist > 500
 						if elem.highlight then
-							elem.highlight.Enabled = showHL and inRange
+							elem.highlight.Enabled = c.p_esp_showHighlight and inRange
 						end
-						if x and inRange then
-							local dynamicFont = math.clamp(math.floor(height * 0.18), 8, 11)
-							local sidePadding = math.clamp(math.floor(width * 0.15), 4, 8)
-							local lineHeight  = math.clamp(math.floor(height * 0.22), 10, 14)
-							local hideIfFar   = dist > 500
-							elem.container.Visible = true
-							elem.boxFrame.Visible  = showBox
-							elem.boxFrame.Position = UDim2.new(0, x, 0, y)
-							elem.boxFrame.Size     = UDim2.new(0, width, 0, height)
-							elem.nameLabel.Visible  = c.p_esp_showName
-							elem.nameLabel.Position = UDim2.new(0, x + (width/2) - 80, 0, y - (dynamicFont + 6))
-							elem.nameLabel.TextSize = dynamicFont
-							elem.distLabel.Visible  = c.p_esp_showDist
-							elem.distLabel.Position = UDim2.new(0, x + (width/2) - 80, 0, y + height + 2)
-							elem.distLabel.TextSize = math.max(7, dynamicFont - 1)
-							elem.distLabel.Text     = string.format("[%d studs]", math.floor(dist))
-							elem.sideFrame.Visible  = showSt and not hideIfFar
-							elem.sideFrame.Position = UDim2.new(0, x + width + sidePadding, 0, y)
-							elem.leftFrame.Visible  = showSt and not hideIfFar
-							elem.leftFrame.Size     = UDim2.new(0, 140, 0, lineHeight * 2)
-							elem.leftFrame.Position = UDim2.new(0, x - 140 - sidePadding, 0, y)
-							elem.knockedLabel.TextSize    = dynamicFont
-							elem.knockedLabel.Size        = UDim2.new(1, 0, 0, lineHeight)
-							elem.hookCountLabel.TextSize  = dynamicFont
-							elem.hookCountLabel.Size      = UDim2.new(1, 0, 0, lineHeight)
-							elem.hookedProgLabel.TextSize = dynamicFont
-							elem.hookedProgLabel.Size     = UDim2.new(1, 0, 0, lineHeight)
-							elem.healProgLabel.TextSize   = dynamicFont
-							elem.healProgLabel.Size       = UDim2.new(1, 0, 0, lineHeight)
-							elem.parryDaggerLabel.TextSize = dynamicFont
-							elem.parryDaggerLabel.Size     = UDim2.new(1, 0, 0, lineHeight)
-							elem.parryItemLabel.TextSize   = dynamicFont
-							elem.parryItemLabel.Size       = UDim2.new(1, 0, 0, lineHeight)
+                        if x and inRange then
+                            local dynamicFont = math.clamp(math.floor(height * 0.20), 10, 14)
+                            local sidePadding = math.clamp(math.floor(width * 0.15), 5, 10)
+                            elem.container.Visible  = true
+                            elem.nameLabel.Visible  = c.p_esp_showName
+                            elem.nameLabel.Position = UDim2.new(0, x + (width/2) - 80, 0, y - (dynamicFont + 8))
+                            elem.nameLabel.TextSize = dynamicFont
+                            elem.distLabel.Visible  = c.p_esp_showDist
+                            elem.distLabel.Position = UDim2.new(0, x + (width/2) - 80, 0, y + height + 3)
+                            elem.distLabel.TextSize = math.max(9, dynamicFont - 1)
+                            elem.distLabel.Text     = string.format("[%.0fm]", dist * 0.28)
+                                elem.sideFrame.Visible  = showSt and not hideIfFar
+                                elem.sideFrame.Size     = UDim2.new(0, 150, 0, 96)
+                                local rootScreenPos = cam:WorldToViewportPoint(root.Position)
+                                elem.sideFrame.Position = UDim2.new(0, rootScreenPos.X + 30, 0, rootScreenPos.Y - 48)
 							if showSt and not hideIfFar then
+                            local panelFont = math.clamp(math.floor(11 * math.clamp(80 / dist, 0.6, 1.0)), 7, 11)
+                            elem.knockedLabel.TextSize     = panelFont
+                            elem.hookCountLabel.TextSize   = panelFont
+                            elem.hookedProgLabel.TextSize  = panelFont
+                            elem.healProgLabel.TextSize    = panelFont
+                            elem.parryDaggerLabel.TextSize = panelFont
+                            elem.parryItemLabel.TextSize   = panelFont
 								local isKnocked  = getCharAttribute(char, "Knocked")
 								local hookCount  = getCharAttribute(char, "HookCount") or 0
 								local hookedProg = getCharAttribute(char, "HookedProgress") or 100
@@ -1342,36 +1449,29 @@ RunService.Heartbeat:Connect(function()
 									elem.knockedLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 								end
 								elem.hookCountLabel.Text  = string.format("Hook: %d", tonumber(hookCount) or 0)
-								elem.hookedProgLabel.Text = string.format("HookProg: %.1f", tonumber(hookedProg) or 0)
-								elem.healProgLabel.Text   = string.format("HealProg: %.1f", tonumber(healProg) or 0)
-								if elem.parryDaggerLabel then
-									local itemNames = {}
-									for _, obj in ipairs(char:GetChildren()) do
-										if obj:IsA("Model") then
-											itemNames[#itemNames + 1] = obj.Name
-										end
-									end
-									elem.parryDaggerLabel.Text = #itemNames > 0 and table.concat(itemNames, ", ") or ""
-									if #itemNames > 0 then
-										elem.parryDaggerLabel.TextColor3 = Color3.fromRGB(255, 80, 255)
+								elem.hookedProgLabel.Text = string.format("HookProg: %.0f", tonumber(hookedProg) or 0)
+								elem.healProgLabel.Text   = string.format("HealProg: %.0f", tonumber(healProg) or 0)
+								local itemNames = {}
+								for _, obj in ipairs(char:GetChildren()) do
+									if obj:IsA("Model") then
+										itemNames[#itemNames + 1] = obj.Name
 									end
 								end
-								if elem.parryItemLabel then
-									local ps = playerParryState[plr]
-									if ps and not ps.pending and ps.lastUsed then
-										local elapsed = tick() - ps.lastUsed
-										local pct     = math.clamp(elapsed / ps.cooldownSec, 0, 1)
-										local pctInt  = math.floor(pct * 100)
-										if pctInt >= 100 then
-											elem.parryItemLabel.Text       = string.format("[%s] READY", ps.itemName)
-											elem.parryItemLabel.TextColor3 = Color3.fromRGB(120, 255, 160)
-										else
-											elem.parryItemLabel.Text       = string.format("[%s] CD %d%%", ps.itemName, pctInt)
-											elem.parryItemLabel.TextColor3 = Color3.fromRGB(255, 160, 60)
-										end
+								elem.parryDaggerLabel.Text = #itemNames > 0 and table.concat(itemNames, ", ") or ""
+								local ps = playerParryState[plr]
+								if ps and not ps.pending and ps.lastUsed then
+									local elapsed = tick() - ps.lastUsed
+									local pct     = math.clamp(elapsed / ps.cooldownSec, 0, 1)
+									local pctInt  = math.floor(pct * 100)
+									if pctInt >= 100 then
+										elem.parryItemLabel.Text       = string.format("[%s] READY", ps.itemName)
+										elem.parryItemLabel.TextColor3 = Color3.fromRGB(120, 255, 160)
 									else
-										elem.parryItemLabel.Text = ""
+										elem.parryItemLabel.Text       = string.format("[%s] CD %d%%", ps.itemName, pctInt)
+										elem.parryItemLabel.TextColor3 = Color3.fromRGB(255, 160, 60)
 									end
+								else
+									elem.parryItemLabel.Text = ""
 								end
 							end
 						else
@@ -1398,7 +1498,10 @@ task.spawn(function()
 		for char in pairs(player2DEspElements) do
 			local alive = false
 			for _, plr in ipairs(Players:GetPlayers()) do
-				if plr.Character == char then alive = true; break end
+				-- เช็คทั้ง char match และ ต้องไม่เป็น killer
+				if plr.Character == char and not isKillerPlayer(plr) then
+					alive = true; break
+				end
 			end
 			if not alive then removePlayer2DESP(char) end
 		end
@@ -1407,7 +1510,7 @@ task.spawn(function()
 end)
 
 local parryAdornment = Instance.new("CylinderHandleAdornment")
-parryAdornment.Name         = "VDHub_ParryHollowRing"
+parryAdornment.Name         = "KKKK_Hub_ParryHollowRing"
 parryAdornment.Height       = 0.05
 parryAdornment.Color3       = Color3.fromRGB(0, 255, 200)
 parryAdornment.Transparency = 0.1
@@ -1485,42 +1588,10 @@ local function getSkillCooldownState()
 	return _skillCDCache
 end
 
-local function getSpearTarget()
-	local me = myRoot()
-	if not me then return nil, nil, nil end
-	local cam = workspace.CurrentCamera
-	if not cam then return nil, nil, nil end
-	local mousePos = UserInputService:GetMouseLocation()
-	local best, bestChar, minDist = nil, nil, math.huge
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr ~= lp and plr.Character then
-			local char = plr.Character
-			local root = char:FindFirstChild("HumanoidRootPart")
-			local hum  = char:FindFirstChildOfClass("Humanoid")
-			if root and hum and hum.Health > 0 then
-				if not isKillerPlayer(plr) and not isSpectator() then
-					local screenPos, onScreen = cam:WorldToViewportPoint(root.Position)
-					if onScreen and screenPos.Z > 0 then
-						local dx = screenPos.X - mousePos.X
-						local dy = screenPos.Y - mousePos.Y
-						local screenDist = math.sqrt(dx*dx + dy*dy)
-						if screenDist < minDist then
-							minDist  = screenDist
-							best     = root
-							bestChar = char
-						end
-					end
-				end
-			end
-		end
-	end
-	return best, "survivor", bestChar
-end
-
-local function calculateSpearAim(origin, targetPos, targetVel)
+local function calculateSpearAim(origin, targetPos, targetVel, overrideSpeed)
 	local c = state.cfg
 	local skillReady = getSkillCooldownState()
-	local SPEED  = skillReady and c.spear_speed_ready or c.spear_speed_cd
+	local SPEED  = overrideSpeed or (skillReady and c.spear_speed_ready or c.spear_speed_cd)
 	local gScale = skillReady and c.spear_gravity_ready or c.spear_gravity_cd
 	local toTarget  = targetPos - origin
 	local horizDist = Vector3.new(toTarget.X, 0, toTarget.Z).Magnitude
@@ -1529,8 +1600,8 @@ local function calculateSpearAim(origin, targetPos, targetVel)
 	local predPos = (targetVel and targetVel.Magnitude > 0.5)
 		and (aimBase + Vector3.new(targetVel.X, 0, targetVel.Z) * t)
 		or aimBase
-	local g       = workspace.Gravity * gScale
-	local v0y     = skillReady and 36.52 or 46.05
+	local g   = workspace.Gravity * gScale
+	local v0y = skillReady and 36.52 or 46.05
 	local netDrop = (v0y * t) - (0.5 * g * t * t)
 	return predPos - Vector3.new(0, netDrop, 0)
 end
@@ -1622,28 +1693,19 @@ end
 
 task.spawn(function()
 	while state.running do
-		if state.cfg.spear_esp_enabled and shouldTrackSpear() then
-			for _, obj in ipairs(Workspace:GetDescendants()) do
-				if obj:IsA("Model") and string.lower(obj.Name) == "spearprojectile" then
-					addSpearESP(obj)
-				end
-			end
-			for model in pairs(spearESPs) do
-				if not model.Parent then
-					removeSpearESP(model)
-				end
-			end
-		else
-			for model in pairs(spearESPs) do
-				removeSpearESP(model)
-			end
+		if not state.cfg.spear_esp_enabled or not shouldTrackSpear() then
+			for model in pairs(spearESPs) do removeSpearESP(model) end
 		end
-		task.wait(0.2)
+		task.wait(0.5)
 	end
 end)
 
-Workspace.DescendantRemoving:Connect(function(obj)
-	if spearESPs[obj] then removeSpearESP(obj) end
+Workspace.DescendantAdded:Connect(function(obj)
+	if not state.cfg.spear_esp_enabled then return end
+	if not shouldTrackSpear() then return end
+	if obj:IsA("Model") and string.lower(obj.Name) == "spearprojectile" then
+		addSpearESP(obj)
+	end
 end)
 
 local _spearTick = 0
@@ -1693,27 +1755,21 @@ RunService.Heartbeat:Connect(function(dt)
 	local root = ch:FindFirstChild("HumanoidRootPart")
 	local hum  = ch:FindFirstChildOfClass("Humanoid")
 	if not root or not hum then return end
-
 	local moveDir = hum.MoveDirection
 	if moveDir.Magnitude < 0.1 then
 		moonwalkSway = 0
 		return
 	end
-
 	moonwalkSway = moonwalkSway + dt * 18
-
 	local swayAngle = math.sin(moonwalkSway) * 20
 	local tiltAngle = -4
-
 	local pos     = root.Position
 	local backDir = Vector3.new(-moveDir.X, 0, -moveDir.Z).Unit
-
 	root.CFrame = CFrame.new(pos, pos + backDir)
 		* CFrame.Angles(math.rad(tiltAngle), math.rad(swayAngle), 0)
 end)
 
--- ANTI STUN
-local antiStunActive  = false
+local antiStunActive  = state.cfg.antiStun_enabled
 local antiStunConns   = {}
 
 local function attachAntiStunToChar(char)
@@ -1754,7 +1810,6 @@ lp.CharacterAdded:Connect(function(ch)
 	pcall(attachAntiStunToChar, ch)
 end)
 
--- BREAK SPEED LOOP
 task.spawn(function()
 	while state.running do
 		task.wait(0.2)
@@ -1772,7 +1827,6 @@ task.spawn(function()
 	end
 end)
 
--- AUTO CROUCH
 local lastCrouchTime = 0
 local autoCrouchAnimIds = { ["80411309607666"] = true }
 
@@ -1790,24 +1844,19 @@ RunService.Heartbeat:Connect(function()
 	local c = state.cfg
 	if not c.autoCrouch_enabled then return end
 	if not isSurvivor() then return end
-
 	local now = tick()
 	local cooldown = (c.autoCrouch_duration or 1.5) + 2.5
 	if now - lastCrouchTime < cooldown then return end
-
 	local ch = lp.Character
 	if not ch then return end
 	local localRoot = ch:FindFirstChild("HumanoidRootPart")
 	if not localRoot then return end
-
 	local killerChar = getKillerChar()
 	if not killerChar then return end
 	local killerRoot = killerChar:FindFirstChild("HumanoidRootPart")
 	if not killerRoot then return end
-
 	local dist = (killerRoot.Position - localRoot.Position).Magnitude
 	if dist > (c.autoCrouch_distance or 18) then return end
-
 	local killerHum = killerChar:FindFirstChildOfClass("Humanoid")
 	if not killerHum then return end
 	local detected = false
@@ -1829,7 +1878,6 @@ RunService.Heartbeat:Connect(function()
 			end
 		end
 	end)
-
 	if detected then
 		lastCrouchTime = now
 		task.spawn(function()
@@ -1857,7 +1905,6 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- NO FLASH BLIND
 RunService.Heartbeat:Connect(function()
 	if not state.running then return end
 	if not state.cfg.noFlashBlind then return end
@@ -1872,7 +1919,6 @@ RunService.Heartbeat:Connect(function()
 	end)
 end)
 
--- SCP ESP
 local scpEspElements = {}
 
 local function removeSCPESP(model)
@@ -1889,7 +1935,6 @@ local function createSCPESP(model)
 		or model:FindFirstChildOfClass("MeshPart")
 		or model:FindFirstChildOfClass("BasePart")
 	if not root then return end
-
 	local hl = Instance.new("Highlight")
 	hl.Name                = "VDHub_SCP_Highlight"
 	hl.FillColor           = Color3.fromRGB(255, 60, 220)
@@ -1899,22 +1944,18 @@ local function createSCPESP(model)
 	hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 	hl.Adornee             = model
 	hl.Parent              = model
-
 	local container = Instance.new("Frame")
 	container.Name                   = "SCP2DContainer"
 	container.BackgroundTransparency = 1
 	container.Size                   = UDim2.new(1, 0, 1, 0)
 	container.Parent                 = espGui
-
 	local boxFrame = Instance.new("Frame")
 	boxFrame.BackgroundTransparency = 1
 	boxFrame.Parent                 = container
-
 	local stroke = Instance.new("UIStroke")
 	stroke.Color     = Color3.fromRGB(255, 0, 200)
 	stroke.Thickness = 1.5
 	stroke.Parent    = boxFrame
-
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Size                   = UDim2.new(0, 180, 0, 16)
@@ -1925,7 +1966,6 @@ local function createSCPESP(model)
 	nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	nameLabel.Text                   = model.Name
 	nameLabel.Parent                 = container
-
 	local distLabel = Instance.new("TextLabel")
 	distLabel.BackgroundTransparency = 1
 	distLabel.Size                   = UDim2.new(0, 180, 0, 14)
@@ -1936,7 +1976,6 @@ local function createSCPESP(model)
 	distLabel.TextXAlignment         = Enum.TextXAlignment.Center
 	distLabel.Text                   = ""
 	distLabel.Parent                 = container
-
 	scpEspElements[model] = {
 		highlight = hl,
 		container = container,
@@ -1983,7 +2022,6 @@ task.spawn(function()
 	end
 end)
 
--- SCP ESP
 local _scpTick = 0
 RunService.Heartbeat:Connect(function()
 	if not state.running or not state.cfg.scp_esp_enabled then return end
@@ -2007,29 +2045,29 @@ RunService.Heartbeat:Connect(function()
 			continue
 		end
 		local head    = model:FindFirstChild("Head")
-		local topY    = head and (head.Position.Y + 1.5) or (rootPos.Y + 4)
-		local bottomY = rootPos.Y - 3.5
+		local topY    = head and (head.Position.Y + 1.8) or (rootPos.Y + 4.5)
+		local bottomY = rootPos.Y - 4.0
 		local topSc,    topOn    = cam:WorldToViewportPoint(Vector3.new(rootPos.X, topY,    rootPos.Z))
 		local bottomSc, bottomOn = cam:WorldToViewportPoint(Vector3.new(rootPos.X, bottomY, rootPos.Z))
 		if not (topOn and bottomOn) or topSc.Z < 0 then
 			elem.container.Visible = false
 			continue
 		end
-		local h       = math.max(6, math.abs(bottomSc.Y - topSc.Y))
-		local w       = math.clamp(h * 0.62, 10, 450)
+		local h       = math.max(10, math.abs(bottomSc.Y - topSc.Y))
+		local w       = math.clamp(h * 0.55, 14, 500)
 		local x       = topSc.X - w / 2
 		local y       = topSc.Y
-		local dynFont = math.clamp(math.floor(h * 0.2), 8, 11)
+		local dynFont = math.clamp(math.floor(h * 0.22), 10, 14)
 		elem.container.Visible = true
 		elem.boxFrame.Visible  = state.cfg.scp_esp_showBox
 		elem.boxFrame.Position = UDim2.new(0, x, 0, y)
 		elem.boxFrame.Size     = UDim2.new(0, w, 0, h)
 		elem.nameLabel.Visible  = state.cfg.scp_esp_showName
-		elem.nameLabel.Position = UDim2.new(0, x + (w/2) - 90, 0, y - (dynFont + 6))
+		elem.nameLabel.Position = UDim2.new(0, x + (w/2) - 90, 0, y - (dynFont + 8))
 		elem.nameLabel.TextSize = dynFont
 		elem.distLabel.Visible  = state.cfg.scp_esp_showDist
-		elem.distLabel.Position = UDim2.new(0, x + (w/2) - 90, 0, y + h + 2)
-		elem.distLabel.TextSize = math.max(7, dynFont - 1)
+		elem.distLabel.Position = UDim2.new(0, x + (w/2) - 90, 0, y + h + 3)
+		elem.distLabel.TextSize = math.max(9, dynFont - 1)
 		elem.distLabel.Text     = string.format("[%d studs]", math.floor(dist))
 	end
 end)
@@ -2041,7 +2079,7 @@ local SaveManager  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
 
 local Window = Library:CreateWindow({
 	Title            = "KKKK",
-	Footer           = "v1.0.2.3",
+	Footer           = "v1.0.2.5",
 	Icon             = 95816097006870,
 	NotifySide       = "Right",
 	ShowCustomCursor = true,
@@ -2057,18 +2095,27 @@ local Tabs = {
 
 local update = Tabs.Changelog:AddLeftGroupbox("Changelog Update 17 Aug")
 update:AddLabel({ Text = "/ Improve Anti Stun +++" })
-update:AddLabel({ Text = "/ mprove Moonwalk Now press G" })
-update:AddLabel({ Text = "+ Add Scp Esp" })
+update:AddLabel({ Text = "/ Improve Moonwalk  press G" })
+update:AddLabel({ Text = "+ Add SCP ESP" })
 update:AddLabel({ Text = "+ Add Legit Mode For Auto Parry" })
 update:AddLabel({ Text = "* Optimize all ESP" })
+local update2 = Tabs.Changelog:AddRightGroupbox("Changelog Update 18 Aug")
+update2:AddLabel({ Text = "/ Improve Esp" })
+update2:AddLabel({ Text = "+ Add Silent Aim Veil/Gun" })
+update2:AddLabel({ Text = "+ Add Fov Circle" })
+update2:AddLabel({ Text = "+ Add Silent Aim Fov Slider" })
+update2:AddLabel({ Text = "+ Add Fast Skillcheck Speed" })
+update2:AddLabel({ Text = "+ Add Skillcheck Speed Value Slider" })
+update2:AddLabel({ Text = "+ Add Vault Speed" })
+update2:AddLabel({ Text = "+ Add Vault Speed Value Slider" })
 
-local PalletBox      = Tabs.Survivor:AddLeftGroupbox("Auto Pallet Stun")
-local SkillBox       = Tabs.Survivor:AddRightGroupbox("Auto Skillcheck")
-local VaultBox       = Tabs.Survivor:AddRightGroupbox("Always Fast Vault")
-local ParryBox       = Tabs.Survivor:AddLeftGroupbox("Auto Parry")
+local PalletBox      = Tabs.Survivor:AddLeftGroupbox("Pallet Killer Stun")
+local SkillBox       = Tabs.Survivor:AddRightGroupbox("Skillcheck")
+local VaultBox       = Tabs.Survivor:AddRightGroupbox("Instant Fast Vault")
+local ParryBox       = Tabs.Survivor:AddLeftGroupbox("Anti Hit")
 
-PalletBox:AddToggle("AutoPallet", {
-	Text     = "Auto Pallet Stun",
+PalletBox:AddToggle("Stun Killer", {
+	Text     = "Auto Drop Pallet ",
 	Default  = state.cfg.p_enabled,
 	Tooltip  = "Automatically drop pallets on Killers",
 	Callback = function(v) state.cfg.p_enabled = v end,
@@ -2097,10 +2144,31 @@ PalletBox:AddSlider("PalletCooldown", {
 	Callback = function(v) state.cfg.cooldown = v end,
 })
 
-SkillBox:AddToggle("AutoSkillcheck", {
+SkillBox:AddToggle("Skillcheck", {
 	Text     = "Auto Skillcheck",
 	Default  = state.cfg.sc_enabled,
 	Callback = function(v) state.cfg.sc_enabled = v end,
+})
+SkillBox:AddToggle("ScSpeed", {
+	Text     = "Fast Skillcheck Speed",
+	Default  = state.cfg.sc_speed_enabled,
+	Callback = function(v)
+		state.cfg.sc_speed_enabled = v
+		if not v then
+			pcall(function()
+				local charModel = workspace:FindFirstChild(lp.Name)
+				if charModel then
+					charModel:SetAttribute("skillcheckspeed", nil)
+				end
+			end)
+		end
+	end,
+})
+SkillBox:AddSlider("ScSpeedValue", {
+	Text     = "Skillcheck Speed Value",
+	Default  = state.cfg.sc_speed_value,
+	Min=0.001, Max=10, Rounding=3,
+	Callback = function(v) state.cfg.sc_speed_value = v end,
 })
 SkillBox:AddSlider("ScOffset", {
 	Text     = "Hit Zone Offset",
@@ -2115,11 +2183,31 @@ SkillBox:AddSlider("ScLead", {
 	Callback = function(v) state.cfg.sc_lead = v end,
 })
 
-VaultBox:AddToggle("AlwaysFastVault", {
-	Text     = "Always Fast Vault",
+VaultBox:AddToggle("instant FastVault", {
+	Text     = "Fast Vault",
 	Default  = state.cfg.fv_enabled,
-	Tooltip  = "Automatically aligns character for fast vaults",
 	Callback = function(v) state.cfg.fv_enabled = v end,
+})
+VaultBox:AddToggle("FvVaultSpeed", {
+	Text     = "Vault Speed",
+	Default  = state.cfg.fv_vaultSpeed_enabled,
+	Callback = function(v)
+		state.cfg.fv_vaultSpeed_enabled = v
+		if not v then
+			pcall(function()
+				local charModel = workspace:FindFirstChild(lp.Name)
+				if charModel then
+					charModel:SetAttribute("vaultspeed", nil)
+				end
+			end)
+		end
+	end,
+})
+VaultBox:AddSlider("FvVaultSpeedValue", {
+	Text     = "Vault Speed Value",
+	Default  = state.cfg.fv_vaultSpeed_value,
+	Min=1, Max=20, Rounding=0,
+	Callback = function(v) state.cfg.fv_vaultSpeed_value = v end,
 })
 VaultBox:AddSlider("FvRadius", {
 	Text     = "Arm Radius",
@@ -2145,14 +2233,11 @@ VaultBox:AddToggle("FvIgnoreAxis", {
 	Callback = function(v) state.cfg.fv_ignoreAxis = v end,
 })
 
-ParryBox:AddToggle("AutoParry", {
-	Text     = "Auto Parry (Right Click)",
+ParryBox:AddToggle("Anti Hit", {
+	Text     = "Auto Parry",
 	Default  = state.cfg.ap_enabled,
 	Callback = function(v)
 		state.cfg.ap_enabled = v
-		if uiLabels.status then
-			uiLabels.status:SetText("Status: " .. (v and "Active" or "Disabled"))
-		end
 	end,
 })
 ParryBox:AddToggle("LegitMode", {
@@ -2206,7 +2291,7 @@ ParryBox:AddSlider("ParryCooldown", {
 	Text     = "Parry Cooldown",
 	Default  = state.cfg.ap_cooldown,
 	Min=0.05, Max=2.0, Rounding=2, Suffix="s",
-	Callback = function(v) state.cfg.ap_cooldown = v; PARRY_COOLDOWN = v end,
+	Callback = function(v) state.cfg.ap_cooldown = v end,
 })
 ParryBox:AddSlider("AnimPreDelay", {
 	Text     = "Anim Pre-Delay",
@@ -2217,10 +2302,35 @@ ParryBox:AddSlider("AnimPreDelay", {
 
 local AimBox = Tabs.Killer:AddLeftGroupbox("Spear Aimlock")
 
-AimBox:AddToggle("SpearAimlock", {
+AimBox:AddToggle("The Veil Killer", {
 	Text     = "Spear Aimlock (Hold E)",
 	Default  = state.cfg.spear_enabled,
 	Callback = function(v) state.cfg.spear_enabled = v end,
+})
+AimBox:AddToggle("SilentAimEnabled", {
+	Text     = "Silent Aim",
+	Default  = false,
+	Callback = function(v) state.cfg.silentAim_enabled = v end,
+})
+AimBox:AddToggle("SilentAimFOVShow", {
+	Text     = "Show FOV Circle",
+	Default  = false,
+	Callback = function(v) state.cfg.silentAim_showFOV = v end,
+})
+AimBox:AddSlider("SilentAimFOV", {
+	Text     = "Silent Aim FOV",
+	Default  = 150,
+	Min      = 10,
+	Max      = 500,
+	Rounding = 0,
+	Suffix   = "px",
+	Callback = function(v) state.cfg.silentAim_fov = v end,
+})
+AimBox:AddDropdown("TargetPartSelect", {
+	Text    = "Target Part",
+	Default = "Head",
+	Values  = { "Head", "HumanoidRootPart", "Torso", "UpperTorso" },
+	Callback = function(v) state.cfg.spear_targetPart = v end,
 })
 AimBox:AddSlider("SpearGravityReady", {
 	Text     = "Aim Scale (Skill Ready)",
@@ -2289,9 +2399,9 @@ MaskedBox:AddButton({
 	end,
 })
 
-local AutoCrouchBox = Tabs.Survivor:AddRightGroupbox("Auto Crouch")
+local AutoCrouchBox = Tabs.Survivor:AddRightGroupbox("Anti Skill")
 AutoCrouchBox:AddToggle("AutoCrouchEnabled", {
-	Text     = "Auto Crouch",
+	Text     = "Anti Skill The Abysswalker",
 	Default  = state.cfg.autoCrouch_enabled,
 	Callback = function(v) state.cfg.autoCrouch_enabled = v end,
 })
@@ -2321,7 +2431,7 @@ AutoCrouchBox:AddSlider("AutoCrouchDuration", {
 
 local SpearESPBox = Tabs.ESP:AddLeftGroupbox("Spear ESP")
 SpearESPBox:AddToggle("SpearESPEnabled", {
-	Text     = "Enable Spear ESP",
+	Text     = "Spear ESP",
 	Default  = false,
 	Callback = function(v)
 		state.cfg.spear_esp_enabled = v
@@ -2350,11 +2460,6 @@ ESPBox:AddToggle("ESPShowHighlight", {
 	Text     = "Show 3D Highlight",
 	Default  = state.cfg.esp_showHighlight,
 	Callback = function(v) state.cfg.esp_showHighlight = v end,
-})
-ESPBox:AddToggle("ESPShowBox", {
-	Text     = "Show 2D Box",
-	Default  = state.cfg.esp_showBox,
-	Callback = function(v) state.cfg.esp_showBox = v end,
 })
 ESPBox:AddToggle("ESPShowName", {
 	Text     = "Show Name",
@@ -2388,11 +2493,6 @@ SCPEspBox:AddToggle("SCPESPShowHighlight", {
 	Default  = true,
 	Callback = function(v) state.cfg.scp_esp_showHighlight = v end,
 })
-SCPEspBox:AddToggle("SCPESPShowBox", {
-	Text     = "Show 2D Box",
-	Default  = true,
-	Callback = function(v) state.cfg.scp_esp_showBox = v end,
-})
 SCPEspBox:AddToggle("SCPESPShowName", {
 	Text     = "Show Name",
 	Default  = true,
@@ -2420,11 +2520,6 @@ PlayerESPBox:AddToggle("PlayerESPShowHighlight", {
 	Default  = state.cfg.p_esp_showHighlight,
 	Callback = function(v) state.cfg.p_esp_showHighlight = v end,
 })
-PlayerESPBox:AddToggle("PlayerESPShowBox", {
-	Text     = "Show 2D Box",
-	Default  = state.cfg.p_esp_showBox,
-	Callback = function(v) state.cfg.p_esp_showBox = v end,
-})
 PlayerESPBox:AddToggle("PlayerESPShowName", {
 	Text     = "Show Name",
 	Default  = state.cfg.p_esp_showName,
@@ -2451,8 +2546,8 @@ pcall(function() ThemeManager:SetLibrary(Library) end)
 pcall(function() SaveManager:SetLibrary(Library) end)
 pcall(function() SaveManager:IgnoreThemeSettings() end)
 pcall(function() SaveManager:SetIgnoreIndexes({"MenuKeybind"}) end)
-pcall(function() ThemeManager:SetFolder("vdHub") end)
-pcall(function() SaveManager:SetFolder("vdHub/settings") end)
+pcall(function() ThemeManager:SetFolder("KKKK_HUB") end)
+pcall(function() SaveManager:SetFolder("KKKK_HUB/settings") end)
 pcall(function() SaveManager:BuildConfigSection(Tabs["UI Settings"]) end)
 pcall(function() ThemeManager:ApplyToTab(Tabs["UI Settings"]) end)
 
@@ -2464,12 +2559,127 @@ UnloadBox:AddButton({
 	Tooltip     = "Stops all loops and destroys the UI.",
 })
 
+-- SILENT AIM CACHE
+local cachedSilentTarget = nil
+
+-- FOV Circle
+local fovCircle = Drawing.new("Circle")
+fovCircle.Visible   = false
+fovCircle.Thickness = 1
+fovCircle.Color     = Color3.fromRGB(255, 255, 255)
+fovCircle.Filled    = false
+fovCircle.Radius    = 150
+fovCircle.NumSides  = 64
+
+local lockLine = Drawing.new("Line")
+lockLine.Visible   = false
+lockLine.Thickness = 1.5
+lockLine.Color     = Color3.fromRGB(255, 0, 0)
+lockLine.Transparency = 0.3
+
+RunService.RenderStepped:Connect(function()
+	local showFov = state.cfg.silentAim_enabled and state.cfg.silentAim_showFOV
+	local center = UserInputService:GetMouseLocation()
+
+	if showFov then
+		fovCircle.Position = Vector2.new(center.X, center.Y)
+		fovCircle.Radius   = state.cfg.silentAim_fov or 150
+		fovCircle.Visible  = true
+	else
+		fovCircle.Visible = false
+	end
+
+	local target = cachedSilentTarget
+	if state.cfg.silentAim_enabled and target and target.Parent then
+		local screenPos, onScreen = Camera:WorldToViewportPoint(target.Position)
+		if onScreen and screenPos.Z > 0 then
+			lockLine.From    = Vector2.new(center.X, center.Y)
+			lockLine.To      = Vector2.new(screenPos.X, screenPos.Y)
+			lockLine.Visible = true
+		else
+			lockLine.Visible = false
+		end
+
+		local lockedChar = target.Parent
+		for char, elem in pairs(player2DEspElements) do
+			if elem.highlight then
+				if char == lockedChar then
+					elem.highlight.FillColor    = Color3.fromRGB(255, 0, 0)
+					elem.highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+				else
+					elem.highlight.FillColor    = Color3.fromRGB(0, 150, 255)
+					elem.highlight.OutlineColor = Color3.fromRGB(0, 200, 255)
+				end
+			end
+		end
+	else
+		lockLine.Visible = false
+
+		for char, elem in pairs(player2DEspElements) do
+			if elem.highlight then
+				elem.highlight.FillColor    = Color3.fromRGB(0, 150, 255)
+				elem.highlight.OutlineColor = Color3.fromRGB(0, 200, 255)
+			end
+		end
+	end
+end)
+
+task.spawn(function()
+	while state.running do
+		if state.cfg.silentAim_enabled then
+			cachedSilentTarget = getClosestPlayerToMouse()
+		else
+			cachedSilentTarget = nil
+		end
+		task.wait(0.03)
+	end
+end)
+
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+local oldNamecall = mt.__namecall
+
+local _saFiring = false
+mt.__namecall = newcclosure(function(self, ...)
+	local method = getnamecallmethod()
+	local selfName = ""
+	pcall(function() selfName = tostring(self.Name or "") end)
+
+    if not _saFiring
+    and state.cfg.silentAim_enabled
+    and method == "FireServer"
+    and selfName:find("Spearthrow")
+    then
+        local args = {...}
+        local target = cachedSilentTarget
+        if target and target.Parent then
+            local origin = args[3]
+            if typeof(origin) == "Vector3" then
+                local dist = (target.Position - origin).Magnitude
+                local yOffset = (dist / 115) * (dist * 0.250)
+                args[1] = (target.Position + Vector3.new(0, yOffset, 0) - origin).Unit
+            end
+        end
+        _saFiring = true
+        pcall(function()
+            self:FireServer(args[1], args[2], args[3])
+        end)
+        _saFiring = false
+        return
+    end
+
+	return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
+
 Library:OnUnload(function()
-	state.running   = false
-	moonwalkEnabled = false
-	moonwalkSway    = 0
-	fvHold          = false
-	vaults          = {}
+	state.running      = false
+	moonwalkEnabled    = false
+	moonwalkSway       = 0
+	fvHold             = false
+	vaults             = {}
+	cachedSilentTarget = nil
+	pcall(function() fovCircle:Remove() end)
 	pcall(function()
 		if parryAdornment and parryAdornment.Parent then
 			parryAdornment.Visible = false
@@ -2478,12 +2688,19 @@ Library:OnUnload(function()
 		end
 	end)
 	pcall(function()
+		local mt2 = getrawmetatable(game)
+		setreadonly(mt2, false)
+		mt2.__namecall = oldNamecall
+		setreadonly(mt2, true)
+	end)
+	pcall(function()
 		for _, obj in ipairs(Workspace:GetDescendants()) do
-			if obj.Name == "VDHub_ParryHollowRing" then obj:Destroy() end
+			if obj.Name == "KKKK_Hub_ParryHollowRing" then obj:Destroy() end
 		end
 	end)
 	pcall(function() espGui:Destroy() end)
 	pcall(function() spearEspGui:Destroy() end)
+    pcall(function() lockLine:Remove() end)
 	for part in pairs(spearESPs) do removeSpearESP(part) end
 	for char, conns in pairs(killerAnimConns) do
 		for _,c in ipairs(conns) do pcall(c.Disconnect, c) end
@@ -2491,9 +2708,10 @@ Library:OnUnload(function()
 	for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
 	for model in pairs(scpEspElements) do removeSCPESP(model) end
 	for char in pairs(player2DEspElements) do removePlayer2DESP(char) end
-	scpEspElements = {}
+	scpEspElements           = {}
 	playerParryState         = {}
 	monitoredPlayerAnimators = {}
+	hitboxMonitored          = {}
 	_G.vdHub = nil
-	print("[vdHub v1.0.2.0] Unloaded!")
+	print("[vdHub v1.0.2.5] Unloaded!")
 end)
