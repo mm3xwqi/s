@@ -1396,7 +1396,7 @@ local _espTick = 0
 RunService.Heartbeat:Connect(function()
 	if not state.running then return end
 	local now = tick()
-	if now - _espTick < 0.01 then return end
+	if now - _espTick < 0.0167 then return end
 	_espTick = now
 	local c = state.cfg
 	local spectating = isSpectator()
@@ -1441,7 +1441,7 @@ RunService.Heartbeat:Connect(function()
 	end
 
 	if c.p_esp_enabled then
-		if (now - _playerCacheTime) > 0.5 then
+		if (now - _playerCacheTime) > 1.0 then
 			_cachedPlayers = Players:GetPlayers()
 			_playerCacheTime = now
 		end
@@ -1642,22 +1642,34 @@ local function getSkillCooldownState()
 	return _skillCDCache
 end
 
+local SPEAR_SPEED_READY = 165
+local SPEAR_SPEED_CD    = 145
+local SPEAR_GRAV_READY = 98.1
+local SPEAR_GRAV_CD    = 100.0
+local AIM_HEIGHT_OFFSET = -0.5
 local function calculateSpearAim(origin, targetPos, targetVel, overrideSpeed)
-	local c = state.cfg
-	local skillReady = getSkillCooldownState()
-	local SPEED  = overrideSpeed or (skillReady and c.spear_speed_ready or c.spear_speed_cd)
-	local gScale = skillReady and c.spear_gravity_ready or c.spear_gravity_cd
-	local toTarget  = targetPos - origin
-	local horizDist = Vector3.new(toTarget.X, 0, toTarget.Z).Magnitude
-	local t = horizDist / math.max(SPEED, 1)
-	local aimBase = targetPos + Vector3.new(0, 0.8, 0)
-	local predPos = (targetVel and targetVel.Magnitude > 0.5)
-		and (aimBase + Vector3.new(targetVel.X, 0, targetVel.Z) * t)
-		or aimBase
-	local g   = workspace.Gravity * gScale
-	local v0y = skillReady and 36.52 or 46.05
-	local netDrop = (v0y * t) - (0.5 * g * t * t)
-	return predPos - Vector3.new(0, netDrop, 0)
+    if typeof(overrideSpeed) ~= "number" then
+        overrideSpeed = nil
+    end
+    local cdReady = (type(getSkillCooldownState) == "function" and getSkillCooldownState()) or false
+    local speed = overrideSpeed or (cdReady and SPEAR_SPEED_READY or SPEAR_SPEED_CD)
+    local g = cdReady and SPEAR_GRAV_READY or SPEAR_GRAV_CD
+    local adjustedTargetPos = targetPos + Vector3.new(0, AIM_HEIGHT_OFFSET, 0)
+    local diff = adjustedTargetPos - origin
+    local dist = diff.Magnitude
+    if dist < 0.1 then return adjustedTargetPos end
+    local t = dist / math.max(speed, 1)
+    for _ = 1, 3 do
+        local dropEst = 0.5 * g * (t * t)
+        local aimPos = Vector3.new(adjustedTargetPos.X, adjustedTargetPos.Y + dropEst, adjustedTargetPos.Z)
+        t = (aimPos - origin).Magnitude / math.max(speed, 1)
+    end
+    local drop = 0.5 * g * (t * t)
+    return Vector3.new(
+        adjustedTargetPos.X,
+        adjustedTargetPos.Y + drop,
+        adjustedTargetPos.Z
+    )
 end
 
 UserInputService.InputBegan:Connect(function(input, gpe)
@@ -1673,18 +1685,19 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 RunService.RenderStepped:Connect(function()
-	if not (state.running and state.cfg.spear_enabled and state.cfg.spear_isHolding) then return end
-	local target, targetType, targetChar = getSpearTarget()
-	if not target then return end
-	local camCF = workspace.CurrentCamera.CFrame
-	local aimPos
-	if targetType == "spear" then
-		aimPos = target.Position
-	else
-		local targetVel = target.AssemblyLinearVelocity or target.Velocity
-		aimPos = calculateSpearAim(camCF.Position, target.Position, targetVel)
-	end
-	workspace.CurrentCamera.CFrame = CFrame.lookAt(camCF.Position, aimPos)
+    if not (state.running and state.cfg.spear_enabled and state.cfg.spear_isHolding) then return end
+    local target, targetType, targetChar = getSpearTarget()
+    if not target then return end
+    local camCF = workspace.CurrentCamera.CFrame
+    local aimPos
+    if targetType == "spear" then
+        aimPos = target.Position
+    else
+        local targetVel = target.AssemblyLinearVelocity or target.Velocity
+        aimPos = calculateSpearAim(camCF.Position, target.Position, targetVel)
+    end
+    if not aimPos then return end
+    workspace.CurrentCamera.CFrame = CFrame.lookAt(camCF.Position, aimPos)
 end)
 
 state.cfg.spear_esp_enabled = false
@@ -1979,7 +1992,6 @@ local function removeSCPESP(model)
 	local e = scpEspElements[model]
 	if not e then return end
 	pcall(function() e.highlight:Destroy() end)
-	pcall(function() e.container:Destroy() end)
 	scpEspElements[model] = nil
 end
 
@@ -1993,50 +2005,13 @@ local function createSCPESP(model)
 	hl.Name                = "KKKkhub_SCP_Highlight"
 	hl.FillColor           = Color3.fromRGB(255, 60, 220)
 	hl.OutlineColor        = Color3.fromRGB(255, 0, 200)
-	hl.FillTransparency    = 0.5
+	hl.FillTransparency    = 1
 	hl.OutlineTransparency = 0
 	hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 	hl.Adornee             = model
 	hl.Parent              = model
-	local container = Instance.new("Frame")
-	container.Name                   = "SCP2DContainer"
-	container.BackgroundTransparency = 1
-	container.Size                   = UDim2.new(1, 0, 1, 0)
-	container.Parent                 = espGui
-	local boxFrame = Instance.new("Frame")
-	boxFrame.BackgroundTransparency = 1
-	boxFrame.Parent                 = container
-	local stroke = Instance.new("UIStroke")
-	stroke.Color     = Color3.fromRGB(255, 0, 200)
-	stroke.Thickness = 1.5
-	stroke.Parent    = boxFrame
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Size                   = UDim2.new(0, 180, 0, 16)
-	nameLabel.TextColor3             = Color3.fromRGB(255, 100, 255)
-	nameLabel.TextStrokeTransparency = 0
-	nameLabel.Font                   = Enum.Font.GothamBold
-	nameLabel.TextSize               = 11
-	nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
-	nameLabel.Text                   = model.Name
-	nameLabel.Parent                 = container
-	local distLabel = Instance.new("TextLabel")
-	distLabel.BackgroundTransparency = 1
-	distLabel.Size                   = UDim2.new(0, 180, 0, 14)
-	distLabel.TextColor3             = Color3.fromRGB(255, 60, 220)
-	distLabel.TextStrokeTransparency = 0
-	distLabel.Font                   = Enum.Font.GothamBold
-	distLabel.TextSize               = 10
-	distLabel.TextXAlignment         = Enum.TextXAlignment.Center
-	distLabel.Text                   = ""
-	distLabel.Parent                 = container
 	scpEspElements[model] = {
 		highlight = hl,
-		container = container,
-		boxFrame  = boxFrame,
-		nameLabel = nameLabel,
-		distLabel = distLabel,
-		rootPart  = root,
 	}
 end
 
@@ -2096,49 +2071,13 @@ local _scpTick = 0
 RunService.Heartbeat:Connect(function()
 	if not state.running or not state.cfg.scp_esp_enabled then return end
 	local now = tick()
-	if now - _scpTick < 0.05 then return end
+	if now - _scpTick < 0.1 then return end
 	_scpTick = now
-	local cam = workspace.CurrentCamera
-	if not cam then return end
 	for model, elem in pairs(scpEspElements) do
 		if not model.Parent then removeSCPESP(model); continue end
-		local root = elem.rootPart
-		if not root then continue end
 		if elem.highlight then
 			elem.highlight.Enabled = state.cfg.scp_esp_showHighlight
 		end
-		local camPos  = cam.CFrame.Position
-		local rootPos = root.Position
-		local dist    = (camPos - rootPos).Magnitude
-		if dist > state.cfg.scp_esp_maxDist then
-			elem.container.Visible = false
-			continue
-		end
-		local head    = model:FindFirstChild("Head")
-		local topY    = head and (head.Position.Y + 1.8) or (rootPos.Y + 4.5)
-		local bottomY = rootPos.Y - 4.0
-		local topSc,    topOn    = cam:WorldToViewportPoint(Vector3.new(rootPos.X, topY,    rootPos.Z))
-		local bottomSc, bottomOn = cam:WorldToViewportPoint(Vector3.new(rootPos.X, bottomY, rootPos.Z))
-		if not (topOn and bottomOn) or topSc.Z < 0 then
-			elem.container.Visible = false
-			continue
-		end
-		local h       = math.max(10, math.abs(bottomSc.Y - topSc.Y))
-		local w       = math.clamp(h * 0.55, 14, 500)
-		local x       = topSc.X - w / 2
-		local y       = topSc.Y
-		local dynFont = math.clamp(math.floor(h * 0.22), 10, 14)
-		elem.container.Visible = true
-		elem.boxFrame.Visible  = state.cfg.scp_esp_showBox
-		elem.boxFrame.Position = UDim2.new(0, x, 0, y)
-		elem.boxFrame.Size     = UDim2.new(0, w, 0, h)
-		elem.nameLabel.Visible  = state.cfg.scp_esp_showName
-		elem.nameLabel.Position = UDim2.new(0, x + (w/2) - 90, 0, y - (dynFont + 8))
-		elem.nameLabel.TextSize = dynFont
-		elem.distLabel.Visible  = state.cfg.scp_esp_showDist
-		elem.distLabel.Position = UDim2.new(0, x + (w/2) - 90, 0, y + h + 3)
-		elem.distLabel.TextSize = math.max(9, dynFont - 1)
-		elem.distLabel.Text     = string.format("[%d studs]", math.floor(dist))
 	end
 end)
 
@@ -2383,38 +2322,31 @@ local function createGenESP(model, index)
     }
 end
 
-local function scanGenerators()
-    -- หา Generator ทั้งหมดใน workspace
-    local found = {}
-    for _, obj in ipairs(workspace:GetDescendants()) do
+local genModels = {}
+
+local function onDescendantAdded(obj)
+    if not genEspEnabled then return end
+    if obj:IsA("Model") and obj.Name == "Generator" then
+        task.wait(0.1)
+        if not genEspElements[obj] then
+            createGenESP(obj, 0)
+        end
+    end
+end
+
+local function onDescendantRemoving(obj)
+    if genEspElements[obj] then
+        removeGenESP(obj)
+    end
+end
+
+Workspace.DescendantAdded:Connect(onDescendantAdded)
+Workspace.DescendantRemoving:Connect(onDescendantRemoving)
+
+local function initialScanGen()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
         if obj:IsA("Model") and obj.Name == "Generator" then
-            found[#found + 1] = obj
-        end
-    end
-    local me = myRoot()
-    if me then
-        local myPos = me.Position
-        table.sort(found, function(a, b)
-            local ra = a.PrimaryPart or a:FindFirstChildOfClass("BasePart")
-            local rb = b.PrimaryPart or b:FindFirstChildOfClass("BasePart")
-            local da = ra and (ra.Position - myPos).Magnitude or math.huge
-            local db = rb and (rb.Position - myPos).Magnitude or math.huge
-            return da < db
-        end)
-    end
-    for model in pairs(genEspElements) do
-        local stillExists = false
-        for _, obj in ipairs(found) do
-            if obj == model then stillExists = true; break end
-        end
-        if not stillExists then removeGenESP(model) end
-    end
-    for i, model in ipairs(found) do
-        if not genEspElements[model] then
-            createGenESP(model, i)
-        else
-            genEspElements[model].index = i
-            genEspElements[model].nameLabel.Text = "Gen " .. i
+            createGenESP(obj, 0)
         end
     end
 end
@@ -2433,7 +2365,6 @@ task.spawn(function()
                     local repairing = model:GetAttribute("PlayersRepairingCount") or 0
                     local paused    = model:GetAttribute("ProgressPaused")
 
-                    -- ค่าจริงเป็น 0-100
                     local pct = math.clamp(repair, 0, 100)
                     local displayPct = math.floor(pct)
 
@@ -2441,7 +2372,7 @@ task.spawn(function()
                         elem.highlight.FillColor    = Color3.fromRGB(0, 255, 100)
                         elem.highlight.OutlineColor = Color3.fromRGB(0, 200, 80)
                         elem.nameLabel.TextColor3   = Color3.fromRGB(0, 255, 100)
-                        elem.infoLabel.Text         = "100%"
+                        elem.infoLabel.Text         = "DONE ✓"
                     elseif paused then
                         elem.highlight.FillColor    = Color3.fromRGB(255, 100, 0)
                         elem.highlight.OutlineColor = Color3.fromRGB(255, 80, 0)
@@ -2495,7 +2426,7 @@ update:AddLabel({ Text = "/ Improve Anti Stun +++" })
 update:AddLabel({ Text = "/ Improve Moonwalk  press G" })
 update:AddLabel({ Text = "+ Add SCP ESP" })
 update:AddLabel({ Text = "+ Add Legit Mode For Auto Parry" })
-update:AddLabel({ Text = "* Optimize all ESP" })
+update:AddLabel({ Text = "/ Optimize all ESP" })
 local update2 = Tabs.Changelog:AddRightGroupbox("Changelog Update 18 Aug")
 update2:AddLabel({ Text = "/ Improve Esp" })
 update2:AddLabel({ Text = "+ Add Silent Aim Veil/Gun" })
@@ -2506,6 +2437,7 @@ update2:AddLabel({ Text = "+ Add Skillcheck Speed Value Slider" })
 update2:AddLabel({ Text = "+ Add Vault Speed" })
 update2:AddLabel({ Text = "+ Add Vault Speed Value Slider" })
 local update3 = Tabs.Changelog:AddLeftGroupbox("Changelog Update 20 Aug")
+update3:AddLabel({ Text = "/ Improve SilentAim/Aimbot The Veil 90% Hit" })
 update3:AddLabel({ Text = "+ Add Vault Speed ( Killer )" })
 update3:AddLabel({ Text = "+ Add Vault Speed Value Slider ( Killer )" })
 update3:AddLabel({ Text = "+ Add Tab Aimbot" })
@@ -2821,18 +2753,6 @@ aimbot:AddToggle("The Veil Killer", {
 	Default  = state.cfg.spear_enabled,
 	Callback = function(v) state.cfg.spear_enabled = v end,
 })
-aimbot:AddSlider("SpearGravityReady", {
-	Text     = "Aim Scale (Skill Ready)",
-	Default  = 1.4,
-	Min=0, Max=10, Rounding=1,
-	Callback = function(v) state.cfg.spear_gravity_ready = v end,
-})
-aimbot:AddSlider("SpearGravityCD", {
-	Text     = "Aim Scale (Skill CD)",
-	Default  = 1.5,
-	Min=0, Max=10, Rounding=1,
-	Callback = function(v) state.cfg.spear_gravity_cd = v end,
-})
 local aimbotc = Tabs.Aimbot:AddRightGroupbox("Silent Aim Killer")
 aimbotc:AddToggle("SilentAimCureEnabled", {
     Text     = "Silent Aim",
@@ -2919,7 +2839,9 @@ GenESPBox:AddToggle("GenESPEnabled", {
     Default  = false,
     Callback = function(v)
         genEspEnabled = v
-        if not v then
+        if v then
+            pcall(initialScanGen)
+        else
             for model in pairs(genEspElements) do removeGenESP(model) end
         end
     end,
@@ -2965,27 +2887,6 @@ SCPEspBox:AddToggle("SCPESPEnabled", {
 			for model in pairs(scpEspElements) do removeSCPESP(model) end
 		end
 	end,
-})
-SCPEspBox:AddToggle("SCPESPShowHighlight", {
-	Text     = "Show 3D Highlight",
-	Default  = true,
-	Callback = function(v) state.cfg.scp_esp_showHighlight = v end,
-})
-SCPEspBox:AddToggle("SCPESPShowName", {
-	Text     = "Show Name",
-	Default  = true,
-	Callback = function(v) state.cfg.scp_esp_showName = v end,
-})
-SCPEspBox:AddToggle("SCPESPShowDist", {
-	Text     = "Show Distance",
-	Default  = true,
-	Callback = function(v) state.cfg.scp_esp_showDist = v end,
-})
-SCPEspBox:AddSlider("SCPESPMaxDist", {
-	Text     = "Max Distance",
-	Default  = 500,
-	Min=50, Max=2000, Rounding=0, Suffix=" studs",
-	Callback = function(v) state.cfg.scp_esp_maxDist = v end,
 })
 
 PlayerESPBox:AddToggle("PlayerESPEnabled", {
@@ -3241,11 +3142,12 @@ mt.__namecall = newcclosure(function(self, ...)
         if target and target.Parent then
             local origin = args[3]
             if typeof(origin) == "Vector3" then
-                local targetVel = target.Parent:FindFirstChild("HumanoidRootPart") 
+                local targetVel = target.Parent:FindFirstChild("HumanoidRootPart")
                     and target.Parent.HumanoidRootPart.AssemblyLinearVelocity
                 local aimPos = calculateSpearAim(origin, target.Position, targetVel)
-                args[1] = (aimPos - origin).Unit
-                args[3] = origin
+                if aimPos then
+                    args[1] = (aimPos - origin).Unit
+                end
             end
             _saFiring = true
             pcall(function() self:FireServer(args[1], args[2], args[3]) end)
