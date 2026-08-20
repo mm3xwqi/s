@@ -48,7 +48,7 @@ local state = {
 		sc_offset   = 102,
 		sc_key      = 32,
         sc_speed_enabled = false,
-        sc_speed_value   = 1,
+        sc_speed_value   = 0.001,
 
 		fv_enabled    = false,
 		fv_radius     = 6,
@@ -57,7 +57,7 @@ local state = {
 		fv_target     = 36,
 		fv_ignoreAxis = false,
         fv_vaultSpeed_enabled = false,
-        fv_vaultSpeed_value   = 5,
+        fv_vaultSpeed_value   = 1.5,
 
 		ap_enabled        = false,
 		ap_cooldown       = 0.05,
@@ -2314,6 +2314,7 @@ end)
 
 local genEspEnabled = false
 local genEspElements = {}
+local genProgressTracker = {} 
 
 local function removeGenESP(model)
     local e = genEspElements[model]
@@ -2321,6 +2322,7 @@ local function removeGenESP(model)
     pcall(function() e.highlight:Destroy() end)
     pcall(function() e.billboard:Destroy() end)
     genEspElements[model] = nil
+    genProgressTracker[model] = nil
 end
 
 local function createGenESP(model, index)
@@ -2427,24 +2429,34 @@ task.spawn(function()
                         removeGenESP(model)
                         continue
                     end
-                    local repair   = model:GetAttribute("RepairProgress") or 0
+                    local repair    = model:GetAttribute("RepairProgress") or 0
                     local repairing = model:GetAttribute("PlayersRepairingCount") or 0
-                    local pct = math.floor(repair * 100)
+                    local paused    = model:GetAttribute("ProgressPaused")
+
+                    -- ค่าจริงเป็น 0-100
+                    local pct = math.clamp(repair, 0, 100)
+                    local displayPct = math.floor(pct)
+
                     if pct >= 100 then
-                        elem.highlight.FillColor  = Color3.fromRGB(0, 255, 100)
+                        elem.highlight.FillColor    = Color3.fromRGB(0, 255, 100)
                         elem.highlight.OutlineColor = Color3.fromRGB(0, 200, 80)
-                        elem.nameLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-                        elem.infoLabel.Text       = "DONE ✓"
+                        elem.nameLabel.TextColor3   = Color3.fromRGB(0, 255, 100)
+                        elem.infoLabel.Text         = "100%"
+                    elseif paused then
+                        elem.highlight.FillColor    = Color3.fromRGB(255, 100, 0)
+                        elem.highlight.OutlineColor = Color3.fromRGB(255, 80, 0)
+                        elem.nameLabel.TextColor3   = Color3.fromRGB(255, 150, 0)
+                        elem.infoLabel.Text         = displayPct .. "% | paused"
                     elseif repairing > 0 then
-                        elem.highlight.FillColor  = Color3.fromRGB(0, 150, 255)
+                        elem.highlight.FillColor    = Color3.fromRGB(0, 150, 255)
                         elem.highlight.OutlineColor = Color3.fromRGB(0, 100, 255)
-                        elem.nameLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
-                        elem.infoLabel.Text       = pct .. "% | " .. repairing .. " repairing"
+                        elem.nameLabel.TextColor3   = Color3.fromRGB(0, 200, 255)
+                        elem.infoLabel.Text         = displayPct .. "% | " .. repairing .. " repairing"
                     else
-                        elem.highlight.FillColor  = Color3.fromRGB(255, 200, 0)
+                        elem.highlight.FillColor    = Color3.fromRGB(255, 200, 0)
                         elem.highlight.OutlineColor = Color3.fromRGB(255, 150, 0)
-                        elem.nameLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-                        elem.infoLabel.Text       = pct .. "% | idle"
+                        elem.nameLabel.TextColor3   = Color3.fromRGB(255, 200, 0)
+                        elem.infoLabel.Text         = displayPct .. "% | idle"
                     end
                     elem.highlight.Enabled = true
                 end
@@ -2452,7 +2464,7 @@ task.spawn(function()
         else
             for model in pairs(genEspElements) do removeGenESP(model) end
         end
-        task.wait(0.5)
+        task.wait(0.1)
     end
 end)
 
@@ -2504,6 +2516,7 @@ update3:AddLabel({ Text = "+ Add Auto Drop Pallet When Killer Carry" })
 update3:AddLabel({ Text = "+ Add ESP Generator" })
 update3:AddLabel({ Text = "+ Move Spear Aimbot to the Aimbot tab" })
 update3:AddLabel({ Text = "/ Optimize Esp Scp" })
+update3:AddLabel({ Text = "* Fix ESP Generator" })
 
 local PalletBox      = Tabs.Survivor:AddLeftGroupbox("Pallet Killer Stun")
 local SkillBox       = Tabs.Survivor:AddRightGroupbox("Skillcheck")
@@ -2729,7 +2742,7 @@ BreakSpeedBox:AddToggle("BreakSpeedEnabled", {
 BreakSpeedBox:AddSlider("BreakSpeedValue", {
 	Text     = "Break Speed Value",
 	Default  = state.cfg.breakSpeed_value,
-	Min=1, Max=1000, Rounding=0,
+	Min=1, Max=10, Rounding=0,
 	Callback = function(v) state.cfg.breakSpeed_value = v end,
 })
 
@@ -2775,7 +2788,7 @@ Swiftbox:AddToggle("swiftspeed_toggle", {
 
 Swiftbox:AddSlider("swiftspeed_value", {
 	Text     = "Swift Speed Value",
-	Default  = 1,
+	Default  = 1.5,
 	Min      = 1,
 	Max      = 10,
 	Rounding = 1,
