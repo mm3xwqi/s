@@ -2403,7 +2403,7 @@ local SaveManager  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
 
 local Window = Library:CreateWindow({
 	Title            = "KKKK",
-	Footer           = "v1.0.3.0",
+	Footer           = "v1.0.3.1,
 	Icon             = 95816097006870,
 	NotifySide       = "Right",
 	ShowCustomCursor = true,
@@ -2446,8 +2446,8 @@ update3:AddLabel({ Text = "+ Move Spear Aimbot to the Aimbot tab" })
 update3:AddLabel({ Text = "/ Improve SilentAim/Aimbot The Veil 90% Hit" })
 update3:AddLabel({ Text = "/ Optimize Esp Scp" })
 update3:AddLabel({ Text = "* Fix ESP Generator" })
-update3:AddLabel({ Text = "- Remove spear_gravity_readyy" })
-update3:AddLabel({ Text = "- Remove spear_gravity_cd " })
+update3:AddLabel({ Text = "- Remove spear_gravity_ready Slider" })
+update3:AddLabel({ Text = "- Remove spear_gravity_cd Slider" })
 
 local PalletBox      = Tabs.Survivor:AddLeftGroupbox("Pallet Killer Stun")
 local SkillBox       = Tabs.Survivor:AddRightGroupbox("Skillcheck")
@@ -3229,5 +3229,5 @@ end)
 	monitoredPlayerAnimators = {}
 	hitboxMonitored          = {}
 	_G.KKKkhub = nil
-	print("[KKKK Hub v1.0.3.0] Unloaded!")
+	print("[KKKK Hub v1.0.3.1] Unloaded!")
 end)
