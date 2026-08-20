@@ -21,10 +21,7 @@ local state = {
 		spear_enabled        = false,
 		spear_key            = Enum.KeyCode.E,
 		spear_isHolding      = false,
-		spear_speed_ready    = 200,
-		spear_speed_cd       = 160,
-		spear_gravity_ready  = 1.4,
-		spear_gravity_cd     = 1.5,
+
 
         spear_targetPart = "Head",
         silentAim_enabled = false,
@@ -2437,7 +2434,6 @@ update2:AddLabel({ Text = "+ Add Skillcheck Speed Value Slider" })
 update2:AddLabel({ Text = "+ Add Vault Speed" })
 update2:AddLabel({ Text = "+ Add Vault Speed Value Slider" })
 local update3 = Tabs.Changelog:AddLeftGroupbox("Changelog Update 20 Aug")
-update3:AddLabel({ Text = "/ Improve SilentAim/Aimbot The Veil 90% Hit" })
 update3:AddLabel({ Text = "+ Add Vault Speed ( Killer )" })
 update3:AddLabel({ Text = "+ Add Vault Speed Value Slider ( Killer )" })
 update3:AddLabel({ Text = "+ Add Tab Aimbot" })
@@ -2447,8 +2443,11 @@ update3:AddLabel({ Text = "+ Add Aimbot FlashLight" })
 update3:AddLabel({ Text = "+ Add Auto Drop Pallet When Killer Carry" })
 update3:AddLabel({ Text = "+ Add ESP Generator" })
 update3:AddLabel({ Text = "+ Move Spear Aimbot to the Aimbot tab" })
+update3:AddLabel({ Text = "/ Improve SilentAim/Aimbot The Veil 90% Hit" })
 update3:AddLabel({ Text = "/ Optimize Esp Scp" })
 update3:AddLabel({ Text = "* Fix ESP Generator" })
+update3:AddLabel({ Text = "- Remove spear_gravity_readyy" })
+update3:AddLabel({ Text = "- Remove spear_gravity_cd " })
 
 local PalletBox      = Tabs.Survivor:AddLeftGroupbox("Pallet Killer Stun")
 local SkillBox       = Tabs.Survivor:AddRightGroupbox("Skillcheck")
