@@ -2256,6 +2256,206 @@ task.spawn(function()
     end
 end)
 
+-- FULL BRIGHT & NO FOG
+local fullbrightEnabled = false
+local nofogEnabled = false
+local originalLighting = {}
+local fullbrightConn = nil
+
+local Lighting = game:GetService("Lighting")
+
+local function saveOriginalLighting()
+    originalLighting.Brightness      = Lighting.Brightness
+    originalLighting.ClockTime       = Lighting.ClockTime
+    originalLighting.FogEnd          = Lighting.FogEnd
+    originalLighting.FogStart        = Lighting.FogStart
+    originalLighting.GlobalShadows   = Lighting.GlobalShadows
+    originalLighting.Ambient         = Lighting.Ambient
+    originalLighting.OutdoorAmbient  = Lighting.OutdoorAmbient
+end
+
+saveOriginalLighting()
+
+local function applyFullBright()
+    Lighting.Brightness     = 2
+    Lighting.ClockTime      = 14
+    Lighting.GlobalShadows  = false
+    Lighting.Ambient        = Color3.fromRGB(255, 255, 255)
+    Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+end
+
+local function restoreFullBright()
+    Lighting.Brightness     = originalLighting.Brightness
+    Lighting.ClockTime      = originalLighting.ClockTime
+    Lighting.GlobalShadows  = originalLighting.GlobalShadows
+    Lighting.Ambient        = originalLighting.Ambient
+    Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
+end
+
+local function applyNoFog()
+    Lighting.FogEnd   = 100000
+    Lighting.FogStart = 100000
+end
+
+local function restoreNoFog()
+    Lighting.FogEnd   = originalLighting.FogEnd
+    Lighting.FogStart = originalLighting.FogStart
+end
+
+task.spawn(function()
+    while state.running do
+        pcall(function()
+            if fullbrightEnabled then applyFullBright() end
+            if nofogEnabled then applyNoFog() end
+        end)
+        task.wait(0.5)
+    end
+end)
+
+local genEspEnabled = false
+local genEspElements = {}
+
+local function removeGenESP(model)
+    local e = genEspElements[model]
+    if not e then return end
+    pcall(function() e.highlight:Destroy() end)
+    pcall(function() e.billboard:Destroy() end)
+    genEspElements[model] = nil
+end
+
+local function createGenESP(model, index)
+    if genEspElements[model] then return end
+    local root = model.PrimaryPart
+        or model:FindFirstChildOfClass("MeshPart")
+        or model:FindFirstChildOfClass("BasePart")
+    if not root then return end
+
+    local hl = Instance.new("Highlight")
+    hl.FillColor           = Color3.fromRGB(255, 200, 0)
+    hl.OutlineColor        = Color3.fromRGB(255, 150, 0)
+    hl.FillTransparency    = 0.5
+    hl.OutlineTransparency = 0
+    hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Adornee             = model
+    hl.Parent              = model
+
+    local bb = Instance.new("BillboardGui")
+    bb.AlwaysOnTop  = true
+    bb.Size         = UDim2.new(0, 160, 0, 50)
+    bb.StudsOffset  = Vector3.new(0, 4, 0)
+    bb.Adornee      = root
+    bb.Parent       = game:GetService("CoreGui")
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Size                   = UDim2.new(1, 0, 0.5, 0)
+    nameLabel.TextColor3             = Color3.fromRGB(255, 200, 0)
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.Font                   = Enum.Font.GothamBold
+    nameLabel.TextSize               = 14
+    nameLabel.Text                   = "Gen " .. index
+    nameLabel.TextXAlignment         = Enum.TextXAlignment.Center
+    nameLabel.TextYAlignment         = Enum.TextYAlignment.Center
+    nameLabel.Parent                 = bb
+
+    local infoLabel = Instance.new("TextLabel")
+    infoLabel.BackgroundTransparency = 1
+    infoLabel.Size                   = UDim2.new(1, 0, 0.5, 0)
+    infoLabel.Position               = UDim2.new(0, 0, 0.5, 0)
+    infoLabel.TextColor3             = Color3.fromRGB(255, 255, 100)
+    infoLabel.TextStrokeTransparency = 0
+    infoLabel.Font                   = Enum.Font.GothamBold
+    infoLabel.TextSize               = 12
+    infoLabel.Text                   = "0% | idle"
+    infoLabel.TextXAlignment         = Enum.TextXAlignment.Center
+    infoLabel.TextYAlignment         = Enum.TextYAlignment.Center
+    infoLabel.Parent                 = bb
+
+    genEspElements[model] = {
+        highlight  = hl,
+        billboard  = bb,
+        nameLabel  = nameLabel,
+        infoLabel  = infoLabel,
+        rootPart   = root,
+        index      = index,
+    }
+end
+
+local function scanGenerators()
+    -- หา Generator ทั้งหมดใน workspace
+    local found = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name == "Generator" then
+            found[#found + 1] = obj
+        end
+    end
+    local me = myRoot()
+    if me then
+        local myPos = me.Position
+        table.sort(found, function(a, b)
+            local ra = a.PrimaryPart or a:FindFirstChildOfClass("BasePart")
+            local rb = b.PrimaryPart or b:FindFirstChildOfClass("BasePart")
+            local da = ra and (ra.Position - myPos).Magnitude or math.huge
+            local db = rb and (rb.Position - myPos).Magnitude or math.huge
+            return da < db
+        end)
+    end
+    for model in pairs(genEspElements) do
+        local stillExists = false
+        for _, obj in ipairs(found) do
+            if obj == model then stillExists = true; break end
+        end
+        if not stillExists then removeGenESP(model) end
+    end
+    for i, model in ipairs(found) do
+        if not genEspElements[model] then
+            createGenESP(model, i)
+        else
+            genEspElements[model].index = i
+            genEspElements[model].nameLabel.Text = "Gen " .. i
+        end
+    end
+end
+
+task.spawn(function()
+    while state.running do
+        if genEspEnabled then
+            pcall(scanGenerators)
+            pcall(function()
+                for model, elem in pairs(genEspElements) do
+                    if not model.Parent then
+                        removeGenESP(model)
+                        continue
+                    end
+                    local repair   = model:GetAttribute("RepairProgress") or 0
+                    local repairing = model:GetAttribute("PlayersRepairingCount") or 0
+                    local pct = math.floor(repair * 100)
+                    if pct >= 100 then
+                        elem.highlight.FillColor  = Color3.fromRGB(0, 255, 100)
+                        elem.highlight.OutlineColor = Color3.fromRGB(0, 200, 80)
+                        elem.nameLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+                        elem.infoLabel.Text       = "DONE ✓"
+                    elseif repairing > 0 then
+                        elem.highlight.FillColor  = Color3.fromRGB(0, 150, 255)
+                        elem.highlight.OutlineColor = Color3.fromRGB(0, 100, 255)
+                        elem.nameLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
+                        elem.infoLabel.Text       = pct .. "% | " .. repairing .. " repairing"
+                    else
+                        elem.highlight.FillColor  = Color3.fromRGB(255, 200, 0)
+                        elem.highlight.OutlineColor = Color3.fromRGB(255, 150, 0)
+                        elem.nameLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+                        elem.infoLabel.Text       = pct .. "% | idle"
+                    end
+                    elem.highlight.Enabled = true
+                end
+            end)
+        else
+            for model in pairs(genEspElements) do removeGenESP(model) end
+        end
+        task.wait(0.5)
+    end
+end)
+
 local repo         = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 Library            = loadstring(game:HttpGet(repo.."Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo.."addons/ThemeManager.lua"))()
@@ -2275,6 +2475,7 @@ local Tabs = {
 	Killer          = Window:AddTab("Killer Settings",   "sword"),
     Aimbot          = Window:AddTab("Aimbot",   "crosshair"),
 	ESP             = Window:AddTab("ESP",       "eye"),
+    World           = Window:AddTab("World Settings",   "globe"),
 	["UI Settings"] = Window:AddTab("Settings",  "settings"),
 }
 local update = Tabs.Changelog:AddLeftGroupbox("Changelog Update 17 Aug")
@@ -2300,6 +2501,7 @@ update3:AddLabel({ Text = "+ Add Silent Aim The Cure" })
 update3:AddLabel({ Text = "+ Add Silent Aim Twist of Fate" })
 update3:AddLabel({ Text = "+ Add Aimbot FlashLight" })
 update3:AddLabel({ Text = "+ Add Auto Drop Pallet When Killer Carry" })
+update3:AddLabel({ Text = "+ Add ESP Generator" })
 update3:AddLabel({ Text = "+ Move Spear Aimbot to the Aimbot tab" })
 update3:AddLabel({ Text = "/ Optimize Esp Scp" })
 
@@ -2698,6 +2900,18 @@ SpearESPBox:AddSlider("SpearESPMaxDist", {
 	Callback = function(v) state.cfg.spear_esp_maxDist = v end,
 })
 
+local GenESPBox = Tabs.ESP:AddRightGroupbox("Generator ESP")
+GenESPBox:AddToggle("GenESPEnabled", {
+    Text     = "Enable Generator ESP",
+    Default  = false,
+    Callback = function(v)
+        genEspEnabled = v
+        if not v then
+            for model in pairs(genEspElements) do removeGenESP(model) end
+        end
+    end,
+})
+
 local ESPBox       = Tabs.ESP:AddLeftGroupbox("Killer ESP")
 local SCPEspBox    = Tabs.ESP:AddLeftGroupbox("SCP ESP")
 local PlayerESPBox = Tabs.ESP:AddRightGroupbox("Player ESP")
@@ -2791,6 +3005,33 @@ PlayerESPBox:AddSlider("PlayerESPMaxDist", {
 	Default  = state.cfg.p_esp_maxDist,
 	Min=50, Max=1000, Rounding=0, Suffix=" studs",
 	Callback = function(v) state.cfg.p_esp_maxDist = v end,
+})
+
+local Map = Tabs.World:AddLeftGroupbox("Visual")
+
+Map:AddToggle("FullBrightEnabled", {
+    Text     = "Full Bright",
+    Default  = false,
+    Callback = function(v)
+        fullbrightEnabled = v
+        if v then
+            applyFullBright()
+        else
+            restoreFullBright()
+        end
+    end,
+})
+Map:AddToggle("NoFogEnabled", {
+    Text     = "No Fog",
+    Default  = false,
+    Callback = function(v)
+        nofogEnabled = v
+        if v then
+            applyNoFog()
+        else
+            restoreNoFog()
+        end
+    end,
 })
 
 pcall(function() ThemeManager:SetLibrary(Library) end)
@@ -3057,6 +3298,10 @@ Library:OnUnload(function()
     pcall(function() lockLineCure:Remove() end)
     pcall(function() lockLineSurv:Remove() end)
     pcall(function() stopFlashlightAim() end)
+    pcall(function()
+    restoreFullBright()
+    restoreNoFog()
+end)
 	for part in pairs(spearESPs) do removeSpearESP(part) end
 	for char, conns in pairs(killerAnimConns) do
 		for _,c in ipairs(conns) do pcall(c.Disconnect, c) end
@@ -3064,6 +3309,7 @@ Library:OnUnload(function()
 	for char in pairs(killer2DEspElements) do removeKiller2DESP(char) end
 	for model in pairs(scpEspElements) do removeSCPESP(model) end
 	for char in pairs(player2DEspElements) do removePlayer2DESP(char) end
+    for model in pairs(genEspElements) do removeGenESP(model) end
 	scpEspElements           = {}
 	playerParryState         = {}
 	monitoredPlayerAnimators = {}
