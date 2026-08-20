@@ -30,6 +30,10 @@ local state = {
         silentAim_enabled = false,
         silentAim_fov = 150,
         silentAim_showFOV = false,
+        silentAim_killerMode = "The Veil",
+
+        silentAim_survivor_enabled = false,
+        silentAim_survivor_target = "Killer",
 
 		p_enabled         = false,
 		interactionRadius = 8,
@@ -96,6 +100,7 @@ local state = {
 		breakSpeed_enabled  = false,
 		breakSpeed_value    = 1,
 		selectMask          = "Alex",
+        swiftspeed_enabled = false,
 		autoCrouch_enabled  = false,
 		autoCrouch_delay    = 0,
 		autoCrouch_humanize = false,
@@ -103,7 +108,7 @@ local state = {
 		autoCrouch_duration = 1.5,
 	}
 }
-_G.vdHub = state
+_G.KKKkhub = state
 
 local HIT_ANIM_IDS = {
 	[113255068724446] = true,
@@ -332,15 +337,50 @@ local function getSelectedTargetPart()
     return targetPart
 end
 
-local function getClosestPlayerToMouse()
+local function getClosestToMouseAny(overrideFov)
     local mousePos = UserInputService:GetMouseLocation()
     local closestPart = nil
     local shortestDistance = math.huge
     local targetPartName = state.cfg.spear_targetPart or "Head"
-    local fov = state.cfg.silentAim_fov or 150
+    local fov = overrideFov or state.cfg.silentAim_fov or 150
+    local wantKiller = state.cfg.silentAim_survivor_target == "Killer"
 
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= lp and not isKillerPlayer(player) and not isSpectator() then
+        if player ~= lp and not isSpectator() then
+            local ok = wantKiller and isKillerPlayer(player) or (not wantKiller and not isKillerPlayer(player))
+            if ok then
+                local char = player.Character
+                if char then
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    local targetPart = char:FindFirstChild(targetPartName)
+                        or char:FindFirstChild("HumanoidRootPart")
+                        or char:FindFirstChild("Head")
+                    if hum and hum.Health > 0 and targetPart then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                        if onScreen and screenPos.Z > 0 then
+                            local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                            if distance < shortestDistance and distance <= fov then
+                                shortestDistance = distance
+                                closestPart = targetPart
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closestPart
+end
+
+local function getClosestPlayerToMouse(overrideFov)
+    local mousePos = UserInputService:GetMouseLocation()
+    local closestPart = nil
+    local shortestDistance = math.huge
+    local targetPartName = state.cfg.spear_targetPart or "Head"
+    local fov = overrideFov or state.cfg.silentAim_fov or 150
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= lp and not isSpectator() then
             local char = player.Character
             if char then
                 local hum = char:FindFirstChildOfClass("Humanoid")
@@ -476,6 +516,20 @@ task.spawn(function()
 				local charModel = workspace:FindFirstChild(lp.Name)
 				if charModel then
 					charModel:SetAttribute("skillcheckspeed", state.cfg.sc_speed_value)
+				end
+			end)
+		end
+		task.wait(0.2)
+	end
+end)
+
+task.spawn(function()
+	while state.running do
+		if state.cfg.swiftspeed_enabled and not isSurvivor() then
+			pcall(function()
+				local charModel = workspace:FindFirstChild(lp.Name)
+				if charModel then
+					charModel:SetAttribute("swift", state.cfg.swiftspeed_value)
 				end
 			end)
 		end
@@ -722,7 +776,8 @@ local ignoredKW = {
 	"break","pallet","kick","destroy","gen","generator","vault","window",
 	"pickup","carry","hook","drop","search","stun","blind","cabinet",
 	"locker","open","close","repair","interact","idle","walk","run","stomp",
-	"emote","taunt","dance","laugh","point","wave","Stunned",
+	"emote","taunt","dance","laugh","point","wave","Stunned","Hookked","Hooked",
+    "hookked","hooked"
 }
 local attackKW = {
 	"attack","swing","slash","strike","hit","m1","lunge",
@@ -1116,7 +1171,7 @@ Players.PlayerRemoving:Connect(function(plr)
 end)
 
 local espGui = Instance.new("ScreenGui")
-espGui.Name           = "VDHub_2DESP_ScreenGui"
+espGui.Name           = "KKKkhub_2DESP_ScreenGui"
 espGui.ResetOnSpawn   = false
 espGui.DisplayOrder   = 999
 espGui.IgnoreGuiInset = true
@@ -1159,7 +1214,7 @@ end
 local function createKiller2DESP(char)
 	removeKiller2DESP(char)
 	local highlight = Instance.new("Highlight")
-	highlight.Name                = "VDHub_Killer_Highlight"
+	highlight.Name                = "KKKkhub_Killer_Highlight"
 	highlight.FillColor           = Color3.fromRGB(255, 0, 0)
 	highlight.OutlineColor        = Color3.fromRGB(255, 0, 0)
 	highlight.FillTransparency    = 1
@@ -1211,7 +1266,7 @@ end
 local function createPlayer2DESP(char)
 	removePlayer2DESP(char)
 	local highlight = Instance.new("Highlight")
-	highlight.Name                = "VDHub_Player_Highlight"
+	highlight.Name                = "KKKkhub_Player_Highlight"
 	highlight.FillColor           = Color3.fromRGB(0, 150, 255)
 	highlight.OutlineColor        = Color3.fromRGB(0, 200, 255)
 	highlight.FillTransparency    = 1
@@ -1374,7 +1429,7 @@ RunService.Heartbeat:Connect(function()
 						elem.distLabel.Visible  = c.esp_showDist
 						elem.distLabel.Position = UDim2.new(0, x + (width/2) - 80, 0, y + height + 3)
 						elem.distLabel.TextSize = math.max(9, dynamicFont - 1)
-						elem.distLabel.Text     = string.format("[%.0fm]", dist * 0.28)
+                        elem.distLabel.Text = string.format("[%d studs]", math.floor(dist or 0))
 					else
 						elem.container.Visible = false
 					end
@@ -1430,7 +1485,7 @@ RunService.Heartbeat:Connect(function()
                                 local rootScreenPos = cam:WorldToViewportPoint(root.Position)
                                 elem.sideFrame.Position = UDim2.new(0, rootScreenPos.X + 30, 0, rootScreenPos.Y - 48)
 							if showSt and not hideIfFar then
-                            local panelFont = math.clamp(math.floor(11 * math.clamp(80 / dist, 0.6, 1.0)), 7, 11)
+                            local panelFont = math.clamp(math.floor(11 * math.clamp(80 / (dist or 1), 0.6, 1.0)), 7, 11)
                             elem.knockedLabel.TextSize     = panelFont
                             elem.hookCountLabel.TextSize   = panelFont
                             elem.hookedProgLabel.TextSize  = panelFont
@@ -1498,7 +1553,6 @@ task.spawn(function()
 		for char in pairs(player2DEspElements) do
 			local alive = false
 			for _, plr in ipairs(Players:GetPlayers()) do
-				-- เช็คทั้ง char match และ ต้องไม่เป็น killer
 				if plr.Character == char and not isKillerPlayer(plr) then
 					alive = true; break
 				end
@@ -1637,7 +1691,7 @@ state.cfg.spear_esp_enabled = false
 state.cfg.spear_esp_maxDist = 300
 
 local spearEspGui = Instance.new("ScreenGui")
-spearEspGui.Name           = "VDHub_SpearESP"
+spearEspGui.Name           = "KKKkhub_SpearESP"
 spearEspGui.ResetOnSpawn   = false
 spearEspGui.DisplayOrder   = 1000
 spearEspGui.IgnoreGuiInset = true
@@ -1743,7 +1797,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if input.KeyCode == moonwalkKey then
 		moonwalkEnabled = not moonwalkEnabled
 		moonwalkSway    = 0
-		print("[vdHub] Moonwalk: " .. (moonwalkEnabled and "ON" or "OFF"))
+		print("[KKKkhub] Moonwalk: " .. (moonwalkEnabled and "ON" or "OFF"))
 	end
 end)
 
@@ -1936,7 +1990,7 @@ local function createSCPESP(model)
 		or model:FindFirstChildOfClass("BasePart")
 	if not root then return end
 	local hl = Instance.new("Highlight")
-	hl.Name                = "VDHub_SCP_Highlight"
+	hl.Name                = "KKKkhub_SCP_Highlight"
 	hl.FillColor           = Color3.fromRGB(255, 60, 220)
 	hl.OutlineColor        = Color3.fromRGB(255, 0, 200)
 	hl.FillTransparency    = 0.5
@@ -1986,30 +2040,46 @@ local function createSCPESP(model)
 	}
 end
 
+local VALID_SCP_NAMES = {
+    ["scp-1"] = true, ["scp-2"] = true, ["scp-3"] = true, ["scp-4"] = true,
+    ["scp-5"] = true, ["scp-6"] = true, ["scp-7"] = true, ["scp-8"] = true,
+}
+
+local function isValidSCP(name)
+    local lower = string.lower(name)
+    local num = lower:match("^scp[%-%s]?(%d+)$")
+    if num then
+        local n = tonumber(num)
+        return n and n >= 1 and n <= 8
+    end
+    return false
+end
+
 local function scanSCPs()
-	local found = {}
-	for _, obj in ipairs(Workspace:GetDescendants()) do
-		if obj:IsA("Model") and string.lower(obj.Name):sub(1, 3) == "scp" then
-			found[obj] = true
-			createSCPESP(obj)
-		end
-	end
-	for model in pairs(scpEspElements) do
-		if not found[model] then removeSCPESP(model) end
-	end
+    local found = {}
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and isValidSCP(obj.Name) then
+            found[obj] = true
+            createSCPESP(obj)
+        end
+    end
+    for model in pairs(scpEspElements) do
+        if not found[model] then removeSCPESP(model) end
+    end
 end
 
 Workspace.DescendantAdded:Connect(function(obj)
-	if not state.cfg.scp_esp_enabled then return end
-	if obj:IsA("Model") and string.lower(obj.Name):sub(1, 3) == "scp" then
-		task.wait(0.1)
-		createSCPESP(obj)
-	end
+    if not state.cfg.scp_esp_enabled then return end
+    if obj:IsA("Model") and isValidSCP(obj.Name) then
+        task.wait(0.1)
+        createSCPESP(obj)
+    end
 end)
 
 Workspace.DescendantRemoving:Connect(function(obj)
-	if scpEspElements[obj] then removeSCPESP(obj) end
+    if scpEspElements[obj] then removeSCPESP(obj) end
 end)
+
 
 task.spawn(function()
 	while state.running do
@@ -2072,6 +2142,120 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
+local flashlightAimEnabled = false
+local flashlightAimConn = nil
+
+local function startFlashlightAim()
+	if flashlightAimConn then return end
+	flashlightAimConn = RunService.RenderStepped:Connect(function(dt)
+		if not flashlightAimEnabled then return end
+		if not isSurvivor() then return end
+		local ch = lp.Character
+		if not ch then return end
+		local hasFlashlight = ch:FindFirstChild("Flashlight")
+		if not hasFlashlight then return end
+		if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
+		local cam = workspace.CurrentCamera
+		if not cam then return end
+		local me = myRoot()
+		if not me then return end
+		local bestRoot = nil
+		local bestDist = math.huge
+		for _, kRoot in ipairs(killerRoots) do
+			if kRoot and kRoot.Parent then
+				local d = (me.Position - kRoot.Position).Magnitude
+				if d < bestDist then
+					bestDist = d
+					bestRoot = kRoot
+				end
+			end
+		end
+		if not bestRoot then return end
+		local killerChar = bestRoot.Parent
+		local head = killerChar and killerChar:FindFirstChild("Head")
+		local aimTarget = (head or bestRoot).Position
+		local camCF = cam.CFrame
+		local targetCF = CFrame.lookAt(camCF.Position, aimTarget)
+		cam.CFrame = camCF:Lerp(targetCF, math.min(dt * 25, 1))
+	end)
+end
+
+local function stopFlashlightAim()
+	if flashlightAimConn then
+		flashlightAimConn:Disconnect()
+		flashlightAimConn = nil
+	end
+end
+
+startFlashlightAim()
+
+local autoDropCarriedEnabled = false
+
+local function findNearestPalletPoint()
+    local ch = lp.Character
+    local me = ch and ch:FindFirstChild("HumanoidRootPart")
+    if not me then return nil end
+    local myPos = me.Position
+    local closest = nil
+    local closestDist = math.huge
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == "PalletPoint" and obj:IsA("BasePart") then
+            local d = (obj.Position - myPos).Magnitude
+            if d < closestDist then
+                closestDist = d
+                closest = obj
+            end
+        end
+    end
+    return closest, closestDist
+end
+
+task.spawn(function()
+    local lastDropTime = 0
+    while state.running do
+        if autoDropCarriedEnabled and isSurvivor() then
+            pcall(function()
+                local ch = lp.Character
+                if not ch then return end
+                local isCarried = ch:GetAttribute("IsCarried")
+                if not isCarried then return end
+                local me = ch:FindFirstChild("HumanoidRootPart")
+                if not me then return end
+                local killerRoot = nil
+                local killerDist = math.huge
+                for _, kRoot in ipairs(killerRoots) do
+                    if kRoot and kRoot.Parent then
+                        local d = (me.Position - kRoot.Position).Magnitude
+                        if d < killerDist then
+                            killerDist = d
+                            killerRoot = kRoot
+                        end
+                    end
+                end
+                if not killerRoot then return end
+                local closestPoint = nil
+                local closestDist = math.huge
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj.Name == "PalletPoint" and obj:IsA("BasePart") then
+                        local dToKiller = (obj.Position - killerRoot.Position).Magnitude
+                        if dToKiller < closestDist then
+                            closestDist = dToKiller
+                            closestPoint = obj
+                        end
+                    end
+                end
+                if not closestPoint then return end
+                local now = tick()
+                if closestDist <= 6 and (now - lastDropTime) >= 1.0 then
+                    game:GetService("ReplicatedStorage").Remotes.Pallet.PalletDropEvent:FireServer(closestPoint)
+                    lastDropTime = now
+                end
+            end)
+        end
+        task.wait(0.1)
+    end
+end)
+
 local repo         = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 Library            = loadstring(game:HttpGet(repo.."Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(repo.."addons/ThemeManager.lua"))()
@@ -2079,7 +2263,7 @@ local SaveManager  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
 
 local Window = Library:CreateWindow({
 	Title            = "KKKK",
-	Footer           = "v1.0.2.5",
+	Footer           = "v1.0.3.0",
 	Icon             = 95816097006870,
 	NotifySide       = "Right",
 	ShowCustomCursor = true,
@@ -2087,12 +2271,12 @@ local Window = Library:CreateWindow({
 
 local Tabs = {
 	Changelog       = Window:AddTab("Changelog", "mail"),
-	Survivor        = Window:AddTab("Survivor", "user"),
-	Killer          = Window:AddTab("Killer",   "sword"),
+	Survivor        = Window:AddTab("Survivor Settings", "user"),
+	Killer          = Window:AddTab("Killer Settings",   "sword"),
+    Aimbot          = Window:AddTab("Aimbot",   "crosshair"),
 	ESP             = Window:AddTab("ESP",       "eye"),
 	["UI Settings"] = Window:AddTab("Settings",  "settings"),
 }
-
 local update = Tabs.Changelog:AddLeftGroupbox("Changelog Update 17 Aug")
 update:AddLabel({ Text = "/ Improve Anti Stun +++" })
 update:AddLabel({ Text = "/ Improve Moonwalk  press G" })
@@ -2108,6 +2292,16 @@ update2:AddLabel({ Text = "+ Add Fast Skillcheck Speed" })
 update2:AddLabel({ Text = "+ Add Skillcheck Speed Value Slider" })
 update2:AddLabel({ Text = "+ Add Vault Speed" })
 update2:AddLabel({ Text = "+ Add Vault Speed Value Slider" })
+local update3 = Tabs.Changelog:AddLeftGroupbox("Changelog Update 20 Aug")
+update3:AddLabel({ Text = "+ Add Vault Speed ( Killer )" })
+update3:AddLabel({ Text = "+ Add Vault Speed Value Slider ( Killer )" })
+update3:AddLabel({ Text = "+ Add Tab Aimbot" })
+update3:AddLabel({ Text = "+ Add Silent Aim The Cure" })
+update3:AddLabel({ Text = "+ Add Silent Aim Twist of Fate" })
+update3:AddLabel({ Text = "+ Add Aimbot FlashLight" })
+update3:AddLabel({ Text = "+ Add Auto Drop Pallet When Killer Carry" })
+update3:AddLabel({ Text = "+ Move Spear Aimbot to the Aimbot tab" })
+update3:AddLabel({ Text = "/ Optimize Esp Scp" })
 
 local PalletBox      = Tabs.Survivor:AddLeftGroupbox("Pallet Killer Stun")
 local SkillBox       = Tabs.Survivor:AddRightGroupbox("Skillcheck")
@@ -2119,6 +2313,13 @@ PalletBox:AddToggle("Stun Killer", {
 	Default  = state.cfg.p_enabled,
 	Tooltip  = "Automatically drop pallets on Killers",
 	Callback = function(v) state.cfg.p_enabled = v end,
+})
+PalletBox:AddToggle("AutoDropCarriedEnabled", {
+    Text     = "Auto Drop Pallet (Carried)",
+    Default  = false,
+    Callback = function(v)
+        autoDropCarriedEnabled = v
+    end,
 })
 PalletBox:AddToggle("AntiBait", {
 	Text     = "Anti Bait",
@@ -2206,7 +2407,7 @@ VaultBox:AddToggle("FvVaultSpeed", {
 VaultBox:AddSlider("FvVaultSpeedValue", {
 	Text     = "Vault Speed Value",
 	Default  = state.cfg.fv_vaultSpeed_value,
-	Min=1, Max=20, Rounding=0,
+	Min=1.5, Max=10, Rounding=1,
 	Callback = function(v) state.cfg.fv_vaultSpeed_value = v end,
 })
 VaultBox:AddSlider("FvRadius", {
@@ -2300,51 +2501,6 @@ ParryBox:AddSlider("AnimPreDelay", {
 	Callback = function(v) state.cfg.ap_animPreDelay = v end,
 })
 
-local AimBox = Tabs.Killer:AddLeftGroupbox("Spear Aimlock")
-
-AimBox:AddToggle("The Veil Killer", {
-	Text     = "Spear Aimlock (Hold E)",
-	Default  = state.cfg.spear_enabled,
-	Callback = function(v) state.cfg.spear_enabled = v end,
-})
-AimBox:AddToggle("SilentAimEnabled", {
-	Text     = "Silent Aim",
-	Default  = false,
-	Callback = function(v) state.cfg.silentAim_enabled = v end,
-})
-AimBox:AddToggle("SilentAimFOVShow", {
-	Text     = "Show FOV Circle",
-	Default  = false,
-	Callback = function(v) state.cfg.silentAim_showFOV = v end,
-})
-AimBox:AddSlider("SilentAimFOV", {
-	Text     = "Silent Aim FOV",
-	Default  = 150,
-	Min      = 10,
-	Max      = 500,
-	Rounding = 0,
-	Suffix   = "px",
-	Callback = function(v) state.cfg.silentAim_fov = v end,
-})
-AimBox:AddDropdown("TargetPartSelect", {
-	Text    = "Target Part",
-	Default = "Head",
-	Values  = { "Head", "HumanoidRootPart", "Torso", "UpperTorso" },
-	Callback = function(v) state.cfg.spear_targetPart = v end,
-})
-AimBox:AddSlider("SpearGravityReady", {
-	Text     = "Aim Scale (Skill Ready)",
-	Default  = 1.4,
-	Min=0, Max=10, Rounding=1,
-	Callback = function(v) state.cfg.spear_gravity_ready = v end,
-})
-AimBox:AddSlider("SpearGravityCD", {
-	Text     = "Aim Scale (Skill CD)",
-	Default  = 1.5,
-	Min=0, Max=10, Rounding=1,
-	Callback = function(v) state.cfg.spear_gravity_cd = v end,
-})
-
 local AntiStunBox = Tabs.Killer:AddRightGroupbox("Anti Stun for Killer")
 AntiStunBox:AddToggle("AntiStunEnabled", {
 	Text     = "Enable Anti Stun",
@@ -2398,7 +2554,102 @@ MaskedBox:AddButton({
 		end)
 	end,
 })
+local Swiftbox = Tabs.Killer:AddLeftGroupbox("vault")
+Swiftbox:AddToggle("swiftspeed_toggle", {
+	Text     = "Vault Speed (Swift)",
+	Default  = false,
+	Callback = function(v)
+		state.cfg.swiftspeed_enabled = v
+		if not v then
+			pcall(function()
+				local charModel = workspace:FindFirstChild(lp.Name)
+				if charModel then
+					charModel:SetAttribute("swift", nil)
+				end
+			end)
+		end
+	end,
+})
 
+Swiftbox:AddSlider("swiftspeed_value", {
+	Text     = "Swift Speed Value",
+	Default  = 1,
+	Min      = 1,
+	Max      = 10,
+	Rounding = 1,
+	Callback = function(v) state.cfg.swiftspeed_value = v end,
+})
+
+local aimbot = Tabs.Aimbot:AddRightGroupbox("The Veil Legit")
+local aimbots = Tabs.Aimbot:AddLeftGroupbox("Twist of Fate")
+aimbots:AddToggle("SilentAimSurvivorEnabled", {
+    Text     = "Silent Aim",
+    Default  = false,
+    Callback = function(v) state.cfg.silentAim_survivor_enabled = v end,
+})
+aimbots:AddDropdown("SilentAimSurvivorTarget", {
+    Text     = "Lock Target",
+    Default  = "Killer",
+    Values   = { "Killer", "Survivor" },
+    Callback = function(v) state.cfg.silentAim_survivor_target = v end,
+})
+local aimbotf = Tabs.Aimbot:AddLeftGroupbox("Flashlight")
+aimbotf:AddToggle("FlashlightAimEnabled", {
+	Text     = "Aimbot Flashlight",
+	Default  = false,
+	Callback = function(v)
+		flashlightAimEnabled = v
+	end,
+})
+aimbot:AddToggle("The Veil Killer", {
+	Text     = "Spear Aimlock (Hold E)",
+	Default  = state.cfg.spear_enabled,
+	Callback = function(v) state.cfg.spear_enabled = v end,
+})
+aimbot:AddSlider("SpearGravityReady", {
+	Text     = "Aim Scale (Skill Ready)",
+	Default  = 1.4,
+	Min=0, Max=10, Rounding=1,
+	Callback = function(v) state.cfg.spear_gravity_ready = v end,
+})
+aimbot:AddSlider("SpearGravityCD", {
+	Text     = "Aim Scale (Skill CD)",
+	Default  = 1.5,
+	Min=0, Max=10, Rounding=1,
+	Callback = function(v) state.cfg.spear_gravity_cd = v end,
+})
+local aimbotc = Tabs.Aimbot:AddRightGroupbox("Silent Aim Killer")
+aimbotc:AddToggle("SilentAimCureEnabled", {
+    Text     = "Silent Aim",
+    Default  = false,
+    Callback = function(v) state.cfg.silentAim_cure_enabled = v end,
+})
+aimbotc:AddDropdown("KillerModeSelect", {
+    Text     = "Killer",
+    Default  = "The Veil",
+    Values   = { "The Veil", "The Cure" },
+    Callback = function(v) state.cfg.silentAim_killerMode = v end,
+})
+aimbotc:AddToggle("SilentAimFOVShow", {
+	Text     = "Show FOV Circle",
+	Default  = false,
+	Callback = function(v) state.cfg.silentAim_showFOV = v end,
+})
+aimbotc:AddSlider("SilentAimFOV", {
+	Text     = "Silent Aim FOV",
+	Default  = 150,
+	Min      = 10,
+	Max      = 500,
+	Rounding = 0,
+	Suffix   = "px",
+	Callback = function(v) state.cfg.silentAim_fov = v end,
+})
+aimbotc:AddDropdown("TargetPartSelect", {
+	Text    = "Target Part",
+	Default = "Head",
+	Values  = { "Head", "HumanoidRootPart", "Torso", "UpperTorso" },
+	Callback = function(v) state.cfg.spear_targetPart = v end,
+})
 local AutoCrouchBox = Tabs.Survivor:AddRightGroupbox("Anti Skill")
 AutoCrouchBox:AddToggle("AutoCrouchEnabled", {
 	Text     = "Anti Skill The Abysswalker",
@@ -2561,7 +2812,8 @@ UnloadBox:AddButton({
 
 -- SILENT AIM CACHE
 local cachedSilentTarget = nil
-
+local cachedCureTarget = nil
+local cachedSurvivorTarget = nil
 -- FOV Circle
 local fovCircle = Drawing.new("Circle")
 fovCircle.Visible   = false
@@ -2577,8 +2829,20 @@ lockLine.Thickness = 1.5
 lockLine.Color     = Color3.fromRGB(255, 0, 0)
 lockLine.Transparency = 0.3
 
+local lockLineCure = Drawing.new("Line")
+lockLineCure.Visible      = false
+lockLineCure.Thickness    = 1.5
+lockLineCure.Color        = Color3.fromRGB(0, 255, 150)
+lockLineCure.Transparency = 0.3
+
+local lockLineSurv = Drawing.new("Line")
+lockLineSurv.Visible      = false
+lockLineSurv.Thickness    = 1.5
+lockLineSurv.Color        = Color3.fromRGB(255, 255, 0)
+lockLineSurv.Transparency = 0.3
+
 RunService.RenderStepped:Connect(function()
-	local showFov = state.cfg.silentAim_enabled and state.cfg.silentAim_showFOV
+	local showFov = (state.cfg.silentAim_enabled or state.cfg.silentAim_cure_enabled) and state.cfg.silentAim_showFOV
 	local center = UserInputService:GetMouseLocation()
 
 	if showFov then
@@ -2622,17 +2886,55 @@ RunService.RenderStepped:Connect(function()
 			end
 		end
 	end
+
+    local survTarget = cachedSurvivorTarget
+	if state.cfg.silentAim_survivor_enabled and survTarget and survTarget.Parent then
+		local screenPos, onScreen = Camera:WorldToViewportPoint(survTarget.Position)
+		if onScreen and screenPos.Z > 0 then
+			lockLineSurv.From    = Vector2.new(center.X, center.Y)
+			lockLineSurv.To      = Vector2.new(screenPos.X, screenPos.Y)
+			lockLineSurv.Visible = true
+		else
+			lockLineSurv.Visible = false
+		end
+	else
+		lockLineSurv.Visible = false
+	end
+
+	local cureTarget = cachedCureTarget
+	if state.cfg.silentAim_cure_enabled and cureTarget and cureTarget.Parent then
+		local screenPos, onScreen = Camera:WorldToViewportPoint(cureTarget.Position)
+		if onScreen and screenPos.Z > 0 then
+			lockLineCure.From    = Vector2.new(center.X, center.Y)
+			lockLineCure.To      = Vector2.new(screenPos.X, screenPos.Y)
+			lockLineCure.Visible = true
+		else
+			lockLineCure.Visible = false
+		end
+	else
+		lockLineCure.Visible = false
+	end
 end)
 
 task.spawn(function()
-	while state.running do
-		if state.cfg.silentAim_enabled then
-			cachedSilentTarget = getClosestPlayerToMouse()
-		else
-			cachedSilentTarget = nil
-		end
-		task.wait(0.03)
-	end
+    while state.running do
+        if state.cfg.silentAim_enabled then
+            cachedSilentTarget = getClosestPlayerToMouse(state.cfg.silentAim_fov)
+        else
+            cachedSilentTarget = nil
+        end
+        if state.cfg.silentAim_cure_enabled then
+            cachedCureTarget = getClosestPlayerToMouse(state.cfg.silentAim_fov)
+        else
+            cachedCureTarget = nil
+        end
+        if state.cfg.silentAim_survivor_enabled then
+            cachedSurvivorTarget = getClosestToMouseAny(state.cfg.silentAim_fov)
+        else
+            cachedSurvivorTarget = nil
+        end
+        task.wait(0.03)
+    end
 end)
 
 local mt = getrawmetatable(game)
@@ -2645,28 +2947,79 @@ mt.__namecall = newcclosure(function(self, ...)
 	local selfName = ""
 	pcall(function() selfName = tostring(self.Name or "") end)
 
+	-- SURVIVOR SILENT AIM (Twist of Fate)
     if not _saFiring
-    and state.cfg.silentAim_enabled
+    and state.cfg.silentAim_survivor_enabled
+    and method == "FireServer"
+    and selfName:find("Fire")
+    then
+        local myChar = lp.Character
+        local item = myChar and myChar:FindFirstChild("Twist of Fate")
+        if not item then return oldNamecall(self, ...) end
+        local args = {...}
+        local target = cachedSurvivorTarget
+        if target and target.Parent then
+            local dir = args[2]
+            if typeof(dir) == "Vector3" then
+                local itemRoot = item.PrimaryPart
+                    or item:FindFirstChild("HumanoidRootPart")
+                    or item:FindFirstChildWhichIsA("BasePart")
+                if itemRoot then
+                    args[2] = (target.Position - itemRoot.Position).Unit
+                end
+            end
+            _saFiring = true
+            pcall(function() self:FireServer(args[1], args[2]) end)
+            _saFiring = false
+            return
+        end
+    end
+
+	-- THE VEIL SILENT AIM (Spearthrow)
+    if not _saFiring
+    and state.cfg.silentAim_cure_enabled
+    and state.cfg.silentAim_killerMode == "The Veil"
     and method == "FireServer"
     and selfName:find("Spearthrow")
     then
         local args = {...}
-        local target = cachedSilentTarget
+        local target = cachedCureTarget
         if target and target.Parent then
             local origin = args[3]
             if typeof(origin) == "Vector3" then
-                local dist = (target.Position - origin).Magnitude
-                local yOffset = (dist / 115) * (dist * 0.250)
-                args[1] = (target.Position + Vector3.new(0, yOffset, 0) - origin).Unit
+                local targetVel = target.Parent:FindFirstChild("HumanoidRootPart") 
+                    and target.Parent.HumanoidRootPart.AssemblyLinearVelocity
+                local aimPos = calculateSpearAim(origin, target.Position, targetVel)
+                args[1] = (aimPos - origin).Unit
+                args[3] = origin
             end
+            _saFiring = true
+            pcall(function() self:FireServer(args[1], args[2], args[3]) end)
+            _saFiring = false
+            return
         end
-        _saFiring = true
-        pcall(function()
-            self:FireServer(args[1], args[2], args[3])
-        end)
-        _saFiring = false
-        return
     end
+
+    -- THE CURE SILENT AIM (ThrowFlask)
+	if not _saFiring
+	and state.cfg.silentAim_cure_enabled
+	and state.cfg.silentAim_killerMode == "The Cure"
+	and method == "FireServer"
+	and selfName:find("ThrowFlask")
+	then
+		local args = {...}
+		local target = cachedCureTarget
+		if target and target.Parent then
+			local origin = args[2]
+			if typeof(origin) == "Vector3" then
+				args[1] = (target.Position - origin).Unit
+			end
+			_saFiring = true
+			pcall(function() self:FireServer(args[1], args[2]) end)
+			_saFiring = false
+			return
+		end
+	end
 
 	return oldNamecall(self, ...)
 end)
@@ -2701,6 +3054,9 @@ Library:OnUnload(function()
 	pcall(function() espGui:Destroy() end)
 	pcall(function() spearEspGui:Destroy() end)
     pcall(function() lockLine:Remove() end)
+    pcall(function() lockLineCure:Remove() end)
+    pcall(function() lockLineSurv:Remove() end)
+    pcall(function() stopFlashlightAim() end)
 	for part in pairs(spearESPs) do removeSpearESP(part) end
 	for char, conns in pairs(killerAnimConns) do
 		for _,c in ipairs(conns) do pcall(c.Disconnect, c) end
@@ -2712,6 +3068,6 @@ Library:OnUnload(function()
 	playerParryState         = {}
 	monitoredPlayerAnimators = {}
 	hitboxMonitored          = {}
-	_G.vdHub = nil
-	print("[vdHub v1.0.2.5] Unloaded!")
+	_G.KKKkhub = nil
+	print("[KKKK Hub v1.0.3.0] Unloaded!")
 end)
