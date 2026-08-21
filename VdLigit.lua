@@ -2403,7 +2403,7 @@ local SaveManager  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
 
 local Window = Library:CreateWindow({
 	Title            = "KKKK",
-	Footer           = "v1.0.3.1,
+	Footer           = "v1.0.3.1",
 	Icon             = 95816097006870,
 	NotifySide       = "Right",
 	ShowCustomCursor = true,
