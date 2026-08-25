@@ -732,7 +732,6 @@ local function startBM2()
 				hrp.AssemblyLinearVelocity=Vector3.zero
 				hrp.AssemblyAngularVelocity=Vector3.zero
 				hrp.CFrame=CFrame.new(anchor.X, targetY, anchor.Z)
-				-- Kill velocity อีกครั้งหลัง teleport กัน skill knockback
 				hrp.AssemblyLinearVelocity=Vector3.zero
 				hrp.AssemblyAngularVelocity=Vector3.zero
 			end)
@@ -743,37 +742,6 @@ local function startBM2()
 			end)
 		end
 	end)
-end
-
-local function startWalkOnWater()
-    walkOnWater.on = true
-    if walkOnWater.thread then task.cancel(walkOnWater.thread) end
-    walkOnWater.thread = task.spawn(function()
-        while walkOnWater.on do
-            pcall(function()
-                local map = WS:FindFirstChild("Map")
-                local wb = map and map:FindFirstChild("WaterBase-Plane")
-                if wb then
-                    local inWater = false
-                    if type(dzf) == "function" then
-                        local ok, res = pcall(dzf, "water")
-                        inWater = ok and res
-                    end
-                    wb.Size = Vector3.new(1000, inWater and 112 or 80, 1000)
-                end
-            end)
-            task.wait()
-        end
-    end)
-end
-
-local function stopWalkOnWater()
-    walkOnWater.on = false
-    if walkOnWater.thread then task.cancel(walkOnWater.thread); walkOnWater.thread = nil end
-    pcall(function()
-        local wb = WS:FindFirstChild("Map") and WS.Map:FindFirstChild("WaterBase-Plane")
-        if wb then wb.Size = Vector3.new(1000, 80, 1000) end
-    end)
 end
 
 -- WEBHOOK
@@ -1367,21 +1335,6 @@ local HideEnmToggle = BoostTab:CreateToggle({
       toggleHidEnm(Value)
       notify("Hide Enemies", Value and "Enemies Hidden" or "Off")
    end,
-})
-
-BoostTab:CreateToggle({
-    Name = "Walk on Water",
-    CurrentValue = false,
-    Flag = "WalkOnWaterToggle",
-    Callback = function(Value)
-        if Value then
-            startWalkOnWater()
-            notify("Walk on Water", "Enabled")
-        else
-            stopWalkOnWater()
-            notify("Walk on Water", "Disabled")
-        end
-    end,
 })
 
 BoostTab:CreateInput({
