@@ -48,12 +48,12 @@ local _cfgDefault = {
 
 local cfg = {}
 for k, v in pairs(_cfgDefault) do cfg[k] = v end
-if type(KKKK HubConfig) == "table" then
-	for k, v in pairs(KKKK HubConfig) do
+if type(KKKK_HubConfig) == "table" then
+	for k, v in pairs(KKKK_HubConfig) do
 		if cfg[k] ~= nil then cfg[k] = v end
 	end
 end
-KKKK HubConfig = nil
+KKKK_HubConfig = nil
 
 -- CONNECTION MANAGER
 local Conn = {}; Conn.__index = Conn
