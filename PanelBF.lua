@@ -31,7 +31,7 @@ local RegisterAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
 local RegisterHit = Net and Net:FindFirstChild("RE/RegisterHit")
 
 -- =====================================
---          BLOXHUB CONFIG & STATE
+--          KKKK Hub CONFIG & STATE
 -- =====================================
 local _cfgDefault = {
 	RemoveDeathEffect = true,
@@ -40,7 +40,7 @@ local _cfgDefault = {
 	AutoHop = false, HopInterval = 45, HopServer = "singapore", HopMaxPlayers = 3,
 	WebhookEnabled = false,
 	WebhookURL  = "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN",
-	WebhookName = "BloxHub",
+	WebhookName = "KKKK Hub",
 	WebhookInterval = 30,
 	AutoRerun    = true,
 	AutoRerunURL = "https://raw.githubusercontent.com/mm3xwqi/s/refs/heads/main/PanelBF.lua",
@@ -48,12 +48,12 @@ local _cfgDefault = {
 
 local cfg = {}
 for k, v in pairs(_cfgDefault) do cfg[k] = v end
-if type(BloxHubConfig) == "table" then
-	for k, v in pairs(BloxHubConfig) do
+if type(KKKK HubConfig) == "table" then
+	for k, v in pairs(KKKK HubConfig) do
 		if cfg[k] ~= nil then cfg[k] = v end
 	end
 end
-BloxHubConfig = nil
+KKKK HubConfig = nil
 
 -- CONNECTION MANAGER
 local Conn = {}; Conn.__index = Conn
@@ -87,6 +87,7 @@ local BM2 = { on=false, task=nil, dist=500, interval=0.05, anchorPos=nil, resetI
 local bmTick = 0
 local K_MAX = Pl.MaxPlayers
 local BRINGMOB_BLACKLIST = { Terrorshark=true }
+local walkOnWater = { on = false, thread = nil }
 
 -- =====================================
 --          HELPERS & UTILS
@@ -396,12 +397,16 @@ local function bmMyRoot() local c=lp.Character; return c and c:FindFirstChild("H
 
 local function startBM()
 	BM.on=true; bmClean()
+
+	-- Noclip loop
 	if BM.noclip then BM.noclip:Disconnect() end
 	BM.noclip=Run.RenderStepped:Connect(function()
 		for e in pairs(BM.data) do
 			if e and e.Parent then
 				for _,p in ipairs(e:GetDescendants()) do
-					if p:IsA("BasePart") and p.CanCollide then pcall(function() p.CanCollide=false end) end
+					if p:IsA("BasePart") then
+						pcall(function() if p.CanCollide then p.CanCollide=false end end)
+					end
 				end
 			end
 		end
@@ -411,83 +416,209 @@ local function startBM()
 	BM.pin=Run.Heartbeat:Connect(function()
 		bmTick=bmTick+1; if bmTick%2~=0 then return end
 		local mr=bmMyRoot(); if not mr then return end
+
 		for e,d in pairs(BM.data) do
 			if not e or not e.Parent or not d or not d.arrived then continue end
 			local hrp=bmHRP(e); if not hrp then continue end
+			local h=bmHum(e)
+			if h then
+				pcall(function()
+					h.PlatformStand=true
+					h.WalkSpeed=0
+					h.JumpPower=0
+				end)
+			end
+			pcall(function()
+				hrp.AssemblyLinearVelocity=Vector3.zero
+				hrp.AssemblyAngularVelocity=Vector3.zero
+			end)
+			if not d.bp or not d.bp.Parent then
+				local targetPos=d.fixedPos or Vector3.new(
+					(mr.Position+(d.offset or Vector3.zero)).X,
+					mr.Position.Y+BM.yOff,
+					(mr.Position+(d.offset or Vector3.zero)).Z
+				)
+				local newBP=Instance.new("BodyPosition",hrp)
+				newBP.Name="BringMobBP_Fixed"
+				newBP.MaxForce=Vector3.new(1e9,1e9,1e9)
+				newBP.P=500000
+				newBP.D=10000
+				newBP.Position=targetPos
+				d.bp=newBP
+				d.fixedPos=targetPos
+			end
+			if not d.bg or not d.bg.Parent then
+				local bg=Instance.new("BodyGyro",hrp)
+				bg.Name="BringMobBG"
+				bg.MaxTorque=Vector3.new(1e9,1e9,1e9)
+				bg.P=100000
+				bg.D=2000
+				bg.CFrame=hrp.CFrame
+				d.bg=bg
+			end
+
 			d.anchorPos=d.anchorPos or mr.Position
 			if (mr.Position-d.anchorPos).Magnitude>3 then
 				d.anchorPos=mr.Position
-				local nt=Vector3.new((mr.Position+d.offset).X,mr.Position.Y+BM.yOff,(mr.Position+d.offset).Z)
+				local nt=Vector3.new(
+					(mr.Position+(d.offset or Vector3.zero)).X,
+					mr.Position.Y+BM.yOff,
+					(mr.Position+(d.offset or Vector3.zero)).Z
+				)
 				d.fixedPos=nt
-				if d.bp and d.bp.Parent then pcall(function() d.bp.Position=nt end)
-				else d.bp=Instance.new("BodyPosition",hrp) d.bp.Name="BringMobBP_Fixed" d.bp.MaxForce=Vector3.new(1e9,1e9,1e9) d.bp.P=500000 d.bp.D=10000 d.bp.Position=nt end
+				pcall(function() d.bp.Position=nt end)
 			end
-			if d.bp and d.bp.Parent then pcall(function() d.bp.Position=Vector3.new(d.bp.Position.X,mr.Position.Y+BM.yOff,d.bp.Position.Z) end) end
-			if not d.bg or not d.bg.Parent then d.bg=Instance.new("BodyGyro",hrp) d.bg.Name="BringMobBG" d.bg.MaxTorque=Vector3.new(1e9,1e9,1e9) d.bg.P=100000 d.bg.D=2000 d.bg.CFrame=hrp.CFrame end
-			pcall(function() hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
+
+			if d.bp and d.bp.Parent then
+				pcall(function()
+					d.bp.Position=Vector3.new(
+						d.bp.Position.X,
+						mr.Position.Y+BM.yOff,
+						d.bp.Position.Z
+					)
+				end)
+			end
 		end
 	end)
+
 	BM.task=task.spawn(function()
-		local PULL,HOLD=5,3; local phase,pT,lt="pull",0,tick()
+		local PULL,HOLD=5,3
+		local phase,pT,lt="pull",0,tick()
+
 		while BM.on do
 			task.wait(.025)
 			local now=tick(); local dt=now-lt; lt=now; pT=pT+dt
 			local mr=bmMyRoot(); if not mr then continue end
 			local ef=WS:FindFirstChild("Enemies"); if not ef then task.wait(.3); continue end
-			for e in pairs(BM.data) do if not e or not e.Parent or not bmAlive(e) then pcall(bmRelease,e) end end
+
+			for e in pairs(BM.data) do
+				if not e or not e.Parent or not bmAlive(e) then pcall(bmRelease,e) end
+			end
 			if phase=="pull" and pT>=PULL then
 				for e,d in pairs(BM.data) do
 					if not d.arrived then
 						local hrp=bmHRP(e)
 						if hrp then
 							pcall(function() if d.bp and d.bp.Parent then d.bp:Destroy() end end)
-							local fbp=Instance.new("BodyPosition",hrp) fbp.Name="BringMobBP_Fixed" fbp.MaxForce=Vector3.new(1e9,1e9,1e9) fbp.P=500000 fbp.D=10000 fbp.Position=hrp.Position
-							local bg=Instance.new("BodyGyro",hrp) bg.Name="BringMobBG" bg.MaxTorque=Vector3.new(1e9,1e9,1e9) bg.P=100000 bg.D=2000 bg.CFrame=hrp.CFrame
-							pcall(function() local h=bmHum(e); if h then h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end end)
+							local fbp=Instance.new("BodyPosition",hrp)
+							fbp.Name="BringMobBP_Fixed"
+							fbp.MaxForce=Vector3.new(1e9,1e9,1e9)
+							fbp.P=500000
+							fbp.D=10000
+							fbp.Position=hrp.Position
+							local bg=Instance.new("BodyGyro",hrp)
+							bg.Name="BringMobBG"
+							bg.MaxTorque=Vector3.new(1e9,1e9,1e9)
+							bg.P=100000
+							bg.D=2000
+							bg.CFrame=hrp.CFrame
+							local h=bmHum(e)
+							if h then pcall(function() h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end) end
 							d.bp=fbp; d.bg=bg; d.arrived=true; d.fixedPos=hrp.Position
 						end
 					end
 				end
 				phase="hold"; pT=0
-			elseif phase=="hold" and pT>=HOLD then bmClean(); phase="pull"; pT=0 end
+
+			elseif phase=="hold" and pT>=HOLD then
+				bmClean(); phase="pull"; pT=0
+			end
+
 			if phase=="hold" then continue end
-			local pulling=0; for _,d in pairs(BM.data) do if not d.arrived then pulling=pulling+1 end end
+
+			local pulling=0
+			for _,d in pairs(BM.data) do if not d.arrived then pulling=pulling+1 end end
+
 			local ap=mr.Position
+
 			for _,e in ipairs(ef:GetChildren()) do
 				if not BM.on then break end
 				if not e or not e.Parent or not bmAlive(e) then continue end
+				if BRINGMOB_BLACKLIST[e.Name] then continue end
 				local hrp=bmHRP(e); if not hrp then continue end
-				if (ap-hrp.Position).Magnitude>BM.dist then if BM.data[e] and not BM.data[e].arrived then pcall(bmRelease,e) end; continue end
+
+				local dist=(ap-hrp.Position).Magnitude
+				if dist>BM.dist then
+					if BM.data[e] and not BM.data[e].arrived then pcall(bmRelease,e) end
+					continue
+				end
 				if not BM.data[e] then
 					if pulling>=BM.batch then continue end
 					local off=bmGetOff()
-					local tp=Vector3.new((ap+off).X,ap.Y+BM.yOff,(ap+off).Z)
-					local bp=Instance.new("BodyPosition",hrp) bp.Name="BringMobBP" bp.MaxForce=Vector3.new(1e9,1e9,1e9) bp.P=BM.force bp.D=2000 bp.Position=tp
-					pcall(function() local h=bmHum(e); if h then h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end end)
-					pcall(function() for _,p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end end)
-					BM.data[e]={bp=bp,arrived=false,offset=off,stuckTime=0,lastPos=hrp.Position}; pulling=pulling+1
+					local tp=Vector3.new((ap+off).X, ap.Y+BM.yOff, (ap+off).Z)
+					local bp=Instance.new("BodyPosition",hrp)
+					bp.Name="BringMobBP"
+					bp.MaxForce=Vector3.new(1e9,1e9,1e9)
+					bp.P=BM.force
+					bp.D=2000
+					bp.Position=tp
+					local h=bmHum(e)
+					if h then pcall(function() h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end) end
+					pcall(function()
+						for _,p in ipairs(e:GetDescendants()) do
+							if p:IsA("BasePart") then p.CanCollide=false end
+						end
+					end)
+					BM.data[e]={bp=bp,arrived=false,offset=off,stuckTime=0,lastPos=hrp.Position}
+					pulling=pulling+1
 				end
-				local d=BM.data[e]; if not d or not d.bp or not d.bp.Parent then pcall(bmRelease,e); continue end
+
+				local d=BM.data[e]
+				if not d or not d.bp or not d.bp.Parent then pcall(bmRelease,e); continue end
 				if d.arrived then continue end
-				local tp=Vector3.new((ap+d.offset).X,ap.Y+BM.yOff,(ap+d.offset).Z)
+
+				local tp=Vector3.new((ap+d.offset).X, ap.Y+BM.yOff, (ap+d.offset).Z)
 				local dist2=(hrp.Position-tp).Magnitude
 				local moved=(hrp.Position-d.lastPos).Magnitude
-				d.lastPos=hrp.Position; d.stuckTime=moved<.05 and d.stuckTime+.025 or 0
+				d.lastPos=hrp.Position
+				d.stuckTime=moved<.05 and d.stuckTime+.025 or 0
+
+				local h=bmHum(e)
+				if h then pcall(function() h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end) end
+				pcall(function() hrp.AssemblyLinearVelocity=Vector3.zero end)
+
 				pcall(function() d.bp.Position=tp end)
+
 				if dist2<=BM.snap then
 					pcall(function() d.bp:Destroy() end)
 					pcall(function() hrp.AssemblyLinearVelocity=Vector3.zero end)
-					local bv=Instance.new("BodyVelocity",hrp) bv.Name="BringMobBV" bv.MaxForce=Vector3.new(1e9,1e9,1e9) bv.Velocity=Vector3.zero
+
+					local bv=Instance.new("BodyVelocity",hrp)
+					bv.Name="BringMobBV"
+					bv.MaxForce=Vector3.new(1e9,1e9,1e9)
+					bv.Velocity=Vector3.zero
+
 					task.wait()
-					local fbp=Instance.new("BodyPosition",hrp) fbp.Name="BringMobBP_Fixed" fbp.MaxForce=Vector3.new(1e9,1e9,1e9) fbp.P=500000 fbp.D=10000 fbp.Position=hrp.Position
-					local bg=Instance.new("BodyGyro",hrp) bg.Name="BringMobBG" bg.MaxTorque=Vector3.new(1e9,1e9,1e9) bg.P=100000 bg.D=2000 bg.CFrame=hrp.CFrame
-					pcall(function() local h=bmHum(e); if h then h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end end)
+
+					local fbp=Instance.new("BodyPosition",hrp)
+					fbp.Name="BringMobBP_Fixed"
+					fbp.MaxForce=Vector3.new(1e9,1e9,1e9)
+					fbp.P=500000
+					fbp.D=10000
+					fbp.Position=hrp.Position
+
+					local bg=Instance.new("BodyGyro",hrp)
+					bg.Name="BringMobBG"
+					bg.MaxTorque=Vector3.new(1e9,1e9,1e9)
+					bg.P=100000
+					bg.D=2000
+					bg.CFrame=hrp.CFrame
+
+					if h then pcall(function() h.PlatformStand=true; h.WalkSpeed=0; h.JumpPower=0 end) end
+
 					task.delay(.5,function() if bv and bv.Parent then pcall(function() bv:Destroy() end) end end)
+
 					d.bp=fbp; d.bg=bg; d.bv=bv; d.arrived=true; d.fixedPos=hrp.Position
-				elseif d.stuckTime>=0.7 then d.offset=bmGetOff(); pcall(function() d.bp.P=100000 end); d.stuckTime=0 end
+
+				elseif d.stuckTime>=0.7 then
+					d.offset=bmGetOff()
+					pcall(function() d.bp.P=100000 end)
+					d.stuckTime=0
+				end
 			end
 		end
-		if BM.pin then BM.pin:Disconnect(); BM.pin=nil end
+
+		if BM.pin    then BM.pin:Disconnect();    BM.pin=nil end
 		if BM.noclip then BM.noclip:Disconnect(); BM.noclip=nil end
 		bmClean(); BM.task=nil
 	end)
@@ -503,45 +634,146 @@ end
 
 -- BRINGMOB V2
 local function stopBM2()
-	BM2.on=false; if BM2.task then BM2.task:Disconnect(); BM2.task=nil end
+	BM2.on=false
+	if BM2.task then BM2.task:Disconnect(); BM2.task=nil end
 end
 
 local function startBM2()
 	stopBM2(); BM2.on=true; BM2.resetTick=tick()
-	local bm2Warped={}; local noClipFrame=0; local warpFrame=0
+
+	local bm2Warped={}
+	local noClipFrame=0
+	local warpFrame=0
+	local enforceFrame=0
 	local WARP_EVERY=math.max(1,math.floor(BM2.interval/(1/60)))
+
 	BM2.task=Run.Stepped:Connect(function()
 		if not BM2.on then return end
-		noClipFrame=noClipFrame+1; warpFrame=warpFrame+1
+
+		noClipFrame=noClipFrame+1
+		warpFrame=warpFrame+1
+		enforceFrame=enforceFrame+1
+
 		if noClipFrame>=5 then
 			noClipFrame=0
 			local ef=WS:FindFirstChild("Enemies")
-			if ef then for _,e in ipairs(ef:GetChildren()) do if e and e.Parent then for _,p in ipairs(e:GetDescendants()) do if p:IsA("BasePart") and p.CanCollide then p.CanCollide=false end end end end end
+			if ef then
+				for _,e in ipairs(ef:GetChildren()) do
+					if e and e.Parent then
+						for _,p in ipairs(e:GetDescendants()) do
+							if p:IsA("BasePart") and p.CanCollide then
+								p.CanCollide=false
+							end
+						end
+					end
+				end
+			end
 		end
-		if warpFrame<WARP_EVERY then return end; warpFrame=0
+
+		if enforceFrame>=3 then
+			enforceFrame=0
+			for e in pairs(bm2Warped) do
+				if e and e.Parent then
+					local hrp=e:FindFirstChild("HumanoidRootPart") or e:FindFirstChild("Torso")
+					local hum=e:FindFirstChildOfClass("Humanoid")
+					if hrp and hum and hum.Health>0 then
+						pcall(function()
+							hum.PlatformStand=true
+							hum.WalkSpeed=0
+							hum.JumpPower=0
+							hrp.AssemblyLinearVelocity=Vector3.zero
+							hrp.AssemblyAngularVelocity=Vector3.zero
+						end)
+					end
+				end
+			end
+		end
+
+		if warpFrame<WARP_EVERY then return end
+		warpFrame=0
+
 		local char=lp.Character; if not char then return end
 		local myHRP=char:FindFirstChild("HumanoidRootPart"); if not myHRP then return end
 		local anchor=BM2.anchorPos or myHRP.Position
 		local targetY=anchor.Y+BM.yOff
-		if BM2.resetInterval>0 and (tick()-BM2.resetTick)>=BM2.resetInterval then BM2.resetTick=tick(); bm2Warped={} end
+
+		if BM2.resetInterval>0 and (tick()-BM2.resetTick)>=BM2.resetInterval then
+			BM2.resetTick=tick(); bm2Warped={}
+		end
+
 		local ef=WS:FindFirstChild("Enemies"); if not ef then return end
+
 		local warpedCount=0
 		for e in pairs(bm2Warped) do
-			if e and e.Parent then local hum=e:FindFirstChildOfClass("Humanoid"); if hum and hum.Health>0 then warpedCount=warpedCount+1 else bm2Warped[e]=nil end
-			else bm2Warped[e]=nil end
+			if e and e.Parent then
+				local hum=e:FindFirstChildOfClass("Humanoid")
+				if hum and hum.Health>0 then warpedCount=warpedCount+1
+				else bm2Warped[e]=nil end
+			else
+				bm2Warped[e]=nil
+			end
 		end
+
 		for _,e in ipairs(ef:GetChildren()) do
 			if not e or not e.Parent then continue end
 			local hrp=e:FindFirstChild("HumanoidRootPart") or e:FindFirstChild("Torso"); if not hrp then continue end
 			local hum=e:FindFirstChildOfClass("Humanoid"); if not hum or hum.Health<=0 then bm2Warped[e]=nil; continue end
+			if BRINGMOB_BLACKLIST[e.Name] then continue end
+
 			local ok,dist=pcall(function() return (anchor-hrp.Position).Magnitude end)
 			if not ok or dist>BM2.dist then continue end
-			if BRINGMOB_BLACKLIST[e.Name] then continue end
-			if not bm2Warped[e] then if warpedCount>=BM2.maxCount then continue end; bm2Warped[e]=true; warpedCount=warpedCount+1 end
-			pcall(function() hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero; hrp.CFrame=CFrame.new(anchor.X,targetY,anchor.Z); hrp.AssemblyLinearVelocity=Vector3.zero end)
-			pcall(function() hum.WalkSpeed=0; hum.JumpPower=0; hum.PlatformStand=true end)
+
+			if not bm2Warped[e] then
+				if warpedCount>=BM2.maxCount then continue end
+				bm2Warped[e]=true; warpedCount=warpedCount+1
+			end
+
+			pcall(function()
+				hrp.AssemblyLinearVelocity=Vector3.zero
+				hrp.AssemblyAngularVelocity=Vector3.zero
+				hrp.CFrame=CFrame.new(anchor.X, targetY, anchor.Z)
+				-- Kill velocity อีกครั้งหลัง teleport กัน skill knockback
+				hrp.AssemblyLinearVelocity=Vector3.zero
+				hrp.AssemblyAngularVelocity=Vector3.zero
+			end)
+			pcall(function()
+				hum.WalkSpeed=0
+				hum.JumpPower=0
+				hum.PlatformStand=true
+			end)
 		end
 	end)
+end
+
+local function startWalkOnWater()
+    walkOnWater.on = true
+    if walkOnWater.thread then task.cancel(walkOnWater.thread) end
+    walkOnWater.thread = task.spawn(function()
+        while walkOnWater.on do
+            pcall(function()
+                local map = WS:FindFirstChild("Map")
+                local wb = map and map:FindFirstChild("WaterBase-Plane")
+                if wb then
+                    local inWater = false
+                    if type(dzf) == "function" then
+                        local ok, res = pcall(dzf, "water")
+                        inWater = ok and res
+                    end
+                    wb.Size = Vector3.new(1000, inWater and 112 or 80, 1000)
+                end
+            end)
+            task.wait()
+        end
+    end)
+end
+
+local function stopWalkOnWater()
+    walkOnWater.on = false
+    if walkOnWater.thread then task.cancel(walkOnWater.thread); walkOnWater.thread = nil end
+    pcall(function()
+        local wb = WS:FindFirstChild("Map") and WS.Map:FindFirstChild("WaterBase-Plane")
+        if wb then wb.Size = Vector3.new(1000, 80, 1000) end
+    end)
 end
 
 -- WEBHOOK
@@ -587,11 +819,11 @@ local function sendWebhook(sessBeli,sessFrags,elapsed,source)
 		buildField("FPS / Ping",S.fps.." FPS | "..getPing().."ms",true),
 	}
 	_sendWH(url,{
-		username=tostring(cfg.WebhookName or "BloxHub"),
+		username=tostring(cfg.WebhookName or "KKKK Hub"),
 		embeds={{
 			title="Session Report — "..source, color=3066993,
 			description=pName.." | "..fmtS(elapsed or 0).."\nBeli "..sessBStr.." ("..wFmt(bPM).."/min)\nFrags "..sessFS.." ("..wFmt(fPM).."/min)",
-			fields=fields, footer={text="BloxHub Unified | Report #"..S.whTotal}, timestamp=ts(),
+			fields=fields, footer={text="KKKK Hub Unified | Report #"..S.whTotal}, timestamp=ts(),
 		}},
 	})
 end
@@ -732,39 +964,51 @@ end
 
 -- AUTO RERUN
 local function startRerun()
-	S.rerun = true
-	if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
-	task.spawn(function()
-		if not cfg.AutoRerunURL or cfg.AutoRerunURL == "" then
-			S.rerun = false
-			return
-		end
-		local loader = string.format(
-			'task.wait(5)\nlocal ok,src=pcall(game.HttpGet,game,"%s",true)\nif ok and src then local f=loadstring(src) if f then pcall(f) end end',
-			cfg.AutoRerunURL
-		)
-		local queued = false
-		local methods = {
-			function() return queueonteleport end,
-			function() return queue_on_teleport end,
-			function() return getgenv and getgenv().queueonteleport end,
-		}
-		for _, fn in ipairs(methods) do
-			local ok2, f = pcall(fn)
-			if ok2 and type(f) == "function" then
-				local ok3 = pcall(f, loader)
-				if ok3 then queued = true; break end
-			end
-		end
-		if not queued then S.rerun = false end
-	end)
+    S.rerun = true
+    cfg.AutoRerun = true
+    if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
+    task.spawn(function()
+        if not cfg.AutoRerunURL or cfg.AutoRerunURL == "" then
+            S.rerun = false
+            return
+        end
+        local loader = string.format(
+            'task.wait(5)\nlocal ok,src=pcall(game.HttpGet,game,"%s",true)\nif ok and src then local f=loadstring(src) if f then pcall(f) end end',
+            cfg.AutoRerunURL
+        )
+        local queued = false
+        local methods = {
+            function() return queueonteleport end,
+            function() return queue_on_teleport end,
+            function() return getgenv and getgenv().queueonteleport end,
+        }
+        for _, fn in ipairs(methods) do
+            local ok2, f = pcall(fn)
+            if ok2 and type(f) == "function" then
+                local ok3 = pcall(f, loader)
+                if ok3 then queued = true; break end
+            end
+        end
+        if not queued then S.rerun = false; cfg.AutoRerun = false end
+    end)
 end
 
 local function stopRerun()
-	S.rerun = false
-	if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
-	pcall(function() queueonteleport("") end)
-	pcall(function() queue_on_teleport("") end)
+    S.rerun = false
+    cfg.AutoRerun = false
+    if S.rerunThread then task.cancel(S.rerunThread); S.rerunThread = nil end
+    local cleared = false
+    local methods = {
+        function() if type(queueonteleport) == "function" then queueonteleport("") ; cleared = true end end,
+        function() if type(queue_on_teleport) == "function" then queue_on_teleport(""); cleared = true end end,
+        function()
+            if getgenv then
+                local g = getgenv()
+                if type(g.queueonteleport) == "function" then g.queueonteleport(""); cleared = true end
+            end
+        end,
+    }
+    for _, fn in ipairs(methods) do pcall(fn) end
 end
 
 -- PLAYER WATCHER
@@ -868,9 +1112,9 @@ end
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "BloxHub Unified Hub",
+   Name = "KKKK Hub",
    Icon = 0,
-   LoadingTitle = "BloxHub + M1 Aura",
+   LoadingTitle = "KKKK Hub",
    LoadingSubtitle = "Rayfield Interface Suite",
    Theme = "Default",
 
@@ -880,7 +1124,7 @@ local Window = Rayfield:CreateWindow({
    ConfigurationSaving = {
       Enabled = false,
       FolderName = nil,
-      FileName = "BloxHubUnifiedConfig"
+      FileName = "KKKK_Hub_Config"
    },
 
    Discord = {
@@ -895,7 +1139,7 @@ local Window = Rayfield:CreateWindow({
 local function notify(title, text)
     pcall(function()
         Rayfield:Notify({
-            Title = title or "BloxHub",
+            Title = title or "KKKK Hub",
             Content = text or "",
             Duration = 3
         })
@@ -1125,6 +1369,21 @@ local HideEnmToggle = BoostTab:CreateToggle({
    end,
 })
 
+BoostTab:CreateToggle({
+    Name = "Walk on Water",
+    CurrentValue = false,
+    Flag = "WalkOnWaterToggle",
+    Callback = function(Value)
+        if Value then
+            startWalkOnWater()
+            notify("Walk on Water", "Enabled")
+        else
+            stopWalkOnWater()
+            notify("Walk on Water", "Disabled")
+        end
+    end,
+})
+
 BoostTab:CreateInput({
    Name = "Set FPS Cap",
    PlaceholderText = "e.g. 60",
@@ -1250,6 +1509,7 @@ local RerunToggle = AutoRerunTab:CreateToggle({
    CurrentValue = cfg.AutoRerun,
    Flag = "RerunToggle",
    Callback = function(Value)
+      cfg.AutoRerun = Value
       if Value then
           startRerun()
           notify("Auto Rerun", "Enabled")
