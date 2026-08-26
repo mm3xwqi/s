@@ -1,23 +1,23 @@
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 
-local Window = Fluent:CreateWindow({
-    Title       = "KKKK Hub",
-    SubTitle    = "by Z",
-    TabWidth    = 160,
-    Size        = UDim2.fromOffset(400, 320),
-    Acrylic     = true,
-    Theme       = "Dark",
-    MinimizeKey = Enum.KeyCode.RightAlt
+local Options = Library.Options
+local Toggles = Library.Toggles
+
+local Window = Library:CreateWindow({
+    Title = "KKKK Hub",
+    Footer = "by Z",
+    ShowCustomCursor = true,
+    NotifySide = "Right",
 })
 
 local Tabs = {
-    Main     = Window:AddTab({ Title = "Main",     Icon = "sword"    }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+    Main            = Window:AddTab("Main", "sword"),
+    FarmSettings    = Window:AddTab("Farm Settings", "settings-2"),
+    ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
-
-local Options = Fluent.Options
 
 local Players           = game:GetService("Players")
 local RunService        = game:GetService("RunService")
@@ -35,16 +35,22 @@ local RegisterAttack = Net:FindFirstChild("RE/RegisterAttack")
 local RegisterHit    = Net:FindFirstChild("RE/RegisterHit")
 if not RegisterAttack or not RegisterHit then error("Remote events missing") end
 
+-- ==================== CONFIG ====================
 local SESSION_ID   = "32501259"
 local MAX_DISTANCE = 100
 local MIN_DISTANCE = 1
 local SPEED        = 250
-local HOVER_Y      = 25
 local REACH        = 6
 local ATTACK_RATE  = 0.05
-local BRING_RADIUS = 300
 local WEAPON_TYPES = {"Melee", "Sword", "Gun", "Fruit"}
 
+local OFFSET_X     = 0
+local OFFSET_Y     = 25
+local OFFSET_Z     = 0
+local BRING_RADIUS = 300
+local BRING_COUNT  = 1
+
+-- ==================== STATE ====================
 local autoNearEnabled    = false
 local autoFarmEnabled    = false
 local bringMobEnabled    = true
@@ -58,13 +64,15 @@ local farmConn           = nil
 local m1AuraThread       = nil
 local bringIndex         = 1
 local noclipConn         = nil
+local lockConn           = nil  -- ใหม่: ใช้ล็อคตำแหน่ง
 
 local cachedSpawnPositions = {}
 local spawnCacheBuilt      = false
 local enemyCacheBuilt      = false
 
-local function enableNoclip()
-    pcall(function() if noclipConn then noclipConn:Disconnect() end end)
+-- ==================== NOCLIP ====================
+local function startNoclip()
+    if noclipConn then noclipConn:Disconnect() end
     noclipConn = RunService.Stepped:Connect(function()
         local char = LocalPlayer.Character
         if not char then return end
@@ -76,12 +84,29 @@ local function enableNoclip()
     end)
 end
 
-local function disableNoclip()
-    pcall(function() if noclipConn then noclipConn:Disconnect() end end)
-    noclipConn = nil
+local function stopNoclip()
+    if noclipConn then noclipConn:Disconnect() noclipConn = nil end
 end
 
-local function refreshChar()
+-- ==================== POSITION LOCK ====================
+-- ล็อคตำแหน่งให้นิ่งสนิท ไม่ให้สกิล/dash ดันออก
+local function startPositionLock(targetCFrame)
+    if lockConn then lockConn:Disconnect() end
+    lockConn = RunService.RenderStepped:Connect(function()
+        pcall(function()
+            HRP.CFrame = targetCFrame
+            HRP.AssemblyLinearVelocity  = Vector3.zero
+            HRP.AssemblyAngularVelocity = Vector3.zero
+        end)
+    end)
+end
+
+local function stopPositionLock()
+    if lockConn then lockConn:Disconnect() lockConn = nil end
+end
+
+-- ==================== CHARACTER ====================
+local function updateCharacter()
     Character = LocalPlayer.Character
     if not Character then return false end
     HRP      = Character:FindFirstChild("HumanoidRootPart")
@@ -89,11 +114,12 @@ local function refreshChar()
     return HRP ~= nil and Humanoid ~= nil
 end
 
-local function stripLevel(name)
+-- ==================== UTILITY ====================
+local function cleanMonsterName(name)
     return (name:gsub("%s*%[.-%]", "")):match("^%s*(.-)%s*$")
 end
 
-local function getTargetPart(enemy)
+local function getHitPart(enemy)
     if not enemy or not enemy.Parent then return nil end
     for _, name in ipairs({"LeftLowerLeg", "Head", "HumanoidRootPart"}) do
         local p = enemy:FindFirstChild(name)
@@ -110,20 +136,23 @@ local function getEnemyRoot(enemy)
     return enemy:FindFirstChild("HumanoidRootPart")
 end
 
-local function getHoverCFrame(rootPart)
-    local rcf = rootPart.CFrame
-    return CFrame.new(rcf.Position + Vector3.new(0, HOVER_Y, 0)) * (rcf - rcf.Position)
+-- ตำแหน่งลอยเหนือมอน
+local function getHoverPosition(rootPart)
+    local rcf    = rootPart.CFrame
+    local offset = Vector3.new(OFFSET_X, OFFSET_Y, OFFSET_Z)
+    return CFrame.new(rcf.Position + offset) * (rcf - rcf.Position)
 end
 
-local function snapYToEnemy(rootPart)
+local function snapHeightToEnemy(rootPart)
     if not rootPart or not HRP then return end
     pcall(function()
         HRP.AssemblyLinearVelocity = Vector3.zero
-        local targetY = rootPart.Position.Y + HOVER_Y
+        local targetY = rootPart.Position.Y + OFFSET_Y
         HRP.CFrame = CFrame.new(HRP.Position.X, targetY, HRP.Position.Z) * HRP.CFrame.Rotation
     end)
 end
 
+-- ==================== SPAWN CACHE ====================
 local function buildSpawnCache(monsterName)
     if spawnCacheBuilt then return end
     cachedSpawnPositions = {}
@@ -131,7 +160,7 @@ local function buildSpawnCache(monsterName)
     if spawns then spawns = spawns:FindFirstChild("EnemySpawns") end
     if spawns then
         for _, part in ipairs(spawns:GetChildren()) do
-            if stripLevel(part.Name) == monsterName then
+            if cleanMonsterName(part.Name) == monsterName then
                 local pos = nil
                 if part:IsA("BasePart") then
                     pos = part.Position
@@ -152,12 +181,12 @@ local function buildSpawnCache(monsterName)
     spawnCacheBuilt = true
 end
 
-local function buildEnemyPositionCache(monsterName)
+local function buildEnemyCache(monsterName)
     if enemyCacheBuilt then return end
     local folder = workspace:FindFirstChild("Enemies")
     if not folder then return end
     for _, model in ipairs(folder:GetChildren()) do
-        if stripLevel(model.Name) == monsterName then
+        if cleanMonsterName(model.Name) == monsterName then
             local root = model:FindFirstChild("HumanoidRootPart")
             if root then
                 local pos = root.Position
@@ -172,13 +201,14 @@ local function buildEnemyPositionCache(monsterName)
     enemyCacheBuilt = true
 end
 
-local function ensureCache(monsterName)
+local function ensureSpawnCache(monsterName)
     buildSpawnCache(monsterName)
-    buildEnemyPositionCache(monsterName)
+    buildEnemyCache(monsterName)
 end
 
-local function getEnemies()
-    local list = {}
+-- ==================== ENEMY FINDER ====================
+local function getAllEnemies()
+    local list   = {}
     local folder = workspace:FindFirstChild("Enemies")
     if not folder then return list end
     for _, model in ipairs(folder:GetChildren()) do
@@ -191,9 +221,9 @@ local function getEnemies()
     return list
 end
 
-local function getNearestEnemy()
+local function getClosestEnemy()
     local best, bestDist = nil, math.huge
-    for _, model in ipairs(getEnemies()) do
+    for _, model in ipairs(getAllEnemies()) do
         local root = model:FindFirstChild("HumanoidRootPart")
         if root then
             local dist = (HRP.Position - root.Position).Magnitude
@@ -203,12 +233,12 @@ local function getNearestEnemy()
     return best
 end
 
-local function getEnemyByName(monsterName)
+local function findEnemyByName(monsterName)
     local folder = workspace:FindFirstChild("Enemies")
     if not folder then return nil end
     local best, bestDist = nil, math.huge
     for _, model in ipairs(folder:GetChildren()) do
-        if stripLevel(model.Name) == monsterName then
+        if cleanMonsterName(model.Name) == monsterName then
             local hum  = model:FindFirstChildOfClass("Humanoid")
             local root = model:FindFirstChild("HumanoidRootPart")
             if hum and root and hum.Health > 0 then
@@ -233,7 +263,7 @@ local function getEnemiesInRange()
         if enemy and enemy.Parent then
             local hum = enemy:FindFirstChild("Humanoid")
             if hum and hum.Health and hum.Health > 0 then
-                local part = getTargetPart(enemy)
+                local part = getHitPart(enemy)
                 if part and part.Parent then
                     local ok, pos = pcall(function() return part.Position end)
                     if ok and pos then
@@ -249,13 +279,13 @@ local function getEnemiesInRange()
     return results
 end
 
-local function getSpawnNames()
+local function getMonsterNames()
     local seen = {}
     local list = {}
     local spawns = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
     if spawns then
         for _, part in ipairs(spawns:GetChildren()) do
-            local clean = stripLevel(part.Name)
+            local clean = cleanMonsterName(part.Name)
             if clean ~= "" and not seen[clean] then
                 seen[clean] = true
                 table.insert(list, clean)
@@ -265,7 +295,7 @@ local function getSpawnNames()
     local enemies = workspace:FindFirstChild("Enemies")
     if enemies then
         for _, model in ipairs(enemies:GetChildren()) do
-            local clean = stripLevel(model.Name)
+            local clean = cleanMonsterName(model.Name)
             if clean ~= "" and not seen[clean] then
                 seen[clean] = true
                 table.insert(list, clean)
@@ -277,7 +307,8 @@ local function getSpawnNames()
     return list
 end
 
-local function findToolByTooltip(keyword)
+-- ==================== WEAPON ====================
+local function findWeapon(keyword)
     local char = LocalPlayer.Character
     if char then
         local held = char:FindFirstChildOfClass("Tool")
@@ -295,15 +326,16 @@ local function findToolByTooltip(keyword)
     return nil, false
 end
 
-local function equipByTooltip(keyword)
+local function equipWeapon(keyword)
     if not keyword or not Character then return end
-    local tool, alreadyEquipped = findToolByTooltip(keyword)
+    local tool, alreadyEquipped = findWeapon(keyword)
     if alreadyEquipped then return end
     if not tool then return end
     if Humanoid then Humanoid:EquipTool(tool) end
 end
 
-local function bringTickNearTarget(targetEnemy)
+-- ==================== BRING MOB ====================
+local function pullNearbyMobs(targetEnemy)
     local targetRoot = targetEnemy and targetEnemy:FindFirstChild("HumanoidRootPart")
     if not targetRoot then return end
     local targetPos = targetRoot.Position
@@ -327,19 +359,22 @@ local function bringTickNearTarget(targetEnemy)
         end
     end
     if #candidates == 0 then bringIndex = 1 return end
-    bringIndex = (bringIndex - 1) % #candidates + 1
-    local entry = candidates[bringIndex]
-    pcall(function()
-        for _, part in ipairs(entry.model:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
-        end
-        entry.root.CFrame = CFrame.new(targetPos)
-        entry.root.AssemblyLinearVelocity  = Vector3.zero
-        entry.root.AssemblyAngularVelocity = Vector3.zero
-    end)
+    for i = 1, math.min(BRING_COUNT, #candidates) do
+        bringIndex = (bringIndex - 1) % #candidates + 1
+        local entry = candidates[bringIndex]
+        pcall(function()
+            for _, part in ipairs(entry.model:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+            entry.root.CFrame = CFrame.new(targetPos)
+            entry.root.AssemblyLinearVelocity  = Vector3.zero
+            entry.root.AssemblyAngularVelocity = Vector3.zero
+        end)
+        bringIndex = bringIndex + 1
+    end
 end
 
-local function bringTickNearTargetByName(targetEnemy, monsterName)
+local function pullSameTypeMobs(targetEnemy, monsterName)
     local targetRoot = targetEnemy and targetEnemy:FindFirstChild("HumanoidRootPart")
     if not targetRoot then return end
     local targetPos = targetRoot.Position
@@ -352,7 +387,7 @@ local function bringTickNearTargetByName(targetEnemy, monsterName)
     if not folder then return end
     local candidates = {}
     for _, model in ipairs(folder:GetChildren()) do
-        if model ~= targetEnemy and stripLevel(model.Name) == monsterName then
+        if model ~= targetEnemy and cleanMonsterName(model.Name) == monsterName then
             local hum  = model:FindFirstChildOfClass("Humanoid")
             local root = model:FindFirstChild("HumanoidRootPart")
             if hum and root and hum.Health > 0 then
@@ -363,26 +398,30 @@ local function bringTickNearTargetByName(targetEnemy, monsterName)
         end
     end
     if #candidates == 0 then bringIndex = 1 return end
-    bringIndex = (bringIndex - 1) % #candidates + 1
-    local entry = candidates[bringIndex]
-    pcall(function()
-        for _, part in ipairs(entry.model:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
-        end
-        entry.root.CFrame = CFrame.new(targetPos)
-        entry.root.AssemblyLinearVelocity  = Vector3.zero
-        entry.root.AssemblyAngularVelocity = Vector3.zero
-    end)
+    for i = 1, math.min(BRING_COUNT, #candidates) do
+        bringIndex = (bringIndex - 1) % #candidates + 1
+        local entry = candidates[bringIndex]
+        pcall(function()
+            for _, part in ipairs(entry.model:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+            entry.root.CFrame = CFrame.new(targetPos)
+            entry.root.AssemblyLinearVelocity  = Vector3.zero
+            entry.root.AssemblyAngularVelocity = Vector3.zero
+        end)
+        bringIndex = bringIndex + 1
+    end
 end
 
-local function stopM1Aura()
+-- ==================== M1 AURA ====================
+local function stopAttackLoop()
     if m1AuraThread then task.cancel(m1AuraThread) m1AuraThread = nil end
 end
 
-local function spawnAuraLoop(runCondition)
-    stopM1Aura()
+local function startAttackLoop(shouldRun)
+    stopAttackLoop()
     m1AuraThread = task.spawn(function()
-        while runCondition() do
+        while shouldRun() do
             local enemies = getEnemiesInRange()
             if #enemies > 0 then
                 table.sort(enemies, function(a, b) return a.dist < b.dist end)
@@ -406,11 +445,11 @@ local function spawnAuraLoop(runCondition)
     end)
 end
 
-local function startM1Aura()           spawnAuraLoop(function() return autoNearEnabled or autoFarmEnabled end) end
-local function startM1AuraStandalone() spawnAuraLoop(function() return m1AuraEnabled end) end
+local function startAuraWithFarm()       startAttackLoop(function() return autoNearEnabled or autoFarmEnabled end) end
+local function startAuraStandalone()     startAttackLoop(function() return m1AuraEnabled end) end
 
-local function moveCFrameToward(hrp, targetCF, dt)
-    pcall(function() hrp.AssemblyLinearVelocity = Vector3.zero end)
+-- ==================== MOVEMENT ====================
+local function moveToTarget(hrp, targetCF, dt)
     local targetPos  = targetCF.Position
     local currentPos = hrp.Position
     local fromPos    = Vector3.new(currentPos.X, targetPos.Y, currentPos.Z)
@@ -418,86 +457,106 @@ local function moveCFrameToward(hrp, targetCF, dt)
     local dist       = delta.Magnitude
     local step       = SPEED * dt
     local newPos     = (dist <= step or dist < 0.01) and targetPos or fromPos + (delta / dist) * step
+
+    local lookDir = targetPos - newPos
+    local finalCF
+    if lookDir.Magnitude > 0.01 then
+        lookDir = Vector3.new(lookDir.X, 0, lookDir.Z)
+        finalCF = CFrame.new(newPos, newPos + lookDir)
+    else
+        finalCF = CFrame.new(newPos) * targetCF.Rotation
+    end
+
+    -- ล็อคแรงทุก frame ระหว่างเดินทาง ไม่ให้สกิลดัน
     pcall(function()
-        hrp.CFrame = CFrame.new(newPos) * targetCF.Rotation
+        hrp.CFrame = finalCF
+        hrp.AssemblyLinearVelocity  = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
     end)
 end
 
-local function startFollow()
+-- ==================== AUTO NEAR ====================
+local function startAutoNear()
     if followConn then followConn:Disconnect() end
     local prevEnemy = nil
 
     followConn = RunService.Heartbeat:Connect(function(dt)
         if not autoNearEnabled then
-            followConn:Disconnect() followConn = nil
-            stopM1Aura()
+            followConn:Disconnect()
+            followConn = nil
+            stopAttackLoop()
+            stopPositionLock()
             return
         end
-        if not refreshChar() then return end
-        equipByTooltip(selectedWeaponType)
+        if not updateCharacter() then return end
+        equipWeapon(selectedWeaponType)
 
         local enemyHum  = currentEnemy and currentEnemy:FindFirstChildOfClass("Humanoid")
         local enemyRoot = currentEnemy and currentEnemy:FindFirstChild("HumanoidRootPart")
 
         if not currentEnemy or not enemyRoot or not enemyHum or enemyHum.Health <= 0 then
-            stopM1Aura()
+            stopAttackLoop()
+            stopPositionLock()
             trackedRoot  = nil
-            currentEnemy = getNearestEnemy()
+            currentEnemy = getClosestEnemy()
             prevEnemy    = nil
             if not currentEnemy then return end
             trackedRoot = getEnemyRoot(currentEnemy)
-            snapYToEnemy(trackedRoot)
+            snapHeightToEnemy(trackedRoot)
         end
 
         if not trackedRoot or not trackedRoot.Parent then
             trackedRoot = getEnemyRoot(currentEnemy)
             if not trackedRoot then return end
-            snapYToEnemy(trackedRoot)
+            snapHeightToEnemy(trackedRoot)
         end
 
-        if bringMobEnabled then bringTickNearTarget(currentEnemy) end
+        if bringMobEnabled then pullNearbyMobs(currentEnemy) end
 
-        local targetCF = getHoverCFrame(trackedRoot)
+        local targetCF = getHoverPosition(trackedRoot)
         local dist     = (targetCF.Position - HRP.Position).Magnitude
 
         if dist > REACH then
-            stopM1Aura()
+            -- กำลังเดินทาง: หยุดล็อค แล้วเดินตรงๆ
+            stopPositionLock()
+            stopAttackLoop()
             prevEnemy = nil
-            moveCFrameToward(HRP, targetCF, dt)
+            moveToTarget(HRP, targetCF, dt)
         else
-            pcall(function()
-                HRP.AssemblyLinearVelocity = Vector3.zero
-                HRP.CFrame = targetCF
-            end)
+            -- ถึงแล้ว: ล็อคตำแหน่งไว้เลย ไม่ให้ขยับ
+            startPositionLock(targetCF)
             if currentEnemy ~= prevEnemy then
                 prevEnemy = currentEnemy
-                startM1Aura()
+                startAuraWithFarm()
             end
         end
     end)
 end
 
-local function startFarm()
+-- ==================== AUTO FARM ====================
+local function startAutoFarm()
     if farmConn then farmConn:Disconnect() end
-    local prevEnemy     = nil
-    local spawnIdx      = 1
-    local isSnapping    = false
-    local snapDone      = false
-    local lastSpawnPos  = nil
+    local prevEnemy    = nil
+    local spawnIdx     = 1
+    local isSnapping   = false
+    local snapDone     = false
+    local lastSpawnPos = nil
 
     farmConn = RunService.Heartbeat:Connect(function(dt)
         if not autoFarmEnabled then
-            farmConn:Disconnect() farmConn = nil
-            stopM1Aura()
+            farmConn:Disconnect()
+            farmConn = nil
+            stopAttackLoop()
+            stopPositionLock()
             return
         end
-        if not refreshChar() then return end
+        if not updateCharacter() then return end
         if not selectedMonster then return end
-        equipByTooltip(selectedWeaponType)
+        equipWeapon(selectedWeaponType)
 
-        ensureCache(selectedMonster)
+        ensureSpawnCache(selectedMonster)
 
-        local target = getEnemyByName(selectedMonster)
+        local target = findEnemyByName(selectedMonster)
 
         if target then
             isSnapping   = false
@@ -508,8 +567,7 @@ local function startFarm()
             local enemyHum  = target:FindFirstChildOfClass("Humanoid")
             local enemyRoot = target:FindFirstChild("HumanoidRootPart")
             if not enemyRoot or not enemyHum or enemyHum.Health <= 0 then
-                trackedRoot = nil
-                return
+                trackedRoot = nil return
             end
 
             if currentEnemy ~= target then
@@ -519,31 +577,31 @@ local function startFarm()
 
             if trackedRoot == nil or trackedRoot.Parent == nil or not target:IsAncestorOf(trackedRoot) then
                 trackedRoot = getEnemyRoot(target)
-                snapYToEnemy(trackedRoot)
+                snapHeightToEnemy(trackedRoot)
             end
             if not trackedRoot then return end
 
-            if bringMobEnabled then bringTickNearTargetByName(target, selectedMonster) end
+            if bringMobEnabled then pullSameTypeMobs(target, selectedMonster) end
 
-            local targetCF = getHoverCFrame(trackedRoot)
+            local targetCF = getHoverPosition(trackedRoot)
             local dist     = (targetCF.Position - HRP.Position).Magnitude
 
             if dist > REACH then
-                stopM1Aura()
+                stopPositionLock()
+                stopAttackLoop()
                 prevEnemy = nil
-                moveCFrameToward(HRP, targetCF, dt)
+                moveToTarget(HRP, targetCF, dt)
             else
-                pcall(function()
-                    HRP.AssemblyLinearVelocity = Vector3.zero
-                    HRP.CFrame = targetCF
-                end)
+                -- ถึงแล้ว: ล็อคตำแหน่งไว้เลย
+                startPositionLock(targetCF)
                 if target ~= prevEnemy then
                     prevEnemy = target
-                    startM1Aura()
+                    startAuraWithFarm()
                 end
             end
         else
-            stopM1Aura()
+            stopAttackLoop()
+            stopPositionLock()
             prevEnemy    = nil
             currentEnemy = nil
             trackedRoot  = nil
@@ -551,7 +609,7 @@ local function startFarm()
             if #cachedSpawnPositions == 0 then return end
             if spawnIdx > #cachedSpawnPositions then spawnIdx = 1 end
 
-            local spawnPos = cachedSpawnPositions[spawnIdx] + Vector3.new(0, HOVER_Y, 0)
+            local spawnPos = cachedSpawnPositions[spawnIdx] + Vector3.new(OFFSET_X, OFFSET_Y, OFFSET_Z)
 
             pcall(function() HRP.AssemblyLinearVelocity = Vector3.zero end)
 
@@ -582,7 +640,8 @@ local function startFarm()
                 local step   = SPEED * dt
                 local newPos = HRP.Position + delta.Unit * step
                 pcall(function()
-                    HRP.AssemblyLinearVelocity = Vector3.zero
+                    HRP.AssemblyLinearVelocity  = Vector3.zero
+                    HRP.AssemblyAngularVelocity = Vector3.zero
                     HRP.CFrame = CFrame.new(newPos)
                 end)
             else
@@ -593,46 +652,70 @@ local function startFarm()
     end)
 end
 
-local weaponDropdown = Tabs.Main:AddDropdown("WeaponSelect", {
-    Title   = "Equip Item",
+-- ==================== UI: MAIN TAB ====================
+local LeftGroup  = Tabs.Main:AddLeftGroupbox("Combat")
+local RightGroup = Tabs.Main:AddRightGroupbox("Farm")
+
+LeftGroup:AddDropdown("WeaponSelect", {
     Values  = WEAPON_TYPES,
-    Multi   = false,
     Default = 1,
+    Multi   = false,
+    Text    = "Equip Item",
 })
-weaponDropdown:OnChanged(function(value)
-    selectedWeaponType = value
-    if autoNearEnabled or autoFarmEnabled then equipByTooltip(value) end
+Options.WeaponSelect:OnChanged(function()
+    selectedWeaponType = Options.WeaponSelect.Value
+    if autoNearEnabled or autoFarmEnabled then equipWeapon(Options.WeaponSelect.Value) end
 end)
 selectedWeaponType = WEAPON_TYPES[1]
 
-local ToggleAuto = Tabs.Main:AddToggle("AutoNear", { Title = "Auto Nears", Default = false })
-ToggleAuto:OnChanged(function()
-    autoNearEnabled = Options.AutoNear.Value
+LeftGroup:AddToggle("AutoNear", {
+    Text    = "Auto Farm Nears",
+    Default = false,
+})
+Toggles.AutoNear:OnChanged(function()
+    autoNearEnabled = Toggles.AutoNear.Value
     if autoNearEnabled then
         currentEnemy = nil
         trackedRoot  = nil
-        enableNoclip()
-        startFollow()
-        Fluent:Notify({ Title = "Auto Nears", Content = "Enabled", Duration = 3 })
+        startNoclip()
+        startAutoNear()
+        Library:Notify({ Title = "Auto Nears", Description = "Enabled", Time = 3 })
     else
-        stopM1Aura()
-        disableNoclip()
-        if m1AuraEnabled then startM1AuraStandalone() end
-        Fluent:Notify({ Title = "Auto Nears", Content = "Disabled", Duration = 3 })
+        stopAttackLoop()
+        stopPositionLock()
+        stopNoclip()
+        if m1AuraEnabled then startAuraStandalone() end
+        Library:Notify({ Title = "Auto Nears", Description = "Disabled", Time = 3 })
     end
 end)
 
-local spawnNames = getSpawnNames()
+LeftGroup:AddToggle("M1Aura", {
+    Text    = "M1 Aura",
+    Default = false,
+})
+Toggles.M1Aura:OnChanged(function()
+    m1AuraEnabled = Toggles.M1Aura.Value
+    if m1AuraEnabled then
+        if not autoNearEnabled and not autoFarmEnabled then startAuraStandalone() end
+        Library:Notify({ Title = "M1 Aura", Description = "Enabled", Time = 3 })
+    else
+        if not autoNearEnabled and not autoFarmEnabled then stopAttackLoop() end
+        Library:Notify({ Title = "M1 Aura", Description = "Disabled", Time = 3 })
+    end
+end)
+
+local spawnNames = getMonsterNames()
 selectedMonster  = spawnNames[1]
 
-local monsterDropdown = Tabs.Main:AddDropdown("MonsterSelect", {
-    Title   = "Select Monster",
-    Values  = spawnNames,
-    Multi   = false,
-    Default = 1,
+RightGroup:AddDropdown("MonsterSelect", {
+    Values     = spawnNames,
+    Default    = 1,
+    Multi      = false,
+    Text       = "Select Monster",
+    Searchable = true,
 })
-monsterDropdown:OnChanged(function(value)
-    selectedMonster      = value
+Options.MonsterSelect:OnChanged(function()
+    selectedMonster      = Options.MonsterSelect.Value
     currentEnemy         = nil
     trackedRoot          = nil
     cachedSpawnPositions = {}
@@ -640,89 +723,165 @@ monsterDropdown:OnChanged(function(value)
     enemyCacheBuilt      = false
 end)
 
-Tabs.Main:AddButton({
-    Title    = "Refresh Monster List",
-    Callback = function()
-        local newNames = getSpawnNames()
-        monsterDropdown:SetValues(newNames)
+RightGroup:AddButton({
+    Text = "Refresh Monster List",
+    Func = function()
+        local newNames = getMonsterNames()
+        Options.MonsterSelect:SetValues(newNames)
         selectedMonster      = newNames[1]
         cachedSpawnPositions = {}
         spawnCacheBuilt      = false
         enemyCacheBuilt      = false
-        Fluent:Notify({ Title = "Refreshed", Content = #newNames .. " monsters found", Duration = 3 })
-    end
+        Library:Notify({ Title = "Refreshed", Description = #newNames .. " monsters found", Time = 3 })
+    end,
 })
 
-local ToggleFarm = Tabs.Main:AddToggle("AutoFarm", { Title = "Auto Farm Select", Default = false })
-ToggleFarm:OnChanged(function()
-    autoFarmEnabled = Options.AutoFarm.Value
+RightGroup:AddToggle("AutoFarm", {
+    Text    = "Auto Farm Select",
+    Default = false,
+})
+Toggles.AutoFarm:OnChanged(function()
+    autoFarmEnabled = Toggles.AutoFarm.Value
     if autoFarmEnabled then
         currentEnemy         = nil
         trackedRoot          = nil
         cachedSpawnPositions = {}
         spawnCacheBuilt      = false
         enemyCacheBuilt      = false
-        enableNoclip()
-        startFarm()
-        Fluent:Notify({ Title = "Auto Farm Select", Content = "Farming: " .. (selectedMonster or "?"), Duration = 3 })
+        startNoclip()
+        startAutoFarm()
+        Library:Notify({ Title = "Auto Farm", Description = "Farming: " .. (selectedMonster or "?"), Time = 3 })
     else
-        stopM1Aura()
-        disableNoclip()
-        if m1AuraEnabled then startM1AuraStandalone() end
-        Fluent:Notify({ Title = "Auto Farm Select", Content = "Disabled", Duration = 3 })
+        stopAttackLoop()
+        stopPositionLock()
+        stopNoclip()
+        if m1AuraEnabled then startAuraStandalone() end
+        Library:Notify({ Title = "Auto Farm", Description = "Disabled", Time = 3 })
     end
 end)
 
-local ToggleBring = Tabs.Main:AddToggle("BringMob", { Title = "Bring Mob", Default = true })
-ToggleBring:OnChanged(function()
-    bringMobEnabled = Options.BringMob.Value
-    Fluent:Notify({ Title = "Bring Mob", Content = bringMobEnabled and "ON" or "OFF", Duration = 3 })
+RightGroup:AddToggle("BringMob", {
+    Text    = "Bring Mob",
+    Default = true,
+})
+Toggles.BringMob:OnChanged(function()
+    bringMobEnabled = Toggles.BringMob.Value
+    Library:Notify({ Title = "Bring Mob", Description = bringMobEnabled and "ON" or "OFF", Time = 3 })
 end)
 
-local ToggleM1 = Tabs.Main:AddToggle("M1Aura", { Title = "M1 Aura", Default = false })
-ToggleM1:OnChanged(function()
-    m1AuraEnabled = Options.M1Aura.Value
-    if m1AuraEnabled then
-        if not autoNearEnabled and not autoFarmEnabled then startM1AuraStandalone() end
-        Fluent:Notify({ Title = "M1 Aura", Content = "Enabled", Duration = 3 })
-    else
-        if not autoNearEnabled and not autoFarmEnabled then stopM1Aura() end
-        Fluent:Notify({ Title = "M1 Aura", Content = "Disabled", Duration = 3 })
-    end
+-- ==================== UI: FARM SETTINGS TAB ====================
+local FarmLeft  = Tabs.FarmSettings:AddLeftGroupbox("Position Offset")
+local FarmRight = Tabs.FarmSettings:AddRightGroupbox("Bring Mob Settings")
+
+FarmLeft:AddSlider("OffsetX", {
+    Text = "Offset X", Min = -50, Max = 50, Default = 0, Rounding = 0,
+})
+Options.OffsetX:OnChanged(function()
+    OFFSET_X = tonumber(Options.OffsetX.Value) or 0
 end)
 
+FarmLeft:AddSlider("OffsetY", {
+    Text = "Offset Y", Min = 0, Max = 100, Default = 25, Rounding = 0,
+})
+Options.OffsetY:OnChanged(function()
+    OFFSET_Y = tonumber(Options.OffsetY.Value) or 25
+end)
+
+FarmLeft:AddSlider("OffsetZ", {
+    Text = "Offset Z", Min = -50, Max = 50, Default = 0, Rounding = 0,
+})
+Options.OffsetZ:OnChanged(function()
+    OFFSET_Z = tonumber(Options.OffsetZ.Value) or 0
+end)
+
+FarmRight:AddSlider("BringRadius", {
+    Text = "BringMob Distance", Min = 50, Max = 2000, Default = 300, Rounding = 10,
+})
+Options.BringRadius:OnChanged(function()
+    BRING_RADIUS = tonumber(Options.BringRadius.Value) or 300
+end)
+
+FarmRight:AddSlider("BringCount", {
+    Text = "Bring Mob count", Min = 1, Max = 6, Default = 1, Rounding = 0,
+})
+Options.BringCount:OnChanged(function()
+    BRING_COUNT = tonumber(Options.BringCount.Value) or 1
+end)
+
+FarmRight:AddButton({
+    Text = "Reset Value Default",
+    Func = function()
+        OFFSET_X     = 0
+        OFFSET_Y     = 25
+        OFFSET_Z     = 0
+        BRING_RADIUS = 300
+        BRING_COUNT  = 1
+        Options.OffsetX:SetValue(0)
+        Options.OffsetY:SetValue(25)
+        Options.OffsetZ:SetValue(0)
+        Options.BringRadius:SetValue(300)
+        Options.BringCount:SetValue(1)
+        Library:Notify({ Title = "Reset", Description = "Reset", Time = 3 })
+    end,
+})
+
+-- ==================== UI: UI SETTINGS TAB ====================
+local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu")
+
+MenuGroup:AddLabel("Menu bind")
+    :AddKeyPicker("MenuKeybind", { Default = "RightAlt", NoUI = true, Text = "Menu keybind" })
+
+MenuGroup:AddButton({
+    Text = "Unload",
+    Func = function()
+        autoNearEnabled = false
+        autoFarmEnabled = false
+        m1AuraEnabled   = false
+        stopAttackLoop()
+        stopPositionLock()
+        stopNoclip()
+        if followConn then followConn:Disconnect() followConn = nil end
+        if farmConn   then farmConn:Disconnect()   farmConn   = nil end
+        Library:Unload()
+    end,
+})
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+-- ==================== CHARACTER RESPAWN ====================
 LocalPlayer.CharacterAdded:Connect(function(newChar)
     Character    = newChar
     HRP          = newChar:WaitForChild("HumanoidRootPart")
     Humanoid     = newChar:WaitForChild("Humanoid")
     currentEnemy = nil
     trackedRoot  = nil
+    stopPositionLock()
     task.wait(1)
     if autoNearEnabled then
-        enableNoclip()
-        startFollow()
+        startNoclip()
+        startAutoNear()
     end
     if autoFarmEnabled then
         cachedSpawnPositions = {}
         spawnCacheBuilt      = false
         enemyCacheBuilt      = false
-        enableNoclip()
-        startFarm()
+        startNoclip()
+        startAutoFarm()
     end
     if m1AuraEnabled and not autoNearEnabled and not autoFarmEnabled then
-        startM1AuraStandalone()
+        startAuraStandalone()
     end
 end)
 
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
+-- ==================== SAVE / THEME ====================
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("AutoMonsterHub")
-SaveManager:SetFolder("AutoMonsterHub/config")
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+ThemeManager:SetFolder("KKKKHub")
+SaveManager:SetFolder("KKKKHub/config")
+SaveManager:BuildConfigSection(Tabs["UI Settings"])
+ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
-Window:SelectTab(1)
-Fluent:Notify({ Title = "KKKK Hub", Content = "Loaded.", Duration = 6 })
+Library:Notify({ Title = "KKKK Hub", Description = "Loaded.", Time = 6 })
 SaveManager:LoadAutoloadConfig()
