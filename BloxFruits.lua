@@ -15,6 +15,7 @@ local Window = Library:CreateWindow({
 
 local Tabs = {
     Main            = Window:AddTab("Main", "sword"),
+    Teleport        = Window:AddTab("Teleport", "map-pin"),
     FarmSettings    = Window:AddTab("Farm Settings", "settings-2"),
     ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
@@ -49,28 +50,114 @@ local OFFSET_Y     = 25
 local OFFSET_Z     = 0
 local BRING_RADIUS = 300
 local BRING_COUNT  = 1
-local BRING_MODES  = {"Instant (Best For Private server)", "Ultra Smooth(Best For Public Server)"}
+local BRING_MODES  = {"Instant (BestPrivate server)", "Smooth (Best Public Server)"}
+
+-- ==================== TELEPORT DATA ====================
+local TELEPORT_LOCATIONS = {
+    [2753915549] = {
+        WorldName = "Old World (Sea 1)",
+        Locations = {
+            { Name = "Pirate Starter",      Pos = Vector3.new(885, 17, 1429) },
+            { Name = "Middle Island",       Pos = Vector3.new(-690, 15, 1584) },
+            { Name = "Marine Starter",      Pos = Vector3.new(-2600, 7, 2068) },
+            { Name = "Jungle island",       Pos = Vector3.new(-1445, 62, -34) },
+            { Name = "Pirate island",       Pos = Vector3.new(-1218, 5, 3922) },
+            { Name = "Desert island",       Pos = Vector3.new(942, 21, 4372) },
+            { Name = "Snow island",         Pos = Vector3.new(1345, 106, -1319) },
+            { Name = "Sky",                 Pos = Vector3.new(-4817, 718, -2628) },
+            { Name = "sky 1",               Pos = Vector3.new(-4714, 853, -1932) },
+            { Name = "sky 2",               Pos = Vector3.new(-7921, 5566, -379) },
+            { Name = "Usop",                Pos = Vector3.new(-7990, 5756, -1927) },
+            { Name = "Colosseum island",    Pos = Vector3.new(-1453, 7, -2848) },
+            { Name = "Fishmen island",      Pos = Vector3.new(3906, 5, -1893) },
+            { Name = "Prison island",       Pos = Vector3.new(5010, 89, 738) },
+            { Name = "Fountain island",     Pos = Vector3.new(5273, 81, 3987) },
+            { Name = "Magma island",        Pos = Vector3.new(-5241, 9, 8413) },
+            { Name = "MarineBase island",   Pos = Vector3.new(-4816, 21, 4360) },
+            { Name = "Mob Leader",          Pos = Vector3.new(-2844, 7, 5309) },
+        }
+    },
+    [4442272183] = {
+        WorldName = "Second World (Sea 2)",
+        Locations = {
+            { Name = "Dock 1",              Pos = Vector3.new(-10, 39, 2703) },
+            { Name = "Mansion",             Pos = Vector3.new(-393, 360, 546) },
+            { Name = "Cafe",                Pos = Vector3.new(-373, 73, 296) },
+            { Name = "Race Evo",            Pos = Vector3.new(-2007, 126, -74) },
+            { Name = "Dock 2",              Pos = Vector3.new(-1917, 6, -2546) },
+            { Name = "Green Zone",          Pos = Vector3.new(-2456, 87, -3188) },
+            { Name = "TTk",                 Pos = Vector3.new(-2573, 1626, -3742) },
+            { Name = "Ice island",          Pos = Vector3.new(-5897, 29, -5055) },
+            { Name = "Hot island",          Pos = Vector3.new(-5012, 176, -5320) },
+            { Name = "Forgotten island",    Pos = Vector3.new(-3043, 240, -10140) },
+            { Name = "IceCastle island",    Pos = Vector3.new(6000, 294, -6611) },
+            { Name = "SnowMountain island", Pos = Vector3.new(800, 412, -5250) },
+            { Name = "Raid",                Pos = Vector3.new(-6483, 305, -4736) },
+            { Name = "ZombieVampire island",Pos = Vector3.new(-5648, 185, -888) },
+            { Name = "Ship island",         Pos = Vector3.new(-6525, 83, -156) },
+        }
+    },
+    [7449423635] = {
+        WorldName = "Third World (Sea 3)",
+        Locations = {
+            { Name = "port town",           Pos = Vector3.new(-340, 21, 5538) },
+            { Name = "Castle island",       Pos = Vector3.new(-5135, 314, -2957) },
+            { Name = "Hydra town",          Pos = Vector3.new(5295, 1005, 380) },
+            { Name = "Hydra Arena",         Pos = Vector3.new(5016, 59, -1556) },
+            { Name = "Mansion turtle",      Pos = Vector3.new(-12551, 337, -7481) },
+            { Name = "beautiful pirate",    Pos = Vector3.new(5372, 22, -306) },
+            { Name = "Tiki island",         Pos = Vector3.new(-16398, 528, 403) },
+            { Name = "Haunted Castle",      Pos = Vector3.new(-9512, 142, 5540) },
+            { Name = "Katakuri island",     Pos = Vector3.new(-2094, 70, -12125) },
+            { Name = "Bigmom island",       Pos = Vector3.new(-890, 66, -10899) },
+            { Name = "Chocolate island",    Pos = Vector3.new(-6, 21, -12049) },
+            { Name = "North Pole",          Pos = Vector3.new(-1096, 64, -14515) },
+            { Name = "Great tree",          Pos = Vector3.new(2391, 74, -7006) },
+            { Name = "Upper Great tree",    Pos = Vector3.new(3038, 2281, -7325) },
+        }
+    }
+}
+
+local function getIslandNamesAndMap(placeId)
+    local data = TELEPORT_LOCATIONS[placeId] or TELEPORT_LOCATIONS[2753915549]
+    local names = {}
+    local map = {}
+    for _, loc in ipairs(data.Locations) do
+        table.insert(names, loc.Name)
+        map[loc.Name] = loc.Pos
+    end
+    return names, map, data.WorldName
+end
 
 -- ==================== STATE ====================
-local autoNearEnabled    = false
-local autoFarmEnabled    = false
-local bringMobEnabled    = true
-local bringMobMode       = "Instant"
-local m1AuraEnabled      = false
-local selectedWeaponType = "Melee"
-local selectedMonster    = nil
-local currentEnemy       = nil
-local trackedRoot        = nil
-local followConn         = nil
-local farmConn           = nil
-local m1AuraThread       = nil
-local noclipConn         = nil
-local lockConn           = nil
-local currentFlyCF       = nil
+local autoNearEnabled      = false
+local autoFarmEnabled      = false
+local bringMobEnabled      = true
+local bringMobMode         = "Instant"
+local m1AuraEnabled        = false
+local teleportTweenEnabled = false
 
-local cachedSpawnsByName = {}
-local lastMonsterListStr = ""
-local smoothData         = {} -- เก็บข้อมูล BodyMovers สำหรับ Ultra Smooth
+local selectedWeaponType   = "Melee"
+local selectedMonsterList  = {} -- ลิสต์มอนสเตอร์เรียงตามลำดับ Priority
+local currentEnemy         = nil
+local trackedRoot          = nil
+local followConn           = nil
+local farmConn             = nil
+local teleportConn         = nil
+local m1AuraThread         = nil
+local noclipConn           = nil
+local lockConn             = nil
+local currentFlyCF         = nil
+
+local selectedIslandName   = nil
+local selectedIslandPos    = nil
+
+local cachedSpawnsByName   = {}
+local smoothData           = {}
+
+-- Master Database สำหรับจดจำมอนสเตอร์ถาวร
+local discoveredMonsters   = {}
+local masterMonsterList    = {}
 
 -- ==================== NOCLIP & ANTI-FORCE ====================
 local function startNoclip()
@@ -110,7 +197,7 @@ local function startPositionLock()
         pcall(function() Humanoid.AutoRotate = false end)
     end
     lockConn = RunService.RenderStepped:Connect(function()
-        if not (autoNearEnabled or autoFarmEnabled) then
+        if not (autoNearEnabled or autoFarmEnabled or teleportTweenEnabled) then
             if lockConn then lockConn:Disconnect() lockConn = nil end
             return
         end
@@ -138,7 +225,7 @@ local function updateCharacter()
     if not Character then return false end
     HRP      = Character:FindFirstChild("HumanoidRootPart")
     Humanoid = Character:FindFirstChild("Humanoid")
-    if Humanoid and (autoNearEnabled or autoFarmEnabled) then
+    if Humanoid and (autoNearEnabled or autoFarmEnabled or teleportTweenEnabled) then
         Humanoid.AutoRotate = false
     end
     return HRP ~= nil and Humanoid ~= nil
@@ -146,7 +233,8 @@ end
 
 -- ==================== UTILITY ====================
 local function cleanMonsterName(name)
-    return (name:gsub("%s*%[.-%]", "")):match("^%s*(.-)%s*$")
+    if not name then return "" end
+    return (name:gsub("%s*%[.-%]", "")):match("^%s*(.-)%s*$") or ""
 end
 
 local function getHitPart(enemy)
@@ -256,7 +344,42 @@ local function getEnemySpawnPosition(targetEnemy)
     return bestPos
 end
 
--- ==================== ENEMY FINDER ====================
+-- ==================== ENEMY FINDER & PERSISTENT CACHE ====================
+local function addDiscoveredMonster(rawName)
+    local clean = cleanMonsterName(rawName)
+    if clean and clean ~= "" and clean ~= "(ไม่พบมอน)" and not discoveredMonsters[clean] then
+        discoveredMonsters[clean] = true
+        table.insert(masterMonsterList, clean)
+        table.sort(masterMonsterList, function(a, b) return a:lower() < b:lower() end)
+        return true
+    end
+    return false
+end
+
+local function scanAllMonsters()
+    local newlyFound = false
+
+    local spawns = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+    if spawns then
+        for _, part in ipairs(spawns:GetChildren()) do
+            if addDiscoveredMonster(part.Name) then
+                newlyFound = true
+            end
+        end
+    end
+
+    local enemies = workspace:FindFirstChild("Enemies")
+    if enemies then
+        for _, model in ipairs(enemies:GetChildren()) do
+            if addDiscoveredMonster(model.Name) then
+                newlyFound = true
+            end
+        end
+    end
+
+    return newlyFound
+end
+
 local function getAllEnemies()
     local list   = {}
     local folder = workspace:FindFirstChild("Enemies")
@@ -300,6 +423,19 @@ local function findEnemyByName(monsterName)
     return best
 end
 
+local function findPriorityEnemy(monsterList)
+    local folder = workspace:FindFirstChild("Enemies")
+    if not folder or #monsterList == 0 then return nil, nil end
+
+    for _, mobName in ipairs(monsterList) do
+        local enemy = findEnemyByName(mobName)
+        if enemy then
+            return enemy, mobName
+        end
+    end
+    return nil, nil
+end
+
 local function getEnemiesInRange()
     local char = LocalPlayer.Character
     if not char then return {} end
@@ -329,56 +465,56 @@ local function getEnemiesInRange()
     return results
 end
 
-local function getMonsterNames()
-    local seen = {}
-    local list = {}
-    local spawns = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
-    if spawns then
-        for _, part in ipairs(spawns:GetChildren()) do
-            local clean = cleanMonsterName(part.Name)
-            if clean ~= "" and not seen[clean] then
-                seen[clean] = true
-                table.insert(list, clean)
+local function updateSelectedMonstersList()
+    local currentVal = Options.MonsterSelect and Options.MonsterSelect.Value
+    local updatedList = {}
+
+    if typeof(currentVal) == "table" then
+        -- 1. คงลำดับเดิมที่ผู้ใช้เลือกไว้ก่อนหน้า
+        for _, name in ipairs(selectedMonsterList) do
+            if currentVal[name] == true and not table.find(updatedList, name) then
+                table.insert(updatedList, name)
             end
         end
-    end
-    local enemies = workspace:FindFirstChild("Enemies")
-    if enemies then
-        for _, model in ipairs(enemies:GetChildren()) do
-            local clean = cleanMonsterName(model.Name)
-            if clean ~= "" and not seen[clean] then
-                seen[clean] = true
-                table.insert(list, clean)
+        -- 2. เพิ่มตัวใหม่ที่เพิ่งถูกเลือก
+        for name, isSelected in pairs(currentVal) do
+            if isSelected == true and not table.find(updatedList, name) then
+                table.insert(updatedList, name)
             end
         end
+    elseif typeof(currentVal) == "string" and currentVal ~= "" and currentVal ~= "(ไม่พบมอน)" then
+        table.insert(updatedList, currentVal)
     end
-    if #list == 0 then return {"(ไม่พบมอน)"} end
-    table.sort(list, function(a, b) return a:lower() < b:lower() end)
-    return list
+
+    selectedMonsterList = updatedList
+    return selectedMonsterList
 end
 
 local function updateMonsterDropdown(isManual)
-    local newNames = getMonsterNames()
-    local newStr   = table.concat(newNames, "|")
-    if newStr ~= lastMonsterListStr or isManual then
-        lastMonsterListStr = newStr
-        if Options.MonsterSelect then
-            local currentVal = Options.MonsterSelect.Value
-            Options.MonsterSelect:SetValues(newNames)
-            local stillExists = false
-            for _, name in ipairs(newNames) do
-                if name == currentVal then stillExists = true break end
+    local hasNew = scanAllMonsters()
+    if (hasNew or isManual) and Options.MonsterSelect then
+        local currentVal = Options.MonsterSelect.Value or {}
+        local currentSelections = {}
+
+        if typeof(currentVal) == "table" then
+            for k, v in pairs(currentVal) do
+                if v == true then currentSelections[k] = true end
             end
-            if stillExists then
-                Options.MonsterSelect:SetValue(currentVal)
-                selectedMonster = currentVal
-            else
-                selectedMonster = newNames[1]
-                Options.MonsterSelect:SetValue(newNames[1])
-            end
+        elseif typeof(currentVal) == "string" and currentVal ~= "" and currentVal ~= "(ไม่พบมอน)" then
+            currentSelections[currentVal] = true
         end
+
+        local displayList = #masterMonsterList > 0 and masterMonsterList or {"(ไม่พบมอน)"}
+        Options.MonsterSelect:SetValues(displayList)
+
+        -- คืนค่าที่เลือกไว้เดิมแบบ 100% ไม่ให้ติ๊กหลุด
+        if next(currentSelections) then
+            Options.MonsterSelect:SetValue(currentSelections)
+        end
+        updateSelectedMonstersList()
+
         if isManual then
-            Library:Notify({ Title = "Refreshed", Description = #newNames .. " monsters found", Time = 3 })
+            Library:Notify({ Title = "Refreshed", Description = #masterMonsterList .. " monsters found", Time = 3 })
         end
     end
 end
@@ -458,7 +594,6 @@ local function lockAndBringMobs(targetEnemy, lockPos, isSameTypeOnly, monsterNam
     local targetHum  = targetEnemy:FindFirstChildOfClass("Humanoid")
     if not targetRoot or not targetHum or targetHum.Health <= 0 then return end
 
-    -- 1. วาปล็อคมอนเป้าหมายหลักไว้ที่จุดเกิด
     pcall(function()
         for _, part in ipairs(targetEnemy:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
@@ -468,7 +603,6 @@ local function lockAndBringMobs(targetEnemy, lockPos, isSameTypeOnly, monsterNam
         targetRoot.AssemblyAngularVelocity = Vector3.zero
     end)
 
-    -- 2. ระบบดึงมอน (Instant vs Ultra Smooth)
     if not bringMobEnabled then
         if next(smoothData) then smoothCleanAll() end
         return
@@ -515,7 +649,6 @@ local function lockAndBringMobs(targetEnemy, lockPos, isSameTypeOnly, monsterNam
         end
 
     elseif bringMobMode == "Ultra Smooth" then
-        -- ล้างมอนที่ตายแล้วในแคช
         for e in pairs(smoothData) do
             local hum = e:FindFirstChildOfClass("Humanoid")
             if not e or not e.Parent or not hum or hum.Health <= 0 then
@@ -588,7 +721,6 @@ local function lockAndBringMobs(targetEnemy, lockPos, isSameTypeOnly, monsterNam
             end
         end
 
-        -- ปลดมอนสเตอร์ที่หลุดจากระยะ BringCount
         for e in pairs(smoothData) do
             if not activeSet[e] then
                 pcall(smoothRelease, e)
@@ -727,7 +859,7 @@ local function startAutoNear()
     end)
 end
 
--- ==================== AUTO FARM ====================
+-- ==================== AUTO FARM (MULTI PRIORITY) ====================
 local function startAutoFarm()
     if farmConn then farmConn:Disconnect() end
     local prevEnemy    = nil
@@ -744,16 +876,21 @@ local function startAutoFarm()
             farmConn = nil
             stopAttackLoop()
             stopPositionLock()
+            stopNoclip()
             smoothCleanAll()
             return
         end
         if not updateCharacter() then return end
-        if not selectedMonster then return end
+        
+        local activeList = updateSelectedMonstersList()
+        if #activeList == 0 then return end
+        
         equipWeapon(selectedWeaponType)
 
-        local target = findEnemyByName(selectedMonster)
+        -- ตรวจสอบหาศัตรูตามลำดับความสำคัญ (Priority 1 -> 2 -> 3...)
+        local target, targetMonsterName = findPriorityEnemy(activeList)
 
-        if target then
+        if target and targetMonsterName then
             isSnapping   = false
             snapDone     = false
             lastSpawnPos = nil
@@ -762,10 +899,13 @@ local function startAutoFarm()
             local enemyHum  = target:FindFirstChildOfClass("Humanoid")
             local enemyRoot = target:FindFirstChild("HumanoidRootPart")
             if not enemyRoot or not enemyHum or enemyHum.Health <= 0 then
-                trackedRoot = nil return
+                trackedRoot  = nil
+                currentEnemy = nil
+                return
             end
 
             if currentEnemy ~= target then
+                if currentEnemy then smoothCleanAll() end
                 currentEnemy = target
                 trackedRoot  = nil
             end
@@ -777,7 +917,7 @@ local function startAutoFarm()
             if not trackedRoot then return end
 
             local spawnPos = getEnemySpawnPosition(target) or trackedRoot.Position
-            lockAndBringMobs(target, spawnPos, true, selectedMonster)
+            lockAndBringMobs(target, spawnPos, true, targetMonsterName)
 
             local targetCF = CFrame.new(spawnPos + Vector3.new(OFFSET_X, OFFSET_Y, OFFSET_Z))
             local dist     = (targetCF.Position - (currentFlyCF and currentFlyCF.Position or HRP.Position)).Magnitude
@@ -799,13 +939,22 @@ local function startAutoFarm()
                 end
             end
         else
+            -- หากไม่มีมอนสเตอร์ที่เลือกอยู่ใน Enemies ให้บินไปรอที่จุดเกิดของมอนสเตอร์ตัวแรกตามลำดับที่มีจุดเกิด
             stopAttackLoop()
             prevEnemy    = nil
             currentEnemy = nil
             trackedRoot  = nil
             smoothCleanAll()
 
-            local spawns = getSpawnPositionsForMonster(selectedMonster)
+            local spawns = {}
+            for _, mobName in ipairs(activeList) do
+                local s = getSpawnPositionsForMonster(mobName)
+                if #s > 0 then
+                    spawns = s
+                    break
+                end
+            end
+
             if #spawns == 0 then return end
             if spawnIdx > #spawns then spawnIdx = 1 end
 
@@ -848,6 +997,55 @@ local function startAutoFarm()
     end)
 end
 
+-- ==================== TELEPORT TWEEN ====================
+local function stopTeleportTween()
+    if teleportConn then
+        teleportConn:Disconnect()
+        teleportConn = nil
+    end
+    if not (autoNearEnabled or autoFarmEnabled) then
+        stopPositionLock()
+        stopNoclip()
+    end
+end
+
+local function startTeleportTween()
+    stopTeleportTween()
+    if not selectedIslandPos then return end
+
+    if HRP then currentFlyCF = HRP.CFrame end
+    startNoclip()
+    startPositionLock()
+
+    teleportConn = RunService.Heartbeat:Connect(function(dt)
+        if not teleportTweenEnabled then
+            stopTeleportTween()
+            return
+        end
+        if not updateCharacter() then return end
+        if not selectedIslandPos then return end
+
+        local targetCF   = CFrame.new(selectedIslandPos)
+        local currentPos = currentFlyCF and currentFlyCF.Position or HRP.Position
+        local dist       = (selectedIslandPos - currentPos).Magnitude
+
+        if dist > REACH then
+            moveToTarget(HRP, targetCF, dt)
+        else
+            currentFlyCF = targetCF
+            pcall(function()
+                HRP.CFrame = targetCF
+                HRP.AssemblyLinearVelocity  = Vector3.zero
+                HRP.AssemblyAngularVelocity = Vector3.zero
+            end)
+        end
+    end)
+end
+
+-- สแกนค้นหามอนสเตอร์ทั้งหมดก่อนสร้าง UI
+scanAllMonsters()
+local initialMonsterList = #masterMonsterList > 0 and masterMonsterList or {"(ไม่พบมอน)"}
+
 -- ==================== UI: MAIN TAB ====================
 local LeftGroup  = Tabs.Main:AddLeftGroupbox("Combat")
 local RightGroup = Tabs.Main:AddRightGroupbox("Farm")
@@ -871,6 +1069,7 @@ LeftGroup:AddToggle("AutoNear", {
 Toggles.AutoNear:OnChanged(function()
     autoNearEnabled = Toggles.AutoNear.Value
     if autoNearEnabled then
+        if teleportTweenEnabled then Toggles.TweenToIsland:SetValue(false) end
         currentEnemy = nil
         trackedRoot  = nil
         currentFlyCF = HRP and HRP.CFrame or nil
@@ -902,24 +1101,27 @@ Toggles.M1Aura:OnChanged(function()
     end
 end)
 
-local spawnNames = getMonsterNames()
-selectedMonster  = spawnNames[1]
-lastMonsterListStr = table.concat(spawnNames, "|")
-
 RightGroup:AddDropdown("MonsterSelect", {
-    Values     = spawnNames,
-    Default    = 1,
-    Multi      = false,
-    Text       = "Select Monster",
+    Values     = initialMonsterList,
+    Default    = initialMonsterList[1] and { [initialMonsterList[1]] = true } or {},
+    Multi      = true,
+    Text       = "Select Monsters (Multi)",
     Searchable = true,
 })
 Options.MonsterSelect:OnChanged(function()
-    selectedMonster    = Options.MonsterSelect.Value
-    currentEnemy       = nil
-    trackedRoot        = nil
-    cachedSpawnsByName = {}
-    smoothCleanAll()
+    updateSelectedMonstersList()
+    if currentEnemy and currentEnemy.Parent then
+        local currentMobName = cleanMonsterName(currentEnemy.Name)
+        if not table.find(selectedMonsterList, currentMobName) then
+            currentEnemy = nil
+            trackedRoot  = nil
+            smoothCleanAll()
+        end
+    end
 end)
+
+-- โหลดรายชื่อเริ่มต้นเข้าคิว Priority
+updateSelectedMonstersList()
 
 RightGroup:AddButton({
     Text = "Refresh Monster List",
@@ -928,28 +1130,24 @@ RightGroup:AddButton({
     end,
 })
 
--- ==================== AUTO UPDATE MONSTER LIST ====================
+-- ==================== DYNAMIC DISCOVERY (ไม่ลบตัวเก่า) ====================
 local enemiesFolder = workspace:FindFirstChild("Enemies")
 if enemiesFolder then
-    enemiesFolder.ChildAdded:Connect(function()
-        task.wait(0.3)
-        pcall(function() updateMonsterDropdown(false) end)
+    enemiesFolder.ChildAdded:Connect(function(child)
+        if addDiscoveredMonster(child.Name) then
+            updateMonsterDropdown(false)
+        end
     end)
 end
 
 local spawnsFolder = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
 if spawnsFolder then
-    spawnsFolder.ChildAdded:Connect(function()
-        task.wait(0.3)
-        pcall(function() updateMonsterDropdown(false) end)
+    spawnsFolder.ChildAdded:Connect(function(child)
+        if addDiscoveredMonster(child.Name) then
+            updateMonsterDropdown(false)
+        end
     end)
 end
-
-task.spawn(function()
-    while task.wait(3) do
-        pcall(function() updateMonsterDropdown(false) end)
-    end
-end)
 
 RightGroup:AddToggle("AutoFarm", {
     Text    = "Auto Farm Select",
@@ -958,13 +1156,16 @@ RightGroup:AddToggle("AutoFarm", {
 Toggles.AutoFarm:OnChanged(function()
     autoFarmEnabled = Toggles.AutoFarm.Value
     if autoFarmEnabled then
+        if teleportTweenEnabled then Toggles.TweenToIsland:SetValue(false) end
         currentEnemy       = nil
         trackedRoot        = nil
         currentFlyCF       = HRP and HRP.CFrame or nil
         cachedSpawnsByName = {}
+        local activeList   = updateSelectedMonstersList()
         startNoclip()
         startAutoFarm()
-        Library:Notify({ Title = "Auto Farm", Description = "Farming: " .. (selectedMonster or "?"), Time = 3 })
+        local desc = #activeList > 0 and table.concat(activeList, ", ") or "None"
+        Library:Notify({ Title = "Auto Farm", Description = "Targeting: " .. desc, Time = 3 })
     else
         stopAttackLoop()
         stopPositionLock()
@@ -985,12 +1186,87 @@ Toggles.BringMob:OnChanged(function()
     Library:Notify({ Title = "Bring Mob", Description = bringMobEnabled and "ON" or "OFF", Time = 3 })
 end)
 
+-- ==================== UI: TELEPORT TAB ====================
+local TeleportLeft  = Tabs.Teleport:AddLeftGroupbox("Island Teleport")
+local TeleportRight = Tabs.Teleport:AddRightGroupbox("Teleport Info")
+
+local islandNames, islandMap, worldName = getIslandNamesAndMap(game.PlaceId)
+selectedIslandName = islandNames[1]
+selectedIslandPos  = islandMap[selectedIslandName]
+
+TeleportLeft:AddLabel("Current Sea: " .. worldName)
+
+TeleportLeft:AddDropdown("IslandSelect", {
+    Values     = islandNames,
+    Default    = 1,
+    Multi      = false,
+    Text       = "Select Island",
+    Searchable = true,
+})
+Options.IslandSelect:OnChanged(function()
+    selectedIslandName = Options.IslandSelect.Value
+    selectedIslandPos  = islandMap[selectedIslandName]
+end)
+
+TeleportLeft:AddToggle("TweenToIsland", {
+    Text    = "Tween to Island (Fly)",
+    Default = false,
+})
+Toggles.TweenToIsland:OnChanged(function()
+    teleportTweenEnabled = Toggles.TweenToIsland.Value
+    if teleportTweenEnabled then
+        if not selectedIslandPos then
+            Library:Notify({ Title = "Teleport", Description = "No destination selected!", Time = 3 })
+            Toggles.TweenToIsland:SetValue(false)
+            return
+        end
+        if autoFarmEnabled then Toggles.AutoFarm:SetValue(false) end
+        if autoNearEnabled then Toggles.AutoNear:SetValue(false) end
+        startNoclip()
+        startTeleportTween()
+        Library:Notify({ Title = "Teleport", Description = "Flying to: " .. tostring(selectedIslandName), Time = 3 })
+    else
+        stopTeleportTween()
+        Library:Notify({ Title = "Teleport", Description = "Stopped", Time = 3 })
+    end
+end)
+
+TeleportLeft:AddButton({
+    Text = "Instant Teleport",
+    Func = function()
+        if selectedIslandPos and HRP then
+            pcall(function()
+                HRP.CFrame = CFrame.new(selectedIslandPos)
+                HRP.AssemblyLinearVelocity  = Vector3.zero
+                HRP.AssemblyAngularVelocity = Vector3.zero
+            end)
+            Library:Notify({ Title = "Teleport", Description = "Teleported to " .. tostring(selectedIslandName), Time = 3 })
+        end
+    end,
+})
+
+TeleportRight:AddLabel("Place ID: " .. tostring(game.PlaceId))
+TeleportRight:AddLabel("Total Islands: " .. tostring(#islandNames))
+
+TeleportRight:AddButton({
+    Text = "Refresh Islands",
+    Func = function()
+        local newNames, newMap, newWorld = getIslandNamesAndMap(game.PlaceId)
+        islandMap = newMap
+        Options.IslandSelect:SetValues(newNames)
+        Options.IslandSelect:SetValue(newNames[1])
+        selectedIslandName = newNames[1]
+        selectedIslandPos  = newMap[newNames[1]]
+        Library:Notify({ Title = "Teleport", Description = "Reloaded " .. #newNames .. " locations (" .. newWorld .. ")", Time = 3 })
+    end,
+})
+
 -- ==================== UI: FARM SETTINGS TAB ====================
 local FarmLeft  = Tabs.FarmSettings:AddLeftGroupbox("Movement & Position Offset")
 local FarmRight = Tabs.FarmSettings:AddRightGroupbox("Bring Mob Settings")
 
 FarmLeft:AddSlider("TweenSpeed", {
-    Text = "Tween Speed", Min = 50, Max = 500, Default = 250, Rounding = 10,
+    Text = "Tween Speed", Min = 0, Max = 500, Default = 250, Rounding = 0,
 })
 Options.TweenSpeed:OnChanged(function()
     SPEED = tonumber(Options.TweenSpeed.Value) or 250
@@ -1074,13 +1350,15 @@ MenuGroup:AddLabel("Menu bind")
 MenuGroup:AddButton({
     Text = "Unload",
     Func = function()
-        autoNearEnabled = false
-        autoFarmEnabled = false
-        m1AuraEnabled   = false
+        autoNearEnabled      = false
+        autoFarmEnabled      = false
+        m1AuraEnabled        = false
+        teleportTweenEnabled = false
         stopAttackLoop()
         stopPositionLock()
         stopNoclip()
         smoothCleanAll()
+        stopTeleportTween()
         if followConn then followConn:Disconnect() followConn = nil end
         if farmConn   then farmConn:Disconnect()   farmConn   = nil end
         Library:Unload()
@@ -1108,6 +1386,10 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     if autoFarmEnabled then
         startNoclip()
         startAutoFarm()
+    end
+    if teleportTweenEnabled then
+        startNoclip()
+        startTeleportTween()
     end
     if m1AuraEnabled and not autoNearEnabled and not autoFarmEnabled then
         startAuraStandalone()
