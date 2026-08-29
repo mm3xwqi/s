@@ -68,10 +68,8 @@ local CFG = {
     SPEED        = 250,
     REACH        = 6,
     OFFSET_X     = 0,
-    OFFSET_Y     = 25,
+    OFFSET_Y     = 35,
     OFFSET_Z     = 0,
-    BRING_RADIUS = 300,
-    BRING_COUNT  = 1,
 }
 
 local State = {
@@ -80,7 +78,6 @@ local State = {
     autoBossEnabled      = false,
     farmBypassEnabled    = true,
     bringMobEnabled      = true,
-    bringMobMode         = "Instant",
     teleportTweenEnabled = false,
     bypassTpEnabled      = false,
     bypassMoving         = false,
@@ -98,20 +95,20 @@ local State = {
     pSats                = 10,
     selectedWeaponType   = "Melee",
     currentLockPos       = nil,
-    bringMobRunning      = false,
     currentBossIndex     = 1,
     bossWaitTick         = nil,
     bossSpawnIdx         = 1,
+    bringMobCount = 1,
 }
 
 local bypassTpArrived = false
 
 local HopState = {
-    hopThread = nil,
-    hopCD = 0,
-    hopTick = tick(),
-    hopTotal = 0,
-    hopTarget = "singapore",
+    hopThread   = nil,
+    hopCD       = 0,
+    hopTick     = tick(),
+    hopTotal    = 0,
+    hopTarget   = "singapore",
     hopMaxPlayers = 3,
 }
 
@@ -123,31 +120,25 @@ local Lists = {
     discoveredBosses    = {},
     masterBossList      = {},
     selectedBossList    = {},
-    bringMobData        = {},
     defaultBoatSpeeds   = {},
     WEAPON_TYPES        = {"Melee", "Sword", "Gun", "Fruit"},
-    BRING_MODES         = {"Instant [Fast] ", "Smooth [Best]"},
     islandNames         = {},
     islandMap           = {},
     worldName           = "",
 }
 
 local Conns = {
-    follow           = nil,
-    farm             = nil,
-    boss             = nil,
-    teleport         = nil,
-    noclip           = nil,
-    lock             = nil,
-    bypassTp         = nil,
-    hitReg           = nil,
-    bringMobNoclip   = nil,
-    bringMobPin      = nil,
-    instantBring     = nil,
-    boatNoclip       = nil,
-    playerNoclip     = nil,
+    follow       = nil,
+    farm         = nil,
+    boss         = nil,
+    teleport     = nil,
+    noclip       = nil,
+    lock         = nil,
+    bypassTp     = nil,
+    hitReg       = nil,
+    boatNoclip   = nil,
+    playerNoclip = nil,
     fastAttackThread = nil,
-    bringMobThread   = nil,
 }
 
 local Refs = {
@@ -173,29 +164,143 @@ local sea1 = (game.PlaceId == 2753915549 or game.PlaceId == 85211729168715)
 local sea2 = (game.PlaceId == 4442272183 or game.PlaceId == 79091703265657)
 local sea3 = (game.PlaceId == 7449423635 or game.PlaceId == 100117331123089)
 
+_B = true
+
+local function HasNearbyPlayer(enemy)
+    local root = enemy:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local plrHrp = plr.Character:FindFirstChild("HumanoidRootPart")
+            if plrHrp and (plrHrp.Position - root.Position).Magnitude <= 10 then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function HasNetworkOwnership(root)
+    if not root then return false end
+    -- ถ้า ReceiveAge == 0 แปลว่าเราเป็น owner
+    if root.ReceiveAge == 0 then return true end
+    -- หรือใช้ isnetworkowner ถ้ามี
+    if isnetworkowner then
+        local ok, result = pcall(isnetworkowner, root)
+        if ok and result then return true end
+    end
+    return false
+end
+
+BringEnemy = function(Mon)
+    if not _B then return end
+    if not Mon then
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        local closestDist = math.huge
+        for _, enemy in ipairs(workspace.Enemies:GetChildren()) do
+            local hum = enemy:FindFirstChildOfClass("Humanoid")
+            local root = enemy:FindFirstChild("HumanoidRootPart")
+            if hum and root and hum.Health > 0 then
+                local dist = (root.Position - hrp.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    Mon = enemy
+                end
+            end
+        end
+        if not Mon then return end
+    end
+
+    if HasNearbyPlayer(Mon) then return end
+
+    local monRoot = Mon:FindFirstChild("HumanoidRootPart")
+    if not monRoot then return end
+
+    local function Mobs(enemy)
+        local hum = enemy:FindFirstChildOfClass("Humanoid")
+        local root = enemy:FindFirstChild("HumanoidRootPart")
+        return hum and root and hum.Health > 0, root, hum
+    end
+
+    pcall(function()
+        if sethiddenproperty then
+            sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
+        end
+        local targetPos = monRoot.Position
+
+        local alreadyNear = 0
+        for _, v in ipairs(workspace.Enemies:GetChildren()) do
+            if v ~= Mon then
+                local root = v:FindFirstChild("HumanoidRootPart")
+                local hum = v:FindFirstChildOfClass("Humanoid")
+                if root and hum and hum.Health > 0 and v.Name == Mon.Name then
+                    if (root.Position - targetPos).Magnitude <= 3 then
+                        alreadyNear = alreadyNear + 1
+                    end
+                end
+            end
+        end
+
+        if alreadyNear >= State.bringMobCount then return end
+
+        local brought = alreadyNear
+        for _, v in ipairs(workspace.Enemies:GetChildren()) do
+            if v ~= Mon then
+                if brought >= State.bringMobCount then break end
+
+                local alive, root, hum = Mobs(v)
+                if alive and v.Name == Mon.Name then
+                    local distance = (root.Position - targetPos).Magnitude
+                    if distance <= 250 and distance > 3 then
+                        if HasNearbyPlayer(v) then continue end
+                        -- เช็ค network ownership ก่อนดึง
+                        if not HasNetworkOwnership(root) then continue end
+                        pcall(function()
+                            root.CFrame = CFrame.new(targetPos)
+                            root.CanCollide = false
+                        end)
+                        brought = brought + 1
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function lockAndBringMobs(targetEnemy, lockPos)
+    if not State.bringMobEnabled then return end
+    if not targetEnemy or not targetEnemy.Parent then return end
+    BringEnemy(targetEnemy)
+end
+
+local function smoothCleanAll()
+    State.currentLockPos = nil
+end
+
 local function getIslandNamesAndMap(placeId)
     local islandMap = {}
     local worldName = "Unknown"
-
     if placeId == 2753915549 or placeId == 85211729168715 then
         worldName = "First Sea"
         islandMap = {
-            ["Starter Island"]   = Vector3.new(1122, 16, 1424),
-            ["Marine Starter"]   = Vector3.new(-2750, 25, 2041),
-            ["Jungle island"]    = Vector3.new(-1432, 62, 2),
-            ["Pirate island"]    = Vector3.new(-1182, 61, 4036),
-            ["Desert island"]    = Vector3.new(942, 21, 4378),
-            ["Middle Town"]      = Vector3.new(-785, 74, 1606),
-            ["Snow island"]      = Vector3.new(1353, 106, -1326),
-            ["MarineBase island"]= Vector3.new(-4981, 85, 4164),
-            ["Sky 1"]            = Vector3.new(-4831, 776, -2602),
-            ["Sky 2"]            = Vector3.new(-7922, 5566, -378),
-            ["Sky 3"]            = Vector3.new(-7987, 5756, -1925),
-            ["Colosseum"]        = Vector3.new(-1468, 7, -2880),
-            ["Magma island"]     = Vector3.new(-5395, 27, 8527),
-            ["Prison island"]    = Vector3.new(5008, 89, 740),
-            ["Whirl Pool"]       = Vector3.new(3874, 5, -1904),
-            ["Fountain City"]    = Vector3.new(5305, 60, 4082),
+            ["Starter Island"]    = Vector3.new(1122, 16, 1424),
+            ["Marine Starter"]    = Vector3.new(-2750, 25, 2041),
+            ["Jungle island"]     = Vector3.new(-1432, 62, 2),
+            ["Pirate island"]     = Vector3.new(-1182, 61, 4036),
+            ["Desert island"]     = Vector3.new(942, 21, 4378),
+            ["Middle Town"]       = Vector3.new(-785, 74, 1606),
+            ["Snow island"]       = Vector3.new(1353, 106, -1326),
+            ["MarineBase island"] = Vector3.new(-4981, 85, 4164),
+            ["Sky 1"]             = Vector3.new(-4831, 776, -2602),
+            ["Sky 2"]             = Vector3.new(-7922, 5566, -378),
+            ["Sky 3"]             = Vector3.new(-7987, 5756, -1925),
+            ["Colosseum"]         = Vector3.new(-1468, 7, -2880),
+            ["Magma island"]      = Vector3.new(-5395, 27, 8527),
+            ["Prison island"]     = Vector3.new(5008, 89, 740),
+            ["Whirl Pool"]        = Vector3.new(3874, 5, -1904),
+            ["Underwater city"]   = Vector3.new(61170, 6, 1824),
+            ["Fountain City"]     = Vector3.new(5305, 60, 4082),
         }
     elseif placeId == 4442272183 or placeId == 79091703265657 then
         worldName = "Second Sea"
@@ -218,25 +323,24 @@ local function getIslandNamesAndMap(placeId)
         worldName = "Third Sea"
         islandMap = {
             ["Port Town"]         = Vector3.new(-341, 21, 5541),
-            ["Hydra Town"]      = Vector3.new(5293, 1005, 391),
-            ["Hydra Arena"]     = Vector3.new(5028, 174, -2007),
+            ["Hydra Town"]        = Vector3.new(5293, 1005, 391),
+            ["Hydra Arena"]       = Vector3.new(5028, 174, -2007),
             ["Great Tree"]        = Vector3.new(4325, 566, -6152),
-            ["Upper Great Tree"]    = Vector3.new(3038, 2282, -7337),
+            ["Upper Great Tree"]  = Vector3.new(3038, 2282, -7337),
             ["Haunted Castle"]    = Vector3.new(-9514, 142, 5536),
             ["Bigmom island"]     = Vector3.new(-887, 66, -10905),
             ["Tiki Outpost"]      = Vector3.new(-16410, 528, 415),
             ["Mansion"]           = Vector3.new(-12462, 375, -7552),
             ["Castle on the Sea"] = Vector3.new(-4994, 315, -3007),
-            ["Peanut island"]      = Vector3.new(-2122, 38, -10139),
-            ["Katakuri island"]     = Vector3.new(-2094, 70, -12112),
-            ["Chocolate island"]    = Vector3.new(66, 25, -12073),
-            ["North Pole"]      = Vector3.new(-1091, 64, -14522),
+            ["Peanut island"]     = Vector3.new(-2122, 38, -10139),
+            ["Katakuri island"]   = Vector3.new(-2094, 70, -12112),
+            ["Chocolate island"]  = Vector3.new(66, 25, -12073),
+            ["North Pole"]        = Vector3.new(-1091, 64, -14522),
         }
     else
         worldName = "Unknown Sea"
         islandMap = { ["Unknown"] = Vector3.new(0, 0, 0) }
     end
-
     local names = {}
     for k in pairs(islandMap) do table.insert(names, k) end
     table.sort(names)
@@ -340,7 +444,7 @@ local function CanBypassTeleport(x)
     local AreaName = InArea(targetCF).Name
     if AreaName == "" then return false end
     if AreaName:find("Dimension") or AreaName:find("Submerged") or AreaName == "Sealed Cavern"
-        or AreaName:lower():find("under") or CheckLegendaryItems() then
+        or CheckLegendaryItems() then
         return false
     end
     local data = LocalPlayer:FindFirstChild("Data")
@@ -446,36 +550,32 @@ local function requestentrance(pos)
     local targetPos = pos
     if typeof(pos) == "CFrame" then targetPos = pos.Position end
     if not targetPos then return end
-
     local charHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not charHRP then return end
-
     local playerPos = charHRP.Position
     local distPlayerToTarget = (playerPos - targetPos).Magnitude
-
-    if distPlayerToTarget <= 1500 then return end
+    if distPlayerToTarget <= 3000 then return end
 
     local tb = {}
-
     if sea1 then
         tb = {
-            Vector3.new(-7894.6181640625, 5547.1420898438, -380.29098510742),
-            Vector3.new(-4607.8232421875, 874.39099121094, -1667.5570068359),
-            Vector3.new(61163.8515625, 11.68000793457, 1819.7840576172),
-            Vector3.new(3864.6879882812, 6.7369995117188, -1926.2139892578),
+            { pos = Vector3.new(3864.6879882812, 6.7369995117188, -1926.2139892578),   name = "Whirlpool" },
+            { pos = Vector3.new(-4607.8232421875, 874.39099121094, -1667.5570068359),  name = "Sky1" },
+            { pos = Vector3.new(-7894.6181640625, 5547.1420898438, -380.29098510742),  name = "Sky2" },
+            { pos = Vector3.new(61163.8515625, 11.68000793457, 1819.7840576172),       name = "Underwater" },
         }
     elseif sea2 then
         tb = {
-            Vector3.new(2284.9091796875, 15.537796020508, 905.46417236328),
-            Vector3.new(-286.98596191406, 306.13739013672, 597.89910888672),
-            Vector3.new(-6508.5581054688, 89.035003662109, -132.83999633789),
-            Vector3.new(923.21301269531, 126.9759979248, 32852.83203125),
+            { pos = Vector3.new(2284.9091796875, 15.537796020508, 905.46417236328),    name = "Dock" },
+            { pos = Vector3.new(-286.98596191406, 306.13739013672, 597.89910888672),   name = "Cafe" },
+            { pos = Vector3.new(-6508.5581054688, 89.035003662109, -132.83999633789),  name = "CursedShip" },
+            { pos = Vector3.new(923.21301269531, 126.9759979248, 32852.83203125),      name = "Far" },
         }
     elseif sea3 then
         tb = {
-            Vector3.new(-12463.602539062, 378.32705688477, -7533.0830078125),
-            Vector3.new(-5060.4116210938, 318.50201416016, -3160.2248535156),
-            Vector3.new(5650.9477539062, 1017.2747802734, -300.3791809082),
+            { pos = Vector3.new(-12463.602539062, 378.32705688477, -7533.0830078125),  name = "Mansion" },
+            { pos = Vector3.new(-5060.4116210938, 318.50201416016, -3160.2248535156),  name = "Castle" },
+            { pos = Vector3.new(5650.9477539062, 1017.2747802734, -300.3791809082),    name = "Hydra" },
         }
     else
         return
@@ -484,27 +584,25 @@ local function requestentrance(pos)
     local bestPos = nil
     local bestDist = math.huge
     for _, v in ipairs(tb) do
-        local dist = (v - targetPos).Magnitude
-        if dist < bestDist then
-            bestDist = dist
-            bestPos = v
+        local dToTarget = (v.pos - targetPos).Magnitude
+        local dFromPlayer = (v.pos - playerPos).Magnitude
+        if dToTarget < distPlayerToTarget and dFromPlayer > 500 then
+            if dFromPlayer < bestDist then
+                bestDist = dFromPlayer
+                bestPos = v.pos
+            end
         end
     end
 
     if not bestPos then return end
 
-    local entranceToTarget = (bestPos - targetPos).Magnitude
-    if entranceToTarget >= distPlayerToTarget then return end
-
     local distPlayerToEntrance = (playerPos - bestPos).Magnitude
-    if distPlayerToEntrance <= 1500 then return end
+    if distPlayerToEntrance <= 500 then return end
 
     pcall(function()
         ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", bestPos)
     end)
-
     task.wait(1.5)
-
     local newChar = LocalPlayer.Character
     local newHRP = newChar and newChar:FindFirstChild("HumanoidRootPart")
     if newHRP then
@@ -647,11 +745,10 @@ local function findPriorityEnemy(monsterList)
     if not folder then return nil, nil end
     local best, bestDist, bestName = nil, math.huge, nil
     local charPos = (HRP and HRP.Position) or (LocalPlayer.Character and LocalPlayer.Character:GetPivot().Position)
-    local searchList = monsterList
-    if #searchList == 0 then return nil, nil end
+    if #monsterList == 0 then return nil, nil end
     for _, model in ipairs(folder:GetChildren()) do
         local mobName = cleanMonsterName(model.Name)
-        if table.find(searchList, mobName) then
+        if table.find(monsterList, mobName) then
             local hum  = model:FindFirstChildOfClass("Humanoid")
             local root = model:FindFirstChild("HumanoidRootPart")
             if hum and root and hum.Health and hum.Health > 0 then
@@ -730,9 +827,8 @@ local function updateSelectedBossesList()
 end
 
 local function refreshBossDropdown()
-    Lists.masterBossList = {}
+    Lists.masterBossList   = {}
     Lists.discoveredBosses = {}
-
     local spawns = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
     if spawns then
         for _, part in ipairs(spawns:GetChildren()) do
@@ -745,7 +841,6 @@ local function refreshBossDropdown()
             end
         end
     end
-
     local enemies = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
     if enemies then
         for _, model in ipairs(enemies:GetChildren()) do
@@ -761,14 +856,11 @@ local function refreshBossDropdown()
             end
         end
     end
-
     table.sort(Lists.masterBossList, function(a, b) return a:lower() < b:lower() end)
-
     local displayList = #Lists.masterBossList > 0 and Lists.masterBossList or {"(No Boss found)"}
     if Options and Options.BossSelect then
         Options.BossSelect:SetValues(displayList)
     end
-
     Library:Notify({
         Title = "Boss List Refreshed",
         Description = #Lists.masterBossList > 0
@@ -781,7 +873,6 @@ end
 local function findBossByPriority(activeList)
     local folder = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
     if not folder or #activeList == 0 then return nil, nil end
-
     for _, bossName in ipairs(activeList) do
         for _, model in ipairs(folder:GetChildren()) do
             if cleanMonsterName(model.Name) == bossName then
@@ -793,7 +884,6 @@ local function findBossByPriority(activeList)
             end
         end
     end
-
     return nil, nil
 end
 
@@ -829,7 +919,7 @@ function FastAttackModule.GetNearbyTargets(character, folder)
     local nearbyTargets = {}
     local children = folder:GetChildren()
     for i = 1, #children do
-        local target = children[i]
+        local target   = children[i]
         local humanoid = target:FindFirstChildOfClass("Humanoid")
         local rootPart = target:FindFirstChild("HumanoidRootPart")
         if humanoid and rootPart and humanoid.Health and humanoid.Health > 0 then
@@ -870,15 +960,13 @@ function FastAttackModule.ExecuteFastAttack()
     if #targets < 1 then return end
     local targetParts = FastAttackModule.GetTargetParts(targets)
     if #targetParts < 1 or not targetParts[1] then return end
-    
-    local weaponType = tool:GetAttribute("WeaponType") or State.selectedWeaponType
-
-        RegisterAttack:FireServer(FastAttackModule.Rate)
-        local targetHead = targetParts[1][2]
-        if targetHead then
-            RegisterHit:FireServer(targetHead, targetParts)
-        end
+    RegisterAttack:FireServer(FastAttackModule.Rate)
+    local targetHead = targetParts[1][2]
+    if targetHead then
+        RegisterHit:FireServer(targetHead, targetParts)
     end
+end
+
 local function initHitRegistration()
     local foldersToCheck = {}
     for _, name in ipairs({"Util", "Common", "Remotes", "Assets", "FX"}) do
@@ -1000,438 +1088,6 @@ local function checkAndResumeFastAttack()
     end
 end
 
-local function bmReleaseMob(enemy)
-    local d = Lists.bringMobData[enemy]
-    if d then
-        for _, k in ipairs({"bp", "bv", "bg"}) do
-            if d[k] and d[k].Parent then pcall(function() d[k]:Destroy() end) end
-        end
-        Lists.bringMobData[enemy] = nil
-    end
-    if enemy and enemy.Parent then
-        local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso")
-        if hrp then
-            for _, c in ipairs(hrp:GetChildren()) do
-                if c.Name:find("BringMob") then pcall(function() c:Destroy() end) end
-            end
-            pcall(function()
-                hrp.AssemblyLinearVelocity  = Vector3.zero
-                hrp.AssemblyAngularVelocity = Vector3.zero
-            end)
-        end
-        local hum = enemy:FindFirstChildOfClass("Humanoid")
-        if hum then
-            pcall(function()
-                hum.PlatformStand = false
-                hum.WalkSpeed     = 16
-                hum.JumpPower     = 50
-            end)
-        end
-        for _, p in ipairs(enemy:GetDescendants()) do
-            if p:IsA("BasePart") then pcall(function() p.CanCollide = true end) end
-        end
-    end
-end
-
-local function bmCleanAll()
-    for enemy in pairs(Lists.bringMobData) do pcall(bmReleaseMob, enemy) end
-    Lists.bringMobData = {}
-end
-
-local function stopBringMobLoop()
-    State.bringMobRunning = false
-    if Conns.bringMobThread     then task.cancel(Conns.bringMobThread);     Conns.bringMobThread     = nil end
-    if Conns.bringMobPin        then Conns.bringMobPin:Disconnect();        Conns.bringMobPin        = nil end
-    if Conns.bringMobNoclip     then Conns.bringMobNoclip:Disconnect();     Conns.bringMobNoclip     = nil end
-    bmCleanAll()
-end
-
-local function stopInstantBring()
-    if Conns.instantBring then Conns.instantBring:Disconnect(); Conns.instantBring = nil end
-end
-
-local function smoothCleanAll()
-    stopBringMobLoop()
-    stopInstantBring()
-end
-
-local function bmGetOffset()
-    local a = math.random() * math.pi * 2
-    local r = math.random(2, 5)
-    return Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
-end
-
-local function trySetNetworkOwner(part, player)
-    pcall(function()
-        if part:IsA("BasePart") then
-            part:SetNetworkOwner(player)
-        end
-    end)
-end
-
-local function forceSetNetworkOwnerOnModel(model, player)
-    pcall(function()
-        for _, p in ipairs(model:GetDescendants()) do
-            if p:IsA("BasePart") then
-                pcall(function() p:SetNetworkOwner(player) end)
-            end
-        end
-        local hrp = model:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            pcall(function() hrp:SetNetworkOwner(player) end)
-        end
-    end)
-end
-
-local function startInstantBring()
-    stopInstantBring()
-
-    local SNAP_DISTANCE = 10
-    local PULL_FORCE    = 65000
-    local PULL_P        = 40000
-    local PULL_D        = 1500
-
-    local mobData = {}
-
-    local function attachMob(enemy)
-        if mobData[enemy] then return end
-        local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso")
-        if not hrp then return end
-
-        for _, p in ipairs(enemy:GetDescendants()) do
-            if p:IsA("BasePart") then pcall(function() p.CanCollide = false end) end
-        end
-
-        local bp = Instance.new("BodyPosition")
-        bp.MaxForce = Vector3.new(PULL_FORCE, PULL_FORCE, PULL_FORCE)
-        bp.P = PULL_P; bp.D = PULL_D
-        bp.Position = hrp.Position
-        bp.Parent = hrp
-
-        local bg = Instance.new("BodyGyro")
-        bg.MaxTorque = Vector3.new(0, PULL_FORCE, 0)
-        bg.P = PULL_P; bg.D = PULL_D
-        bg.CFrame = hrp.CFrame
-        bg.Parent = hrp
-
-        mobData[enemy] = { root = hrp, bp = bp, bg = bg, snapped = false }
-    end
-
-    local function detachMob(enemy)
-        local d = mobData[enemy]
-        if not d then return end
-        if d.bp and d.bp.Parent then pcall(function() d.bp:Destroy() end) end
-        if d.bg and d.bg.Parent then pcall(function() d.bg:Destroy() end) end
-        local hum = enemy and enemy:FindFirstChildOfClass("Humanoid")
-        if hum then pcall(function()
-            hum.WalkSpeed = 16
-            hum.JumpPower = 50
-            hum.PlatformStand = false
-        end) end
-        if enemy and enemy.Parent then
-            for _, p in ipairs(enemy:GetDescendants()) do
-                if p:IsA("BasePart") then pcall(function() p.CanCollide = true end) end
-            end
-        end
-        mobData[enemy] = nil
-    end
-
-    Conns.instantBring = RunService.Heartbeat:Connect(function()
-        local targetRoot = State.currentEnemy and State.currentEnemy.Parent
-            and State.currentEnemy:FindFirstChild("HumanoidRootPart")
-        if targetRoot and targetRoot.Parent then
-            State.currentLockPos = targetRoot.Position
-        end
-        if not State.currentLockPos then return end
-        local lockPos = State.currentLockPos
-
-        local folder = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
-        if not folder then return end
-
-        for enemy in pairs(mobData) do
-            if not enemy or not enemy.Parent then
-                mobData[enemy] = nil; continue
-            end
-            local h = enemy:FindFirstChildOfClass("Humanoid")
-            if not h or not h.Health or h.Health <= 0 then
-                detachMob(enemy)
-            end
-        end
-
-        local count = 0
-        for _, d in pairs(mobData) do
-            if not d.snapped and d.bp and d.bp.Parent then count = count + 1 end
-        end
-
-        for _, enemy in ipairs(folder:GetChildren()) do
-            if enemy == State.currentEnemy then continue end
-            if mobData[enemy] then continue end
-            if count >= CFG.BRING_COUNT then break end
-
-            local hum = enemy:FindFirstChildOfClass("Humanoid")
-            local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso")
-            if not hum or not hrp or not hum.Health or hum.Health <= 0 then continue end
-
-            if (lockPos - hrp.Position).Magnitude > CFG.BRING_RADIUS then continue end
-
-            attachMob(enemy)
-            count = count + 1
-        end
-
-        local mobIndex = 0
-        for enemy, d in pairs(mobData) do
-            if enemy == State.currentEnemy then
-                detachMob(enemy); continue
-            end
-            if not enemy.Parent or not d.root.Parent then
-                detachMob(enemy); continue
-            end
-
-            local dist = (lockPos - d.root.Position).Magnitude
-
-            if not d.snapped then
-                if dist <= SNAP_DISTANCE then
-                    pcall(function()
-                        d.root.CFrame = CFrame.new(lockPos)
-                        d.root.AssemblyLinearVelocity  = Vector3.zero
-                        d.root.AssemblyAngularVelocity = Vector3.zero
-                    end)
-                    if d.bp and d.bp.Parent then d.bp:Destroy() end
-                    if d.bg and d.bg.Parent then d.bg:Destroy() end
-                    d.bp = nil; d.bg = nil
-
-                    local hum = enemy:FindFirstChildOfClass("Humanoid")
-                    if hum then pcall(function()
-                        hum.WalkSpeed = 0
-                        hum.JumpPower = 0
-                        hum.PlatformStand = true
-                    end) end
-                    d.snapped = true
-                else
-                    if d.bp and d.bp.Parent then
-                        pcall(function() d.bp.Position = lockPos end)
-                    end
-                    local dir = (lockPos - d.root.Position)
-                    local lookDir = Vector3.new(dir.X, 0, dir.Z).Unit
-                    if d.bg and d.bg.Parent and lookDir.Magnitude > 0 then
-                        pcall(function()
-                            d.bg.CFrame = CFrame.new(d.root.Position, d.root.Position + lookDir)
-                        end)
-                    end
-                end
-            else
-                local offsetAngle = mobIndex * (math.pi * 2 / math.max(CFG.BRING_COUNT, 1))
-                local offsetRadius = CFG.BRING_COUNT > 1 and 3 or 0
-                local pinPos = lockPos + Vector3.new(
-                    math.cos(offsetAngle) * offsetRadius,
-                    0,
-                    math.sin(offsetAngle) * offsetRadius
-                )
-                pcall(function()
-                    d.root.CFrame = CFrame.new(pinPos)
-                    d.root.AssemblyLinearVelocity  = Vector3.zero
-                    d.root.AssemblyAngularVelocity = Vector3.zero
-                end)
-                local hum = enemy:FindFirstChildOfClass("Humanoid")
-                if hum then pcall(function()
-                    hum.WalkSpeed = 0
-                    hum.JumpPower = 0
-                    hum.PlatformStand = true
-                end) end
-                mobIndex = mobIndex + 1
-            end
-        end
-    end)
-end
-
-local function startSmoothBring(getLockPos)
-    if State.bringMobRunning then return end
-    State.bringMobRunning = true
-
-    local PULL_FORCE = 800000
-    local PULL_P     = 80000
-    local PULL_D     = 500
-
-    if Conns.bringMobNoclip then Conns.bringMobNoclip:Disconnect() end
-    Conns.bringMobNoclip = RunService.RenderStepped:Connect(function()
-        for enemy in pairs(Lists.bringMobData) do
-            if enemy == State.currentEnemy then
-                pcall(bmReleaseMob, enemy); continue
-            end
-            if enemy and enemy.Parent then
-                for _, p in ipairs(enemy:GetDescendants()) do
-                    if p:IsA("BasePart") and p.CanCollide then
-                        pcall(function() p.CanCollide = false end)
-                    end
-                end
-            end
-        end
-    end)
-
-    local pinFrame = 0
-    if Conns.bringMobPin then Conns.bringMobPin:Disconnect() end
-    Conns.bringMobPin = RunService.Heartbeat:Connect(function()
-        pinFrame = pinFrame + 1
-        if pinFrame % 2 ~= 0 then return end
-
-        local targetRoot = State.currentEnemy and State.currentEnemy.Parent
-            and State.currentEnemy:FindFirstChild("HumanoidRootPart")
-        if targetRoot and targetRoot.Parent then
-            State.currentLockPos = targetRoot.Position
-        end
-
-        local lockPos = getLockPos()
-        if not lockPos then return end
-
-        for enemy, d in pairs(Lists.bringMobData) do
-            if enemy == State.currentEnemy then
-                pcall(bmReleaseMob, enemy); continue
-            end
-            if not enemy or not enemy.Parent or not d then continue end
-            local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso")
-            if not hrp then continue end
-            local hum = enemy:FindFirstChildOfClass("Humanoid")
-
-            if d.bp and d.bp.Parent then
-                pcall(function() d.bp.Position = lockPos end)
-
-                if (lockPos - hrp.Position).Magnitude <= 5 then
-                    pcall(function()
-                        hrp.CFrame = CFrame.new(lockPos)
-                        hrp.AssemblyLinearVelocity  = Vector3.zero
-                        hrp.AssemblyAngularVelocity = Vector3.zero
-                    end)
-                end
-
-                local dir = (lockPos - hrp.Position)
-                local lookDir = Vector3.new(dir.X, 0, dir.Z).Unit
-                if d.bg and d.bg.Parent and lookDir.Magnitude > 0 then
-                    pcall(function()
-                        d.bg.CFrame = CFrame.new(hrp.Position, hrp.Position + lookDir)
-                    end)
-                end
-
-                if hum then pcall(function()
-                    hum.WalkSpeed = 0
-                    hum.JumpPower = 0
-                    hum.PlatformStand = true
-                end) end
-            end
-        end
-    end)
-
-    Conns.bringMobThread = task.spawn(function()
-        while State.bringMobRunning do
-            task.wait(0.05)
-
-            local targetRoot = State.currentEnemy and State.currentEnemy.Parent
-                and State.currentEnemy:FindFirstChild("HumanoidRootPart")
-            if targetRoot and targetRoot.Parent then
-                State.currentLockPos = targetRoot.Position
-            end
-
-            local lockPos = getLockPos()
-            if not lockPos then continue end
-
-            local folder = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
-            if not folder then task.wait(0.3); continue end
-
-            for enemy in pairs(Lists.bringMobData) do
-                if enemy == State.currentEnemy then
-                    pcall(bmReleaseMob, enemy); continue
-                end
-                if not enemy or not enemy.Parent then
-                    pcall(bmReleaseMob, enemy); continue
-                end
-                local h = enemy:FindFirstChildOfClass("Humanoid")
-                if not h or not h.Health or h.Health <= 0 then
-                    pcall(bmReleaseMob, enemy)
-                end
-            end
-
-            local pulling = 0
-            for _, d in pairs(Lists.bringMobData) do
-                if d.bp and d.bp.Parent then pulling = pulling + 1 end
-            end
-
-            for _, enemy in ipairs(folder:GetChildren()) do
-                if not State.bringMobRunning then break end
-                if not enemy or not enemy.Parent then continue end
-                if enemy == State.currentEnemy then continue end
-                if Lists.bringMobData[enemy] then continue end
-                if pulling >= CFG.BRING_COUNT then break end
-
-                local hum = enemy:FindFirstChildOfClass("Humanoid")
-                local hrp = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso")
-                if not hum or not hrp or not hum.Health or hum.Health <= 0 then continue end
-
-                if (lockPos - hrp.Position).Magnitude > CFG.BRING_RADIUS then continue end
-
-                for _, p in ipairs(enemy:GetDescendants()) do
-                    if p:IsA("BasePart") then pcall(function() p.CanCollide = false end) end
-                end
-
-                pcall(function()
-                    hum.WalkSpeed = 0
-                    hum.JumpPower = 0
-                    hum.PlatformStand = true
-                end)
-
-                local bp = Instance.new("BodyPosition")
-                bp.MaxForce = Vector3.new(PULL_FORCE, PULL_FORCE, PULL_FORCE)
-                bp.P = PULL_P; bp.D = PULL_D
-                bp.Position = lockPos
-                bp.Parent = hrp
-
-                local bg = Instance.new("BodyGyro")
-                bg.MaxTorque = Vector3.new(0, PULL_FORCE, 0)
-                bg.P = PULL_P; bg.D = PULL_D
-                bg.CFrame = hrp.CFrame
-                bg.Parent = hrp
-
-                Lists.bringMobData[enemy] = { bp = bp, bg = bg }
-                pulling = pulling + 1
-            end
-        end
-
-        if Conns.bringMobPin    then Conns.bringMobPin:Disconnect();    Conns.bringMobPin    = nil end
-        if Conns.bringMobNoclip then Conns.bringMobNoclip:Disconnect(); Conns.bringMobNoclip = nil end
-        bmCleanAll()
-        Conns.bringMobThread = nil
-    end)
-end
-
-local function lockAndBringMobs(targetEnemy, lockPos)
-    if not targetEnemy or not targetEnemy.Parent or not lockPos then
-        stopBringMobLoop(); stopInstantBring(); return
-    end
-    local targetRoot = targetEnemy:FindFirstChild("HumanoidRootPart")
-    local targetHum  = targetEnemy:FindFirstChildOfClass("Humanoid")
-    if not targetRoot or not targetHum or not targetHum.Health or targetHum.Health <= 0 then
-        stopBringMobLoop(); stopInstantBring(); return
-    end
-
-    forceSetNetworkOwnerOnModel(targetEnemy, LocalPlayer)
-
-    if not State.bringMobEnabled then
-        stopBringMobLoop(); stopInstantBring(); return
-    end
-
-    -- update lockPos จาก trackedRoot ที่ขยับตลอดเวลา
-    State.currentLockPos = targetRoot.Position
-
-    if string.find(State.bringMobMode, "Instant") then
-        if not Conns.instantBring then
-            startInstantBring()
-        end
-    else
-        if not State.bringMobRunning then
-            local function getLockPos() return State.currentLockPos end
-            startSmoothBring(getLockPos)
-        end
-    end
-end
-
 local function startNoclip()
     if Conns.noclip then Conns.noclip:Disconnect() end
     Conns.noclip = RunService.Stepped:Connect(function()
@@ -1440,8 +1096,6 @@ local function startNoclip()
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end
         end
-
-        -- noclip มอนเป้าหมายด้วยทุก frame
         if State.currentEnemy and State.currentEnemy.Parent then
             for _, p in ipairs(State.currentEnemy:GetDescendants()) do
                 if p:IsA("BasePart") and p.CanCollide then
@@ -1449,7 +1103,6 @@ local function startNoclip()
                 end
             end
         end
-
         if HRP then
             pcall(function()
                 if not State.bypassMoving then
@@ -1499,10 +1152,7 @@ local function startPositionLock()
         if not hrp or not hrp.Parent then return end
         local hum = char:FindFirstChildOfClass("Humanoid")
         if not hum or not hum.Health or hum.Health <= 0 then return end
-
-        -- ถ้ากำลัง farm/boss/near อยู่ให้ Heartbeat จัดการ rotation เอง ไม่ lock ซ้ำ
         if State.autoFarmEnabled or State.autoBossEnabled or State.autoNearEnabled then return end
-
         if State.currentFlyCF then
             pcall(function()
                 hrp.CFrame = State.currentFlyCF
@@ -1544,12 +1194,9 @@ local function moveToTarget(hrp, targetCF, dt)
     local dist       = delta.Magnitude
     local step       = (CFG.SPEED or 250) * dt
     local newPos     = (dist <= step or dist < 0.01) and targetPos or currentPos + (delta / dist) * step
-
-    -- เอา rotation เต็มๆ จาก targetCF มาใช้เลย ไม่ตัด axis
     local rx, ry, rz = targetCF:ToEulerAnglesXYZ()
     local fullRot    = CFrame.fromEulerAnglesXYZ(rx, ry, rz)
     local finalCF    = CFrame.new(newPos) * fullRot
-
     State.currentFlyCF = finalCF
     pcall(function()
         hrp.CFrame = finalCF
@@ -1559,6 +1206,37 @@ local function moveToTarget(hrp, targetCF, dt)
 end
 
 local lastFarmBypassTick = 0
+local farmHopThread = nil
+
+local function stopFarmHop()
+    if farmHopThread then task.cancel(farmHopThread); farmHopThread = nil end
+end
+
+local function getEntranceList()
+    if sea1 then
+        return {
+            Vector3.new(3864.6879882812, 6.7369995117188, -1926.2139892578),
+            Vector3.new(-4607.8232421875, 874.39099121094, -1667.5570068359),
+            Vector3.new(-7894.6181640625, 5547.1420898438, -380.29098510742),
+            Vector3.new(61163.8515625, 11.68000793457, 1819.7840576172),
+        }
+    elseif sea2 then
+        return {
+            Vector3.new(2284.9091796875, 15.537796020508, 905.46417236328),
+            Vector3.new(-286.98596191406, 306.13739013672, 597.89910888672),
+            Vector3.new(-6508.5581054688, 89.035003662109, -132.83999633789),
+            Vector3.new(923.21301269531, 126.9759979248, 32852.83203125),
+        }
+    elseif sea3 then
+        return {
+            Vector3.new(-12463.602539062, 378.32705688477, -7533.0830078125),
+            Vector3.new(-5060.4116210938, 318.50201416016, -3160.2248535156),
+            Vector3.new(5650.9477539062, 1017.2747802734, -300.3791809082),
+        }
+    end
+    return {}
+end
+
 local function tryFarmBypass(targetPos)
     if not State.farmBypassEnabled then return false end
     if not targetPos then return false end
@@ -1569,39 +1247,91 @@ local function tryFarmBypass(targetPos)
     local targetCF = Convert_CFrame(targetPos)
     if not targetCF then return false end
     local dist = (hrp.Position - targetCF.Position).Magnitude
-    if dist > 1500 and CanBypassTeleport(targetCF) then
-        lastFarmBypassTick = tick()
-        task.spawn(function()
-            pcall(function()
-                BypassTP(targetCF)
-                task.wait(0.3)
-                requestentrance(targetCF)
-            end)
-            local newChar = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-            local newHrp = newChar:WaitForChild("HumanoidRootPart", 5)
-            if newHrp then
-                State.currentFlyCF = newHrp.CFrame
+    if dist <= 3000 then
+        stopFarmHop()
+        return false
+    end
+    if farmHopThread then return true end
+    lastFarmBypassTick = tick()
+    farmHopThread = task.spawn(function()
+        local entranceList = getEntranceList()
+        local function getBestEntrance(fromPos)
+            local best = nil
+            local bestDist = math.huge
+            for _, entrance in ipairs(entranceList) do
+                local dToTarget = (entrance - targetCF.Position).Magnitude
+                local dFromPlayer = (entrance - fromPos).Magnitude
+                if dToTarget < (fromPos - targetCF.Position).Magnitude
+                    and dFromPlayer > 500
+                    and dToTarget < bestDist then
+                    bestDist = dToTarget
+                    best = entrance
+                end
             end
-        end)
-        return true
-    end
-    return false
-end
-
-local function getEnemySpawnPosition(targetEnemy)
-    if not targetEnemy or not targetEnemy.Parent then return nil end
-    local root = targetEnemy:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-    local currentPos  = root.Position
-    local monsterName = cleanMonsterName(targetEnemy.Name)
-    local spawns      = getSpawnPositionsForMonster(monsterName)
-    if #spawns == 0 then return currentPos end
-    local bestPos, bestDist = currentPos, math.huge
-    for _, spawnPos in ipairs(spawns) do
-        local dist = (spawnPos - currentPos).Magnitude
-        if dist < bestDist then bestDist = dist; bestPos = spawnPos end
-    end
-    return bestPos
+            return best
+        end
+        local MAX_HOPS = 3
+        local hopCount = 0
+        while hopCount < MAX_HOPS do
+            hopCount = hopCount + 1
+            local currentChar = LocalPlayer.Character
+            local currentHrp = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
+            if not currentHrp then task.wait(1); continue end
+            local currentPos = currentHrp.Position
+            local distToTarget = (currentPos - targetCF.Position).Magnitude
+            if distToTarget <= 3000 then
+                Library:Notify({ Title = "Farm Bypass", Description = "Reached! Tweening now", Time = 2 })
+                break
+            end
+            local bestEntrance = getBestEntrance(currentPos)
+            if bestEntrance then
+                Library:Notify({ Title = "Hop " .. hopCount, Description = "Using entrance point", Time = 2 })
+                pcall(function()
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", bestEntrance)
+                end)
+                task.wait(2)
+                local afterChar = LocalPlayer.Character
+                local afterHrp = afterChar and afterChar:FindFirstChild("HumanoidRootPart")
+                if afterHrp then
+                    local movedDist = (afterHrp.Position - currentPos).Magnitude
+                    if movedDist < 100 then
+                        if CanBypassTeleport(CFrame.new(bestEntrance)) then
+                            BypassTP(CFrame.new(bestEntrance))
+                            task.wait(1)
+                        end
+                    end
+                    State.currentFlyCF = afterHrp.CFrame
+                end
+            else
+                if CanBypassTeleport(targetCF) then
+                    Library:Notify({ Title = "Farm Bypass", Description = "No entrance found, using BypassTP", Time = 2 })
+                    BypassTP(targetCF)
+                    task.wait(0.5)
+                    requestentrance(targetCF)
+                end
+                break
+            end
+            task.wait(0.5)
+        end
+        local finalChar = LocalPlayer.Character
+        local finalHrp = finalChar and finalChar:FindFirstChild("HumanoidRootPart")
+        if finalHrp then
+            local finalDist = (finalHrp.Position - targetCF.Position).Magnitude
+            if finalDist > 3000 then
+                Library:Notify({ Title = "Farm Bypass", Description = "Max hops reached, using BypassTP", Time = 2 })
+                if CanBypassTeleport(targetCF) then
+                    BypassTP(targetCF)
+                    task.wait(0.5)
+                    requestentrance(targetCF)
+                end
+            end
+        end
+        local nc = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local nhrp = nc:WaitForChild("HumanoidRootPart", 5)
+        if nhrp then State.currentFlyCF = nhrp.CFrame end
+        farmHopThread = nil
+    end)
+    return true
 end
 
 local function findWeapon(keyword)
@@ -1664,7 +1394,6 @@ local function startAutoNear()
         HRP = hrp; Humanoid = hum; Character = c
         pcall(function() if Humanoid then Humanoid.AutoRotate = false end end)
         equipWeapon(State.selectedWeaponType)
-
         local enemyHum  = State.currentEnemy and State.currentEnemy:FindFirstChildOfClass("Humanoid")
         local enemyRoot = State.currentEnemy and State.currentEnemy:FindFirstChild("HumanoidRootPart")
         if not State.currentEnemy or not enemyRoot or not enemyRoot.Parent or not enemyHum or not enemyHum.Health or enemyHum.Health <= 0 then
@@ -1702,20 +1431,15 @@ local function startAutoNear()
             State.trackedRoot = getEnemyRoot(State.currentEnemy)
             if not State.trackedRoot then return end
         end
-
         local target        = State.currentEnemy
         local enemyLiveRoot = State.trackedRoot
         if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
-
         local enemyCF  = enemyLiveRoot.CFrame
         local enemyPos = enemyCF.Position
-
         lockAndBringMobs(target, enemyPos)
         noclipEnemy(target)
-
         local targetCF = getOffsetCF(enemyCF)
         local dist     = (targetCF.Position - hrp.Position).Magnitude
-
         if dist > (CFG.REACH or 6) then
             stopFastAttack(); prevEnemy = nil
             tryFarmBypass(targetCF.Position)
@@ -1723,7 +1447,6 @@ local function startAutoNear()
         else
             local liveCF  = enemyLiveRoot.CFrame
             local finalCF = getOffsetCF(liveCF)
-
             State.currentFlyCF = finalCF
             pcall(function()
                 hrp.CFrame = finalCF
@@ -1756,7 +1479,6 @@ local function startAutoFarm()
         local activeList = updateSelectedMonstersList()
         if #activeList == 0 then return end
         equipWeapon(State.selectedWeaponType)
-
         local target, targetMonsterName = findPriorityEnemy(activeList)
         if target and targetMonsterName then
             local enemyHum  = target:FindFirstChildOfClass("Humanoid")
@@ -1772,20 +1494,15 @@ local function startAutoFarm()
                 State.trackedRoot = getEnemyRoot(target)
             end
             if not State.trackedRoot then return end
-
             local enemyLiveRoot = State.trackedRoot
             if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
-
             local enemyCF  = enemyLiveRoot.CFrame
             local enemyPos = enemyCF.Position
-
             lockAndBringMobs(target, enemyPos)
             noclipEnemy(target)
-
             local targetCF = getOffsetCF(enemyCF)
             local hrpPos   = HRP and HRP.Position or targetCF.Position
             local dist     = (targetCF.Position - hrpPos).Magnitude
-
             if dist > (CFG.REACH or 6) then
                 stopFastAttack(); prevEnemy = nil
                 tryFarmBypass(targetCF.Position)
@@ -1793,7 +1510,6 @@ local function startAutoFarm()
             else
                 local liveCF  = enemyLiveRoot.CFrame
                 local finalCF = getOffsetCF(liveCF)
-
                 State.currentFlyCF = finalCF
                 pcall(function()
                     if HRP then
@@ -1812,7 +1528,6 @@ local function startAutoFarm()
         else
             stopFastAttack(); stopHitRegistration()
             prevEnemy = nil; State.currentEnemy = nil; State.trackedRoot = nil; smoothCleanAll()
-
             local allSpawns = {}
             local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
             if spawnsFolder then
@@ -1830,16 +1545,13 @@ local function startAutoFarm()
                     end
                 end
             end
-
             if #allSpawns == 0 then return end
             if spawnIdx > #allSpawns then spawnIdx = 1 end
-
             local currentSpawn = allSpawns[spawnIdx]
             local spawnPos = currentSpawn.pos + Vector3.new(CFG.OFFSET_X or 0, CFG.OFFSET_Y or 25, CFG.OFFSET_Z or 0)
             local targetCF = CFrame.new(spawnPos)
             local currentPos = (State.currentFlyCF and State.currentFlyCF.Position) or (HRP and HRP.Position)
             local dist = currentPos and (spawnPos - currentPos).Magnitude or math.huge
-
             if dist > (CFG.REACH or 6) then
                 State.bossWaitTick = nil
                 tryFarmBypass(spawnPos)
@@ -1847,11 +1559,7 @@ local function startAutoFarm()
             else
                 if not State.bossWaitTick then
                     State.bossWaitTick = tick()
-                    Library:Notify({
-                        Title = "Auto Farm",
-                        Description = "Waiting at " .. currentSpawn.name .. " spawn...",
-                        Time = 3,
-                    })
+                    Library:Notify({ Title = "Auto Farm", Description = "Waiting at " .. currentSpawn.name .. " spawn...", Time = 3 })
                 elseif tick() - State.bossWaitTick >= 3 then
                     State.bossWaitTick = nil
                     spawnIdx = (spawnIdx % #allSpawns) + 1
@@ -1867,7 +1575,6 @@ local function startAutoBoss()
     State.bossSpawnIdx = 1
     if HRP then State.currentFlyCF = HRP.CFrame end
     startPositionLock()
-
     Conns.boss = RunService.Heartbeat:Connect(function(dt)
         if not State.autoBossEnabled then
             if Conns.boss then Conns.boss:Disconnect(); Conns.boss = nil end
@@ -1875,64 +1582,42 @@ local function startAutoBoss()
             return
         end
         if not updateCharacter() then return end
-
         local activeList = updateSelectedBossesList()
         if #activeList == 0 then return end
         equipWeapon(State.selectedWeaponType)
-
         local target, targetBossName = findBossByPriority(activeList)
-
         if target and targetBossName then
             State.bossWaitTick = nil
             local enemyHum  = target:FindFirstChildOfClass("Humanoid")
             local enemyRoot = target:FindFirstChild("HumanoidRootPart")
-
             if not enemyRoot or not enemyRoot.Parent or not enemyHum or not enemyHum.Health or enemyHum.Health <= 0 then
                 State.trackedRoot = nil; State.currentEnemy = nil; return
             end
-
             if State.currentEnemy ~= target then
                 if State.currentEnemy then smoothCleanAll() end
                 State.currentEnemy = target
                 State.trackedRoot  = nil
-                Library:Notify({
-                    Title = "Auto Boss",
-                    Description = "Now targeting: " .. targetBossName,
-                    Time = 3,
-                })
+                Library:Notify({ Title = "Auto Boss", Description = "Now targeting: " .. targetBossName, Time = 3 })
             end
-
             if State.trackedRoot == nil or State.trackedRoot.Parent == nil or not target:IsAncestorOf(State.trackedRoot) then
                 State.trackedRoot = getEnemyRoot(target)
             end
             if not State.trackedRoot then return end
-
             local bossHum = target:FindFirstChildOfClass("Humanoid")
             if bossHum and bossHum.Health and bossHum.Health <= 0 then
-                Library:Notify({
-                    Title = "Auto Boss",
-                    Description = targetBossName .. " is dead, switching target...",
-                    Time = 3,
-                })
-                State.currentEnemy = nil
-                State.trackedRoot  = nil
-                smoothCleanAll()
+                Library:Notify({ Title = "Auto Boss", Description = targetBossName .. " is dead, switching target...", Time = 3 })
+                State.currentEnemy = nil; State.trackedRoot = nil; smoothCleanAll()
                 return
             end
-
             local enemyLiveRoot = State.trackedRoot
             if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
-
             local enemyCF  = enemyLiveRoot.CFrame
             local enemyPos = enemyCF.Position
-
             lockAndBringMobs(target, enemyPos)
             noclipEnemy(target)
-
             local targetCF = getOffsetCF(enemyCF)
             local hrpPos   = HRP and HRP.Position or targetCF.Position
             local dist     = (targetCF.Position - hrpPos).Magnitude
-
             if dist > (CFG.REACH or 6) then
                 stopFastAttack(); stopHitRegistration(); prevEnemy = nil
                 tryFarmBypass(targetCF.Position)
@@ -1940,7 +1625,6 @@ local function startAutoBoss()
             else
                 local liveCF  = enemyLiveRoot.CFrame
                 local finalCF = getOffsetCF(liveCF)
-
                 State.currentFlyCF = finalCF
                 pcall(function()
                     if HRP then
@@ -1959,7 +1643,6 @@ local function startAutoBoss()
         else
             stopFastAttack(); stopHitRegistration()
             prevEnemy = nil; State.currentEnemy = nil; State.trackedRoot = nil; smoothCleanAll()
-
             local allSpawns = {}
             local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
             if spawnsFolder then
@@ -1977,16 +1660,13 @@ local function startAutoBoss()
                     end
                 end
             end
-
             if #allSpawns == 0 then return end
             if State.bossSpawnIdx > #allSpawns then State.bossSpawnIdx = 1 end
-
             local currentSpawn = allSpawns[State.bossSpawnIdx]
             local spawnPos = currentSpawn.pos + Vector3.new(CFG.OFFSET_X or 0, CFG.OFFSET_Y or 25, CFG.OFFSET_Z or 0)
             local targetCF = CFrame.new(spawnPos)
             local currentPos = (State.currentFlyCF and State.currentFlyCF.Position) or (HRP and HRP.Position)
             local dist = currentPos and (spawnPos - currentPos).Magnitude or math.huge
-
             if dist > (CFG.REACH or 6) then
                 State.bossWaitTick = nil
                 tryFarmBypass(spawnPos)
@@ -2013,11 +1693,7 @@ local function startTeleportTween()
     if not State.selectedIslandPos then return end
     if HRP then State.currentFlyCF = HRP.CFrame end
     startNoclip(); startPositionLock()
-
-    task.spawn(function()
-        requestentrance(State.selectedIslandPos)
-    end)
-
+    task.spawn(function() requestentrance(State.selectedIslandPos) end)
     Conns.teleport = RunService.Heartbeat:Connect(function(dt)
         if not State.teleportTweenEnabled then stopTeleportTween(); return end
         if not updateCharacter() then return end
@@ -2035,9 +1711,7 @@ local function startTeleportTween()
                 HRP.AssemblyLinearVelocity  = Vector3.zero
                 HRP.AssemblyAngularVelocity = Vector3.zero
             end)
-            task.spawn(function()
-                requestentrance(State.selectedIslandPos)
-            end)
+            task.spawn(function() requestentrance(State.selectedIslandPos) end)
             if Toggles and Toggles.TweenToIsland then
                 Toggles.TweenToIsland:SetValue(false)
             end
@@ -2085,7 +1759,6 @@ local function startBypassTp()
     if not State.selectedIslandPos then return end
     State.bypassTpEnabled = true
     State.bypassMoving = true
-
     task.spawn(function()
         if not State.bypassTpEnabled then State.bypassMoving = false; return end
         pcall(function()
@@ -2095,10 +1768,8 @@ local function startBypassTp()
             local hm = c:FindFirstChildOfClass("Humanoid")
             if not h or not hm or not hm.Health or hm.Health <= 0 then return end
             if not State.bypassTpEnabled then return end
-
             requestentrance(State.selectedIslandPos)
             task.wait(0.5)
-
             if CanBypassTeleport(CFrame.new(State.selectedIslandPos)) then
                 BypassTP(CFrame.new(State.selectedIslandPos))
                 task.wait(0.5)
@@ -2118,9 +1789,7 @@ local function startBypassTp()
             stopNoclip(); stopPositionLock(); return
         end
         Conns.bypassTp = RunService.Heartbeat:Connect(function(dt)
-            if not State.bypassTpEnabled then
-                stopBypassTp(); return
-            end
+            if not State.bypassTpEnabled then stopBypassTp(); return end
             if not updateCharacter() then return end
             if not State.selectedIslandPos then return end
             if not HRP or not HRP.Parent then return end
@@ -2281,6 +1950,7 @@ local function stopPlayerNoclip()
 end
 
 local function round(n) return math.floor(tonumber(n) + 0.5) end
+
 local function getMyHeadPos()
     local char = LocalPlayer.Character
     local head = char and char:FindFirstChild("Head")
@@ -2343,34 +2013,47 @@ local DevEsp = function()
     if not myHeadPos then return end
     for _, v in next, workspace:GetChildren() do
         pcall(function()
+            if not string.find(v.Name, "Fruit") then return end
+            local handle = v:FindFirstChild("Handle")
+            if not handle or not handle.Parent then
+                local esp = v:FindFirstChild("NameEsp"..ESP.Number)
+                if esp then esp:Destroy() end
+                return
+            end
             if ESP.DevilFruit then
-                if string.find(v.Name, "Fruit") and v:FindFirstChild("Handle") then
-                    local distText = round((myHeadPos - v.Handle.Position).Magnitude/3) ..' M'
-                    if not v.Handle:FindFirstChild('NameEsp'..ESP.Number) then
-                        local bill = Instance.new('BillboardGui', v.Handle)
-                        bill.Name = 'NameEsp'..ESP.Number
-                        bill.ExtentsOffset = Vector3.new(0, 1, 0)
-                        bill.Size = UDim2.new(1, 200, 1, 30)
-                        bill.Adornee = v.Handle
-                        bill.AlwaysOnTop = true
-                        local name = Instance.new('TextLabel', bill)
-                        name.Font = Enum.Font.Code
-                        name.FontSize = "Size14"
-                        name.TextWrapped = true
-                        name.Size = UDim2.new(1, 0, 1, 0)
-                        name.TextYAlignment = 'Top'
-                        name.BackgroundTransparency = 1
-                        name.TextStrokeTransparency = 0.5
-                        name.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        name.Text = (v.Name ..' \n'.. distText)
-                    else
-                        v.Handle['NameEsp'..ESP.Number].TextLabel.Text = ('[' ..v.Name ..']' ..'   \n'.. distText)
+                local distText = round((myHeadPos - handle.Position).Magnitude/3) .." M"
+                local esp = handle:FindFirstChild("NameEsp"..ESP.Number)
+                if not esp then
+                    local bill = Instance.new("BillboardGui", handle)
+                    bill.Name = "NameEsp"..ESP.Number
+                    bill.ExtentsOffset = Vector3.new(0, 1, 0)
+                    bill.Size = UDim2.new(1, 200, 1, 30)
+                    bill.Adornee = handle
+                    bill.AlwaysOnTop = true
+                    local name = Instance.new("TextLabel", bill)
+                    name.Font = Enum.Font.Code
+                    name.FontSize = "Size14"
+                    name.TextWrapped = true
+                    name.Size = UDim2.new(1, 0, 1, 0)
+                    name.TextYAlignment = "Top"
+                    name.BackgroundTransparency = 1
+                    name.TextStrokeTransparency = 0.5
+                    name.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    name.Text = "[" .. v.Name .. "]\n" .. distText
+                    handle.AncestryChanged:Connect(function()
+                        if bill and bill.Parent then
+                            pcall(function() bill:Destroy() end)
+                        end
+                    end)
+                else
+                    local label = esp:FindFirstChildOfClass("TextLabel")
+                    if label then
+                        label.Text = "[" .. v.Name .. "]\n" .. distText
                     end
                 end
             else
-                if v:FindFirstChild('Handle') and v.Handle:FindFirstChild('NameEsp'..ESP.Number) then
-                    v.Handle:FindFirstChild('NameEsp'..ESP.Number):Destroy()
-                end
+                local esp = handle:FindFirstChild("NameEsp"..ESP.Number)
+                if esp then esp:Destroy() end
             end
         end)
     end
@@ -2699,7 +2382,6 @@ local initialBossList    = #Lists.masterBossList > 0 and Lists.masterBossList or
 do
     local InfoLeft   = Tabs.Info:AddLeftGroupbox("Server Status")
     local InfoRight  = Tabs.Info:AddRightGroupbox("Event Status")
-
     local tzLabel    = InfoLeft:AddLabel("Time Zone: Loading...")
     local gtLabel    = InfoLeft:AddLabel("Game Time: Loading...")
     local mirLabel   = InfoLeft:AddLabel("Mirage Island: Checking...")
@@ -2900,14 +2582,26 @@ do
         Library:Notify({ Title = "Farm Bypass TP", Description = State.farmBypassEnabled and "ON" or "OFF", Time = 3 })
     end)
 
+    FarmRight:AddSlider("BringMobCount", {
+    Text = "Bring Mob Count",
+    Min = 1,
+    Max = 6,
+    Default = 1,
+    Rounding = 0,
+})
+Options.BringMobCount:OnChanged(function()
+    State.bringMobCount = tonumber(O("BringMobCount")) or 1
+    Library:Notify({ Title = "Bring Mob", Description = "Bring " .. State.bringMobCount .. " mobs", Time = 2 })
+end)
+
     FarmLeft:AddSlider("TweenSpeed", { Text = "Tween Speed", Min = 0, Max = 500, Default = 250, Rounding = 0 })
     Options.TweenSpeed:OnChanged(function() CFG.SPEED = tonumber(O("TweenSpeed")) or 250 end)
 
     FarmLeft:AddSlider("OffsetX", { Text = "Offset X", Min = -50, Max = 50, Default = 0, Rounding = 0 })
     Options.OffsetX:OnChanged(function() CFG.OFFSET_X = tonumber(O("OffsetX")) or 0 end)
 
-    FarmLeft:AddSlider("OffsetY", { Text = "Offset Y", Min = 0, Max = 100, Default = 25, Rounding = 0 })
-    Options.OffsetY:OnChanged(function() CFG.OFFSET_Y = tonumber(O("OffsetY")) or 25 end)
+    FarmLeft:AddSlider("OffsetY", { Text = "Offset Y", Min = 0, Max = 100, Default = 35, Rounding = 0 })
+    Options.OffsetY:OnChanged(function() CFG.OFFSET_Y = tonumber(O("OffsetY")) or 35 end)
 
     FarmLeft:AddSlider("OffsetZ", { Text = "Offset Z", Min = -50, Max = 50, Default = 0, Rounding = 0 })
     Options.OffsetZ:OnChanged(function() CFG.OFFSET_Z = tonumber(O("OffsetZ")) or 0 end)
@@ -2915,30 +2609,14 @@ do
     FarmLeft:AddSlider("HitRange", { Text = "Hit Range", Min = 10, Max = 200, Default = 100, Rounding = 0 })
     Options.HitRange:OnChanged(function() CFG.MAX_DISTANCE = tonumber(O("HitRange")) or 100 end)
 
-    FarmRight:AddDropdown("BringMobMode", {
-        Values = Lists.BRING_MODES, Default = 1, Multi = false, Text = "Bring Mob Mode",
-    })
-    Options.BringMobMode:OnChanged(function()
-        local raw = O("BringMobMode") or ""
-        State.bringMobMode = string.find(raw, "Instant") and "Instant" or "Smooth"
-        Library:Notify({ Title = "Bring Mob Mode", Description = State.bringMobMode, Time = 3 })
-    end)
-
-    FarmRight:AddSlider("BringRadius", { Text = "BringMob Distance", Min = 0, Max = 500, Default = 300, Rounding = 0 })
-    Options.BringRadius:OnChanged(function() CFG.BRING_RADIUS = tonumber(O("BringRadius")) or 300 end)
-
-    FarmRight:AddSlider("BringCount", { Text = "Bring Mob count", Min = 1, Max = 10, Default = 1, Rounding = 0 })
-    Options.BringCount:OnChanged(function() CFG.BRING_COUNT = tonumber(O("BringCount")) or 1 end)
-
     FarmRight:AddButton({
         Text = "Reset Value Default",
         Func = function()
             CFG.SPEED = 250; CFG.OFFSET_X = 0; CFG.OFFSET_Y = 25; CFG.OFFSET_Z = 0
-            CFG.MAX_DISTANCE = 100; CFG.BRING_RADIUS = 300; CFG.BRING_COUNT = 1; State.bringMobMode = "Instant"
+            CFG.MAX_DISTANCE = 100
             Options.TweenSpeed:SetValue(250); Options.OffsetX:SetValue(0)
             Options.OffsetY:SetValue(25); Options.OffsetZ:SetValue(0)
-            Options.HitRange:SetValue(100); Options.BringMobMode:SetValue("Instant")
-            Options.BringRadius:SetValue(300); Options.BringCount:SetValue(1)
+            Options.HitRange:SetValue(100)
             smoothCleanAll()
             Library:Notify({ Title = "Reset", Description = "Reset to Default", Time = 3 })
         end,
@@ -3062,7 +2740,7 @@ do
     RightGroup:AddToggle("BringMob", { Text = "Bring Mob", Default = true })
     Toggles.BringMob:OnChanged(function()
         State.bringMobEnabled = T("BringMob")
-        if not State.bringMobEnabled then stopBringMobLoop(); stopInstantBring() end
+        _B = State.bringMobEnabled
         Library:Notify({ Title = "Bring Mob", Description = State.bringMobEnabled and "ON" or "OFF", Time = 3 })
     end)
 
@@ -3088,6 +2766,7 @@ do
         end)
     end
 end
+
 do
     local SeaLeft = Tabs.Sea:AddLeftGroupbox("Boat Settings")
 
@@ -3539,8 +3218,10 @@ do
     EspRight:AddLabel("Red = Enemy Team")
 end
 
+local HopState2 = HopState
+
 local function doHop()
-    HopState.hopTotal = HopState.hopTotal + 1
+    HopState2.hopTotal = HopState2.hopTotal + 1
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     local sb = pg and pg:FindFirstChild("ServerBrowser")
     if not sb then Library:Notify({ Title = "Hop", Description = "ServerBrowser not found", Time = 3 }); return end
@@ -3563,7 +3244,7 @@ local function doHop()
     pcall(function()
         local rb = frame.Filters.SearchRegion:FindFirstChildOfClass("TextBox")
         if rb then
-            rb.Text = HopState.hopTarget ~= "" and HopState.hopTarget or ""
+            rb.Text = HopState2.hopTarget ~= "" and HopState2.hopTarget or ""
             rb:ReleaseFocus()
         end
     end)
@@ -3573,7 +3254,7 @@ local function doHop()
     local inside = frame:FindFirstChild("FakeScroll") and frame.FakeScroll:FindFirstChild("Inside")
     if not inside then watching = false; return end
 
-    local maxP = HopState.hopMaxPlayers
+    local maxP = HopState2.hopMaxPlayers
     local tried = {}
 
     local function findBest()
@@ -3665,17 +3346,17 @@ local function doHop()
 end
 
 local function startAutoHop(intervalMinutes)
-    HopState.hopCD = (intervalMinutes or 45) * 60
-    HopState.hopTick = tick()
-    if HopState.hopThread then task.cancel(HopState.hopThread); HopState.hopThread = nil end
-    HopState.hopThread = task.spawn(function()
+    HopState2.hopCD = (intervalMinutes or 45) * 60
+    HopState2.hopTick = tick()
+    if HopState2.hopThread then task.cancel(HopState2.hopThread); HopState2.hopThread = nil end
+    HopState2.hopThread = task.spawn(function()
         while true do
             task.wait(1)
             local now = tick()
-            HopState.hopCD = HopState.hopCD - (now - HopState.hopTick)
-            HopState.hopTick = now
-            if HopState.hopCD <= 0 then
-                HopState.hopCD = (intervalMinutes or 45) * 60
+            HopState2.hopCD = HopState2.hopCD - (now - HopState2.hopTick)
+            HopState2.hopTick = now
+            if HopState2.hopCD <= 0 then
+                HopState2.hopCD = (intervalMinutes or 45) * 60
                 task.spawn(doHop)
             end
         end
@@ -3683,8 +3364,8 @@ local function startAutoHop(intervalMinutes)
 end
 
 local function stopAutoHop()
-    if HopState.hopThread then task.cancel(HopState.hopThread); HopState.hopThread = nil end
-    HopState.hopCD = 0
+    if HopState2.hopThread then task.cancel(HopState2.hopThread); HopState2.hopThread = nil end
+    HopState2.hopCD = 0
     pcall(function()
         local pg = LocalPlayer:FindFirstChild("PlayerGui")
         local sb = pg and pg:FindFirstChild("ServerBrowser")
@@ -3761,11 +3442,11 @@ do
         Text = "Region Filter", Default = "singapore", Numeric = false, Finished = false, Placeholder = "e.g. singapore",
     })
     Options.HopRegion:OnChanged(function()
-        HopState.hopTarget = tostring(O("HopRegion") or "singapore"):lower()
+        HopState2.hopTarget = tostring(O("HopRegion") or "singapore"):lower()
     end)
 
     MiscServ:AddSlider("HopMaxPlayers", { Text = "Max Players Filter", Min = 1, Max = 20, Default = 3, Rounding = 0 })
-    Options.HopMaxPlayers:OnChanged(function() HopState.hopMaxPlayers = tonumber(O("HopMaxPlayers")) or 3 end)
+    Options.HopMaxPlayers:OnChanged(function() HopState2.hopMaxPlayers = tonumber(O("HopMaxPlayers")) or 3 end)
 
     MiscServ:AddButton({
         Text = "Copy Job ID",
@@ -3837,6 +3518,7 @@ do
         Func = function()
             State.autoNearEnabled = false; State.autoFarmEnabled = false; State.autoBossEnabled = false; State.teleportTweenEnabled = false
             FastAttackModule.Enabled = false
+            _B = false
             stopFastAttack(); stopHitRegistration(); stopPositionLock()
             stopNoclip(); smoothCleanAll(); stopTeleportTween(); stopBypassTp(); stopBoatNoclip(); stopPlayerNoclip()
             if Conns.follow then Conns.follow:Disconnect(); Conns.follow = nil end
@@ -3873,6 +3555,7 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
 
     refreshFolders()
     stopPositionLock()
+    stopFarmHop()
     smoothCleanAll()
     task.wait(1)
     startHitRegistration()
@@ -3904,13 +3587,5 @@ SaveManager:SetFolder("KKKKHub/config")
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
-task.spawn(function()
-    task.wait(5)
-    while true do
-        task.wait(10)
-        pcall(function() SaveManager:Save(SaveManager.AutoloadLabel or "autoload") end)
-    end
-end)
-
-Library:Notify({ Title = "KKKK Hub", Description = "Loaded - Enhanced Edition", Time = 6 })
+Library:Notify({ Title = "KKKK Hub", Description = "Loaded - KKKK Hub Freemium", Time = 6 })
 SaveManager:LoadAutoloadConfig()
