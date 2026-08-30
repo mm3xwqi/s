@@ -229,12 +229,7 @@ end
 
 local function HasNetworkOwnership(root)
     if not root then return false end
-    if root.ReceiveAge == 0 then return true end
-    if isnetworkowner then
-        local ok, result = pcall(isnetworkowner, root)
-        if ok and result then return true end
-    end
-    return false
+    return true  
 end
 
 BringEnemy = function(Mon)
@@ -262,16 +257,11 @@ BringEnemy = function(Mon)
     local monRoot = Mon:FindFirstChild("HumanoidRootPart")
     if not monRoot then return end
 
-    local function Mobs(enemy)
-        local hum = enemy:FindFirstChildOfClass("Humanoid")
-        local root = enemy:FindFirstChild("HumanoidRootPart")
-        return hum and root and hum.Health > 0, root, hum
-    end
-
     pcall(function()
         if sethiddenproperty then
             sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
         end
+
         local targetPos = monRoot.Position
 
         local alreadyNear = 0
@@ -293,32 +283,76 @@ BringEnemy = function(Mon)
         for _, v in ipairs(workspace.Enemies:GetChildren()) do
             if v ~= Mon then
                 if brought >= State.bringMobCount then break end
-                local alive, root, hum = Mobs(v)
-                if alive and v.Name == Mon.Name then
+
+                local hum = v:FindFirstChildOfClass("Humanoid")
+                local root = v:FindFirstChild("HumanoidRootPart")
+                if hum and root and hum.Health > 0 and v.Name == Mon.Name then
                     local distance = (root.Position - targetPos).Magnitude
                     if distance <= 250 and distance > 3 then
                         if HasNearbyPlayer(v) then continue end
-                        if not HasNetworkOwnership(root) then continue end
                         pcall(function()
+                            -- ใส่ BodyVelocity เพื่อล็อคมอน
+                            local bv = root:FindFirstChild("BodyVelocity")
+                            if not bv then
+                                bv = Instance.new("BodyVelocity")
+                                bv.Name = "BodyVelocity"
+                                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+                                bv.Velocity = Vector3.zero
+                                bv.Parent = root
+                            end
                             root.CFrame = CFrame.new(targetPos)
+                            root.Velocity = Vector3.zero
                             root.CanCollide = false
+                            hum.WalkSpeed = 0
+                            hum.JumpPower = 0
                         end)
                         brought = brought + 1
                     end
                 end
             end
         end
+
+        -- ล็อคมอนหลัก
+        if Mon and monRoot and monRoot.Parent then
+            monRoot.CanCollide = false
+            local monHum = Mon:FindFirstChildOfClass("Humanoid")
+            if monHum then
+                monHum.WalkSpeed = 0
+                monHum.JumpPower = 0
+            end
+        end
     end)
 end
+
+local lastBringTick   = 0
+local lastNoclipTick  = {}
+local BRING_INTERVAL  = 2.0
+local NOCLIP_ENEMY_CD = 5.0
 
 local function lockAndBringMobs(targetEnemy, lockPos)
     if not State.bringMobEnabled then return end
     if not targetEnemy or not targetEnemy.Parent then return end
+    local now = tick()
+    if now - lastBringTick < BRING_INTERVAL then return end
+    lastBringTick = now
     BringEnemy(targetEnemy)
 end
 
 local function smoothCleanAll()
     State.currentLockPos = nil
+    local enemiesFolder = workspace:FindFirstChild("Enemies")
+    if enemiesFolder then
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+            pcall(function()
+                for _, p in ipairs(enemy:GetDescendants()) do
+                    if p:IsA("BasePart") then
+                        p.CanCollide = true
+                    end
+                end
+            end)
+        end
+    end
+    lastNoclipTick = {}
 end
 
 local function getCurrentIgnoreList()
@@ -740,6 +774,8 @@ local function safeModeFlyUp(hrp)
     end)
 end
 
+local lastAutoRotateSet = nil
+
 local function updateCharacter()
     Character = LocalPlayer.Character
     if not Character then return false end
@@ -747,8 +783,15 @@ local function updateCharacter()
     Humanoid = Character:FindFirstChildOfClass("Humanoid")
     if not HRP or not HRP.Parent then return false end
     if not Humanoid or not Humanoid.Health or Humanoid.Health <= 0 then return false end
-    if State.autoNearEnabled or State.autoFarmEnabled or State.autoBossEnabled or State.teleportTweenEnabled then
+
+    local shouldDisable = State.autoNearEnabled or State.autoFarmEnabled
+        or State.autoBossEnabled or State.teleportTweenEnabled
+    if shouldDisable and lastAutoRotateSet ~= false then
         pcall(function() Humanoid.AutoRotate = false end)
+        lastAutoRotateSet = false
+    elseif not shouldDisable and lastAutoRotateSet ~= true then
+        pcall(function() Humanoid.AutoRotate = true end)
+        lastAutoRotateSet = true
     end
     return true
 end
@@ -1038,9 +1081,23 @@ end
 local function scanAllMonsters()
     local newlyFound = false
     local spawns = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
-    if spawns then for _, part in ipairs(spawns:GetChildren()) do if addDiscoveredMonster(part.Name) then newlyFound = true end end end
+    if spawns then
+        for _, part in ipairs(spawns:GetChildren()) do
+            local rawName = part.Name
+            if string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]") then continue end
+            if addDiscoveredMonster(rawName) then newlyFound = true end
+        end
+    end
     local enemies = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
-    if enemies then for _, model in ipairs(enemies:GetChildren()) do if addDiscoveredMonster(model.Name) then newlyFound = true end end end
+    if enemies then
+        for _, model in ipairs(enemies:GetChildren()) do
+            local hum = model:FindFirstChildOfClass("Humanoid")
+            local display = hum and hum.DisplayName or ""
+            local checkName = display ~= "" and display or model.Name
+            if string.find(checkName, "%[Boss%]") or string.find(checkName, "%[Raid Boss%]") then continue end
+            if addDiscoveredMonster(model.Name) then newlyFound = true end
+        end
+    end
     return newlyFound
 end
 
@@ -1252,7 +1309,7 @@ local function addDiscoveredBoss(rawName)
     return false
 end
 
-local FastAttackModule      = { Rate = 0.05, Enabled = false }
+local FastAttackModule      = { Rate = 0.1, Enabled = false }
 local HitRegistrationModule = {}
 
 local function safeWaitForChild(parent, childName)
@@ -1396,8 +1453,8 @@ function HitRegistrationModule.Execute()
 end
 
 local function startFastAttack()
+    if Conns.fastAttackThread then return end
     FastAttackModule.Enabled = true
-    if Conns.fastAttackThread then task.cancel(Conns.fastAttackThread); Conns.fastAttackThread = nil end
     Conns.fastAttackThread = task.spawn(function()
         while FastAttackModule.Enabled do
             pcall(FastAttackModule.ExecuteFastAttack)
@@ -1415,7 +1472,7 @@ local function stopFastAttack()
 end
 
 local function startHitRegistration()
-    if Conns.hitReg then Conns.hitReg:Disconnect() end
+    if Conns.hitReg then return end
     Conns.hitReg = RunService.Heartbeat:Connect(function()
         if FastAttackModule.Enabled then
             pcall(HitRegistrationModule.Execute)
@@ -1441,71 +1498,94 @@ local function checkAndResumeFastAttack()
     end
 end
 
+local noclipCache     = {}
+local noclipCacheTick = 0
+local NOCLIP_REBUILD  = 5
+local NOCLIP_INTERVAL = 0.15
+local noclipApplyTick = 0
+
 local function startNoclip()
     if Conns.noclip then Conns.noclip:Disconnect() end
-    Conns.noclip = RunService.Stepped:Connect(function()
+    noclipCache = {}; noclipCacheTick = 0; noclipApplyTick = 0
+
+    Conns.noclip = RunService.Heartbeat:Connect(function()
+        local now = tick()
+        if now - noclipApplyTick < NOCLIP_INTERVAL then return end
+        noclipApplyTick = now
+
         local char = LocalPlayer.Character
         if not char then return end
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end
-        end
-        if State.currentEnemy and State.currentEnemy.Parent then
-            for _, p in ipairs(State.currentEnemy:GetDescendants()) do
-                if p:IsA("BasePart") and p.CanCollide then
-                    pcall(function() p.CanCollide = false end)
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+
+        if now - noclipCacheTick > NOCLIP_REBUILD then
+            noclipCacheTick = now
+            noclipCache = {}
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    noclipCache[#noclipCache + 1] = part
+                end
+            end
+            if State.currentEnemy and State.currentEnemy.Parent then
+                for _, p in ipairs(State.currentEnemy:GetDescendants()) do
+                    if p:IsA("BasePart") then
+                        noclipCache[#noclipCache + 1] = p
+                    end
                 end
             end
         end
-        if HRP then
-            pcall(function()
-                if not State.bypassMoving then
-                    HRP.AssemblyLinearVelocity  = Vector3.zero
-                    HRP.AssemblyAngularVelocity = Vector3.zero
-                end
-                for _, child in ipairs(HRP:GetChildren()) do
-                    if child.Name == "BypassBV" then continue end
-                    if child:IsA("BodyVelocity") or child:IsA("BodyGyro")
-                       or child:IsA("BodyPosition") or child:IsA("LinearVelocity")
-                       or child:IsA("VectorForce") or child:IsA("AlignPosition")
-                       or child:IsA("AlignOrientation") then
-                        child:Destroy()
-                    end
-                end
-            end)
+
+        for i = 1, #noclipCache do
+            local part = noclipCache[i]
+            if part and part.Parent and part.CanCollide then
+                part.CanCollide = false
+            end
         end
     end)
 end
 
 local function stopNoclip()
     if Conns.noclip then Conns.noclip:Disconnect(); Conns.noclip = nil end
-    pcall(function()
-        local char = LocalPlayer.Character
-        if not char then return end
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                if part.Name ~= "HumanoidRootPart" then
-                    part.CanCollide = true
-                end
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                pcall(function() part.CanCollide = true end)
             end
         end
-    end)
+    end
+    noclipCache = {}
+    noclipCacheTick = 0
+    noclipApplyTick = 0
 end
+
+local LOCK_INTERVAL = 0.05
+local lockLastTick  = 0
 
 local function startPositionLock()
     if Conns.lock then Conns.lock:Disconnect() end
     if Humanoid then pcall(function() Humanoid.AutoRotate = false end) end
-    Conns.lock = RunService.RenderStepped:Connect(function()
-        if not (State.autoNearEnabled or State.autoFarmEnabled or State.autoBossEnabled or State.teleportTweenEnabled or State.bypassTpEnabled) then
+    lockLastTick = tick()
+
+    Conns.lock = RunService.Stepped:Connect(function()
+        if not (State.autoNearEnabled or State.autoFarmEnabled or State.autoBossEnabled
+            or State.teleportTweenEnabled or State.bypassTpEnabled) then
             if Conns.lock then Conns.lock:Disconnect(); Conns.lock = nil end
             return
         end
+
+        local now = tick()
+        if now - lockLastTick < LOCK_INTERVAL then return end
+        lockLastTick = now
+
         local char = LocalPlayer.Character
         if not char then return end
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp or not hrp.Parent then return end
         local hum = char:FindFirstChildOfClass("Humanoid")
         if not hum or not hum.Health or hum.Health <= 0 then return end
+
         if State.autoFarmEnabled or State.autoBossEnabled or State.autoNearEnabled then return end
+
         if State.currentFlyCF then
             pcall(function()
                 hrp.CFrame = State.currentFlyCF
@@ -1520,21 +1600,26 @@ end
 local function stopPositionLock()
     if Conns.lock then Conns.lock:Disconnect(); Conns.lock = nil end
     State.currentFlyCF = nil
-    pcall(function()
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hum then
-            hum.AutoRotate = true
-            hum.PlatformStand = false
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-        if hrp then
-            hrp.AssemblyLinearVelocity  = Vector3.zero
-            hrp.AssemblyAngularVelocity = Vector3.zero
-        end
+    task.defer(function()
+        pcall(function()
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hum then
+                hum.AutoRotate = true
+                hum.PlatformStand = false
+                hum:ChangeState(Enum.HumanoidStateType.Landed)
+            end
+            if hrp then
+                hrp.AssemblyLinearVelocity  = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+            end
+        end)
     end)
 end
+
+local lastMoveTime = 0
+local MOVE_INTERVAL = 0.05
 
 local function moveToTarget(hrp, targetCF, dt)
     if not hrp or not hrp.Parent or not targetCF then return end
@@ -1588,9 +1673,10 @@ end
 
 local lastFarmBypassTick = 0
 local farmBypassActive   = false
+local BYPASS_CD_ENTRANCE = 4
+local BYPASS_CD_SPAWN    = 3
 
 local function tryFarmBypass(targetPos)
-    if not State.farmBypassEnabled then return false end
     if not targetPos then return false end
     if farmBypassActive then return true end
 
@@ -1604,19 +1690,21 @@ local function tryFarmBypass(targetPos)
     local currentDist = (hrp.Position - targetCF.Position).Magnitude
     if currentDist <= 1200 then return false end
 
+    local now = tick()
+
     local entranceInfo = getEntranceForTarget(targetCF.Position)
     if entranceInfo then
         local distToEntrance = (hrp.Position - entranceInfo.entrance).Magnitude
         if distToEntrance > 500 then
-            if tick() - lastFarmBypassTick < 3 then return true end
-            lastFarmBypassTick = tick()
-            farmBypassActive = true
+            if now - lastFarmBypassTick < BYPASS_CD_ENTRANCE then return true end
+            lastFarmBypassTick = now
+            farmBypassActive   = true
             task.spawn(function()
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
                 end)
                 task.wait(1.5)
-                local nc = LocalPlayer.Character
+                local nc  = LocalPlayer.Character
                 local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
                 if nhr then State.currentFlyCF = nhr.CFrame end
                 farmBypassActive = false
@@ -1626,43 +1714,39 @@ local function tryFarmBypass(targetPos)
         return false
     end
 
+    if not State.farmBypassEnabled then return false end
+
     local WorldOrigin = workspace:FindFirstChild("_WorldOrigin")
-    local Spawns = WorldOrigin and WorldOrigin:FindFirstChild("PlayerSpawns")
-    local Pirates = Spawns and Spawns:FindFirstChild("Pirates")
+    local Pirates = WorldOrigin
+        and WorldOrigin:FindFirstChild("PlayerSpawns")
+        and WorldOrigin.PlayerSpawns:FindFirstChild("Pirates")
     if not Pirates then return false end
 
-    local bestSpawn = nil
-    local bestDist  = currentDist
-
+    local bestSpawn, bestDist = nil, currentDist
     for _, v in ipairs(Pirates:GetChildren()) do
         local part = v:FindFirstChild("Part")
         if part then
             local dToTarget   = (part.Position - targetCF.Position).Magnitude
             local dFromPlayer = (part.Position - hrp.Position).Magnitude
-            if dToTarget < currentDist - 200 and dFromPlayer <= 6000 then
-                if dToTarget < bestDist then
-                    bestDist  = dToTarget
-                    bestSpawn = v
-                end
+            if dToTarget < currentDist - 200 and dFromPlayer <= 6000 and dToTarget < bestDist then
+                bestDist  = dToTarget
+                bestSpawn = v
             end
         end
     end
-
     if not bestSpawn then return false end
 
-    if tick() - lastFarmBypassTick < 2.5 then return true end
-    lastFarmBypassTick = tick()
-    farmBypassActive = true
+    if now - lastFarmBypassTick < BYPASS_CD_SPAWN then return true end
+    lastFarmBypassTick = now
+    farmBypassActive   = true
 
     task.spawn(function()
         local curChar = LocalPlayer.Character
         local curHrp  = curChar and curChar:FindFirstChild("HumanoidRootPart")
         local curHum  = curChar and curChar:FindFirstChildOfClass("Humanoid")
         if not curHrp or not curHum or curHum.Health <= 0 then
-            farmBypassActive = false
-            return
+            farmBypassActive = false; return
         end
-
         pcall(function()
             local h = curChar:FindFirstChildOfClass("Humanoid")
             if not h then return end
@@ -1671,13 +1755,10 @@ local function tryFarmBypass(targetPos)
             curChar:PivotTo(bestSpawn.Part.CFrame)
             h:ChangeState(15)
         end)
-
-        task.wait(0.4)
-
+        task.wait(0.5)
         local nc  = LocalPlayer.Character
         local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
         if nhr then State.currentFlyCF = nhr.CFrame end
-
         farmBypassActive = false
     end)
 
@@ -1707,6 +1788,10 @@ end
 
 local function noclipEnemy(enemy)
     if not enemy or not enemy.Parent then return end
+    local now = tick()
+    local lastT = lastNoclipTick[enemy] or 0
+    if now - lastT < NOCLIP_ENEMY_CD then return end
+    lastNoclipTick[enemy] = now
     for _, p in ipairs(enemy:GetDescendants()) do
         if p:IsA("BasePart") and p.CanCollide then
             pcall(function() p.CanCollide = false end)
@@ -2506,16 +2591,50 @@ local function startTeleportTween()
     if not State.selectedIslandPos then return end
     if HRP then State.currentFlyCF = HRP.CFrame end
     startNoclip(); startPositionLock()
-    task.spawn(function() requestentrance(State.selectedIslandPos) end)
-    Conns.teleport = RunService.Heartbeat:Connect(function(dt)
+
+    task.spawn(function()
+        local targetPos = State.selectedIslandPos
+        local entranceInfo = getEntranceForTarget(targetPos)
+        if entranceInfo then
+            local hrpNow = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrpNow then
+                local distToEntrance = (hrpNow.Position - entranceInfo.entrance).Magnitude
+                if distToEntrance > 500 then
+                    Library:Notify({ Title = "Teleport", Description = "Using entrance: " .. entranceInfo.name, Time = 2 })
+                    pcall(function()
+                        ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
+                    end)
+                    task.wait(1.5)
+                    local nc = LocalPlayer.Character
+                    local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
+                    if nhr then State.currentFlyCF = nhr.CFrame end
+                end
+            end
+        else
+            requestentrance(targetPos)
+        end
+    end)
+
+    local INTERVAL = 0.05
+    local lastTick = tick()
+
+    Conns.teleport = RunService.Heartbeat:Connect(function()
         if not State.teleportTweenEnabled then stopTeleportTween(); return end
         if not updateCharacter() then return end
         if not State.selectedIslandPos then return end
         if not HRP or not HRP.Parent then return end
+
+        local now = tick()
+        local dt  = now - lastTick
+        if dt < INTERVAL then return end
+        lastTick = now
+
         local targetCF   = CFrame.new(State.selectedIslandPos)
         local currentPos = State.currentFlyCF and State.currentFlyCF.Position or HRP.Position
         local dist       = (State.selectedIslandPos - currentPos).Magnitude
+
         if dist > (CFG.REACH or 6) then
+            tryFarmBypass(State.selectedIslandPos)
             moveToTarget(HRP, targetCF, dt)
         else
             State.currentFlyCF = targetCF
@@ -2524,7 +2643,6 @@ local function startTeleportTween()
                 HRP.AssemblyLinearVelocity  = Vector3.zero
                 HRP.AssemblyAngularVelocity = Vector3.zero
             end)
-            task.spawn(function() requestentrance(State.selectedIslandPos) end)
             if Toggles and Toggles.TweenToIsland then
                 Toggles.TweenToIsland:SetValue(false)
             end
@@ -2533,12 +2651,17 @@ local function startTeleportTween()
     end)
 end
 
+local bypassTpArrived = false
+local bypassActive    = false
+
 local function stopBypassTp()
     State.bypassTpEnabled = false
-    State.bypassMoving = false
+    State.bypassMoving    = false
+    bypassActive          = false
     if Conns.bypassTp then Conns.bypassTp:Disconnect(); Conns.bypassTp = nil end
     stopPositionLock()
     stopNoclip()
+    -- resume อื่นๆ
     if State.autoNearEnabled then
         startNoclip(); startAutoNear()
     elseif State.autoFarmEnabled then
@@ -2548,114 +2671,149 @@ local function stopBypassTp()
     elseif State.teleportTweenEnabled then
         startNoclip(); startTeleportTween()
     end
-    pcall(function()
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hum then
-            hum.AutoRotate = true
-            hum.PlatformStand = false
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-        if hrp then
+    local char = LocalPlayer.Character
+    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    if hum then
+        hum.AutoRotate    = true
+        hum.PlatformStand = false
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+    end
+    if hrp then
+        pcall(function()
             hrp.AssemblyLinearVelocity  = Vector3.zero
             hrp.AssemblyAngularVelocity = Vector3.zero
-        end
-    end)
+        end)
+    end
     State.currentFlyCF = nil
 end
 
 local function startBypassTp()
-    if bypassTpArrived then return end
+    if bypassTpArrived or bypassActive then return end
     stopBypassTp()
     if not State.selectedIslandPos then return end
+
     State.bypassTpEnabled = true
     State.bypassMoving    = true
+    bypassActive          = true
 
     task.spawn(function()
-        if not State.bypassTpEnabled then State.bypassMoving = false; return end
-
         local targetPos = State.selectedIslandPos
         local targetCF  = CFrame.new(targetPos)
 
         local entranceInfo = getEntranceForTarget(targetPos)
         if entranceInfo then
             Library:Notify({
-                Title = "Bypass Teleport",
-                Description = "Using entrance: " .. entranceInfo.name .. "...",
-                Time = 3,
+                Title = "Bypass TP",
+                Description = "Entrance: " .. entranceInfo.name,
+                Time = 2,
             })
             pcall(function()
                 ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
             end)
-            task.wait(1)
-            local afterHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if afterHrp then
-                State.currentFlyCF = afterHrp.CFrame
-            end
-        end
-        local hopCount = 0
-        while hopCount < 5 and State.bypassTpEnabled do
-            local curChar = LocalPlayer.Character
-            local curHrp  = curChar and curChar:FindFirstChild("HumanoidRootPart")
-            local curHum  = curChar and curChar:FindFirstChildOfClass("Humanoid")
-            if not curHrp or not curHum or curHum.Health <= 0 then break end
-            
-            local currentDist = (curHrp.Position - targetPos).Magnitude
-            if currentDist <= 2000 then break end
-            if not CanBypassTeleport(targetCF) or not GetBypassCFrame(targetCF) then break end
-            
-            hopCount = hopCount + 1
-            Library:Notify({
-                Title = "Bypass Teleport",
-                Description = "Hopping to " .. tostring(State.selectedIslandName) .. " (" .. hopCount .. ")...",
-                Time = 2,
-            })
-            BypassTP(targetCF)
-            task.wait(0.5)
+            task.wait(1.2)
         end
 
-        local nc2 = LocalPlayer.Character
-        local nhr2 = nc2 and nc2:FindFirstChild("HumanoidRootPart")
-        if nhr2 then State.currentFlyCF = nhr2.CFrame end
+        if not State.bypassTpEnabled then State.bypassMoving = false; bypassActive = false; return end
+
+        local hopCount = 0
+        local maxHops  = 8
+
+        while hopCount < maxHops and State.bypassTpEnabled do
+            local char = LocalPlayer.Character
+            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+            local hum  = char and char:FindFirstChildOfClass("Humanoid")
+            if not hrp or not hum or hum.Health <= 0 then break end
+
+            local dist = (hrp.Position - targetPos).Magnitude
+            if dist <= 1500 then break end
+            local WorldOrigin = workspace:FindFirstChild("_WorldOrigin")
+            local Pirates = WorldOrigin
+                and WorldOrigin:FindFirstChild("PlayerSpawns")
+                and WorldOrigin.PlayerSpawns:FindFirstChild("Pirates")
+            if not Pirates then break end
+
+            local best, bestDist = nil, dist
+            for _, v in ipairs(Pirates:GetChildren()) do
+                local part = v:FindFirstChild("Part")
+                if part then
+                    local d = (part.Position - targetPos).Magnitude
+                    if d < bestDist - 100 then
+                        bestDist = d
+                        best     = v
+                    end
+                end
+            end
+            if not best then break end
+            pcall(function()
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("SetLastSpawnPoint", best.Name)
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("SetSpawnPoint")
+                char:PivotTo(best.Part.CFrame)
+                hum:ChangeState(15)
+            end)
+
+            hopCount = hopCount + 1
+            task.wait(0.35)
+
+            local nc  = LocalPlayer.Character
+            local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
+            if nhr then State.currentFlyCF = nhr.CFrame end
+        end
+
+        if not State.bypassTpEnabled then State.bypassMoving = false; bypassActive = false; return end
+
+        local nc  = LocalPlayer.Character
+        local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
+        if nhr then State.currentFlyCF = nhr.CFrame end
 
         State.bypassMoving = false
-        if not State.bypassTpEnabled then return end
-
         startNoclip()
         startPositionLock()
 
-        Conns.bypassTp = RunService.Heartbeat:Connect(function(dt)
+        local INTERVAL = 0.05
+        local lastTick = tick()
+
+        Conns.bypassTp = RunService.Heartbeat:Connect(function()
             if not State.bypassTpEnabled then stopBypassTp(); return end
-            if not updateCharacter() then return end
-            if not HRP or not HRP.Parent then return end
-            if not State.currentFlyCF or (State.currentFlyCF.Position - HRP.Position).Magnitude > 100 then
-                State.currentFlyCF = HRP.CFrame
+
+            local now = tick()
+            local dt  = now - lastTick
+            if dt < INTERVAL then return end
+            lastTick = now
+
+            local char = LocalPlayer.Character
+            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+            local hum  = char and char:FindFirstChildOfClass("Humanoid")
+            if not hrp or not hum or hum.Health <= 0 then return end
+
+            if not State.currentFlyCF
+                or (State.currentFlyCF.Position - hrp.Position).Magnitude > 200 then
+                State.currentFlyCF = hrp.CFrame
             end
+
             local dist = (targetPos - State.currentFlyCF.Position).Magnitude
-            if dist > (CFG.REACH or 6) then
-                moveToTarget(HRP, targetCF, dt)
+            if dist > 8 then
+                moveToTarget(hrp, targetCF, dt)
             else
                 bypassTpArrived    = true
                 State.currentFlyCF = targetCF
                 pcall(function()
-                    HRP.CFrame = targetCF
-                    HRP.AssemblyLinearVelocity  = Vector3.zero
-                    HRP.AssemblyAngularVelocity = Vector3.zero
+                    hrp.CFrame = targetCF
+                    hrp.AssemblyLinearVelocity  = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
                 end)
-                stopBypassTp()
                 pcall(function()
-                    if Toggles and Toggles.BypassTeleport then
+                    if Toggles.BypassTeleport then
                         Toggles.BypassTeleport:SetValue(false)
                     end
                 end)
+                stopBypassTp()
                 Library:Notify({
-                    Title = "Bypass Teleport",
-                    Description = "Arrived at " .. tostring(State.selectedIslandName),
+                    Title = "Bypass TP",
+                    Description = "Arrived: " .. tostring(State.selectedIslandName),
                     Time = 3,
                 })
-                task.delay(2, function() bypassTpArrived = false end)
+                task.delay(2, function() bypassTpArrived = false; bypassActive = false end)
             end
         end)
     end)
@@ -4382,6 +4540,10 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     Humanoid  = newChar:WaitForChild("Humanoid", 10)
     if not HRP or not Humanoid then return end
     farmBypassActive         = false
+    lastBringTick  = 0
+    lastNoclipTick = {}
+    noclipCache = {}
+    noclipCacheTick = 0
     State.currentEnemy       = nil
     State.trackedRoot        = nil
     State.currentFlyCF       = nil
