@@ -86,7 +86,6 @@ local State = {
     autoFarmEnabled      = false,
     autoBossEnabled      = false,
     farmBypassEnabled    = true,
-    bringMobEnabled      = true,
     teleportTweenEnabled = false,
     bypassTpEnabled      = false,
     bypassMoving         = false,
@@ -107,7 +106,6 @@ local State = {
     currentBossIndex     = 1,
     bossWaitTick         = nil,
     bossSpawnIdx         = 1,
-    bringMobCount        = 1,
     autoBossAllEnabled      = false,
     autoBossAllHopEnabled   = false,
     bossAllSpawnIdx         = 1,
@@ -131,6 +129,8 @@ local Lists = {
     discoveredMonsters  = {},
     masterMonsterList   = {},
     cachedSpawnsByName  = {},
+    cachedMobSpawns     = {},
+    masterBossSpawnList = {}, 
     selectedMonsterList = {},
     discoveredBosses    = {},
     masterBossList      = {},
@@ -198,8 +198,6 @@ local sea1 = (game.PlaceId == 2753915549 or game.PlaceId == 85211729168715)
 local sea2 = (game.PlaceId == 4442272183 or game.PlaceId == 79091703265657)
 local sea3 = (game.PlaceId == 7449423635 or game.PlaceId == 100117331123089)
 
-_B = true
-
 local ESP_INTERVAL = {
     Player      = 0.5,
     DevilFruit  = 1.0,
@@ -227,132 +225,29 @@ local function HasNearbyPlayer(enemy)
     return false
 end
 
-local function HasNetworkOwnership(root)
-    if not root then return false end
-    return true  
-end
-
-BringEnemy = function(Mon)
-    if not _B then return end
-    if not Mon then
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-        local closestDist = math.huge
-        for _, enemy in ipairs(workspace.Enemies:GetChildren()) do
-            local hum = enemy:FindFirstChildOfClass("Humanoid")
-            local root = enemy:FindFirstChild("HumanoidRootPart")
-            if hum and root and hum.Health > 0 then
-                local dist = (root.Position - hrp.Position).Magnitude
-                if dist < closestDist then
-                    closestDist = dist
-                    Mon = enemy
-                end
-            end
-        end
-        if not Mon then return end
-    end
-
-    if HasNearbyPlayer(Mon) then return end
-
-    local monRoot = Mon:FindFirstChild("HumanoidRootPart")
-    if not monRoot then return end
-
-    pcall(function()
-        if sethiddenproperty then
-            sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
-        end
-
-        local targetPos = monRoot.Position
-
-        local alreadyNear = 0
-        for _, v in ipairs(workspace.Enemies:GetChildren()) do
-            if v ~= Mon then
-                local root = v:FindFirstChild("HumanoidRootPart")
-                local hum = v:FindFirstChildOfClass("Humanoid")
-                if root and hum and hum.Health > 0 and v.Name == Mon.Name then
-                    if (root.Position - targetPos).Magnitude <= 3 then
-                        alreadyNear = alreadyNear + 1
-                    end
-                end
-            end
-        end
-
-        if alreadyNear >= State.bringMobCount then return end
-
-        local brought = alreadyNear
-        for _, v in ipairs(workspace.Enemies:GetChildren()) do
-            if v ~= Mon then
-                if brought >= State.bringMobCount then break end
-
-                local hum = v:FindFirstChildOfClass("Humanoid")
-                local root = v:FindFirstChild("HumanoidRootPart")
-                if hum and root and hum.Health > 0 and v.Name == Mon.Name then
-                    local distance = (root.Position - targetPos).Magnitude
-                    if distance <= 250 and distance > 3 then
-                        if HasNearbyPlayer(v) then continue end
-                        pcall(function()
-                            -- ใส่ BodyVelocity เพื่อล็อคมอน
-                            local bv = root:FindFirstChild("BodyVelocity")
-                            if not bv then
-                                bv = Instance.new("BodyVelocity")
-                                bv.Name = "BodyVelocity"
-                                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                                bv.Velocity = Vector3.zero
-                                bv.Parent = root
-                            end
-                            root.CFrame = CFrame.new(targetPos)
-                            root.Velocity = Vector3.zero
-                            root.CanCollide = false
-                            hum.WalkSpeed = 0
-                            hum.JumpPower = 0
-                        end)
-                        brought = brought + 1
-                    end
-                end
-            end
-        end
-
-        -- ล็อคมอนหลัก
-        if Mon and monRoot and monRoot.Parent then
-            monRoot.CanCollide = false
-            local monHum = Mon:FindFirstChildOfClass("Humanoid")
-            if monHum then
-                monHum.WalkSpeed = 0
-                monHum.JumpPower = 0
-            end
-        end
-    end)
-end
-
-local lastBringTick   = 0
-local lastNoclipTick  = {}
-local BRING_INTERVAL  = 2.0
-local NOCLIP_ENEMY_CD = 5.0
-
-local function lockAndBringMobs(targetEnemy, lockPos)
-    if not State.bringMobEnabled then return end
-    if not targetEnemy or not targetEnemy.Parent then return end
-    local now = tick()
-    if now - lastBringTick < BRING_INTERVAL then return end
-    lastBringTick = now
-    BringEnemy(targetEnemy)
-end
 
 local function smoothCleanAll()
     State.currentLockPos = nil
+    
     local enemiesFolder = workspace:FindFirstChild("Enemies")
     if enemiesFolder then
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
             pcall(function()
-                for _, p in ipairs(enemy:GetDescendants()) do
-                    if p:IsA("BasePart") then
-                        p.CanCollide = true
+                -- ลบ BodyVelocity ทั้งหมด
+                for _, desc in ipairs(enemy:GetDescendants()) do
+                    if desc:IsA("BodyVelocity") and desc.Name == "BodyVelocity" then
+                        desc:Destroy()
                     end
+                end
+                -- restore WalkSpeed และ JumpPower
+                local hum = enemy:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.WalkSpeed = 16
+                    hum.JumpPower = 50
                 end
             end)
         end
     end
-    lastNoclipTick = {}
 end
 
 local function getCurrentIgnoreList()
@@ -1009,38 +904,50 @@ local function findBossInEnemies(targetName)
     return nil
 end
 
-
-Lists.cachedMobSpawns     = {}
-Lists.masterBossSpawnList = {}
 local function cacheAllSpawns()
     local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
     if not spawnsFolder then return end
+    Lists.cachedMobSpawns = {}
+    Lists.masterBossSpawnList = {}
     for _, part in ipairs(spawnsFolder:GetChildren()) do
+        local rawName = part.Name
+        local pos = nil
+
         if part:IsA("BasePart") then
-            local rawName   = part.Name
+            pos = part.Position
+        elseif part:IsA("Model") then
+            local root = part:FindFirstChild("HumanoidRootPart") or part.PrimaryPart
+            if root then pos = root.Position
+            else
+                local ok, pivot = pcall(function() return part:GetPivot() end)
+                if ok then pos = pivot.Position end
+            end
+        end
+
+        if pos then
             local cleanName = cleanMonsterName(rawName)
             if cleanName and cleanName ~= "" then
-            local isBoss = (string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]")) ~= nil
+                local isBoss = (string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]")) ~= nil
                 if not Lists.cachedMobSpawns[cleanName] then
                     Lists.cachedMobSpawns[cleanName] = {}
                 end
                 local dupMob = false
                 for _, existing in ipairs(Lists.cachedMobSpawns[cleanName]) do
-                    if (existing.pos - part.Position).Magnitude < 5 then dupMob = true; break end
+                    if (existing.pos - pos).Magnitude < 5 then dupMob = true; break end
                 end
                 if not dupMob then
-                    table.insert(Lists.cachedMobSpawns[cleanName], { pos = part.Position, name = cleanName })
+                    table.insert(Lists.cachedMobSpawns[cleanName], { pos = pos, name = cleanName })
                 end
 
                 if isBoss and not isBossIgnored(cleanName) then
                     local dupBoss = false
                     for _, existing in ipairs(Lists.masterBossSpawnList) do
-                        if existing.name == cleanName or (existing.pos - part.Position).Magnitude < 5 then
+                        if existing.name == cleanName or (existing.pos - pos).Magnitude < 5 then
                             dupBoss = true; break
                         end
                     end
                     if not dupBoss then
-                        table.insert(Lists.masterBossSpawnList, { pos = part.Position, name = cleanName })
+                        table.insert(Lists.masterBossSpawnList, { pos = pos, name = cleanName })
                         table.sort(Lists.masterBossSpawnList, function(a, b) return a.name:lower() < b.name:lower() end)
                     end
                 end
@@ -1048,12 +955,15 @@ local function cacheAllSpawns()
         end
     end
 end
+
 local function getSpawnsForList(activeList)
-    cacheAllSpawns()
     local result = {}
+    if not Lists.cachedMobSpawns then
+        cacheAllSpawns()
+    end
     for _, name in ipairs(activeList) do
         local spawns = Lists.cachedMobSpawns[name]
-        if spawns then
+        if spawns and #spawns > 0 then
             for _, sp in ipairs(spawns) do
                 table.insert(result, sp)
             end
@@ -1080,7 +990,9 @@ end
 
 local function scanAllMonsters()
     local newlyFound = false
-    local spawns = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+    -- scan จาก EnemySpawns (position cache)
+    local spawns = Workspace:FindFirstChild("_WorldOrigin") 
+        and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
     if spawns then
         for _, part in ipairs(spawns:GetChildren()) do
             local rawName = part.Name
@@ -1088,13 +1000,17 @@ local function scanAllMonsters()
             if addDiscoveredMonster(rawName) then newlyFound = true end
         end
     end
+    -- *** scan จาก Enemies ที่มีชีวิตด้วย เพื่อจำชื่อ ***
     local enemies = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
     if enemies then
         for _, model in ipairs(enemies:GetChildren()) do
             local hum = model:FindFirstChildOfClass("Humanoid")
-            local display = hum and hum.DisplayName or ""
-            local checkName = display ~= "" and display or model.Name
-            if string.find(checkName, "%[Boss%]") or string.find(checkName, "%[Raid Boss%]") then continue end
+            if not hum or not hum.Health or hum.Health <= 0 then continue end
+            local displayName = hum.DisplayName or ""
+            local rawName = displayName ~= "" and displayName or model.Name
+            if string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]") then continue end
+            -- จำชื่อไว้ใน masterMonsterList
+            if addDiscoveredMonster(rawName) then newlyFound = true end
             if addDiscoveredMonster(model.Name) then newlyFound = true end
         end
     end
@@ -1129,19 +1045,37 @@ local function findPriorityEnemy(monsterList)
     local folder = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
     if not folder then return nil, nil end
     local best, bestDist, bestName = nil, math.huge, nil
-    local charPos = (HRP and HRP.Position) or (LocalPlayer.Character and LocalPlayer.Character:GetPivot().Position)
+    local charPos = (HRP and HRP.Position) 
+        or (LocalPlayer.Character and LocalPlayer.Character:GetPivot().Position)
     if #monsterList == 0 then return nil, nil end
     for _, model in ipairs(folder:GetChildren()) do
-        local mobName = cleanMonsterName(model.Name)
-        if table.find(monsterList, mobName) then
-            local hum  = model:FindFirstChildOfClass("Humanoid")
+        -- *** เช็คทั้ง Name และ DisplayName ***
+        local hum = model:FindFirstChildOfClass("Humanoid")
+        local displayName = hum and hum.DisplayName or ""
+        local cleanDisplay = cleanMonsterName(displayName)
+        local cleanName    = cleanMonsterName(model.Name)
+        
+        -- ข้าม boss
+        if string.find(displayName, "%[Boss%]") or string.find(displayName, "%[Raid Boss%]")
+            or string.find(model.Name, "%[Boss%]") or string.find(model.Name, "%[Raid Boss%]") then
+            continue
+        end
+        
+        local matchName = nil
+        if table.find(monsterList, cleanName) then
+            matchName = cleanName
+        elseif cleanDisplay ~= "" and table.find(monsterList, cleanDisplay) then
+            matchName = cleanDisplay
+        end
+        
+        if matchName then
             local root = model:FindFirstChild("HumanoidRootPart")
             if hum and root and hum.Health and hum.Health > 0 then
                 local dist = charPos and (charPos - root.Position).Magnitude or 0
                 if dist < bestDist then
                     best     = model
                     bestDist = dist
-                    bestName = mobName
+                    bestName = matchName
                 end
             end
         end
@@ -1309,7 +1243,7 @@ local function addDiscoveredBoss(rawName)
     return false
 end
 
-local FastAttackModule      = { Rate = 0.1, Enabled = false }
+local FastAttackModule      = { Rate = 0.15, Enabled = false }
 local HitRegistrationModule = {}
 
 local function safeWaitForChild(parent, childName)
@@ -1322,6 +1256,143 @@ local function refreshFolders()
     Refs.CharactersFolder = safeWaitForChild(Workspace, "Characters")
 end
 refreshFolders()
+
+local BRING_DISTANCE = 250
+local BRING_INTERVAL = 0.1
+local bringMobThread = nil
+
+local function stopBringMob()
+    if bringMobThread then
+        task.cancel(bringMobThread)
+        bringMobThread = nil
+    end
+end
+
+local function startBringMob()
+    stopBringMob()
+    bringMobThread = task.spawn(function()
+        while true do
+            task.wait(BRING_INTERVAL)
+            pcall(function()
+                if not T("BringMobEnabled") then return end
+
+                local anyFarm = State.autoFarmEnabled
+                    or State.autoBossEnabled
+                    or State.autoNearEnabled
+                    or State.autoBossAllEnabled
+                    or State.autoBossAllHopEnabled
+                if not anyFarm then return end
+
+                local char = LocalPlayer.Character
+                local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+
+                local folder = workspace:FindFirstChild("Enemies")
+                if not folder then return end
+
+                local target = State.currentEnemy
+
+                if not target or not target.Parent or isEnemyDead(target) then
+                    for _, mob in ipairs(folder:GetChildren()) do
+                        pcall(function()
+                            local mr = mob:FindFirstChild("HumanoidRootPart")
+                            if not mr then return end
+                            local bp = mr:FindFirstChild("BringBodyPos")
+                            if bp then bp:Destroy() end
+                            local mh = mob:FindFirstChildOfClass("Humanoid")
+                            if mh then
+                                mh.WalkSpeed = 16
+                                mh.JumpPower = 50
+                            end
+                        end)
+                    end
+                    return
+                end
+
+                local targetRoot = target:FindFirstChild("HumanoidRootPart")
+                if not targetRoot or not targetRoot.Parent then return end
+
+                local pullPos = targetRoot.Position
+                local maxCount = tonumber(O("BringMobCount")) or 5
+
+                local validMobs = {}
+                for _, mob in ipairs(folder:GetChildren()) do
+                    if mob == target then continue end
+                    local mr = mob:FindFirstChild("HumanoidRootPart")
+                    local mh = mob:FindFirstChildOfClass("Humanoid")
+                    if not mr or not mh or mh.Health <= 0 then continue end
+                    local rawName = (mh.DisplayName ~= "" and mh.DisplayName) or mob.Name
+                    if rawName:find("%[Boss%]") or rawName:find("%[Raid Boss%]") then continue end
+                    local distFromMe = (mr.Position - hrp.Position).Magnitude
+                    if distFromMe > BRING_DISTANCE then continue end
+                    table.insert(validMobs, { mob = mob, mr = mr, mh = mh, dist = distFromMe })
+                end
+
+                table.sort(validMobs, function(a, b) return a.dist < b.dist end)
+
+                local grabbed = 0
+                for _, data in ipairs(validMobs) do
+                    if grabbed >= maxCount then break end
+                    grabbed = grabbed + 1
+
+                    local mr  = data.mr
+                    local mh  = data.mh
+                    local mob = data.mob
+
+                    pcall(function()
+                        local oldBP = mr:FindFirstChild("BringBodyPos")
+                        if oldBP then oldBP:Destroy() end
+
+                        for _, p in ipairs(mob:GetDescendants()) do
+                            if p:IsA("BasePart") then
+                                p.CanCollide = false
+                                pcall(function()
+                                    sethiddenproperty(p, "NetworkOwnershipRule", 0)
+                                end)
+                            end
+                        end
+                        pcall(function()
+                            sethiddenproperty(mr, "NetworkOwnershipRule", 0)
+                        end)
+
+                        mh.WalkSpeed = 0
+                        mh.JumpPower = 0
+
+                        local destPos = pullPos + Vector3.new(
+                            math.random(-3, 3), 0, math.random(-3, 3)
+                        )
+
+                        local distToTarget = (mr.Position - destPos).Magnitude
+
+                        if distToTarget > 5 then
+                            local bp = Instance.new("BodyPosition")
+                            bp.Name     = "BringBodyPos"
+                            bp.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+                            bp.P        = 1e4
+                            bp.D        = 500
+                            bp.Position = destPos
+                            bp.Parent   = mr
+
+                            task.delay(1, function()
+                                pcall(function()
+                                    if bp and bp.Parent then bp:Destroy() end
+                                end)
+                            end)
+                        else
+                            mr.CFrame = CFrame.new(destPos)
+                            mr.AssemblyLinearVelocity  = Vector3.zero
+                            mr.AssemblyAngularVelocity = Vector3.zero
+                        end
+                    end)
+                end
+            end)
+        end
+    end)
+end
+
+startBringMob()
+
+LocalPlayer.CharacterAdded:Connect(function() end)
 
 function FastAttackModule.GetNearbyTargets(character, folder)
     if not folder or not character then return {} end
@@ -1500,8 +1571,8 @@ end
 
 local noclipCache     = {}
 local noclipCacheTick = 0
-local NOCLIP_REBUILD  = 5
-local NOCLIP_INTERVAL = 0.15
+local NOCLIP_REBUILD  = 10
+local NOCLIP_INTERVAL = 0.3
 local noclipApplyTick = 0
 
 local function startNoclip()
@@ -1545,6 +1616,7 @@ end
 
 local function stopNoclip()
     if Conns.noclip then Conns.noclip:Disconnect(); Conns.noclip = nil end
+    -- restore CanCollide character
     local char = LocalPlayer.Character
     if char then
         for _, part in ipairs(char:GetDescendants()) do
@@ -1553,12 +1625,25 @@ local function stopNoclip()
             end
         end
     end
+    -- cleanup BodyVelocity ที่ค้างในมอน
+    local enemiesFolder = workspace:FindFirstChild("Enemies")
+    if enemiesFolder then
+        for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+            pcall(function()
+                for _, desc in ipairs(enemy:GetDescendants()) do
+                    if desc:IsA("BodyVelocity") and desc.Name == "BodyVelocity" then
+                        desc:Destroy()
+                    end
+                end
+            end)
+        end
+    end
     noclipCache = {}
     noclipCacheTick = 0
     noclipApplyTick = 0
 end
 
-local LOCK_INTERVAL = 0.05
+local LOCK_INTERVAL = 0.1
 local lockLastTick  = 0
 
 local function startPositionLock()
@@ -1638,8 +1723,8 @@ local function moveToTarget(hrp, targetCF, dt)
     State.currentFlyCF = finalCF
     pcall(function()
         hrp.CFrame = finalCF
-        hrp.AssemblyLinearVelocity  = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
+        -- hrp.AssemblyLinearVelocity  = Vector3.zero
+        -- hrp.AssemblyAngularVelocity = Vector3.zero
     end)
 end
 
@@ -1688,14 +1773,18 @@ local function tryFarmBypass(targetPos)
     if not targetCF then return false end
 
     local currentDist = (hrp.Position - targetCF.Position).Magnitude
-    if currentDist <= 1200 then return false end
+
+    if currentDist <= 300 then return false end
 
     local now = tick()
 
     local entranceInfo = getEntranceForTarget(targetCF.Position)
     if entranceInfo then
-        local distToEntrance = (hrp.Position - entranceInfo.entrance).Magnitude
-        if distToEntrance > 500 then
+        local distPlayerToEntrance = (hrp.Position - entranceInfo.entrance).Magnitude
+        local distEntranceToTarget = (entranceInfo.entrance - targetCF.Position).Magnitude
+        if currentDist > 2000
+            and distPlayerToEntrance > 500
+            and distEntranceToTarget < currentDist - 500 then
             if now - lastFarmBypassTick < BYPASS_CD_ENTRANCE then return true end
             lastFarmBypassTick = now
             farmBypassActive   = true
@@ -1716,6 +1805,8 @@ local function tryFarmBypass(targetPos)
 
     if not State.farmBypassEnabled then return false end
 
+    if currentDist <= 1200 then return false end
+
     local WorldOrigin = workspace:FindFirstChild("_WorldOrigin")
     local Pirates = WorldOrigin
         and WorldOrigin:FindFirstChild("PlayerSpawns")
@@ -1728,7 +1819,7 @@ local function tryFarmBypass(targetPos)
         if part then
             local dToTarget   = (part.Position - targetCF.Position).Magnitude
             local dFromPlayer = (part.Position - hrp.Position).Magnitude
-            if dToTarget < currentDist - 200 and dFromPlayer <= 6000 and dToTarget < bestDist then
+            if dToTarget < currentDist - 500 and dFromPlayer <= 6000 and dToTarget < bestDist then
                 bestDist  = dToTarget
                 bestSpawn = v
             end
@@ -1784,19 +1875,6 @@ local function equipWeapon(keyword)
     local tool, alreadyEquipped = findWeapon(keyword)
     if alreadyEquipped or not tool then return end
     if Humanoid then Humanoid:EquipTool(tool) end
-end
-
-local function noclipEnemy(enemy)
-    if not enemy or not enemy.Parent then return end
-    local now = tick()
-    local lastT = lastNoclipTick[enemy] or 0
-    if now - lastT < NOCLIP_ENEMY_CD then return end
-    lastNoclipTick[enemy] = now
-    for _, p in ipairs(enemy:GetDescendants()) do
-        if p:IsA("BasePart") and p.CanCollide then
-            pcall(function() p.CanCollide = false end)
-        end
-    end
 end
 
 local function getOffsetCF(enemyCF)
@@ -1884,10 +1962,6 @@ local function startAutoNear()
         if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
 
         local enemyCF  = enemyLiveRoot.CFrame
-        local enemyPos = enemyCF.Position
-        lockAndBringMobs(lockedEnemy, enemyPos)
-        noclipEnemy(lockedEnemy)
-
         local targetCF = getOffsetCF(enemyCF)
         local dist     = (targetCF.Position - hrp.Position).Magnitude
         if dist > (CFG.REACH or 6) then
@@ -1914,12 +1988,82 @@ local function startAutoFarm()
     if Conns.farm then Conns.farm:Disconnect() end
     local lockedEnemy = nil
     local spawnIdx  = 1
+    local waitAtSpawnTick = nil
     if HRP then State.currentFlyCF = HRP.CFrame end
+
+    -- cleanup BodyPosition จากรอบก่อนทันที
+    local function cleanupBringMob()
+        local folder = workspace:FindFirstChild("Enemies")
+        if not folder then return end
+        for _, mob in ipairs(folder:GetChildren()) do
+            pcall(function()
+                local mr = mob:FindFirstChild("HumanoidRootPart")
+                if not mr then return end
+                local bp = mr:FindFirstChild("BringBodyPos")
+                if bp then bp:Destroy() end
+                local mh = mob:FindFirstChildOfClass("Humanoid")
+                if mh then
+                    mh.WalkSpeed = 16
+                    mh.JumpPower = 50
+                end
+            end)
+        end
+    end
+
+    cacheAllSpawns()
+    local initList = updateSelectedMonstersList()
+    if #initList > 0 then
+        local folder = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
+        if folder then
+            for _, model in ipairs(folder:GetChildren()) do
+                local hum  = model:FindFirstChildOfClass("Humanoid")
+                local root = model:FindFirstChild("HumanoidRootPart")
+                if not hum or not root or not hum.Health or hum.Health <= 0 then continue end
+                local rawName = (hum.DisplayName ~= "" and hum.DisplayName) or model.Name
+                if string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]") then continue end
+                local cleanName = cleanMonsterName(model.Name)
+                if not Lists.cachedMobSpawns[cleanName] then
+                    Lists.cachedMobSpawns[cleanName] = {}
+                end
+                local spawnPos = root.Position
+                local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin")
+                    and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+                if spawnsFolder then
+                    local best, bestDist = nil, math.huge
+                    for _, part in ipairs(spawnsFolder:GetChildren()) do
+                        if part:IsA("BasePart") and cleanMonsterName(part.Name) == cleanName then
+                            local d = (part.Position - root.Position).Magnitude
+                            if d < bestDist then bestDist = d; best = part.Position end
+                        end
+                    end
+                    if best then spawnPos = best end
+                end
+                local dup = false
+                for _, ex in ipairs(Lists.cachedMobSpawns[cleanName]) do
+                    if (ex.pos - spawnPos).Magnitude < 10 then dup = true; break end
+                end
+                if not dup then
+                    table.insert(Lists.cachedMobSpawns[cleanName], { pos = spawnPos, name = cleanName })
+                end
+            end
+        end
+
+        -- cleanup ก่อน assign target ใหม่
+        cleanupBringMob()
+
+        local immediateTarget = findPriorityEnemy(initList)
+        if immediateTarget then
+            lockedEnemy = immediateTarget
+            State.currentEnemy = lockedEnemy
+        end
+    end
+
     startPositionLock()
     Conns.farm = RunService.Heartbeat:Connect(function(dt)
         if not State.autoFarmEnabled then
             if Conns.farm then Conns.farm:Disconnect(); Conns.farm = nil end
             stopPositionLock(); stopNoclip(); smoothCleanAll(); checkAndResumeFastAttack()
+            cleanupBringMob()
             lockedEnemy = nil
             return
         end
@@ -1941,12 +2085,13 @@ local function startAutoFarm()
             stopFastAttack(); stopHitRegistration()
             State.trackedRoot = nil
             smoothCleanAll()
+            cleanupBringMob()
             local newTarget, _ = findPriorityEnemy(activeList)
             lockedEnemy = newTarget
             State.currentEnemy = lockedEnemy
         end
         if lockedEnemy and lockedEnemy.Parent then
-            State.bossWaitTick = nil
+            waitAtSpawnTick = nil
             local enemyHum  = lockedEnemy:FindFirstChildOfClass("Humanoid")
             local enemyRoot = lockedEnemy:FindFirstChild("HumanoidRootPart")
             if not enemyRoot or not enemyRoot.Parent or not enemyHum or not enemyHum.Health or enemyHum.Health <= 0 then
@@ -1960,9 +2105,6 @@ local function startAutoFarm()
             local enemyLiveRoot = State.trackedRoot
             if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
             local enemyCF  = enemyLiveRoot.CFrame
-            local enemyPos = enemyCF.Position
-            lockAndBringMobs(lockedEnemy, enemyPos)
-            noclipEnemy(lockedEnemy)
             local targetCF = getOffsetCF(enemyCF)
             local hrpPos   = HRP and HRP.Position or targetCF.Position
             local dist     = (targetCF.Position - hrpPos).Magnitude
@@ -1992,14 +2134,32 @@ local function startAutoFarm()
             local allSpawns = getSpawnsForList(activeList)
             if #allSpawns == 0 then return end
             if spawnIdx > #allSpawns then spawnIdx = 1 end
+
+            local folder = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
+            if folder then
+                local charPos = HRP and HRP.Position
+                local bestIdx, bestDist2 = nil, math.huge
+                for idx, sp in ipairs(allSpawns) do
+                    for _, model in ipairs(folder:GetChildren()) do
+                        local mhum  = model:FindFirstChildOfClass("Humanoid")
+                        local mroot = model:FindFirstChild("HumanoidRootPart")
+                        if mhum and mroot and mhum.Health and mhum.Health > 0
+                            and cleanMonsterName(model.Name) == sp.name then
+                            local d = charPos and (mroot.Position - charPos).Magnitude or 0
+                            if d < bestDist2 then bestDist2 = d; bestIdx = idx end
+                        end
+                    end
+                end
+                if bestIdx then spawnIdx = bestIdx; waitAtSpawnTick = nil end
+            end
+
             local currentSpawn = allSpawns[spawnIdx]
             local spawnPos = currentSpawn.pos + Vector3.new(CFG.OFFSET_X or 0, CFG.OFFSET_Y or 35, CFG.OFFSET_Z or 0)
             local targetCF = CFrame.new(spawnPos)
             local currentPos = (State.currentFlyCF and State.currentFlyCF.Position) or (HRP and HRP.Position)
             local dist = currentPos and (spawnPos - currentPos).Magnitude or math.huge
-            
             if dist > 20 then
-                State.bossWaitTick = nil
+                waitAtSpawnTick = nil
                 tryFarmBypass(spawnPos)
                 if HRP then moveToTarget(HRP, targetCF, dt) end
             else
@@ -2012,11 +2172,19 @@ local function startAutoFarm()
                         Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
                     end
                 end)
-                if not State.bossWaitTick then
-                    State.bossWaitTick = tick()
-                    Library:Notify({ Title = "Auto Farm", Description = "Waiting at " .. currentSpawn.name .. " spawn (3s)...", Time = 3 })
-                elseif tick() - State.bossWaitTick >= 3 then
-                    State.bossWaitTick = nil
+                local immediateTarget = findPriorityEnemy(activeList)
+                if immediateTarget then
+                    cleanupBringMob()
+                    lockedEnemy = immediateTarget
+                    State.currentEnemy = lockedEnemy
+                    waitAtSpawnTick = nil
+                    return
+                end
+                if not waitAtSpawnTick then
+                    waitAtSpawnTick = tick()
+                    Library:Notify({ Title = "Auto Farm", Description = "Waiting at " .. currentSpawn.name .. " spawn (1s)...", Time = 1 })
+                elseif tick() - waitAtSpawnTick >= 1 then
+                    waitAtSpawnTick = nil
                     spawnIdx = (spawnIdx % #allSpawns) + 1
                 end
             end
@@ -2140,8 +2308,8 @@ local function startAutoBoss()
             if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
  
             local enemyCF = enemyLiveRoot.CFrame
-            lockAndBringMobs(lockedEnemy, enemyCF.Position)
-            noclipEnemy(lockedEnemy)
+            
+            
  
             local targetCF = getOffsetCF(enemyCF)
             local dist = (targetCF.Position - (HRP and HRP.Position or targetCF.Position)).Magnitude
@@ -2161,10 +2329,9 @@ local function startAutoBoss()
                         Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
                     end
                 end)
-                FastAttackModule.Enabled = true
-                startFastAttack(); startHitRegistration()
+            FastAttackModule.Enabled = true
+            startFastAttack(); startHitRegistration()
             end
- 
         else
             stopFastAttack(); stopHitRegistration()
             notified = false
@@ -2303,8 +2470,8 @@ local function startAutoBossAll()
             local enemyLiveRoot = State.trackedRoot
             if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
             local enemyCF = enemyLiveRoot.CFrame
-            lockAndBringMobs(lockedEnemy, enemyCF.Position)
-            noclipEnemy(lockedEnemy)
+            
+            
             local targetCF = getOffsetCF(enemyCF)
             local dist = (targetCF.Position - (HRP and HRP.Position or targetCF.Position)).Magnitude
             if dist > (CFG.REACH or 6) then
@@ -2322,8 +2489,8 @@ local function startAutoBossAll()
                         Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
                     end
                 end)
-                FastAttackModule.Enabled = true
-                startFastAttack(); startHitRegistration()
+            FastAttackModule.Enabled = true
+            startFastAttack(); startHitRegistration()
             end
         else
             stopFastAttack(); stopHitRegistration()
@@ -2447,8 +2614,8 @@ local function startAutoBossAllHop()
             local enemyLiveRoot = State.trackedRoot
             if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
             local enemyCF = enemyLiveRoot.CFrame
-            lockAndBringMobs(lockedEnemy, enemyCF.Position)
-            noclipEnemy(lockedEnemy)
+            
+            
             local targetCF = getOffsetCF(enemyCF)
             local dist = (targetCF.Position - (HRP and HRP.Position or targetCF.Position)).Magnitude
             if dist > (CFG.REACH or 6) then
@@ -2468,8 +2635,8 @@ local function startAutoBossAllHop()
                 end)
                 if lockedEnemy ~= prevEnemy then
                     prevEnemy = lockedEnemy
-                    FastAttackModule.Enabled = true
-                    startFastAttack(); startHitRegistration()
+            FastAttackModule.Enabled = true
+            startFastAttack(); startHitRegistration()
                 end
             end
         else
@@ -3516,11 +3683,28 @@ do
         Library:Notify({ Title = "Farm Bypass TP", Description = State.farmBypassEnabled and "ON" or "OFF", Time = 3 })
     end)
 
-    FarmRight:AddSlider("BringMobCount", { Text = "Bring Mob Count", Min = 1, Max = 6, Default = 1, Rounding = 0 })
-    Options.BringMobCount:OnChanged(function()
-        State.bringMobCount = tonumber(O("BringMobCount")) or 1
-        Library:Notify({ Title = "Bring Mob", Description = "Bring " .. State.bringMobCount .. " mobs", Time = 2 })
-    end)
+    FarmRight:AddToggle("BringMobEnabled", {
+    Text    = "Bring Mob",
+    Default = true,
+})
+Toggles.BringMobEnabled:OnChanged(function()
+    Library:Notify({
+        Title       = "Bring Mob",
+        Description = T("BringMobEnabled") and "ON" or "OFF",
+        Time        = 2,
+    })
+end)
+
+FarmRight:AddSlider("BringMobCount", {
+    Text    = "Bring Mob Count",
+    Min     = 1,
+    Max     = 6,
+    Default = 1,
+    Rounding = 0,
+})
+Options.BringMobCount:OnChanged(function()
+    BRING_COUNT = tonumber(O("BringMobCount")) or 1
+end)
 
     FarmLeft:AddSlider("TweenSpeed", { Text = "Tween Speed", Min = 0, Max = 500, Default = 250, Rounding = 0 })
     Options.TweenSpeed:OnChanged(function() CFG.SPEED = tonumber(O("TweenSpeed")) or 250 end)
@@ -3695,34 +3879,57 @@ do
         end
     end)
 
-    RightGroup:AddToggle("BringMob", { Text = "Bring Mob", Default = true })
-    Toggles.BringMob:OnChanged(function()
-        State.bringMobEnabled = T("BringMob")
-        _B = State.bringMobEnabled
-        Library:Notify({ Title = "Bring Mob", Description = State.bringMobEnabled and "ON" or "OFF", Time = 3 })
-    end)
-
-    local enemiesFolder2 = Workspace:FindFirstChild("Enemies")
-    if enemiesFolder2 then
-        enemiesFolder2.ChildAdded:Connect(function(child)
-            if addDiscoveredMonster(child.Name) then updateMonsterDropdown(false) end
-            task.wait(0.5)
-            if not child or not child.Parent then return end
-            local hum = child:FindFirstChildOfClass("Humanoid")
-            if not hum then hum = child:WaitForChild("Humanoid", 3) end
-            if not hum or not hum.Health or hum.Health <= 0 then return end
-            local rawName = (hum.DisplayName and hum.DisplayName ~= "") and hum.DisplayName or child.Name
-            if (string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]")) then
-                local isNew = addDiscoveredBoss(rawName)
-                if isNew then
-                    local displayList = #Lists.masterBossList > 0 and Lists.masterBossList or {"(No Boss found)"}
-                    if Options and Options.BossSelect then Options.BossSelect:SetValues(displayList) end
+local enemiesFolder2 = Workspace:FindFirstChild("Enemies")
+if enemiesFolder2 then
+    enemiesFolder2.ChildAdded:Connect(function(child)
+        if addDiscoveredMonster(child.Name) then updateMonsterDropdown(false) end
+        task.wait(0.5)
+        if not child or not child.Parent then return end
+        local hum = child:FindFirstChildOfClass("Humanoid")
+        if not hum then hum = child:WaitForChild("Humanoid", 3) end
+        if not hum or not hum.Health or hum.Health <= 0 then return end
+        local rawName = (hum.DisplayName and hum.DisplayName ~= "") and hum.DisplayName or child.Name
+        if string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]") then
+            local isNew = addDiscoveredBoss(rawName)
+            if isNew then
+                local displayList = #Lists.masterBossList > 0 and Lists.masterBossList or {"(No Boss found)"}
+                if Options and Options.BossSelect then Options.BossSelect:SetValues(displayList) end
+            end
+            return
+        end
+        -- *** cache spawn position ทันทีที่มอนเกิด ***
+        local root = child:FindFirstChild("HumanoidRootPart")
+        if root then
+            local cleanName = cleanMonsterName(child.Name)
+            if cleanName ~= "" then
+                if not Lists.cachedMobSpawns[cleanName] then
+                    Lists.cachedMobSpawns[cleanName] = {}
+                end
+                local spawnPos = root.Position
+                local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin")
+                    and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+                if spawnsFolder then
+                    local best, bestDist = nil, math.huge
+                    for _, part in ipairs(spawnsFolder:GetChildren()) do
+                        if part:IsA("BasePart") and cleanMonsterName(part.Name) == cleanName then
+                            local d = (part.Position - root.Position).Magnitude
+                            if d < bestDist then bestDist = d; best = part.Position end
+                        end
+                    end
+                    if best then spawnPos = best end
+                end
+                local dup = false
+                for _, ex in ipairs(Lists.cachedMobSpawns[cleanName]) do
+                    if (ex.pos - spawnPos).Magnitude < 10 then dup = true; break end
+                end
+                if not dup then
+                    table.insert(Lists.cachedMobSpawns[cleanName], { pos = spawnPos, name = cleanName })
                 end
             end
-        end)
-    end
+        end
+    end)
 end
-
+end
 do
     local SeaLeft = Tabs.Sea:AddLeftGroupbox("Boat Settings")
 
@@ -4540,8 +4747,8 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     Humanoid  = newChar:WaitForChild("Humanoid", 10)
     if not HRP or not Humanoid then return end
     farmBypassActive         = false
-    lastBringTick  = 0
-    lastNoclipTick = {}
+    
+    
     noclipCache = {}
     noclipCacheTick = 0
     State.currentEnemy       = nil
