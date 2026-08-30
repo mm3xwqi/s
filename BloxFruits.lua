@@ -766,7 +766,7 @@ local function doBypassToPos(targetPos, onArrived)
     task.spawn(function()
         local targetCF = Convert_CFrame(targetPos)
         if not targetCF then if onArrived then onArrived() end return end
-        
+
         local entranceInfo = getEntranceForTarget(targetPos)
         if entranceInfo then
             pcall(function()
@@ -778,22 +778,60 @@ local function doBypassToPos(targetPos, onArrived)
                 State.currentFlyCF = afterHrp.CFrame
             end
         end
+
+        local maxHops = 10
         local hopCount = 0
-        while hopCount < 5 do
+        while hopCount < maxHops do
             local curChar = LocalPlayer.Character
             local curHrp  = curChar and curChar:FindFirstChild("HumanoidRootPart")
             local curHum  = curChar and curChar:FindFirstChildOfClass("Humanoid")
             if not curHrp or not curHum or curHum.Health <= 0 then break end
-            
-            local newDist = (curHrp.Position - targetPos).Magnitude
-            if newDist <= 1200 then break end
-            if not CanBypassTeleport(targetCF) or not GetBypassCFrame(targetCF) then break end
-            
+
+            local curDist = (curHrp.Position - targetPos).Magnitude
+            if curDist <= 1200 then break end
+
+            local WorldOrigin = workspace:FindFirstChild("_WorldOrigin")
+            local Spawns = WorldOrigin and WorldOrigin:FindFirstChild("PlayerSpawns")
+            local Pirates = Spawns and Spawns:FindFirstChild("Pirates")
+            if not Pirates then break end
+
+            local playerPos = curHrp.Position
+            local bestSpawn = nil
+            local bestDist  = math.huge
+
+            for _, v in ipairs(Pirates:GetChildren()) do
+                local part = v:FindFirstChild("Part")
+                if part then
+                    local dToTarget   = (part.Position - targetPos).Magnitude
+                    local dFromPlayer = (part.Position - playerPos).Magnitude
+                    if dToTarget < curDist - 100 and dFromPlayer < bestDist then
+                        bestDist  = dFromPlayer
+                        bestSpawn = v
+                    end
+                end
+            end
+
+            if not bestSpawn then break end
+
+            pcall(function()
+                local h = curChar:FindFirstChildOfClass("Humanoid")
+                if not h then return end
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("SetLastSpawnPoint", bestSpawn.Name)
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("SetSpawnPoint")
+                curChar:PivotTo(bestSpawn.Part.CFrame)
+                h:ChangeState(15)
+            end)
+
             hopCount = hopCount + 1
-            BypassTP(targetCF)
-            task.wait(0.5)
+            task.wait(0.4)
+
+            local newChar = LocalPlayer.Character
+            if newChar then
+                local newHrp = newChar:FindFirstChild("HumanoidRootPart")
+                if newHrp then State.currentFlyCF = newHrp.CFrame end
+            end
         end
-        
+
         local nc  = LocalPlayer.Character
         local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
         if nhr then State.currentFlyCF = nhr.CFrame end
@@ -1555,25 +1593,94 @@ local function tryFarmBypass(targetPos)
     if not State.farmBypassEnabled then return false end
     if not targetPos then return false end
     if farmBypassActive then return true end
-    
+
     local char = LocalPlayer.Character
     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
-    
+
     local targetCF = Convert_CFrame(targetPos)
     if not targetCF then return false end
-    local dist = (hrp.Position - targetCF.Position).Magnitude
-    if dist <= 1200 then return false end
+
+    local currentDist = (hrp.Position - targetCF.Position).Magnitude
+    if currentDist <= 1200 then return false end
+
+    local entranceInfo = getEntranceForTarget(targetCF.Position)
+    if entranceInfo then
+        local distToEntrance = (hrp.Position - entranceInfo.entrance).Magnitude
+        if distToEntrance > 500 then
+            if tick() - lastFarmBypassTick < 3 then return true end
+            lastFarmBypassTick = tick()
+            farmBypassActive = true
+            task.spawn(function()
+                pcall(function()
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
+                end)
+                task.wait(1.5)
+                local nc = LocalPlayer.Character
+                local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
+                if nhr then State.currentFlyCF = nhr.CFrame end
+                farmBypassActive = false
+            end)
+            return true
+        end
+        return false
+    end
+
+    local WorldOrigin = workspace:FindFirstChild("_WorldOrigin")
+    local Spawns = WorldOrigin and WorldOrigin:FindFirstChild("PlayerSpawns")
+    local Pirates = Spawns and Spawns:FindFirstChild("Pirates")
+    if not Pirates then return false end
+
+    local bestSpawn = nil
+    local bestDist  = currentDist
+
+    for _, v in ipairs(Pirates:GetChildren()) do
+        local part = v:FindFirstChild("Part")
+        if part then
+            local dToTarget   = (part.Position - targetCF.Position).Magnitude
+            local dFromPlayer = (part.Position - hrp.Position).Magnitude
+            if dToTarget < currentDist - 200 and dFromPlayer <= 6000 then
+                if dToTarget < bestDist then
+                    bestDist  = dToTarget
+                    bestSpawn = v
+                end
+            end
+        end
+    end
+
+    if not bestSpawn then return false end
+
     if tick() - lastFarmBypassTick < 2.5 then return true end
     lastFarmBypassTick = tick()
     farmBypassActive = true
-    
-    doBypassToPos(targetPos, function()
-        farmBypassActive = false
+
+    task.spawn(function()
+        local curChar = LocalPlayer.Character
+        local curHrp  = curChar and curChar:FindFirstChild("HumanoidRootPart")
+        local curHum  = curChar and curChar:FindFirstChildOfClass("Humanoid")
+        if not curHrp or not curHum or curHum.Health <= 0 then
+            farmBypassActive = false
+            return
+        end
+
+        pcall(function()
+            local h = curChar:FindFirstChildOfClass("Humanoid")
+            if not h then return end
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("SetLastSpawnPoint", bestSpawn.Name)
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("SetSpawnPoint")
+            curChar:PivotTo(bestSpawn.Part.CFrame)
+            h:ChangeState(15)
+        end)
+
+        task.wait(0.4)
+
         local nc  = LocalPlayer.Character
         local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
         if nhr then State.currentFlyCF = nhr.CFrame end
+
+        farmBypassActive = false
     end)
+
     return true
 end
 
@@ -1822,8 +1929,8 @@ local function startAutoFarm()
                 end)
                 if not State.bossWaitTick then
                     State.bossWaitTick = tick()
-                    Library:Notify({ Title = "Auto Farm", Description = "Waiting at " .. currentSpawn.name .. " spawn (10s)...", Time = 3 })
-                elseif tick() - State.bossWaitTick >= 10 then
+                    Library:Notify({ Title = "Auto Farm", Description = "Waiting at " .. currentSpawn.name .. " spawn (3s)...", Time = 3 })
+                elseif tick() - State.bossWaitTick >= 3 then
                     State.bossWaitTick = nil
                     spawnIdx = (spawnIdx % #allSpawns) + 1
                 end
@@ -1857,8 +1964,10 @@ end
 local function startAutoBoss()
     if Conns.boss then Conns.boss:Disconnect() end
     local lockedEnemy = nil
+    local notified = false
     State.bossSpawnIdx = 1
     State.bossWaitTick = nil
+    local searchCooldown = 0
     if HRP then State.currentFlyCF = HRP.CFrame end
     startPositionLock()
  
@@ -1873,6 +1982,7 @@ local function startAutoBoss()
         local activeList = updateSelectedBossesList()
         if #activeList == 0 then return end
         equipWeapon(State.selectedWeaponType)
+
         local lockedAlive = false
         if lockedEnemy then
             if not isEnemyDead(lockedEnemy) then
@@ -1883,30 +1993,42 @@ local function startAutoBoss()
             end
             if not lockedAlive then
                 lockedEnemy = nil
+                notified = false
                 State.currentEnemy = nil
                 State.trackedRoot  = nil
+                searchCooldown = tick() + 1  -- รอ 1 วิก่อนหาใหม่
                 stopFastAttack(); stopHitRegistration()
             end
         end
 
-        if not lockedAlive then
+        -- หาเป้าใหม่เฉพาะเมื่อไม่มี lockedEnemy และ cooldown หมดแล้ว
+        if not lockedAlive and not lockedEnemy then
+            if tick() < searchCooldown then return end  -- รอ cooldown
+
             local newTarget, newName = findBossByDisplayName(activeList)
             if newTarget and newName then
                 lockedEnemy = newTarget
                 State.currentEnemy = lockedEnemy
                 State.bossWaitTick = nil
+                notified = false
                 local bossHum = lockedEnemy:FindFirstChildOfClass("Humanoid")
                 if bossHum then
-                    bossHum.Died:Connect(function()
-                        lockedEnemy = nil
-                        State.currentEnemy = nil
-                        State.trackedRoot  = nil
-                        stopFastAttack(); stopHitRegistration()
+                    bossHum.Died:Once(function()  -- ใช้ Once แทน Connect เพื่อไม่ให้ stack
+                        if lockedEnemy == newTarget then
+                            lockedEnemy = nil
+                            notified = false
+                            State.currentEnemy = nil
+                            State.trackedRoot  = nil
+                            searchCooldown = tick() + 1
+                            stopFastAttack(); stopHitRegistration()
+                        end
                     end)
                 end
- 
-            local nextName = getNextBossName(lockedEnemy, activeList)
-            Library:Notify({ Title = "Auto Boss", Description = "" .. newName .. " | Next: " .. nextName, Time = 5 })
+                if not notified then
+                    notified = true
+                    local nextSpawn = getNextBossName(newName, activeList)
+                    Library:Notify({ Title = "Auto Boss", Description = "Target: " .. newName .. " | Next: " .. nextSpawn, Time = 5 })
+                end
             else
                 lockedEnemy = nil; State.currentEnemy = nil
             end
@@ -1916,7 +2038,8 @@ local function startAutoBoss()
             State.bossWaitTick = nil
             local enemyRoot = lockedEnemy:FindFirstChild("HumanoidRootPart")
             if not enemyRoot or not enemyRoot.Parent then
-                lockedEnemy = nil; State.currentEnemy = nil; State.trackedRoot = nil
+                lockedEnemy = nil; notified = false; State.currentEnemy = nil; State.trackedRoot = nil
+                searchCooldown = tick() + 1
                 stopFastAttack(); stopHitRegistration()
                 return
             end
@@ -1959,6 +2082,7 @@ local function startAutoBoss()
  
         else
             stopFastAttack(); stopHitRegistration()
+            notified = false
             lockedEnemy = nil; State.currentEnemy = nil; State.trackedRoot = nil; smoothCleanAll()
  
             local allSpawns = getSpawnsForList(activeList)
@@ -2009,17 +2133,17 @@ end
 local function startAutoBossAll()
     if Conns.bossAll then Conns.bossAll:Disconnect() end
     local lockedEnemy = nil
+    local searchCooldown = 0
     State.bossAllSpawnIdx = 1
     State.bossAllWaitTick = nil
     if HRP then State.currentFlyCF = HRP.CFrame end
     startPositionLock()
- 
+
     Conns.bossAll = RunService.Heartbeat:Connect(function(dt)
         if not State.autoBossAllEnabled then
             if Conns.bossAll then Conns.bossAll:Disconnect(); Conns.bossAll = nil end
             stopPositionLock(); stopNoclip(); smoothCleanAll(); checkAndResumeFastAttack()
-            lockedEnemy = nil
-            return
+            lockedEnemy = nil; return
         end
         if not updateCharacter() then return end
         equipWeapon(State.selectedWeaponType)
@@ -2030,41 +2154,46 @@ local function startAutoBossAll()
                 lockedAlive = true
             else
                 lockedEnemy = nil
-                State.currentEnemy = nil
-                State.trackedRoot  = nil
+                State.currentEnemy = nil; State.trackedRoot = nil
+                searchCooldown = tick() + 1
                 stopFastAttack(); stopHitRegistration()
             end
         end
 
-        if not lockedAlive then
+        if not lockedAlive and not lockedEnemy then
+            if tick() < searchCooldown then return end
             local liveBosses = getAllLiveBosses()
             if #liveBosses > 0 then
-                local charPos = HRP and HRP.Position
+                local curChar = LocalPlayer.Character
+                local curHrp = curChar and curChar:FindFirstChild("HumanoidRootPart")
+                if not curHrp then return end
+                local charPos = curHrp.Position
                 local best, bestDist = nil, math.huge
                 for _, boss in ipairs(liveBosses) do
                     local root = boss:FindFirstChild("HumanoidRootPart")
-                    if root and charPos then
+                    if root then
                         local d = (root.Position - charPos).Magnitude
                         if d < bestDist then bestDist = d; best = boss end
                     end
                 end
-                lockedEnemy = best
-                State.currentEnemy = lockedEnemy
-                State.bossAllWaitTick = nil
- 
-                if lockedEnemy then
+                if best then
+                    lockedEnemy = best
+                    State.currentEnemy = lockedEnemy
+                    State.bossAllWaitTick = nil
                     local bossHum = lockedEnemy:FindFirstChildOfClass("Humanoid")
                     if bossHum then
-                        bossHum.Died:Connect(function()
-                            lockedEnemy = nil
-                            State.currentEnemy = nil
-                            State.trackedRoot  = nil
-                            stopFastAttack(); stopHitRegistration()
+                        bossHum.Died:Once(function()
+                            if lockedEnemy == best then
+                                lockedEnemy = nil
+                                State.currentEnemy = nil; State.trackedRoot = nil
+                                searchCooldown = tick() + 1
+                                stopFastAttack(); stopHitRegistration()
+                            end
                         end)
                     end
-                local curName = getEnemyDisplayName(lockedEnemy)
-                local nextName = getNextBossName(lockedEnemy, nil)
-                Library:Notify({ Title = "Boss All", Description = "" .. curName .. " | Next: " .. nextName, Time = 5 })
+                    local curName = getEnemyDisplayName(lockedEnemy)
+                    local nextName = getNextBossName(curName, nil)
+                    Library:Notify({ Title = "Boss All", Description = curName .. " | Next: " .. nextName, Time = 5 })
                 end
             else
                 lockedEnemy = nil; State.currentEnemy = nil
@@ -2076,27 +2205,23 @@ local function startAutoBossAll()
             local enemyRoot = lockedEnemy:FindFirstChild("HumanoidRootPart")
             if not enemyRoot or not enemyRoot.Parent then
                 lockedEnemy = nil; State.currentEnemy = nil; State.trackedRoot = nil
+                searchCooldown = tick() + 1
                 stopFastAttack(); stopHitRegistration()
                 return
             end
- 
             State.currentEnemy = lockedEnemy
             if not State.trackedRoot or not State.trackedRoot.Parent
                 or not lockedEnemy:IsAncestorOf(State.trackedRoot) then
                 State.trackedRoot = getEnemyRoot(lockedEnemy)
             end
             if not State.trackedRoot then return end
- 
             local enemyLiveRoot = State.trackedRoot
             if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
- 
             local enemyCF = enemyLiveRoot.CFrame
             lockAndBringMobs(lockedEnemy, enemyCF.Position)
             noclipEnemy(lockedEnemy)
- 
             local targetCF = getOffsetCF(enemyCF)
             local dist = (targetCF.Position - (HRP and HRP.Position or targetCF.Position)).Magnitude
- 
             if dist > (CFG.REACH or 6) then
                 stopFastAttack(); stopHitRegistration()
                 tryFarmBypass(targetCF.Position)
@@ -2115,21 +2240,17 @@ local function startAutoBossAll()
                 FastAttackModule.Enabled = true
                 startFastAttack(); startHitRegistration()
             end
- 
         else
             stopFastAttack(); stopHitRegistration()
             lockedEnemy = nil; State.currentEnemy = nil; State.trackedRoot = nil; smoothCleanAll()
- 
             local allSpawns = scanBossSpawns()
             if #allSpawns == 0 then return end
- 
             if State.bossAllSpawnIdx > #allSpawns then State.bossAllSpawnIdx = 1 end
             local currentSpawn = allSpawns[State.bossAllSpawnIdx]
             local spawnPos = currentSpawn.pos + Vector3.new(CFG.OFFSET_X or 0, CFG.OFFSET_Y or 25, CFG.OFFSET_Z or 0)
             local targetCF = CFrame.new(spawnPos)
             local currentPos = (State.currentFlyCF and State.currentFlyCF.Position) or (HRP and HRP.Position)
             local dist = currentPos and (spawnPos - currentPos).Magnitude or math.huge
- 
             if dist > (CFG.REACH or 6) then
                 State.bossAllWaitTick = nil
                 tryFarmBypass(spawnPos)
@@ -2152,14 +2273,16 @@ local function startAutoBossAllHop()
     if Conns.bossAllHop then Conns.bossAllHop:Disconnect() end
     local prevEnemy   = nil
     local lockedEnemy = nil
+    local searchCooldown = 0
     State.bossAllSpawnIdx    = 1
     State.bossAllWaitTick    = nil
     State.bossAllHopWaitTick = nil
     State.bossAllNoBossCount = 0
     local visitedSpawnsCount = 0
+    local checkedSpawns = {}
     if HRP then State.currentFlyCF = HRP.CFrame end
     startPositionLock()
- 
+
     Conns.bossAllHop = RunService.Heartbeat:Connect(function(dt)
         if not State.autoBossAllHopEnabled then
             if Conns.bossAllHop then Conns.bossAllHop:Disconnect(); Conns.bossAllHop = nil end
@@ -2174,44 +2297,46 @@ local function startAutoBossAllHop()
             if not isEnemyDead(lockedEnemy) then
                 lockedAlive = true
             else
-                lockedEnemy = nil
-                prevEnemy = nil
-                State.currentEnemy = nil
-                State.trackedRoot  = nil
+                lockedEnemy = nil; prevEnemy = nil
+                State.currentEnemy = nil; State.trackedRoot = nil
+                searchCooldown = tick() + 1
                 stopFastAttack(); stopHitRegistration()
             end
         end
 
-        if not lockedAlive then
+        if not lockedAlive and not lockedEnemy then
+            if tick() < searchCooldown then return end
             local liveBosses = getAllLiveBosses()
             if #liveBosses > 0 then
-                visitedSpawnsCount = 0
-                local charPos = HRP and HRP.Position
+                local curChar = LocalPlayer.Character
+                local curHrp = curChar and curChar:FindFirstChild("HumanoidRootPart")
+                if not curHrp then return end
+                local charPos = curHrp.Position
                 local best, bestDist = nil, math.huge
                 for _, boss in ipairs(liveBosses) do
                     local root = boss:FindFirstChild("HumanoidRootPart")
-                    if root and charPos then
+                    if root then
                         local d = (root.Position - charPos).Magnitude
                         if d < bestDist then bestDist = d; best = boss end
                     end
                 end
-                lockedEnemy = best
-                prevEnemy = nil
-                State.currentEnemy = lockedEnemy
-                State.bossAllHopWaitTick = nil
- 
-                if lockedEnemy then
+                if best then
+                    lockedEnemy = best
+                    prevEnemy = nil
+                    State.currentEnemy = lockedEnemy
+                    State.bossAllHopWaitTick = nil
                     local bossHum = lockedEnemy:FindFirstChildOfClass("Humanoid")
                     if bossHum then
-                        bossHum.Died:Connect(function()
-                            lockedEnemy = nil
-                            prevEnemy = nil
-                            State.currentEnemy = nil
-                            State.trackedRoot  = nil
-                            stopFastAttack(); stopHitRegistration()
+                        bossHum.Died:Once(function()
+                            if lockedEnemy == best then
+                                lockedEnemy = nil; prevEnemy = nil
+                                State.currentEnemy = nil; State.trackedRoot = nil
+                                searchCooldown = tick() + 1
+                                stopFastAttack(); stopHitRegistration()
+                            end
                         end)
                     end
-                    Library:Notify({ Title = "Boss All+Hop", Description = "Targeting: " .. getEnemyDisplayName(lockedEnemy), Time = 3 })
+                    Library:Notify({ Title = "Auto Boss", Description = "Targeting: " .. getEnemyDisplayName(lockedEnemy), Time = 3 })
                 end
             else
                 lockedEnemy = nil; State.currentEnemy = nil
@@ -2219,33 +2344,28 @@ local function startAutoBossAllHop()
         end
 
         if lockedEnemy and not isEnemyDead(lockedEnemy) then
-            visitedSpawnsCount = 0
             State.bossAllHopWaitTick = nil
             local enemyRoot = lockedEnemy:FindFirstChild("HumanoidRootPart")
             if not enemyRoot or not enemyRoot.Parent then
                 lockedEnemy = nil; prevEnemy = nil
                 State.currentEnemy = nil; State.trackedRoot = nil
+                searchCooldown = tick() + 1
                 stopFastAttack(); stopHitRegistration()
                 return
             end
- 
             State.currentEnemy = lockedEnemy
             if State.trackedRoot == nil or State.trackedRoot.Parent == nil
                 or not lockedEnemy:IsAncestorOf(State.trackedRoot) then
                 State.trackedRoot = getEnemyRoot(lockedEnemy)
             end
             if not State.trackedRoot then return end
- 
             local enemyLiveRoot = State.trackedRoot
             if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
- 
             local enemyCF = enemyLiveRoot.CFrame
             lockAndBringMobs(lockedEnemy, enemyCF.Position)
             noclipEnemy(lockedEnemy)
- 
             local targetCF = getOffsetCF(enemyCF)
             local dist = (targetCF.Position - (HRP and HRP.Position or targetCF.Position)).Magnitude
- 
             if dist > (CFG.REACH or 6) then
                 stopFastAttack(); stopHitRegistration(); prevEnemy = nil
                 tryFarmBypass(targetCF.Position)
@@ -2267,38 +2387,71 @@ local function startAutoBossAllHop()
                     startFastAttack(); startHitRegistration()
                 end
             end
- 
         else
             stopFastAttack(); stopHitRegistration()
             prevEnemy = nil; lockedEnemy = nil; State.currentEnemy = nil; State.trackedRoot = nil; smoothCleanAll()
- 
+
             local allSpawns = scanBossSpawns()
-            if #allSpawns == 0 then return end
- 
-            if visitedSpawnsCount >= #allSpawns then
-                Library:Notify({
-                    Title = "Boss All+Hop",
-                    Description = "Checked all " .. #allSpawns .. " spawns → Hopping...",
-                    Time = 5,
-                })
-                visitedSpawnsCount = 0
+            if #allSpawns == 0 then
+                Library:Notify({ Title = "Auto Boss", Description = "No valid boss spawns found. Hopping now...", Time = 5 })
                 if Conns.bossAllHop then Conns.bossAllHop:Disconnect(); Conns.bossAllHop = nil end
                 stopPositionLock(); stopNoclip(); smoothCleanAll()
                 task.spawn(function()
                     doHop()
-                    task.wait(3)
-                    if Toggles and Toggles.AutoBossAllHop then Toggles.AutoBossAllHop:SetValue(true) end
+                    task.wait(8)
+                    if State.autoBossAllHopEnabled then
+                        if Toggles and Toggles.AutoBossAllHop then
+                            Toggles.AutoBossAllHop:SetValue(true)
+                        end
+                    end
                 end)
                 return
             end
- 
-            if State.bossAllSpawnIdx > #allSpawns then State.bossAllSpawnIdx = 1 end
+
+            local totalSpawns = #allSpawns
+            local checkedCount = 0
+            for _ in pairs(checkedSpawns) do checkedCount = checkedCount + 1 end
+
+            if checkedCount >= totalSpawns then
+                Library:Notify({ Title = "Auto Boss", Description = "Checked all " .. totalSpawns .. " spawns, no boss found. Hopping now...", Time = 5 })
+                visitedSpawnsCount = 0; checkedSpawns = {}
+                State.bossAllSpawnIdx = 1; State.bossAllHopWaitTick = nil
+                if Conns.bossAllHop then Conns.bossAllHop:Disconnect(); Conns.bossAllHop = nil end
+                stopPositionLock(); stopNoclip(); smoothCleanAll()
+                task.spawn(function()
+                    doHop()
+                    task.wait(8)
+                    if State.autoBossAllHopEnabled then
+                        if Toggles and Toggles.AutoBossAllHop then
+                            Toggles.AutoBossAllHop:SetValue(true)
+                        end
+                    end
+                end)
+                return
+            end
+
+            if State.bossAllSpawnIdx > totalSpawns then State.bossAllSpawnIdx = 1 end
+            local startIdx = State.bossAllSpawnIdx
+            local foundUnchecked = false
+            for i = 0, totalSpawns - 1 do
+                local idx = ((startIdx - 1 + i) % totalSpawns) + 1
+                if not checkedSpawns[idx] then
+                    State.bossAllSpawnIdx = idx
+                    foundUnchecked = true
+                    break
+                end
+            end
+            if not foundUnchecked then
+                checkedSpawns = {}; visitedSpawnsCount = 0; State.bossAllSpawnIdx = 1
+                return
+            end
+
             local currentSpawn = allSpawns[State.bossAllSpawnIdx]
             local spawnPos = currentSpawn.pos + Vector3.new(CFG.OFFSET_X or 0, CFG.OFFSET_Y or 35, CFG.OFFSET_Z or 0)
             local targetCF = CFrame.new(spawnPos)
             local currentPos = (State.currentFlyCF and State.currentFlyCF.Position) or (HRP and HRP.Position)
             local dist = currentPos and (spawnPos - currentPos).Magnitude or math.huge
- 
+
             if dist > 20 then
                 State.bossAllHopWaitTick = nil
                 tryFarmBypass(spawnPos)
@@ -2315,15 +2468,28 @@ local function startAutoBossAllHop()
                 end)
                 if not State.bossAllHopWaitTick then
                     State.bossAllHopWaitTick = tick()
-                    Library:Notify({
-                        Title = "Boss All+Hop",
-                        Description = "Waiting at " .. currentSpawn.name .. " (" .. (visitedSpawnsCount + 1) .. "/" .. #allSpawns .. ") [10s]...",
-                        Time = 3,
-                    })
+                    Library:Notify({ Title = "Auto Boss", Description = "Checking: " .. currentSpawn.name .. " (" .. (checkedCount + 1) .. "/" .. totalSpawns .. ") 10s...", Time = 3 })
                 elseif tick() - State.bossAllHopWaitTick >= 10 then
                     State.bossAllHopWaitTick = nil
+                    checkedSpawns[State.bossAllSpawnIdx] = true
                     visitedSpawnsCount = visitedSpawnsCount + 1
-                    State.bossAllSpawnIdx = (State.bossAllSpawnIdx % #allSpawns) + 1
+
+                    local liveBossCheck = getAllLiveBosses()
+                    if #liveBossCheck > 0 then return end
+
+                    local nextFound = false
+                    for i = 1, totalSpawns do
+                        local nextIdx = (State.bossAllSpawnIdx % totalSpawns) + 1
+                        State.bossAllSpawnIdx = nextIdx
+                        if not checkedSpawns[nextIdx] then
+                            nextFound = true
+                            Library:Notify({ Title = "Auto Boss", Description = "Next: " .. allSpawns[nextIdx].name .. " (" .. (visitedSpawnsCount + 1) .. "/" .. totalSpawns .. ")", Time = 3 })
+                            break
+                        end
+                    end
+                    if not nextFound then
+                        Library:Notify({ Title = "Auto Boss", Description = "All spawns checked. Preparing to hop...", Time = 3 })
+                    end
                 end
             end
         end
@@ -3363,11 +3529,11 @@ do
             State.currentEnemy = nil; State.trackedRoot = nil
             State.currentFlyCF = HRP and HRP.CFrame or nil
             startNoclip(); startAutoBossAllHop()
-            Library:Notify({ Title = "Boss All+Hop", Description = "Enabled – will hop if no boss", Time = 3 })
+            Library:Notify({ Title = "Auto Boss", Description = "Enabled – will hop if no boss", Time = 3 })
         else
             if Conns.bossAllHop then Conns.bossAllHop:Disconnect(); Conns.bossAllHop = nil end
             stopPositionLock(); stopNoclip(); smoothCleanAll(); checkAndResumeFastAttack()
-            Library:Notify({ Title = "Boss All+Hop", Description = "Disabled", Time = 3 })
+            Library:Notify({ Title = "Auto Boss", Description = "Disabled", Time = 3 })
         end
     end)
 
