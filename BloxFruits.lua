@@ -23,7 +23,7 @@ local function O(name)
 end
 
 local Window = Library:CreateWindow({
-    Title = "KKKK Hub old",
+    Title = "KKKK Hub",
     Footer = "by Z",
     ShowCustomCursor = true,
     NotifySide = "Right",
@@ -33,6 +33,7 @@ local Tabs = {
     Info            = Window:AddTab("Info Server", "monitor"),
     FarmSettings    = Window:AddTab("Farm Settings", "settings-2"),
     Main            = Window:AddTab("Main", "sword"),
+    Item            = Window:AddTab("Item", "package"),
     Sea             = Window:AddTab("Sea", "anchor"),
     LocalPlayer     = Window:AddTab("Local Player", "user"),
     Esp             = Window:AddTab("ESP", "eye"),
@@ -233,13 +234,11 @@ local function smoothCleanAll()
     if enemiesFolder then
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
             pcall(function()
-                -- ลบ BodyVelocity ทั้งหมด
                 for _, desc in ipairs(enemy:GetDescendants()) do
                     if desc:IsA("BodyVelocity") and desc.Name == "BodyVelocity" then
                         desc:Destroy()
                     end
                 end
-                -- restore WalkSpeed และ JumpPower
                 local hum = enemy:FindFirstChildOfClass("Humanoid")
                 if hum then
                     hum.WalkSpeed = 16
@@ -792,6 +791,15 @@ local function getEnemyDisplayName(model)
     return cleanMonsterName(model.Name)
 end
 
+local function getMonsterSpawnFolder()
+    return ReplicatedStorage:FindFirstChild("FortBuilderReplicatedSpawnPositionsFolder")
+end
+
+local function getBossSpawnFolder()
+    local worldOrigin = Workspace:FindFirstChild("_WorldOrigin")
+    return worldOrigin and worldOrigin:FindFirstChild("EnemySpawns")
+end
+
 local function isEnemyDead(enemy)
     if not enemy then return true end
     if not enemy.Parent then return true end
@@ -816,8 +824,7 @@ end
 local function scanBossSpawns()
     local result = {}
     local seen   = {}
-    local spawns = workspace:FindFirstChild("_WorldOrigin")
-        and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+    local spawns = getBossSpawnFolder()
     if not spawns then return result end
  
     for _, part in ipairs(spawns:GetChildren()) do
@@ -877,7 +884,6 @@ local function findBossByDisplayName(activeList)
             local cleanDisplay = cleanMonsterName(displayName)
             local cleanName    = cleanMonsterName(model.Name)
 
-            -- เช็คทั้ง DisplayName และ Name
             local matchName = nil
             if cleanDisplay ~= "" and table.find(activeList, cleanDisplay) then
                 matchName = cleanDisplay
@@ -917,55 +923,66 @@ local function findBossInEnemies(targetName)
 end
 
 local function cacheAllSpawns()
-    local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
-    if not spawnsFolder then return end
     Lists.cachedMobSpawns = {}
     Lists.masterBossSpawnList = {}
-    for _, part in ipairs(spawnsFolder:GetChildren()) do
-        local rawName = part.Name
-        local pos = nil
 
-        if part:IsA("BasePart") then
-            pos = part.Position
-        elseif part:IsA("Model") then
-            local root = part:FindFirstChild("HumanoidRootPart") or part.PrimaryPart
-            if root then pos = root.Position
-            else
-                local ok, pivot = pcall(function() return part:GetPivot() end)
-                if ok then pos = pivot.Position end
+    local function cacheSpawnFolder(spawnsFolder, cacheMonsters, cacheBosses)
+        if not spawnsFolder then return end
+        for _, part in ipairs(spawnsFolder:GetChildren()) do
+            local rawName = part.Name
+            local pos = nil
+
+            if part:IsA("BasePart") then
+                pos = part.Position
+            elseif part:IsA("Model") then
+                local root = part:FindFirstChild("HumanoidRootPart") or part.PrimaryPart
+                if root then pos = root.Position
+                else
+                    local ok, pivot = pcall(function() return part:GetPivot() end)
+                    if ok then pos = pivot.Position end
+                end
             end
-        end
 
-        if pos then
-            local cleanName = cleanMonsterName(rawName)
-            if cleanName and cleanName ~= "" then
-                local isBoss = (string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]")) ~= nil
-                if not Lists.cachedMobSpawns[cleanName] then
-                    Lists.cachedMobSpawns[cleanName] = {}
-                end
-                local dupMob = false
-                for _, existing in ipairs(Lists.cachedMobSpawns[cleanName]) do
-                    if (existing.pos - pos).Magnitude < 5 then dupMob = true; break end
-                end
-                if not dupMob then
-                    table.insert(Lists.cachedMobSpawns[cleanName], { pos = pos, name = cleanName })
-                end
+            if pos then
+                local cleanName = cleanMonsterName(rawName)
+                if cleanName and cleanName ~= "" then
+                    local isBoss = (string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]")) ~= nil
 
-                if isBoss and not isBossIgnored(cleanName) then
-                    local dupBoss = false
-                    for _, existing in ipairs(Lists.masterBossSpawnList) do
-                        if existing.name == cleanName or (existing.pos - pos).Magnitude < 5 then
-                            dupBoss = true; break
+                    local shouldCacheMob = (cacheMonsters and not isBoss) or (cacheBosses and isBoss)
+                    if shouldCacheMob then
+                        if not Lists.cachedMobSpawns[cleanName] then
+                            Lists.cachedMobSpawns[cleanName] = {}
+                        end
+                        local dupMob = false
+                        for _, existing in ipairs(Lists.cachedMobSpawns[cleanName]) do
+                            if (existing.pos - pos).Magnitude < 5 then dupMob = true; break end
+                        end
+                        if not dupMob then
+                            table.insert(Lists.cachedMobSpawns[cleanName], { pos = pos, name = cleanName })
                         end
                     end
-                    if not dupBoss then
-                        table.insert(Lists.masterBossSpawnList, { pos = pos, name = cleanName })
-                        table.sort(Lists.masterBossSpawnList, function(a, b) return a.name:lower() < b.name:lower() end)
+
+                    if cacheBosses and isBoss and not isBossIgnored(cleanName) then
+                        local dupBoss = false
+                        for _, existing in ipairs(Lists.masterBossSpawnList) do
+                            if existing.name == cleanName or (existing.pos - pos).Magnitude < 5 then
+                                dupBoss = true; break
+                            end
+                        end
+                        if not dupBoss then
+                            table.insert(Lists.masterBossSpawnList, { pos = pos, name = cleanName })
+                            table.sort(Lists.masterBossSpawnList, function(a, b) return a.name:lower() < b.name:lower() end)
+                        end
                     end
                 end
             end
         end
     end
+
+    -- Normal monsters use the replicated spawn-position folder.
+    cacheSpawnFolder(getMonsterSpawnFolder(), true, false)
+    -- Bosses continue using the original EnemySpawns folder.
+    cacheSpawnFolder(getBossSpawnFolder(), false, true)
 end
 
 local function getSpawnsForList(activeList)
@@ -1002,9 +1019,7 @@ end
 
 local function scanAllMonsters()
     local newlyFound = false
-    -- scan จาก EnemySpawns (position cache)
-    local spawns = Workspace:FindFirstChild("_WorldOrigin") 
-        and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+    local spawns = getMonsterSpawnFolder()
     if spawns then
         for _, part in ipairs(spawns:GetChildren()) do
             local rawName = part.Name
@@ -1012,7 +1027,6 @@ local function scanAllMonsters()
             if addDiscoveredMonster(rawName) then newlyFound = true end
         end
     end
-    -- *** scan จาก Enemies ที่มีชีวิตด้วย เพื่อจำชื่อ ***
     local enemies = Refs.EnemiesFolder or Workspace:FindFirstChild("Enemies")
     if enemies then
         for _, model in ipairs(enemies:GetChildren()) do
@@ -1021,7 +1035,6 @@ local function scanAllMonsters()
             local displayName = hum.DisplayName or ""
             local rawName = displayName ~= "" and displayName or model.Name
             if string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]") then continue end
-            -- จำชื่อไว้ใน masterMonsterList
             if addDiscoveredMonster(rawName) then newlyFound = true end
             if addDiscoveredMonster(model.Name) then newlyFound = true end
         end
@@ -1061,13 +1074,10 @@ local function findPriorityEnemy(monsterList)
         or (LocalPlayer.Character and LocalPlayer.Character:GetPivot().Position)
     if #monsterList == 0 then return nil, nil end
     for _, model in ipairs(folder:GetChildren()) do
-        -- *** เช็คทั้ง Name และ DisplayName ***
         local hum = model:FindFirstChildOfClass("Humanoid")
         local displayName = hum and hum.DisplayName or ""
         local cleanDisplay = cleanMonsterName(displayName)
         local cleanName    = cleanMonsterName(model.Name)
-        
-        -- ข้าม boss
         if string.find(displayName, "%[Boss%]") or string.find(displayName, "%[Raid Boss%]")
             or string.find(model.Name, "%[Boss%]") or string.find(model.Name, "%[Raid Boss%]") then
             continue
@@ -1109,7 +1119,6 @@ local function findPriorityEnemyIncludeBoss(monsterList)
         local cleanDisplay = cleanMonsterName(displayName)
         local cleanName    = cleanMonsterName(model.Name)
 
-        -- ไม่ skip boss ในที่นี้
         local matchName = nil
         if table.find(monsterList, cleanName) then
             matchName = cleanName
@@ -1635,14 +1644,15 @@ end
 local noclipCache     = {}
 local noclipCacheTick = 0
 local NOCLIP_REBUILD  = 10
-local NOCLIP_INTERVAL = 0.3
+local NOCLIP_INTERVAL = 0
 local noclipApplyTick = 0
 
 local function startNoclip()
     if Conns.noclip then Conns.noclip:Disconnect() end
     noclipCache = {}; noclipCacheTick = 0; noclipApplyTick = 0
 
-    Conns.noclip = RunService.Heartbeat:Connect(function()
+    -- Stepped runs before physics, so collision stays disabled during tween movement.
+    Conns.noclip = RunService.Stepped:Connect(function()
         local now = tick()
         if now - noclipApplyTick < NOCLIP_INTERVAL then return end
         noclipApplyTick = now
@@ -1679,7 +1689,6 @@ end
 
 local function stopNoclip()
     if Conns.noclip then Conns.noclip:Disconnect(); Conns.noclip = nil end
-    -- restore CanCollide character
     local char = LocalPlayer.Character
     if char then
         for _, part in ipairs(char:GetDescendants()) do
@@ -1688,7 +1697,6 @@ local function stopNoclip()
             end
         end
     end
-    -- cleanup BodyVelocity ที่ค้างในมอน
     local enemiesFolder = workspace:FindFirstChild("Enemies")
     if enemiesFolder then
         for _, enemy in ipairs(enemiesFolder:GetChildren()) do
@@ -1711,16 +1719,12 @@ local lockLastTick  = 0
 
 local function startPositionLock()
     if Conns.lock then Conns.lock:Disconnect() end
-    if Humanoid then pcall(function() Humanoid.AutoRotate = false end) end
+    if Humanoid then
+        pcall(function() Humanoid.AutoRotate = false end)
+    end
     lockLastTick = tick()
 
     Conns.lock = RunService.Stepped:Connect(function()
-        if not (State.autoNearEnabled or State.autoFarmEnabled or State.autoBossEnabled
-            or State.teleportTweenEnabled or State.bypassTpEnabled) then
-            if Conns.lock then Conns.lock:Disconnect(); Conns.lock = nil end
-            return
-        end
-
         local now = tick()
         if now - lockLastTick < LOCK_INTERVAL then return end
         lockLastTick = now
@@ -1732,16 +1736,36 @@ local function startPositionLock()
         local hum = char:FindFirstChildOfClass("Humanoid")
         if not hum or not hum.Health or hum.Health <= 0 then return end
 
-        if State.autoFarmEnabled or State.autoBossEnabled or State.autoNearEnabled then return end
+        pcall(function() hum.AutoRotate = false end)
 
-        if State.currentFlyCF then
-            pcall(function()
-                hrp.CFrame = State.currentFlyCF
-                hrp.AssemblyLinearVelocity  = Vector3.zero
-                hrp.AssemblyAngularVelocity = Vector3.zero
-                hum:ChangeState(Enum.HumanoidStateType.Physics)
-            end)
+        if not State.currentFlyCF then return end
+
+        local bp = hrp:FindFirstChild("__LockBP")
+        if not bp then
+            bp = Instance.new("BodyPosition")
+            bp.Name     = "__LockBP"
+            bp.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+            bp.P        = 1e5
+            bp.D        = 500
+            bp.Parent   = hrp
         end
+        bp.Position = State.currentFlyCF.Position
+
+        local bg = hrp:FindFirstChild("__LockBG")
+        if not bg then
+            bg = Instance.new("BodyGyro")
+            bg.Name      = "__LockBG"
+            bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+            bg.P         = 1e5
+            bg.D         = 500
+            bg.Parent    = hrp
+        end
+        bg.CFrame = State.currentFlyCF
+
+        hrp.CFrame = State.currentFlyCF
+        hrp.AssemblyLinearVelocity  = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+        hum:ChangeState(Enum.HumanoidStateType.Physics)
     end)
 end
 
@@ -1753,14 +1777,18 @@ local function stopPositionLock()
             local char = LocalPlayer.Character
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hum then
-                hum.AutoRotate = true
-                hum.PlatformStand = false
-                hum:ChangeState(Enum.HumanoidStateType.Landed)
-            end
+
             if hrp then
+                local bp = hrp:FindFirstChild("__LockBP")
+                local bg = hrp:FindFirstChild("__LockBG")
+                if bp then bp:Destroy() end
+                if bg then bg:Destroy() end
                 hrp.AssemblyLinearVelocity  = Vector3.zero
                 hrp.AssemblyAngularVelocity = Vector3.zero
+            end
+            if hum then
+                hum.AutoRotate = true
+                hum:ChangeState(Enum.HumanoidStateType.GettingUp)
             end
         end)
     end)
@@ -1771,7 +1799,10 @@ local MOVE_INTERVAL = 0.05
 
 local function moveToTarget(hrp, targetCF, dt)
     if not hrp or not hrp.Parent or not targetCF then return end
-    if not State.currentFlyCF or (State.currentFlyCF.Position - hrp.Position).Magnitude > 300 then
+    local hrpPos = hrp.Position
+    if not State.currentFlyCF
+        or not State.currentFlyCF.Position
+        or (State.currentFlyCF.Position - hrpPos).Magnitude > 500 then
         State.currentFlyCF = hrp.CFrame
     end
     local targetPos  = targetCF.Position
@@ -1786,10 +1817,9 @@ local function moveToTarget(hrp, targetCF, dt)
     State.currentFlyCF = finalCF
     pcall(function()
         hrp.CFrame = finalCF
-        -- hrp.AssemblyLinearVelocity  = Vector3.zero
-        -- hrp.AssemblyAngularVelocity = Vector3.zero
     end)
 end
+
 
 local lastFarmBypassTick = 0
 local farmHopThread = nil
@@ -1944,6 +1974,41 @@ local function getOffsetCF(enemyCF)
     return enemyCF * CFrame.new(CFG.OFFSET_X or 0, CFG.OFFSET_Y or 25, CFG.OFFSET_Z or 0)
 end
 
+local function lockToEnemy(hrp, hum, enemyLiveRoot)
+    if not hrp or not hrp.Parent then return end
+    if not hum or not hum.Health or hum.Health <= 0 then return end
+    if not enemyLiveRoot or not enemyLiveRoot.Parent then return end
+    local finalCF = getOffsetCF(enemyLiveRoot.CFrame)
+    State.currentFlyCF = finalCF
+    pcall(function()
+        hrp.CFrame = finalCF
+        hrp.AssemblyLinearVelocity  = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+        hum:ChangeState(Enum.HumanoidStateType.Physics)
+        local bp = hrp:FindFirstChild("__LockBP")
+        if not bp then
+            bp = Instance.new("BodyPosition")
+            bp.Name     = "__LockBP"
+            bp.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+            bp.P        = 1e5
+            bp.D        = 500
+            bp.Parent   = hrp
+        end
+        bp.Position = finalCF.Position
+
+        local bg = hrp:FindFirstChild("__LockBG")
+        if not bg then
+            bg = Instance.new("BodyGyro")
+            bg.Name      = "__LockBG"
+            bg.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+            bg.P         = 1e5
+            bg.D         = 500
+            bg.Parent    = hrp
+        end
+        bg.CFrame = finalCF
+    end)
+end
+
 local function startAutoNear()
     if Conns.follow then Conns.follow:Disconnect() end
     local lockedEnemy = nil
@@ -1988,8 +2053,7 @@ local function startAutoNear()
             lockedEnemy = getClosestEnemy()
             State.currentEnemy = lockedEnemy
             if not lockedEnemy then
-                local worldOrigin = Workspace:FindFirstChild("_WorldOrigin")
-                local spawnsFolder = worldOrigin and worldOrigin:FindFirstChild("EnemySpawns")
+                local spawnsFolder = getMonsterSpawnFolder()
                 if not spawnsFolder then return end
                 local bestPos, bestDist = nil, math.huge
                 for _, part in ipairs(spawnsFolder:GetChildren()) do
@@ -2048,13 +2112,18 @@ local function startAutoNear()
 end
 
 local function startAutoFarm()
-    if Conns.farm then Conns.farm:Disconnect() end
+    if Conns.farm then Conns.farm:Disconnect(); Conns.farm = nil end
+    
+    local myGen = (math.random(1, 999999))
+    local lockedEnemy = nil
+    local spawnIdx = 1
+    local waitAtSpawnTick = nil
+    if HRP then State.currentFlyCF = HRP.CFrame end
     local lockedEnemy = nil
     local spawnIdx  = 1
     local waitAtSpawnTick = nil
     if HRP then State.currentFlyCF = HRP.CFrame end
 
-    -- cleanup BodyPosition จากรอบก่อนทันที
     local function cleanupBringMob()
         local folder = workspace:FindFirstChild("Enemies")
         if not folder then return end
@@ -2089,8 +2158,7 @@ local function startAutoFarm()
                     Lists.cachedMobSpawns[cleanName] = {}
                 end
                 local spawnPos = root.Position
-                local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin")
-                    and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+                local spawnsFolder = getMonsterSpawnFolder()
                 if spawnsFolder then
                     local best, bestDist = nil, math.huge
                     for _, part in ipairs(spawnsFolder:GetChildren()) do
@@ -2111,7 +2179,6 @@ local function startAutoFarm()
             end
         end
 
-        -- cleanup ก่อน assign target ใหม่
         cleanupBringMob()
 
         local immediateTarget = findPriorityEnemyIncludeBoss(initList)
@@ -2125,7 +2192,8 @@ local function startAutoFarm()
     Conns.farm = RunService.Heartbeat:Connect(function(dt)
         if not State.autoFarmEnabled then
             if Conns.farm then Conns.farm:Disconnect(); Conns.farm = nil end
-            stopPositionLock(); stopNoclip(); smoothCleanAll(); checkAndResumeFastAttack()
+            stopPositionLock()
+            smoothCleanAll(); checkAndResumeFastAttack()
             cleanupBringMob()
             lockedEnemy = nil
             return
@@ -2134,6 +2202,7 @@ local function startAutoFarm()
         local activeList = updateSelectedMonstersList()
         if #activeList == 0 then return end
         equipWeapon(State.selectedWeaponType)
+
         local lockedAlive = false
         if lockedEnemy and lockedEnemy.Parent then
             local lhum  = lockedEnemy:FindFirstChildOfClass("Humanoid")
@@ -2145,6 +2214,7 @@ local function startAutoFarm()
                 lockedAlive = true
             end
         end
+
         if not lockedAlive then
             stopFastAttack(); stopHitRegistration()
             State.trackedRoot = nil
@@ -2154,6 +2224,7 @@ local function startAutoFarm()
             lockedEnemy = newTarget
             State.currentEnemy = lockedEnemy
         end
+
         if lockedEnemy and lockedEnemy.Parent then
             waitAtSpawnTick = nil
             local enemyHum  = lockedEnemy:FindFirstChildOfClass("Humanoid")
@@ -2174,12 +2245,17 @@ local function startAutoFarm()
             local dist     = (targetCF.Position - hrpPos).Magnitude
             if dist > (CFG.REACH or 6) then
                 stopFastAttack()
+                stopPositionLock()
                 tryFarmBypass(targetCF.Position)
-                if HRP then moveToTarget(HRP, targetCF, dt) end
+                if HRP then
+                    State.currentFlyCF = HRP.CFrame
+                    moveToTarget(HRP, targetCF, dt)
+                end
             else
                 local liveCF  = enemyLiveRoot.CFrame
                 local finalCF = getOffsetCF(liveCF)
                 State.currentFlyCF = finalCF
+                if not Conns.lock then startPositionLock() end
                 pcall(function()
                     if HRP then
                         HRP.CFrame = finalCF
@@ -2193,7 +2269,8 @@ local function startAutoFarm()
             end
         else
             stopFastAttack(); stopHitRegistration()
-            lockedEnemy = nil; State.currentEnemy = nil; State.trackedRoot = nil; smoothCleanAll()
+            lockedEnemy = nil; State.currentEnemy = nil; State.trackedRoot = nil
+            smoothCleanAll(); cleanupBringMob()
 
             local allSpawns = getSpawnsForList(activeList)
             if #allSpawns == 0 then return end
@@ -2218,24 +2295,30 @@ local function startAutoFarm()
             end
 
             local currentSpawn = allSpawns[spawnIdx]
+            local hrpPos   = HRP and HRP.Position
             local spawnPos = currentSpawn.pos + Vector3.new(CFG.OFFSET_X or 0, CFG.OFFSET_Y or 35, CFG.OFFSET_Z or 0)
             local targetCF = CFrame.new(spawnPos)
-            local currentPos = (State.currentFlyCF and State.currentFlyCF.Position) or (HRP and HRP.Position)
-            local dist = currentPos and (spawnPos - currentPos).Magnitude or math.huge
-            if dist > 20 then
+            local dist     = hrpPos and (spawnPos - hrpPos).Magnitude or math.huge
+
+            if dist > 10 then
                 waitAtSpawnTick = nil
-                tryFarmBypass(spawnPos)
-                if HRP then moveToTarget(HRP, targetCF, dt) end
+                if HRP then
+                    stopPositionLock()
+                    State.currentFlyCF = HRP.CFrame
+                    tryFarmBypass(spawnPos)
+                    moveToTarget(HRP, targetCF, dt)
+                end
             else
-                State.currentFlyCF = targetCF
+                stopPositionLock()
+                State.currentFlyCF = nil
                 pcall(function()
-                    if HRP then
-                        HRP.CFrame = targetCF
-                        HRP.AssemblyLinearVelocity  = Vector3.zero
-                        HRP.AssemblyAngularVelocity = Vector3.zero
-                        Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        hum.AutoRotate = true
+                        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
                     end
                 end)
+
                 local immediateTarget = findPriorityEnemy(activeList)
                 if immediateTarget then
                     cleanupBringMob()
@@ -2246,8 +2329,8 @@ local function startAutoFarm()
                 end
                 if not waitAtSpawnTick then
                     waitAtSpawnTick = tick()
-                    Library:Notify({ Title = "Auto Farm", Description = "Checking at " .. currentSpawn.name .. " spawn (1s)...", Time = 1 })
-                elseif tick() - waitAtSpawnTick >= 1 then
+                    Library:Notify({ Title = "Auto Farm", Description = "Checking at " .. currentSpawn.name .. " spawn...", Time = 1 })
+                elseif tick() - waitAtSpawnTick >= 0.5 then
                     waitAtSpawnTick = nil
                     spawnIdx = (spawnIdx % #allSpawns) + 1
                 end
@@ -2291,7 +2374,8 @@ local function startAutoBoss()
     Conns.boss = RunService.Heartbeat:Connect(function(dt)
         if not State.autoBossEnabled then
             if Conns.boss then Conns.boss:Disconnect(); Conns.boss = nil end
-            stopPositionLock(); stopNoclip(); smoothCleanAll(); checkAndResumeFastAttack()
+            stopPositionLock()
+            smoothCleanAll(); checkAndResumeFastAttack()
             lockedEnemy = nil
             return
         end
@@ -2313,14 +2397,13 @@ local function startAutoBoss()
                 notified = false
                 State.currentEnemy = nil
                 State.trackedRoot  = nil
-                searchCooldown = tick() + 1  -- รอ 1 วิก่อนหาใหม่
+                searchCooldown = tick() + 1
                 stopFastAttack(); stopHitRegistration()
             end
         end
 
-        -- หาเป้าใหม่เฉพาะเมื่อไม่มี lockedEnemy และ cooldown หมดแล้ว
         if not lockedAlive and not lockedEnemy then
-            if tick() < searchCooldown then return end  -- รอ cooldown
+            if tick() < searchCooldown then return end
 
             local newTarget, newName = findBossByDisplayName(activeList)
             if newTarget and newName then
@@ -2330,7 +2413,7 @@ local function startAutoBoss()
                 notified = false
                 local bossHum = lockedEnemy:FindFirstChildOfClass("Humanoid")
                 if bossHum then
-                    bossHum.Died:Once(function()  -- ใช้ Once แทน Connect เพื่อไม่ให้ stack
+                    bossHum.Died:Once(function()
                         if lockedEnemy == newTarget then
                             lockedEnemy = nil
                             notified = false
@@ -2825,47 +2908,97 @@ local function startTeleportTween()
 
     task.spawn(function()
         local targetPos = State.selectedIslandPos
-        local entranceInfo = getEntranceForTarget(targetPos)
-        if entranceInfo then
+
+        local function getAllEntrances()
+            if sea1 then
+                return {
+                    { pos = Vector3.new(3864.6879882812, 6.7369995117188, -1926.2139892578),  name = "Whirlpool" },
+                    { pos = Vector3.new(-4607.8232421875, 874.39099121094, -1667.5570068359), name = "Sky1" },
+                    { pos = Vector3.new(-7894.6181640625, 5547.1420898438, -380.29098510742), name = "Sky2" },
+                    { pos = Vector3.new(61163.8515625, 11.68000793457, 1819.7840576172),      name = "Underwater" },
+                }
+            elseif sea2 then
+                return {
+                    { pos = Vector3.new(2284.9091796875, 15.537796020508, 905.46417236328),   name = "Dock" },
+                    { pos = Vector3.new(-286.98596191406, 306.13739013672, 597.89910888672),  name = "Cafe" },
+                    { pos = Vector3.new(-6508.5581054688, 89.035003662109, -132.83999633789), name = "CursedShip" },
+                    { pos = Vector3.new(923.21301269531, 126.9759979248, 32852.83203125),     name = "Far" },
+                }
+            elseif sea3 then
+                return {
+                    { pos = Vector3.new(-12463.602539062, 378.32705688477, -7533.0830078125), name = "Mansion" },
+                    { pos = Vector3.new(-5060.4116210938, 318.50201416016, -3160.2248535156), name = "Castle" },
+                    { pos = Vector3.new(5650.9477539062, 1017.2747802734, -300.3791809082),   name = "Hydra" },
+                }
+            end
+            return {}
+        end
+
+        local usedEntrances = {}
+
+        local function getBestEntrance()
             local hrpNow = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if hrpNow then
-                local distToEntrance = (hrpNow.Position - entranceInfo.entrance).Magnitude
-                if distToEntrance > 500 then
-                    Library:Notify({ Title = "Teleport", Description = "Using entrance: " .. entranceInfo.name, Time = 2 })
-                    pcall(function()
-                        ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
-                    end)
-                    task.wait(1.5)
-                    local nc = LocalPlayer.Character
-                    local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
-                    if nhr then State.currentFlyCF = nhr.CFrame end
+            if not hrpNow then return nil end
+            local playerPos  = hrpNow.Position
+            local distToTarget = (playerPos - targetPos).Magnitude
+            if distToTarget <= 1000 then return nil end
+
+            local best, bestScore = nil, math.huge
+            for _, e in ipairs(getAllEntrances()) do
+                if usedEntrances[e.name] then continue end
+                local dEntranceToTarget = (e.pos - targetPos).Magnitude
+                local dPlayerToEntrance = (e.pos - playerPos).Magnitude
+                if dEntranceToTarget < distToTarget - 200 then
+                    local score = dEntranceToTarget
+                    if score < bestScore then
+                        bestScore = score
+                        best = e
+                    end
                 end
             end
-        else
-            requestentrance(targetPos)
+            return best
         end
+
+        for _ = 1, 5 do
+            local entrance = getBestEntrance()
+            if not entrance then break end
+
+            local hrpNow = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if not hrpNow then break end
+
+            Library:Notify({ Title = "Teleport", Description = "Entrance: " .. entrance.name, Time = 2 })
+            pcall(function()
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entrance.pos)
+            end)
+            usedEntrances[entrance.name] = true
+            task.wait(1.5)
+
+            local nc  = LocalPlayer.Character
+            local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
+            if nhr then State.currentFlyCF = nhr.CFrame end
+        end
+
+        local nc  = LocalPlayer.Character
+        local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
+        if nhr then State.currentFlyCF = nhr.CFrame end
     end)
 
-    local INTERVAL = 0.05
-    local lastTick = tick()
-
-    Conns.teleport = RunService.Heartbeat:Connect(function()
+    Conns.teleport = RunService.Heartbeat:Connect(function(dt)
         if not State.teleportTweenEnabled then stopTeleportTween(); return end
         if not updateCharacter() then return end
         if not State.selectedIslandPos then return end
         if not HRP or not HRP.Parent then return end
 
-        local now = tick()
-        local dt  = now - lastTick
-        if dt < INTERVAL then return end
-        lastTick = now
-
-        local targetCF   = CFrame.new(State.selectedIslandPos)
+        local targetPos  = State.selectedIslandPos
+        local targetCF   = CFrame.new(targetPos)
         local currentPos = State.currentFlyCF and State.currentFlyCF.Position or HRP.Position
-        local dist       = (State.selectedIslandPos - currentPos).Magnitude
+        local dist       = (targetPos - currentPos).Magnitude
 
         if dist > (CFG.REACH or 6) then
-            tryFarmBypass(State.selectedIslandPos)
+            local diffY = math.abs(currentPos.Y - targetPos.Y)
+            if diffY <= 50 and diffY > 1 then
+                snapYToTarget(HRP, targetPos.Y)
+            end
             moveToTarget(HRP, targetCF, dt)
         else
             State.currentFlyCF = targetCF
@@ -2892,7 +3025,6 @@ local function stopBypassTp()
     if Conns.bypassTp then Conns.bypassTp:Disconnect(); Conns.bypassTp = nil end
     stopPositionLock()
     stopNoclip()
-    -- resume อื่นๆ
     if State.autoNearEnabled then
         startNoclip(); startAutoNear()
     elseif State.autoFarmEnabled then
@@ -2949,52 +3081,71 @@ local function startBypassTp()
         end
 
         local hopCount = 0
-        local maxHops  = 8
+        local maxHops  = 10
 
-        while hopCount < maxHops and State.bypassTpEnabled do
-            local char = LocalPlayer.Character
-            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            local hum  = char and char:FindFirstChildOfClass("Humanoid")
-            if not hrp or not hum or hum.Health <= 0 then
-                task.wait(0.3); break
-            end
+    while hopCount < maxHops and State.bypassTpEnabled do
+        local char = LocalPlayer.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum or hum.Health <= 0 then
+            task.wait(0.3); break
+        end
 
-            local dist = (hrp.Position - targetPos).Magnitude
-            if dist <= 1500 then break end
+        local playerPos = hrp.Position
+        local dist = (playerPos - targetPos).Magnitude
+        if dist <= 1200 then break end
 
-            local WorldOrigin = workspace:FindFirstChild("_WorldOrigin")
-            local Pirates = WorldOrigin
-                and WorldOrigin:FindFirstChild("PlayerSpawns")
-                and WorldOrigin.PlayerSpawns:FindFirstChild("Pirates")
-            if not Pirates then break end
+        local WorldOrigin = workspace:FindFirstChild("_WorldOrigin")
+        local Pirates = WorldOrigin
+            and WorldOrigin:FindFirstChild("PlayerSpawns")
+            and WorldOrigin.PlayerSpawns:FindFirstChild("Pirates")
+        if not Pirates then break end
 
-            local best, bestDist = nil, dist
-            for _, v in ipairs(Pirates:GetChildren()) do
-                local part = v:FindFirstChild("Part")
-                if part then
-                    local d = (part.Position - targetPos).Magnitude
-                    if d < bestDist - 100 then
-                        bestDist = d
-                        best     = v
-                    end
+        local dirToTarget = (Vector3.new(targetPos.X, 0, targetPos.Z) 
+                        - Vector3.new(playerPos.X, 0, playerPos.Z)).Unit
+
+        local best, bestDot = nil, -math.huge
+
+        for _, v in ipairs(Pirates:GetChildren()) do
+            local part = v:FindFirstChild("Part")
+            if part then
+                local spawnPos = part.Position
+                local dToTarget   = (spawnPos - targetPos).Magnitude
+                local dFromPlayer = (spawnPos - playerPos).Magnitude
+
+                if dToTarget >= dist - 100 then continue end
+                if dFromPlayer > 6000 then continue end
+
+                local dirToSpawn = (Vector3.new(spawnPos.X, 0, spawnPos.Z) 
+                                - Vector3.new(playerPos.X, 0, playerPos.Z))
+                if dirToSpawn.Magnitude < 1 then continue end
+                dirToSpawn = dirToSpawn.Unit
+
+                local dot = dirToTarget:Dot(dirToSpawn)
+
+                if dot > bestDot then
+                    bestDot = dot
+                    best    = v
                 end
             end
-            if not best then break end
-
-            pcall(function()
-                ReplicatedStorage.Remotes.CommF_:InvokeServer("SetLastSpawnPoint", best.Name)
-                ReplicatedStorage.Remotes.CommF_:InvokeServer("SetSpawnPoint")
-                char:PivotTo(best.Part.CFrame)
-                hum:ChangeState(15)
-            end)
-
-            hopCount = hopCount + 1
-            task.wait(0.35)
-
-            local nc  = LocalPlayer.Character
-            local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
-            if nhr then State.currentFlyCF = nhr.CFrame end
         end
+
+        if not best then break end
+
+        pcall(function()
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("SetLastSpawnPoint", best.Name)
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("SetSpawnPoint")
+            char:PivotTo(best.Part.CFrame)
+            hum:ChangeState(15)
+        end)
+
+        hopCount = hopCount + 1
+        task.wait(0.35)
+
+        local nc  = LocalPlayer.Character
+        local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
+        if nhr then State.currentFlyCF = nhr.CFrame end
+    end
 
         if not State.bypassTpEnabled then
             State.bypassMoving = false; bypassActive = false; return
@@ -3002,22 +3153,28 @@ local function startBypassTp()
 
         local nc  = LocalPlayer.Character
         local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
-        if nhr then State.currentFlyCF = nhr.CFrame end
+        if nhr then
+            local snapDist = (nhr.Position - targetPos).Magnitude
+            if snapDist <= 1200 then
+                State.currentFlyCF = nhr.CFrame
+            else
+                pcall(function()
+                    nhr.CFrame = targetCF
+                    nhr.AssemblyLinearVelocity  = Vector3.zero
+                    nhr.AssemblyAngularVelocity = Vector3.zero
+                end)
+                State.currentFlyCF = targetCF
+            end
+        end
 
         State.bypassMoving = false
         startNoclip()
         startPositionLock()
 
-        local INTERVAL = 0.05
         local lastTick = tick()
 
-        Conns.bypassTp = RunService.Heartbeat:Connect(function()
+        Conns.bypassTp = RunService.Heartbeat:Connect(function(dt)
             if not State.bypassTpEnabled then stopBypassTp(); return end
-
-            local now = tick()
-            local dt  = now - lastTick
-            if dt < INTERVAL then return end
-            lastTick = now
 
             local char = LocalPlayer.Character
             local hrp  = char and char:FindFirstChild("HumanoidRootPart")
@@ -3025,11 +3182,12 @@ local function startBypassTp()
             if not hrp or not hum or hum.Health <= 0 then return end
 
             if not State.currentFlyCF
-                or (State.currentFlyCF.Position - hrp.Position).Magnitude > 200 then
+                or (State.currentFlyCF.Position - hrp.Position).Magnitude > 500 then
                 State.currentFlyCF = hrp.CFrame
             end
 
             local dist = (targetPos - State.currentFlyCF.Position).Magnitude
+
             if dist > 8 then
                 moveToTarget(hrp, targetCF, dt)
             else
@@ -3762,16 +3920,16 @@ Toggles.BringMobEnabled:OnChanged(function()
     })
 end)
 
-FarmRight:AddSlider("BringMobCount", {
-    Text    = "Bring Mob Count",
-    Min     = 1,
-    Max     = 6,
-    Default = 1,
-    Rounding = 0,
-})
-Options.BringMobCount:OnChanged(function()
-    BRING_COUNT = tonumber(O("BringMobCount")) or 1
-end)
+    FarmRight:AddSlider("BringMobCount", {
+        Text    = "Bring Mob Count",
+        Min     = 1,
+        Max     = 5,
+        Default = 1,
+        Rounding = 0,
+    })
+    Options.BringMobCount:OnChanged(function()
+        BRING_COUNT = tonumber(O("BringMobCount")) or 1
+    end)
 
     FarmLeft:AddSlider("TweenSpeed", { Text = "Tween Speed", Min = 0, Max = 500, Default = 250, Rounding = 0 })
     Options.TweenSpeed:OnChanged(function() CFG.SPEED = tonumber(O("TweenSpeed")) or 250 end)
@@ -3799,641 +3957,941 @@ end)
         end,
     })
 end
-
 do
     local LevelLeft  = Tabs.Main:AddLeftGroupbox("Auto Level Farm")
     local LevelRight = Tabs.Main:AddRightGroupbox("Level Status")
+ 
+local LevelFarmState = {
+    enabled        = false,
+    phase          = "idle",   -- "idle" | "going_quest" | "accepting" | "farming" | "farming_boss"
+    thread         = nil,
+    lastQuestTier  = nil,
+    isBossMode     = false,
+    questMonster   = "",
+    normalQuestIndex = 1,
 
-    local LevelFarmState = {
-        enabled        = false,
-        phase          = "idle",
-        thread         = nil,
-        questMode      = "single",
-        currentSlot    = 1,
-        lastQuestTier  = nil,
-        questList = {
-            -- Starter island Enemie 1
-            { lvMin = 1,  lvMax = 10, monster = "Bandit",           remote = "BanditQuest1", maxVariant = 1, variants = {
-                { variant = 1, monster = "Bandit",           isBoss = false },
-            }, giverPos = Vector3.new(1060, 16, 1548) },
-
-            -- Jungle island Enemie 1
-            { lvMin = 11, lvMax = 15, monster = "Monkey",           remote = "JungleQuest",  maxVariant = 1, variants = {
-                { variant = 1, monster = "Monkey",           isBoss = false },
-            }, giverPos = Vector3.new(-1602, 37, 151) },
-
-            -- Jungle island Enemie 2
-            { lvMin = 16, lvMax = 20, monster = "Gorilla",          remote = "JungleQuest",  maxVariant = 2, variants = {
-                { variant = 1, monster = "Monkey",          isBoss = false },
-                { variant = 2, monster = "Gorilla",          isBoss = false },
-            }, giverPos = Vector3.new(-1602, 37, 151) },
-
-            -- Jungle island Boss
-            { lvMin = 21, lvMax = 30, monster = "The Gorilla King", remote = "JungleQuest",  maxVariant = 3, variants = {
-                { variant = 1, monster = "Monkey",          isBoss = false },
-                { variant = 2, monster = "Gorilla",          isBoss = false },
-                { variant = 3, monster = "The Gorilla King", isBoss = true  },
-            }, giverPos = Vector3.new(-1602, 37, 151) },
-
-            -- Pirate island Enemie 1
-            { lvMin = 31, lvMax = 40, monster = "Pirate",           remote = "BuggyQuest1",  maxVariant = 1, variants = {
-                { variant = 1, monster = "Pirate",           isBoss = false },
-            }, giverPos = Vector3.new(-1141, 5, 3829) },
-
-            -- Pirate island Enemie 2
-            { lvMin = 41, lvMax = 55, monster = "Brute",           remote = "BuggyQuest1",  maxVariant = 2, variants = {
-                { variant = 1, monster = "Pirate",           isBoss = false },
-                { variant = 2, monster = "Brute",          isBoss = false },
-            }, giverPos = Vector3.new(-1141, 5, 3829) },
-
-            -- Pirate island Boss
-            { lvMin = 41, lvMax = 999, monster = "Brute",           remote = "BuggyQuest1",  maxVariant = 3, variants = {
-                { variant = 1, monster = "Pirate",           isBoss = false },
-                { variant = 2, monster = "Brute",          isBoss = false },
-                { variant = 3, monster = "Chef",        isBoss = true},
-            }, giverPos = Vector3.new(-1141, 5, 3829) },
+    -- Quest List (Sea 1)
+    questList = {
+        --  Starter Island 
+        { lvMin = 1,   lvMax = 10,  remote = "BanditQuest1",
+          giverPos = Vector3.new(1060, 16, 1548),
+          variants = {
+            { variant = 1, monster = "Bandit",           isBoss = false },
+          }
         },
-    }
 
-    local function hasBossInWorld()
-        local enemiesFolder = workspace:FindFirstChild("Enemies")
-        if enemiesFolder then
-            for _, model in ipairs(enemiesFolder:GetChildren()) do
-                local hum = model:FindFirstChildOfClass("Humanoid")
-                if hum and hum.Health and hum.Health > 0 then
-                    local rawName = (hum.DisplayName and hum.DisplayName ~= "") and hum.DisplayName or model.Name
-                    if string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]") then
-                        return true
-                    end
-                end
-            end
-        end
+        --  Jungle 
+        { lvMin = 11,  lvMax = 15,  remote = "JungleQuest",
+          giverPos = Vector3.new(-1602, 37, 151),
+          variants = {
+            { variant = 1, monster = "Monkey",           isBoss = false },
+          }
+        },
+        { lvMin = 16,  lvMax = 20,  remote = "JungleQuest",
+          giverPos = Vector3.new(-1602, 37, 151),
+          variants = {
+            { variant = 1, monster = "Monkey",           isBoss = false },
+            { variant = 2, monster = "Gorilla",          isBoss = false },
+          }
+        },
+        { lvMin = 21,  lvMax = 30,  remote = "JungleQuest",
+          giverPos = Vector3.new(-1602, 37, 151),
+          variants = {
+            { variant = 1, monster = "Monkey",           isBoss = false },
+            { variant = 2, monster = "Gorilla",          isBoss = false },
+            { variant = 3, monster = "The Gorilla King", isBoss = true  },
+          }
+        },
 
-        local spawns = workspace:FindFirstChild("_WorldOrigin")
-            and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
-        if spawns then
-            for _, obj in ipairs(spawns:GetChildren()) do
-                if obj:IsA("Model") then
-                    local hum = obj:FindFirstChildOfClass("Humanoid")
-                    if hum and hum.Health and hum.Health > 0 then
-                        local rawName = (hum.DisplayName and hum.DisplayName ~= "") and hum.DisplayName or obj.Name
-                        if string.find(rawName, "%[Boss%]") or string.find(rawName, "%[Raid Boss%]") then
-                            return true
-                        end
-                    end
-                end
-            end
-        end
+        --  Pirate Island 
+        { lvMin = 31,  lvMax = 40,  remote = "BuggyQuest1",
+          giverPos = Vector3.new(-1141, 5, 3829),
+          variants = {
+            { variant = 1, monster = "Pirate",           isBoss = false },
+          }
+        },
+        { lvMin = 41,  lvMax = 55,  remote = "BuggyQuest1",
+          giverPos = Vector3.new(-1141, 5, 3829),
+          variants = {
+            { variant = 1, monster = "Pirate",           isBoss = false },
+            { variant = 2, monster = "Brute",            isBoss = false },
+          }
+        },
+        { lvMin = 56,  lvMax = 60,  remote = "BuggyQuest1",
+          giverPos = Vector3.new(-1141, 5, 3829),
+          variants = {
+            { variant = 1, monster = "Pirate",           isBoss = false },
+            { variant = 2, monster = "Brute",            isBoss = false },
+            { variant = 3, monster = "Chef",             isBoss = true  },
+          }
+        },
 
-        return false
-    end
+        -- Desert
+        { lvMin = 61,  lvMax = 75,  remote = "DesertQuest",
+          giverPos = Vector3.new(897, 7, 4390),
+          variants = {
+            { variant = 1, monster = "Desert Bandit",    isBoss = false },
+          }
+        },
+        { lvMin = 76,  lvMax = 90,  remote = "DesertQuest",
+          giverPos = Vector3.new(897, 7, 4390),
+          variants = {
+            { variant = 1, monster = "Desert Bandit",    isBoss = false },
+            { variant = 2, monster = "Desert Officer",   isBoss = false },
+          }
+        },
 
-    local levelLabel    = LevelRight:AddLabel("Level: --")
-    local phaseLabel    = LevelRight:AddLabel("Phase: idle")
-    local questLabel    = LevelRight:AddLabel("Quest: --")
-    local slotLabel = LevelRight:AddLabel("Quest Slot: -")
+        -- Snow
+        { lvMin = 91,  lvMax = 100, remote = "SnowQuest",
+          giverPos = Vector3.new(1385, 87, -1296),
+          variants = {
+            { variant = 1, monster = "Snow Bandit",      isBoss = false },
+          }
+        },
+        { lvMin = 101, lvMax = 105, remote = "SnowQuest",
+          giverPos = Vector3.new(1385, 87, -1296),
+          variants = {
+            { variant = 1, monster = "Snow Bandit",      isBoss = false },
+            { variant = 2, monster = "Snowman",          isBoss = false },
+          }
+        },
+        { lvMin = 106, lvMax = 120, remote = "SnowQuest",
+          giverPos = Vector3.new(1385, 87, -1296),
+          variants = {
+            { variant = 1, monster = "Snow Bandit",      isBoss = false },
+            { variant = 2, monster = "Snowman",          isBoss = false },
+            { variant = 3, monster = "Yeti",             isBoss = true  },
+          }
+        },
 
-    task.spawn(function()
-        while true do
-            task.wait(1)
-            pcall(function()
-                local data  = LocalPlayer:FindFirstChild("Data")
-                local lvObj = data and data:FindFirstChild("Level")
-                local lv    = lvObj and lvObj.Value or "?"
-                if levelLabel and levelLabel.SetText then
-                    levelLabel:SetText("Level: " .. tostring(lv))
-                end
-                if phaseLabel and phaseLabel.SetText then
-                    phaseLabel:SetText("Phase: " .. LevelFarmState.phase)
-                end
-                pcall(function()
-                    local questVisible = LocalPlayer.PlayerGui.Main.Quest.Visible
-                    local txt = ""
-                    if questVisible then
-                        txt = LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.ContentText
-                            or LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Text
-                            or ""
-                    end
-                    if questLabel and questLabel.SetText then
-                        questLabel:SetText("Quest: " .. (questVisible and txt or "(none)"))
-                    end
-                    if parsedLabel and parsedLabel.SetText then
-                        parsedLabel:SetText("Parsed: '" .. getCurrentQuestMonsterName() .. "'")
-                    end
-                end)
-            end)
-        end
-    end)
+        -- Marine Base 
+        { lvMin = 121, lvMax = 130, remote = "MarineQuest2",
+          giverPos = Vector3.new(-5037, 29, 4322),
+          variants = {
+            { variant = 1, monster = "Chief Petty Officer", isBoss = false },
+          }
+        },
+        { lvMin = 131, lvMax = 150, remote = "MarineQuest2",
+          giverPos = Vector3.new(-5037, 29, 4322),
+          variants = {
+            { variant = 1, monster = "Chief Petty Officer", isBoss = false },
+            { variant = 2, monster = "Vice Admiral",        isBoss = true  },
+          }
+        },
 
-    task.spawn(function()
-        while true do
-            task.wait(0.5)
-            pcall(function()
-                if slotLabel and slotLabel.SetText then
-                    if LevelFarmState.questMode == "double" then
-                        slotLabel:SetText("Quest Slot: " .. LevelFarmState.currentSlot .. "/2")
-                    elseif LevelFarmState.questMode == "triple" then
-                        slotLabel:SetText("Quest Slot: " .. LevelFarmState.currentSlot .. "/3")
-                    else
-                        slotLabel:SetText("Quest Slot: single")
-                    end
-                end
-            end)
-        end
-    end)
+        -- Sky
+        { lvMin = 151, lvMax = 175, remote = "SkyQuest",
+          giverPos = Vector3.new(-4843, 718, -2617),
+          variants = {
+            { variant = 1, monster = "Sky Bandit",       isBoss = false },
+          }
+        },
+        { lvMin = 175, lvMax = 190, remote = "SkyQuest",
+          giverPos = Vector3.new(-4843, 718, -2617),
+          variants = {
+            { variant = 1, monster = "Sky Bandit",       isBoss = false },
+            { variant = 2, monster = "Dark Master",      isBoss = false },
+          }
+        },
 
-    local function getPlayerLevel()
-        local data  = LocalPlayer:FindFirstChild("Data")
-        local lvObj = data and data:FindFirstChild("Level")
-        return lvObj and lvObj.Value or 0
-    end
+        -- prison
+        { lvMin = 191, lvMax = 210, remote = "PrisonerQuest",
+          giverPos = Vector3.new(5306, 2, 474),
+          variants = {
+            { variant = 1, monster = "Prisoner",              isBoss = false },
+          }
+        },
+        { lvMin = 210, lvMax = 220, remote = "PrisonerQuest",
+          giverPos = Vector3.new(5306, 2, 474),
+          variants = {
+            { variant = 1, monster = "Prisoner",              isBoss = false },
+            { variant = 2, monster = "Dangerous Prisoner",    isBoss = false },
+          }
+        },
 
-    local function hasActiveQuest()
-        local ok, result = pcall(function()
-            local questGui = LocalPlayer.PlayerGui.Main.Quest
-            if not questGui.Visible then return false end
-            local title = questGui.Container.QuestTitle.Title
-            local txt = title.ContentText ~= "" and title.ContentText or title.Text or ""
-            return txt ~= ""
-        end)
-        return ok and result == true
-    end
+        -- Boss prison
+        { lvMin = 221, lvMax = 230, remote = "ImpelQuest",
+          giverPos = Vector3.new(5189, 4, 687),
+          variants = {
+            { variant = 1, monster = "Warden",           isBoss = true  },
+          }
+        },
+        { lvMin = 231, lvMax = 240, remote = "ImpelQuest",
+          giverPos = Vector3.new(5189, 4, 687),
+          variants = {
+            { variant = 1, monster = "Warden",           isBoss = true  },
+            { variant = 2, monster = "Chief Warden",     isBoss = true  },
+          }
+        },
+        { lvMin = 241, lvMax = 250, remote = "ImpelQuest",
+          giverPos = Vector3.new(5189, 4, 687),
+          variants = {
+            { variant = 1, monster = "Warden",           isBoss = true  },
+            { variant = 2, monster = "Chief Warden",     isBoss = true  },
+            { variant = 3, monster = "Swan",             isBoss = true  },
+          }
+        },
 
-    local function getCurrentQuestMonsterName()
-        local ok, name = pcall(function()
-            local questGui = LocalPlayer.PlayerGui.Main.Quest
-            if not questGui.Visible then return "" end
-            local title = questGui.Container.QuestTitle.Title
-            local txt = title.ContentText ~= "" and title.ContentText or title.Text or ""
-            local monster = txt:match("Defeat%s+%d+%s+(.+)$")
-            if not monster then return "" end
-            monster = monster:gsub("%s+$", "")
-            return monster
-        end)
-        return ok and name or ""
-    end
+        -- Colosseum
+        { lvMin = 251, lvMax = 275, remote = "ColosseumQuest",
+          giverPos = Vector3.new(-1577, 7, -2987),
+          variants = {
+            { variant = 1, monster = "Toga Warrior",     isBoss = false },
+          }
+        },
+        { lvMin = 276, lvMax = 300, remote = "ColosseumQuest",
+          giverPos = Vector3.new(-1577, 7, -2987),
+          variants = {
+            { variant = 1, monster = "Toga Warrior",     isBoss = false },
+            { variant = 2, monster = "Gladiator",        isBoss = false },
+          }
+        },
 
-    local function isQuestComplete()
-        local ok, result = pcall(function()
-            local questGui = LocalPlayer.PlayerGui.Main.Quest
-            if not questGui.Visible then return false end
-            local title = questGui.Container.QuestTitle.Title
-            local txt = title.ContentText ~= "" and title.ContentText or title.Text or ""
-            local cur, max = txt:match("%((%d+)/(%d+)%)")
-            if cur and max then
-                return tonumber(cur) >= tonumber(max)
-            end
-            return false
-        end)
-        return ok and result == true
-    end
+        -- Magma
+        { lvMin = 301, lvMax = 325, remote = "MagmaQuest",
+          giverPos = Vector3.new(-5315, 12, 8517),
+          variants = {
+            { variant = 1, monster = "Military Soldier",  isBoss = false },
+          }
+        },
 
-    local function abandonQuest()
+        { lvMin = 326, lvMax = 350, remote = "MagmaQuest",
+          giverPos = Vector3.new(-5315, 12, 8517),
+          variants = {
+            { variant = 1, monster = "Military Soldier",  isBoss = false },
+            { variant = 2, monster = "Military Spy",      isBoss = false },
+          }
+        },
+
+        { lvMin = 351, lvMax = 375, remote = "MagmaQuest",
+          giverPos = Vector3.new(-5315, 12, 8517),
+          variants = {
+            { variant = 1, monster = "Military Soldier",  isBoss = false },
+            { variant = 2, monster = "Military Spy",      isBoss = false },
+            { variant = 3, monster = "Magma Admiral",     isBoss = true  },
+          }
+        },
+
+        -- underwater
+        { lvMin = 376, lvMax = 400, remote = "FishmanQuest",
+          giverPos = Vector3.new(61124, 19, 1567),
+          variants = {
+            { variant = 1, monster = "Fishman Warrior",  isBoss = false },
+          }
+        },
+
+        { lvMin = 401, lvMax = 425, remote = "FishmanQuest",
+          giverPos = Vector3.new(61124, 19, 1567),
+          variants = {
+            { variant = 1, monster = "Fishman Warrior",  isBoss = false },
+            { variant = 2, monster = "Fishman Commando",      isBoss = false },
+          }
+        },
+
+        { lvMin = 425, lvMax = 450, remote = "FishmanQuest",
+          giverPos = Vector3.new(61124, 19, 1567),
+          variants = {
+            { variant = 1, monster = "Fishman Warrior",  isBoss = false },
+            { variant = 2, monster = "Fishman Commando",      isBoss = false },
+            { variant = 3, monster = "Fishman Lord",     isBoss = true  },
+          }
+        },
+    },
+}
+
+    local function cleanupLock()
         pcall(function()
-            ReplicatedStorage.Remotes.CommF_:InvokeServer("AbandonQuest")
-        end)
-        task.wait(0.5)
-    end
-
-    local function acceptQuest(questRemote, variant)
-        pcall(function()
-            ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", questRemote, variant)
-        end)
-        task.wait(0.5)
-    end
-
-    local function lockPlayerAtPos(pos, duration)
-        duration = duration or 3
-        local endTime = tick() + duration
-        local lockThread = task.spawn(function()
-            while tick() < endTime do
-                task.wait(0.05)
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-                    local hum  = char and char:FindFirstChildOfClass("Humanoid")
-                    if not hrp or not hum then return end
-                    hrp.CFrame = CFrame.new(pos)
-                    hrp.AssemblyLinearVelocity  = Vector3.zero
-                    hrp.AssemblyAngularVelocity = Vector3.zero
-                    hum:ChangeState(Enum.HumanoidStateType.Physics)
-                    hum.PlatformStand = true
-                end)
-            end
-            pcall(function()
-                local char = LocalPlayer.Character
-                local hum  = char and char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum.PlatformStand = false
-                    hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            local c = LocalPlayer.Character
+            local h = c and c:FindFirstChild("HumanoidRootPart")
+            local m = c and c:FindFirstChildOfClass("Humanoid")
+            if h then
+                for _, name in ipairs({"__LvlLockBP","__LvlLockBG"}) do
+                    local obj = h:FindFirstChild(name)
+                    if obj then obj:Destroy() end
                 end
-            end)
-        end)
-        return lockThread
-    end
-
-    local function goToQuestGiver()
-        LevelFarmState.phase = "going_quest"
-        local targetPos = LevelFarmState.questGiverPos
-        local targetCF  = CFrame.new(targetPos)
-
-        tryFarmBypass(targetPos)
-        task.wait(0.5)
-
-        local arrived = false
-        local timeout = tick() + 30
-        while not arrived and tick() < timeout and LevelFarmState.enabled do
-            local char = LocalPlayer.Character
-            local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp then task.wait(0.1); continue end
-            local dist = (hrp.Position - targetPos).Magnitude
-            if dist <= 10 then
-                arrived = true
-            else
-                tryFarmBypass(targetPos)
-                moveToTarget(hrp, targetCF, 0.05)
+                h.AssemblyLinearVelocity  = Vector3.zero
+                h.AssemblyAngularVelocity = Vector3.zero
             end
-            task.wait(0.05)
-        end
-        return arrived
+            if m then
+                m.PlatformStand = false
+                m:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+        end)
     end
-
-    local function setFarmMonster(monsterName)
-        if Options and Options.MonsterSelect then
-            local newVal = {}
-            newVal[monsterName] = true
-            Options.MonsterSelect:SetValue(newVal)
-        end
-        Lists.selectedMonsterList = { monsterName }
-    end
-
+ 
     local function stopCurrentFarm()
         State.autoFarmEnabled = false
+        State.autoBossEnabled = false
         if Conns.farm then Conns.farm:Disconnect(); Conns.farm = nil end
+        if Conns.boss then Conns.boss:Disconnect(); Conns.boss = nil end
         stopPositionLock()
-        stopNoclip()
         smoothCleanAll()
         State.currentEnemy = nil
         State.trackedRoot  = nil
         State.currentFlyCF = nil
     end
+ 
+    local function getPlayerLevel()
+        local d = LocalPlayer:FindFirstChild("Data")
+        return d and d:FindFirstChild("Level") and d.Level.Value or 0
+    end
+ 
+    local function hasActiveQuest()
+        local ok, r = pcall(function()
+            local q = LocalPlayer.PlayerGui.Main.Quest
+            if not q.Visible then return false end
+            local t = q.Container.QuestTitle.Title
+            return (t.ContentText ~= "" and t.ContentText or t.Text or "") ~= ""
+        end)
+        return ok and r == true
+    end
+ 
+    local function isQuestComplete()
+        local ok, r = pcall(function()
+            local q = LocalPlayer.PlayerGui.Main.Quest
+            if not q.Visible then return false end
+            local t = q.Container.QuestTitle.Title
+            local txt = t.ContentText ~= "" and t.ContentText or t.Text or ""
+            local cur, max = txt:match("%((%d+)/(%d+)%)")
+            return cur and max and tonumber(cur) >= tonumber(max)
+        end)
+        return ok and r == true
+    end
+ 
+    local function abandonQuest()
+        pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("AbandonQuest") end)
+        task.wait(0.5)
+    end
+ 
+    local function hasBossInWorldSmart(name)
+        local folder = workspace:FindFirstChild("Enemies")
+        if not folder then return false end
+        local norm = name and name:lower():gsub("%s+","") or nil
+        for _, m in ipairs(folder:GetChildren()) do
+            if isEnemyDead(m) then continue end
+            local hum = m:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health and hum.Health > 0 then
+                local raw   = (hum.DisplayName ~= "" and hum.DisplayName) or m.Name
+                local clean = cleanMonsterName(raw)
+                if norm and clean:lower():gsub("%s+","") == norm then return true end
+                if not norm and (raw:find("%[Boss%]") or raw:find("%[Raid Boss%]"))
+                    and not isBossIgnored(clean) then return true end
+            end
+        end
+        return false
+    end
+ 
+    local function travelToPos(targetPos, timeoutSec)
+        timeoutSec = timeoutSec or 60
+        if not targetPos then return false end
 
-    local function startFarmMonster(monsterName)
-        State.autoFarmEnabled = false
-        if Conns.farm   then Conns.farm:Disconnect();   Conns.farm   = nil end
-        if Conns.lock   then Conns.lock:Disconnect();   Conns.lock   = nil end
-        if Conns.noclip then Conns.noclip:Disconnect(); Conns.noclip = nil end
-        smoothCleanAll()
-
-        State.currentEnemy       = nil
-        State.trackedRoot        = nil
-        State.currentFlyCF       = nil
-        Lists.cachedSpawnsByName = {}
-
-        Lists.selectedMonsterList = { monsterName }
-        if Options and Options.MonsterSelect then
-            Options.MonsterSelect:SetValue({ [monsterName] = true })
+        -- Use the proper entrance before travelling to quest givers inside
+        -- restricted areas such as Underwater City.
+        local entranceInfo = getEntranceForTarget(targetPos)
+        if entranceInfo then
+            local currentChar = LocalPlayer.Character
+            local currentHrp  = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
+            if currentHrp and (currentHrp.Position - entranceInfo.entrance).Magnitude > 500 then
+                Library:Notify({
+                    Title = "Level Farm",
+                    Description = "Using entrance: " .. entranceInfo.name,
+                    Time = 2,
+                })
+                pcall(function()
+                    ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
+                end)
+                task.wait(1.5)
+                local newChar = LocalPlayer.Character
+                local newHrp  = newChar and newChar:FindFirstChild("HumanoidRootPart")
+                if newHrp then State.currentFlyCF = newHrp.CFrame end
+            end
         end
 
-        cacheAllSpawns()
+        startNoclip()
+        startPositionLock()
 
-        if not Lists.cachedMobSpawns[monsterName] or #Lists.cachedMobSpawns[monsterName] == 0 then
-            local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin")
-                and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
-            if spawnsFolder then
-                Lists.cachedMobSpawns[monsterName] = Lists.cachedMobSpawns[monsterName] or {}
-                for _, part in ipairs(spawnsFolder:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        local cleanName = cleanMonsterName(part.Name)
-                        if cleanName == monsterName then
-                            local dup = false
-                            for _, ex in ipairs(Lists.cachedMobSpawns[monsterName]) do
-                                if (ex.pos - part.Position).Magnitude < 10 then dup = true; break end
-                            end
-                            if not dup then
-                                table.insert(Lists.cachedMobSpawns[monsterName], { pos = part.Position, name = monsterName })
-                            end
+        local arrived = false
+        local deadline = tick() + timeoutSec
+        local targetCF = CFrame.new(targetPos)
+
+        local conn
+        conn = RunService.Heartbeat:Connect(function(dt)
+            if tick() > deadline or not LevelFarmState.enabled then
+                if conn then conn:Disconnect() end
+                arrived = true
+                return
+            end
+            local c = LocalPlayer.Character
+            local h = c and c:FindFirstChild("HumanoidRootPart")
+            if not h then return end
+            local dist = (h.Position - targetPos).Magnitude
+            if dist <= 8 then
+                if conn then conn:Disconnect() end
+                arrived = true
+                return
+            end
+            moveToTarget(h, targetCF, dt)
+        end)
+
+        local waitDeadline = tick() + timeoutSec + 2
+        while not arrived and tick() < waitDeadline do
+            task.wait(0.05)
+        end
+        if conn then conn:Disconnect() end
+
+        if not arrived then
+            pcall(function()
+                local c = LocalPlayer.Character
+                local h = c and c:FindFirstChild("HumanoidRootPart")
+                if h then
+                    h.CFrame = targetCF
+                    h.AssemblyLinearVelocity = Vector3.zero
+                    h.AssemblyAngularVelocity = Vector3.zero
+                    State.currentFlyCF = targetCF
+                end
+            end)
+            arrived = true
+        end
+        return arrived
+    end
+
+    local function acceptQuestSync(remote, variant, giverPos)
+        LevelFarmState.phase = "going_quest"
+
+        local char = LocalPlayer.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then State.currentFlyCF = hrp.CFrame end
+
+        local arrived = travelToPos(giverPos, 90)
+        if not arrived or not LevelFarmState.enabled then
+            LevelFarmState.phase = "idle"
+            return false
+        end
+
+        LevelFarmState.phase = "accepting"
+        State.currentFlyCF = CFrame.new(giverPos)
+
+        startPositionLock()
+
+        local deadline = tick() + 10
+        local accepted = false
+        while tick() < deadline and LevelFarmState.enabled do
+            pcall(function()
+                local c = LocalPlayer.Character
+                local h = c and c:FindFirstChild("HumanoidRootPart")
+                local m = c and c:FindFirstChildOfClass("Humanoid")
+                if h and m then
+                    h.CFrame = CFrame.new(giverPos)
+                    h.AssemblyLinearVelocity  = Vector3.zero
+                    h.AssemblyAngularVelocity = Vector3.zero
+                    m:ChangeState(Enum.HumanoidStateType.Physics)
+                end
+                ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", remote, variant)
+            end)
+            task.wait(0.35)
+            if hasActiveQuest() then accepted = true; break end
+        end
+
+        if not accepted then
+            Library:Notify({ Title = "Level Farm", Description = "Accept failed, will retry", Time = 2 })
+            LevelFarmState.phase = "idle"
+            stopPositionLock()
+            return false
+        end
+
+        stopPositionLock()
+        State.currentFlyCF = nil
+
+        pcall(function()
+            local c = LocalPlayer.Character
+            local hum = c and c:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.AutoRotate = true
+                hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+        end)
+
+        return true
+    end
+
+ local function startFarmMonster(monsterName)
+    stopCurrentFarm()
+    task.wait(0.3)
+
+    local c = LocalPlayer.Character
+    local h = c and c:FindFirstChild("HumanoidRootPart")
+    local m = c and c:FindFirstChildOfClass("Humanoid")
+    if not h or not m or m.Health <= 0 then return end
+
+    State.currentFlyCF = nil
+    task.wait(0.05)
+    State.currentFlyCF = h.CFrame
+
+    Lists.selectedMonsterList = { monsterName }
+    if Options and Options.MonsterSelect then
+        Options.MonsterSelect:SetValue({ [monsterName] = true })
+    end
+
+    cacheAllSpawns()
+
+     if not Lists.cachedMobSpawns[monsterName] or #Lists.cachedMobSpawns[monsterName] == 0 then
+        local spawnsFolder = getMonsterSpawnFolder()
+        if spawnsFolder then
+            Lists.cachedMobSpawns[monsterName] = {}
+            local lowerMonster = monsterName:lower()
+            for _, obj in ipairs(spawnsFolder:GetDescendants()) do
+                if obj:IsA("BasePart") then
+                    local cleanSelf   = cleanMonsterName(obj.Name):lower()
+                    local cleanParent = cleanMonsterName(obj.Parent and obj.Parent.Name or ""):lower()
+                    if cleanSelf == lowerMonster or cleanParent == lowerMonster then
+                        local dup = false
+                        for _, ex in ipairs(Lists.cachedMobSpawns[monsterName]) do
+                            if (ex.pos - obj.Position).Magnitude < 5 then dup = true; break end
+                        end
+                        if not dup then
+                            table.insert(Lists.cachedMobSpawns[monsterName], { pos = obj.Position, name = monsterName })
                         end
                     end
                 end
             end
         end
+    end
+ 
+    if not Lists.cachedMobSpawns[monsterName] or #Lists.cachedMobSpawns[monsterName] == 0 then
+        local folder = Workspace:FindFirstChild("Enemies")
+        if folder then
+            Lists.cachedMobSpawns[monsterName] = {}
+            local lowerMonster = monsterName:lower()
+            for _, model in ipairs(folder:GetChildren()) do
+                local hum2 = model:FindFirstChildOfClass("Humanoid")
+                local root = model:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local rawName   = (hum2 and hum2.DisplayName ~= "" and hum2.DisplayName) or model.Name
+                    local cleanName = cleanMonsterName(rawName):lower()
+                    if cleanName == lowerMonster then
+                        table.insert(Lists.cachedMobSpawns[monsterName], { pos = root.Position, name = monsterName })
+                    end
+                end
+            end
+        end
+    end
 
-        task.wait(0.1)
+    if not Lists.cachedMobSpawns[monsterName] or #Lists.cachedMobSpawns[monsterName] == 0 then
+        Library:Notify({ Title = "Level Farm", Description = "ไม่พบ spawn เฉพาะ ใช้พื้นที่ปัจจุบัน: " .. monsterName, Time = 2 })
+        Lists.cachedMobSpawns[monsterName] = {{ pos = h.Position, name = monsterName }}
+    end
 
-        local char = LocalPlayer.Character
-        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-        local hum  = char and char:FindFirstChildOfClass("Humanoid")
-        if not hrp or not hum or hum.Health <= 0 then
-            LevelFarmState.phase = "idle"
-            return
+    HRP = h; Humanoid = m; Character = c
+    State.autoFarmEnabled = true
+
+    if Conns.noclip then Conns.noclip:Disconnect(); Conns.noclip = nil end
+    noclipCache = {}; noclipCacheTick = 0; noclipApplyTick = 0
+    startNoclip()
+
+    startAutoFarm()
+end
+
+    local function startBossMonster(monsterName)
+        stopCurrentFarm()
+        task.wait(0.15)
+
+        local c = LocalPlayer.Character
+        local h = c and c:FindFirstChild("HumanoidRootPart")
+        local m = c and c:FindFirstChildOfClass("Humanoid")
+        if not h or not m or m.Health <= 0 then return end
+
+        State.currentFlyCF = h.CFrame
+        Lists.selectedBossList = { monsterName }
+        if Options and Options.BossSelect then
+            Options.BossSelect:SetValue({ [monsterName] = true })
         end
 
-        HRP       = hrp
-        Humanoid  = hum
-        Character = char
+        local bossSpawnPos = nil
+        local spawnsFolder = getBossSpawnFolder()
+        if spawnsFolder then
+            for _, part in ipairs(spawnsFolder:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local cleanName = cleanMonsterName(part.Name)
+                    if cleanName == monsterName then
+                        bossSpawnPos = part.Position
+                        break
+                    end
+                end
+            end
+        end
 
-        State.currentFlyCF    = hrp.CFrame
-        State.autoFarmEnabled = true
+        HRP = h; Humanoid = m; Character = c
+        State.autoBossEnabled = true
 
+        if Conns.noclip then Conns.noclip:Disconnect(); Conns.noclip = nil end
+        noclipCache = {}; noclipCacheTick = 0; noclipApplyTick = 0
         startNoclip()
-        startAutoFarm()
+
+        startAutoBoss()
+
+        if bossSpawnPos and not hasBossInWorldSmart(monsterName) then
+            task.spawn(function()
+                Library:Notify({ Title = "Auto Boss", Description = "Boss not in Enemies → going to spawn: " .. monsterName, Time = 3 })
+                local spawnCF = CFrame.new(
+                    bossSpawnPos.X + (CFG.OFFSET_X or 0),
+                    bossSpawnPos.Y + (CFG.OFFSET_Y or 35),
+                    bossSpawnPos.Z + (CFG.OFFSET_Z or 0)
+                )
+                local waitDeadline = tick() + 60
+                while tick() < waitDeadline and LevelFarmState.enabled and State.autoBossEnabled do
+                    if hasBossInWorldSmart(monsterName) then
+                        Library:Notify({ Title = "Auto Boss", Description = monsterName .. " spawned! Attacking...", Time = 3 })
+                        break
+                    end
+                    local cc = LocalPlayer.Character
+                    local hh = cc and cc:FindFirstChild("HumanoidRootPart")
+                    local mm = cc and cc:FindFirstChildOfClass("Humanoid")
+                    if not hh or not mm or mm.Health <= 0 then break end
+                    local dist = (hh.Position - spawnCF.Position).Magnitude
+                    if dist > (CFG.REACH or 6) then
+                        if not State.currentFlyCF
+                            or (State.currentFlyCF.Position - hh.Position).Magnitude > 300 then
+                            State.currentFlyCF = hh.CFrame
+                        end
+                        tryFarmBypass(bossSpawnPos)
+                        moveToTarget(hh, spawnCF, 0.05)
+                    else
+                        State.currentFlyCF = spawnCF
+                        pcall(function()
+                            hh.CFrame = spawnCF
+                            hh.AssemblyLinearVelocity  = Vector3.zero
+                            hh.AssemblyAngularVelocity = Vector3.zero
+                            mm:ChangeState(Enum.HumanoidStateType.Physics)
+                        end)
+                    end
+                    task.wait(0.05)
+                end
+            end)
+        end
     end
 
     local function runLevelFarmLoop()
         while LevelFarmState.enabled do
-            task.wait(0.05)
-            pcall(function()
-                local lv = getPlayerLevel()
+            task.wait(0.1)
 
-                local maxLevel = 0
+            local lv = getPlayerLevel()
+            if lv <= 0 then task.wait(0.5); continue end
+
+            local questCfg = nil
+            local maxLv    = 0
+            for _, cfg in ipairs(LevelFarmState.questList) do
+                if cfg.lvMax > maxLv then maxLv = cfg.lvMax end
+                if lv >= cfg.lvMin and lv <= cfg.lvMax then questCfg = cfg end
+            end
+
+            if lv > maxLv then
+                LevelFarmState.enabled = false
+                stopCurrentFarm()
+                Library:Notify({ Title = "Level Farm", Description = "Max level reached", Time = 5 })
+                pcall(function() if Toggles.AutoLevelFarm then Toggles.AutoLevelFarm:SetValue(false) end end)
+                break
+            end
+            if not questCfg then task.wait(0.5); continue end
+
+            local tierId = questCfg.remote .. tostring(questCfg.lvMin)
+            if LevelFarmState.lastQuestTier ~= tierId then
+                LevelFarmState.lastQuestTier = tierId
+                LevelFarmState.isBossMode    = false
+                LevelFarmState.questMonster  = ""
+                LevelFarmState.normalQuestIndex = 1
+                if hasActiveQuest() then abandonQuest() end
+                stopCurrentFarm()
+                LevelFarmState.phase = "idle"
+                task.wait(0.3); continue
+            end
+
+            local normalVariants = {}
+            local bossVs  = {}
+            for _, v in ipairs(questCfg.variants) do
+                if not v.isBoss then
+                    table.insert(normalVariants, v)
+                end
+                if v.isBoss then
+                    table.insert(bossVs, v)
+                end
+            end
+            local normalV = nil
+            if #normalVariants > 0 then
+                if LevelFarmState.normalQuestIndex < 1
+                    or LevelFarmState.normalQuestIndex > #normalVariants then
+                    LevelFarmState.normalQuestIndex = 1
+                end
+                normalV = normalVariants[LevelFarmState.normalQuestIndex]
+            end
+
+            local fallbackCfg = nil
+            if not normalV then
                 for _, cfg in ipairs(LevelFarmState.questList) do
-                    if cfg.lvMax > maxLevel then maxLevel = cfg.lvMax end
-                end
-                if lv < 1 or lv > maxLevel then
-                    LevelFarmState.phase   = "out_of_range"
-                    LevelFarmState.enabled = false
-                    stopCurrentFarm()
-                    Library:Notify({ Title = "Level Farm", Description = "Level " .. lv .. " out of range", Time = 5 })
-                    pcall(function() if Toggles.AutoLevelFarm then Toggles.AutoLevelFarm:SetValue(false) end end)
-                    return
-                end
-
-                local questCfg = nil
-                for _, cfg in ipairs(LevelFarmState.questList) do
-                    if lv >= cfg.lvMin and lv <= cfg.lvMax then
-                        questCfg = cfg
-                        break
-                    end
-                end
-                if not questCfg then return end
-
-                local tierId = questCfg.remote .. tostring(questCfg.lvMin)
-                if LevelFarmState.lastQuestTier ~= tierId then
-                    LevelFarmState.lastQuestTier = tierId
-                    LevelFarmState.currentSlot   = 1
-                    if hasActiveQuest() then abandonQuest() end
-                    stopCurrentFarm()
-                    LevelFarmState.phase = "idle"
-                    return
-                end
-
-                local maxSlotByMode = 1
-                if LevelFarmState.questMode == "double" then maxSlotByMode = 2
-                elseif LevelFarmState.questMode == "triple" then maxSlotByMode = 3 end
-
-                local maxSlot = math.min(maxSlotByMode, questCfg.maxVariant)
-
-                if LevelFarmState.currentSlot > maxSlot then
-                    LevelFarmState.currentSlot = 1
-                    LevelFarmState.phase = "idle"
-                    return
-                end
-
-                local slotCfg = questCfg.variants[LevelFarmState.currentSlot]
-                if not slotCfg then
-                    LevelFarmState.currentSlot = 1
-                    LevelFarmState.phase = "idle"
-                    return
-                end
-
-                LevelFarmState.questMonster  = slotCfg.monster
-                LevelFarmState.questVariant  = slotCfg.variant
-                LevelFarmState.questRemote   = questCfg.remote
-                LevelFarmState.questGiverPos = questCfg.giverPos
-                local isBossSlot = slotCfg.isBoss
-
-                if LevelFarmState.phase == "farming" then
-                    local isRunning = isBossSlot and State.autoBossEnabled or State.autoFarmEnabled
-                    if not isRunning then
-                        if isBossSlot then
-                            Lists.selectedBossList = { LevelFarmState.questMonster }
-                            if Options and Options.BossSelect then
-                                Options.BossSelect:SetValue({ [LevelFarmState.questMonster] = true })
-                            end
-                            State.currentEnemy    = nil
-                            State.trackedRoot     = nil
-                            State.currentFlyCF    = HRP and HRP.CFrame or nil
-                            State.autoBossEnabled = true
-                            startNoclip()
-                            startAutoBoss()
-                        else
-                            startFarmMonster(LevelFarmState.questMonster)
-                        end
-                        task.wait(0.5)
-                        return
-                    end
-
-                    if not isBossSlot and hasBossInWorld() then
-                        local nextBossSlot = nil
-                        for i = LevelFarmState.currentSlot + 1, maxSlot do
-                            if questCfg.variants[i] and questCfg.variants[i].isBoss then
-                                nextBossSlot = i
+                    if cfg.lvMax < questCfg.lvMin then
+                        for _, v in ipairs(cfg.variants) do
+                            if not v.isBoss then
+                                if not fallbackCfg or cfg.lvMax > fallbackCfg.lvMax then
+                                    fallbackCfg = cfg
+                                end
                                 break
                             end
                         end
+                    end
+                end
+            end
 
-                        if nextBossSlot then
-                            local questActive = hasActiveQuest()
-                            local questDone   = questActive and isQuestComplete()
+            local function liveBossVariants()
+                local r = {}
+                for _, v in ipairs(bossVs) do
+                    if hasBossInWorldSmart(v.monster) then table.insert(r, v) end
+                end
+                return r
+            end
 
-                            if not questActive or questDone then
-                                stopCurrentFarm()
-                                LevelFarmState.currentSlot = nextBossSlot
-                                LevelFarmState.phase = "idle"
-                                Library:Notify({ Title = "Level Farm", Description = "Boss spawned! Skipping to Q" .. nextBossSlot .. "...", Time = 3 })
-                            end
-                            return
-                        end
+            if LevelFarmState.isBossMode then
+                if LevelFarmState.phase == "farming_boss" then
+                    local active = hasActiveQuest()
+                    local done   = active and isQuestComplete()
+
+                    if not State.autoBossEnabled and active and not done then
+                        startBossMonster(LevelFarmState.questMonster)
+                        task.wait(0.5); continue
                     end
 
-                    local questActive = hasActiveQuest()
-                    local questDone   = questActive and isQuestComplete()
+                    if active and not done then
+                        task.wait(0.2); continue
+                    end
 
-                    if not questActive or questDone then
-                        if State.autoBossEnabled then
-                            State.autoBossEnabled = false
-                            if Conns.boss then Conns.boss:Disconnect(); Conns.boss = nil end
+                    stopCurrentFarm()
+                    LevelFarmState.isBossMode = false
+                    LevelFarmState.phase      = "idle"
+
+                    local lvNow = getPlayerLevel()
+                    local questCfgNow = nil
+                    for _, cfg in ipairs(LevelFarmState.questList) do
+                        if lvNow >= cfg.lvMin and lvNow <= cfg.lvMax then questCfgNow = cfg end
+                    end
+
+                    if questCfgNow then
+                        local normalVNow = nil
+                        for _, v in ipairs(questCfgNow.variants) do
+                            if not v.isBoss then
+                                normalVNow = v
+                                break
+                            end
                         end
-                        stopCurrentFarm()
-
-                        if LevelFarmState.currentSlot < maxSlot then
-                            local nextSlot = LevelFarmState.currentSlot + 1
-                            local nextSlotCfg = questCfg.variants[nextSlot]
-
-                            if nextSlotCfg and nextSlotCfg.isBoss and not hasBossInWorld() then
-                                LevelFarmState.currentSlot = 1
-                                LevelFarmState.phase = "idle"
-                                LevelFarmState.lastQuestTier = questCfg.remote .. tostring(questCfg.lvMin)
-                                Library:Notify({ Title = "Level Farm", Description = "Quest done! Boss not spawned – looping Q1/Q2...", Time = 3 })
+                        LevelFarmState.normalQuestIndex = 1
+                        if normalVNow then
+                            Library:Notify({ Title = "Level Farm", Description = "Boss done! Back to normal farm...", Time = 3 })
+                            local ok = acceptQuestSync(questCfgNow.remote, normalVNow.variant, questCfgNow.giverPos)
+                            if ok then
+                                LevelFarmState.phase        = "farming"
+                                LevelFarmState.questMonster = normalVNow.monster
+                                startFarmMonster(normalVNow.monster)
                             else
-                                LevelFarmState.currentSlot = nextSlot
                                 LevelFarmState.phase = "idle"
-                                Library:Notify({ Title = "Level Farm", Description = "Quest " .. (nextSlot - 1) .. " done! → Slot " .. nextSlot .. "/" .. maxSlot, Time = 2 })
                             end
-                        else
-                            LevelFarmState.currentSlot = 1
-                            LevelFarmState.phase = "idle"
-                            Library:Notify({ Title = "Level Farm", Description = "All quests done! Restarting...", Time = 2 })
                         end
                     end
-                    return
+
+                    task.wait(0.3); continue
                 end
 
-                if LevelFarmState.phase == "going_quest" or LevelFarmState.phase == "accepting" then return end
+                LevelFarmState.isBossMode = false
+                LevelFarmState.phase      = "idle"
+                task.wait(0.2); continue
+            end
 
-                if isBossSlot and not hasBossInWorld() then
-                    LevelFarmState.currentSlot = 1
-                    LevelFarmState.phase = "idle"
-                    Library:Notify({ Title = "Level Farm", Description = "Boss not spawned – farming Q1/Q2 while waiting...", Time = 3 })
-                    return
-                end
-
-                if hasActiveQuest() then
-                    LevelFarmState.phase = "farming"
-                    Library:Notify({ Title = "Level Farm", Description = "Farming " .. LevelFarmState.questMonster .. " (Q" .. LevelFarmState.currentSlot .. "/" .. maxSlot .. ")", Time = 2 })
-                    if isBossSlot then
-                        Lists.selectedBossList = { LevelFarmState.questMonster }
-                        if Options and Options.BossSelect then
-                            Options.BossSelect:SetValue({ [LevelFarmState.questMonster] = true })
-                        end
-                        State.currentEnemy    = nil
-                        State.trackedRoot     = nil
-                        State.currentFlyCF    = HRP and HRP.CFrame or nil
-                        State.autoBossEnabled = true
-                        startNoclip()
-                        startAutoBoss()
-                    else
-                        startFarmMonster(LevelFarmState.questMonster)
-                    end
-                    return
-                end
-
-                LevelFarmState.phase = "going_quest"
+            local live = liveBossVariants()
+            if #live > 0 then
+                Library:Notify({ Title = "Level Farm", Description = "Boss spawned! Switching to boss quest", Time = 3 })
                 stopCurrentFarm()
-                Library:Notify({ Title = "Level Farm", Description = "Going to quest giver... (Q" .. LevelFarmState.currentSlot .. "/" .. maxSlot .. ")", Time = 2 })
+                if hasActiveQuest() then abandonQuest() end
 
-                task.spawn(function()
-                    local targetPos = LevelFarmState.questGiverPos
-                    local targetCF  = CFrame.new(targetPos)
+                local fb = live[1]
+                local ok = acceptQuestSync(questCfg.remote, fb.variant, questCfg.giverPos)
+                if ok then
+                    LevelFarmState.isBossMode   = true
+                    LevelFarmState.questMonster = fb.monster
+                    LevelFarmState.phase        = "farming_boss"
+                    startBossMonster(fb.monster)
+                    Library:Notify({ Title = "Level Farm", Description = "Farming boss: " .. fb.monster, Time = 3 })
+                else
+                    LevelFarmState.phase = "idle"
+                end
+                task.wait(0.3); continue
+            end
 
-                    if not LevelFarmState.enabled then LevelFarmState.phase = "idle"; return end
+            if LevelFarmState.phase == "farming" then
+                local active = hasActiveQuest()
+                local done   = active and isQuestComplete()
 
-                    tryFarmBypass(targetPos)
-                    task.wait(0.3)
+                if not State.autoFarmEnabled and active and not done then
+                    startFarmMonster(LevelFarmState.questMonster)
+                    task.wait(0.5); continue
+                end
 
-                    if not LevelFarmState.enabled then LevelFarmState.phase = "idle"; return end
+                if active and not done then
+                    task.wait(0.2); continue
+                end
 
-                    local entranceInfo = getEntranceForTarget(targetPos)
-                    if entranceInfo then
-                        local hrpNow = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        if hrpNow and (hrpNow.Position - entranceInfo.entrance).Magnitude > 500 then
-                            pcall(function()
-                                ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
-                            end)
-                            task.wait(1)
-                            local nc = LocalPlayer.Character
-                            local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
-                            if nhr then State.currentFlyCF = nhr.CFrame end
+                stopCurrentFarm()
+                LevelFarmState.phase = "idle"
+
+                local lvNow = getPlayerLevel()
+                local questCfgNow = nil
+                for _, cfg in ipairs(LevelFarmState.questList) do
+                    if lvNow >= cfg.lvMin and lvNow <= cfg.lvMax then questCfgNow = cfg end
+                end
+
+                if questCfgNow then
+                    local normalVNow = nil
+                    local normalVariantsNow = {}
+                    for _, v in ipairs(questCfgNow.variants) do
+                        if not v.isBoss then
+                            table.insert(normalVariantsNow, v)
                         end
                     end
 
-                    local arrived = false
-                    local timeout = tick() + 60
-                    local travelConn
-
-                    travelConn = RunService.Heartbeat:Connect(function(dt)
-                        if not LevelFarmState.enabled or tick() > timeout then
-                            if travelConn then travelConn:Disconnect(); travelConn = nil end
-                            arrived = true
-                            return
+                    if #normalVariantsNow > 0 then
+                        local currentIndex = LevelFarmState.normalQuestIndex
+                        if currentIndex < 1 or currentIndex > #normalVariantsNow then
+                            currentIndex = 1
                         end
-                        local c = LocalPlayer.Character
-                        local h = c and c:FindFirstChild("HumanoidRootPart")
-                        local m = c and c:FindFirstChildOfClass("Humanoid")
-                        if not h or not m or m.Health <= 0 then return end
-
-                        local dist = (h.Position - targetPos).Magnitude
-                        if dist <= 10 then
-                            if travelConn then travelConn:Disconnect(); travelConn = nil end
-                            arrived = true
-                            return
-                        end
-
-                        if dist > 1200 then tryFarmBypass(targetPos) end
-
-                        if not State.currentFlyCF
-                            or (State.currentFlyCF.Position - h.Position).Magnitude > 200 then
-                            State.currentFlyCF = h.CFrame
-                        end
-
-                        moveToTarget(h, targetCF, dt)
-                    end)
-
-                    while not arrived do task.wait(0.05) end
-
-                    if not LevelFarmState.enabled then LevelFarmState.phase = "idle"; return end
-
-                    LevelFarmState.phase = "accepting"
-
-                    local acceptStart = tick()
-                    local accepted = false
-                    while tick() - acceptStart < 15 and LevelFarmState.enabled do
-                        if isBossSlot and not hasBossInWorld() then
-                            Library:Notify({ Title = "Level Farm", Description = "Boss gone – skipping slot " .. LevelFarmState.currentSlot, Time = 3 })
-                            LevelFarmState.currentSlot = 1
-                            LevelFarmState.phase = "idle"
-                            return
-                        end
-
-                        pcall(function()
-                            ReplicatedStorage.Remotes.CommF_:InvokeServer(
-                                "StartQuest",
-                                LevelFarmState.questRemote,
-                                LevelFarmState.questVariant
-                            )
-                        end)
-                        task.wait(0.5)
-
-                        if hasActiveQuest() then
-                            accepted = true
-                            break
-                        end
+                        LevelFarmState.normalQuestIndex = (#normalVariantsNow > 1)
+                            and (currentIndex % #normalVariantsNow) + 1
+                            or 1
+                        normalVNow = normalVariantsNow[LevelFarmState.normalQuestIndex]
                     end
 
-                    if not LevelFarmState.enabled then LevelFarmState.phase = "idle"; return end
-
-                    if accepted then
-                        LevelFarmState.phase = "farming"
-                        Library:Notify({ Title = "Level Farm", Description = "Quest accepted! Farming " .. LevelFarmState.questMonster .. " (Q" .. LevelFarmState.currentSlot .. "/" .. maxSlot .. ")", Time = 2 })
-                        if isBossSlot then
-                            Lists.selectedBossList = { LevelFarmState.questMonster }
-                            if Options and Options.BossSelect then
-                                Options.BossSelect:SetValue({ [LevelFarmState.questMonster] = true })
-                            end
-                            State.currentEnemy    = nil
-                            State.trackedRoot     = nil
-                            State.currentFlyCF    = HRP and HRP.CFrame or nil
-                            State.autoBossEnabled = true
-                            startNoclip()
-                            startAutoBoss()
+                    if normalVNow then
+                        Library:Notify({ Title = "Level Farm", Description = "Quest done! Re-accepting...", Time = 2 })
+                        local ok = acceptQuestSync(questCfgNow.remote, normalVNow.variant, questCfgNow.giverPos)
+                        if ok then
+                            LevelFarmState.phase        = "farming"
+                            LevelFarmState.questMonster = normalVNow.monster
+                            startFarmMonster(normalVNow.monster)
+                            Library:Notify({ Title = "Level Farm", Description = "Farming: " .. normalVNow.monster, Time = 2 })
                         else
-                            startFarmMonster(LevelFarmState.questMonster)
+                            LevelFarmState.phase = "idle"
                         end
-                    else
-                        Library:Notify({ Title = "Level Farm", Description = "Accept failed, retrying...", Time = 2 })
-                        LevelFarmState.phase = "idle"
+                    elseif fallbackCfg then
+                        local fbNormal = nil
+                        for _, v in ipairs(fallbackCfg.variants) do
+                            if not v.isBoss then fbNormal = v; break end
+                        end
+                        if fbNormal then
+                            local ok = acceptQuestSync(fallbackCfg.remote, fbNormal.variant, fallbackCfg.giverPos)
+                            if ok then
+                                LevelFarmState.phase        = "farming"
+                                LevelFarmState.questMonster = fbNormal.monster
+                                startFarmMonster(fbNormal.monster)
+                            else
+                                LevelFarmState.phase = "idle"
+                            end
+                        end
                     end
-                end)
-            end)
+                end
+
+                task.wait(0.3); continue
+            end
+
+            if not normalV then
+                if fallbackCfg then
+                    local fbNormal = nil
+                    for _, v in ipairs(fallbackCfg.variants) do
+                        if not v.isBoss then fbNormal = v; break end
+                    end
+                    if fbNormal then
+                        if not hasActiveQuest() then
+                            Library:Notify({ Title = "Level Farm", Description = "No boss → fallback farm: " .. fbNormal.monster, Time = 3 })
+                            local ok = acceptQuestSync(fallbackCfg.remote, fbNormal.variant, fallbackCfg.giverPos)
+                            if ok then
+                                LevelFarmState.phase        = "farming"
+                                LevelFarmState.questMonster = fbNormal.monster
+                                startFarmMonster(fbNormal.monster)
+                                Library:Notify({ Title = "Level Farm", Description = "Fallback farming: " .. fbNormal.monster, Time = 2 })
+                            else
+                                LevelFarmState.phase = "idle"
+                            end
+                        else
+                            if LevelFarmState.phase ~= "farming" then
+                                LevelFarmState.phase        = "farming"
+                                LevelFarmState.questMonster = fbNormal.monster
+                                startFarmMonster(fbNormal.monster)
+                            end
+                        end
+                    end
+                else
+                    Library:Notify({ Title = "Level Farm", Description = "No normal quest & no fallback, waiting for boss...", Time = 5 })
+                    task.wait(5)
+                end
+                task.wait(0.5); continue
+            end
+
+        if hasActiveQuest() then
+            if LevelFarmState.phase ~= "farming" then
+                LevelFarmState.phase        = "farming"
+                LevelFarmState.questMonster = normalV.monster
+                startFarmMonster(normalV.monster)
+                Library:Notify({ Title = "Level Farm", Description = "Farming: " .. normalV.monster, Time = 2 })
+            elseif not State.autoFarmEnabled then
+                startFarmMonster(LevelFarmState.questMonster ~= "" and LevelFarmState.questMonster or normalV.monster)
+            end
+            task.wait(0.5); continue
         end
 
-        LevelFarmState.phase         = "idle"
-        LevelFarmState.currentSlot   = 1
-        LevelFarmState.lastQuestTier = nil
-        LevelFarmState.thread        = nil
-    end
+            Library:Notify({ Title = "Level Farm", Description = "Accepting quest: " .. normalV.monster, Time = 2 })
+            local ok = acceptQuestSync(questCfg.remote, normalV.variant, questCfg.giverPos)
+            if ok then
+                LevelFarmState.phase        = "farming"
+                LevelFarmState.questMonster = normalV.monster
+                startFarmMonster(normalV.monster)
+                Library:Notify({ Title = "Level Farm", Description = "Farming: " .. normalV.monster, Time = 2 })
+            else
+                LevelFarmState.phase = "idle"
+            end
+            task.wait(0.3)
+        end
 
+        LevelFarmState.phase = "idle"
+        stopCurrentFarm()
+    end
+ 
+    --  UI 
+    local levelLabel = LevelRight:AddLabel("Level: --")
+    local phaseLabel = LevelRight:AddLabel("Phase: idle")
+    local questLabel = LevelRight:AddLabel("Quest: --")
+    local modeLabel  = LevelRight:AddLabel("Mode: -")
+ 
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            pcall(function()
+                local d  = LocalPlayer:FindFirstChild("Data")
+                local lv = d and d:FindFirstChild("Level") and d.Level.Value or "?"
+                if levelLabel and levelLabel.SetText then levelLabel:SetText("Level: " .. tostring(lv)) end
+                if phaseLabel and phaseLabel.SetText then phaseLabel:SetText("Phase: " .. LevelFarmState.phase) end
+                pcall(function()
+                    local q   = LocalPlayer.PlayerGui.Main.Quest
+                    local txt = ""
+                    if q.Visible then
+                        local t = q.Container.QuestTitle.Title
+                        txt = t.ContentText ~= "" and t.ContentText or t.Text or ""
+                    end
+                    if questLabel and questLabel.SetText then
+                        questLabel:SetText("Quest: " .. (q.Visible and txt or "(none)"))
+                    end
+                end)
+                if modeLabel and modeLabel.SetText then
+                    local m = LevelFarmState.isBossMode and "Boss" or "Normal"
+                    modeLabel:SetText("Mode: " .. m .. " (" .. (LevelFarmState.questMonster or "-") .. ")")
+                end
+            end)
+        end
+    end)
+ 
+    --  Toggle 
     LevelLeft:AddToggle("AutoLevelFarm", { Text = "Auto Level Farm", Default = false })
     Toggles.AutoLevelFarm:OnChanged(function()
         LevelFarmState.enabled = T("AutoLevelFarm")
@@ -4443,9 +4901,19 @@ do
             if State.autoBossEnabled       and Toggles.AutoBoss       then Toggles.AutoBoss:SetValue(false)       end
             if State.autoBossAllEnabled    and Toggles.AutoBossAll    then Toggles.AutoBossAll:SetValue(false)    end
             if State.autoBossAllHopEnabled and Toggles.AutoBossAllHop then Toggles.AutoBossAllHop:SetValue(false) end
+ 
             LevelFarmState.phase         = "idle"
-            LevelFarmState.currentSlot   = 1
             LevelFarmState.lastQuestTier = nil
+            LevelFarmState.isBossMode    = false
+            LevelFarmState.questMonster  = ""
+            LevelFarmState.normalQuestIndex = 1
+            cleanupLock()
+            startNoclip()
+ 
+            if LevelFarmState.thread then
+                task.cancel(LevelFarmState.thread)
+                LevelFarmState.thread = nil
+            end
             LevelFarmState.thread = task.spawn(runLevelFarmLoop)
             Library:Notify({ Title = "Level Farm", Description = "Started", Time = 3 })
         else
@@ -4455,30 +4923,16 @@ do
                 task.cancel(LevelFarmState.thread)
                 LevelFarmState.thread = nil
             end
+            cleanupLock()
             stopCurrentFarm()
+            stopNoclip()
+            FastAttackModule.Enabled = false
+            stopFastAttack()
+            stopHitRegistration()
             Library:Notify({ Title = "Level Farm", Description = "Stopped", Time = 3 })
         end
     end)
-
-    LevelLeft:AddDropdown("QuestMode", {
-        Values  = { "Single Quest", "Double Quest", "Triple Quest" },
-        Default = 1,
-        Multi   = false,
-        Text    = "Quest Mode",
-    })
-    Options.QuestMode:OnChanged(function()
-        local val = O("QuestMode") or "Single Quest"
-        if val == "Double Quest" then
-            LevelFarmState.questMode = "double"
-        elseif val == "Triple Quest" then
-            LevelFarmState.questMode = "triple"
-        else
-            LevelFarmState.questMode = "single"
-        end
-        LevelFarmState.currentSlot = 1
-        Library:Notify({ Title = "Quest Mode", Description = val, Time = 2 })
-    end)
-
+ 
     LevelLeft:AddToggle("AutoNear", { Text = "Auto Farm Nears", Default = false })
     Toggles.AutoNear:OnChanged(function()
         State.autoNearEnabled = T("AutoNear")
@@ -4486,15 +4940,18 @@ do
             if State.teleportTweenEnabled and Toggles.TweenToIsland then Toggles.TweenToIsland:SetValue(false) end
             if State.autoFarmEnabled and Toggles.AutoFarm then Toggles.AutoFarm:SetValue(false) end
             if State.autoBossEnabled and Toggles.AutoBoss then Toggles.AutoBoss:SetValue(false) end
-            State.currentEnemy = nil; State.trackedRoot = nil; State.currentFlyCF = HRP and HRP.CFrame or nil
+            State.currentEnemy = nil; State.trackedRoot = nil
+            State.currentFlyCF = HRP and HRP.CFrame or nil
             startNoclip(); startAutoNear()
             Library:Notify({ Title = "Auto Nears", Description = "Enabled", Time = 3 })
         else
             if Conns.follow then Conns.follow:Disconnect(); Conns.follow = nil end
-            stopPositionLock(); stopNoclip(); smoothCleanAll(); checkAndResumeFastAttack()
+            stopPositionLock(); smoothCleanAll(); checkAndResumeFastAttack()
             Library:Notify({ Title = "Auto Nears", Description = "Disabled", Time = 3 })
         end
     end)
+end
+
 do
     local RightGroup = Tabs.Main:AddRightGroupbox("Farm")
 
@@ -4636,8 +5093,7 @@ do
                         Lists.cachedMobSpawns[cleanName] = {}
                     end
                     local spawnPos = root.Position
-                    local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin")
-                        and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+                    local spawnsFolder = getMonsterSpawnFolder()
                     if spawnsFolder then
                         local best, bestDist = nil, math.huge
                         for _, part in ipairs(spawnsFolder:GetChildren()) do
@@ -5577,7 +6033,6 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
         FastAttackModule.Enabled = true; startFastAttack()
     end
 end)
-end
 
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
