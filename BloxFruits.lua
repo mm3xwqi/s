@@ -23,7 +23,7 @@ local function O(name)
 end
 
 local Window = Library:CreateWindow({
-    Title = "KKKK Hub",
+    Title = "KKKK Hub old",
     Footer = "by Z",
     ShowCustomCursor = true,
     NotifySide = "Right",
