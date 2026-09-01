@@ -43,15 +43,16 @@ local Tabs = {
     ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
-local Players           = game:GetService("Players")
-local RunService        = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TeleportService   = game:GetService("TeleportService")
-local TweenService      = game:GetService("TweenService")
-local Lighting          = game:GetService("Lighting")
-local Workspace         = game:GetService("Workspace")
+Players           = game:GetService("Players")
+RunService        = game:GetService("RunService")
+ReplicatedStorage = game:GetService("ReplicatedStorage")
+TeleportService   = game:GetService("TeleportService")
+TweenService      = game:GetService("TweenService")
+Lighting          = game:GetService("Lighting")
+Workspace         = game:GetService("Workspace")
+UserInputService  = game:GetService("UserInputService")
 
-local LocalPlayer = Players.LocalPlayer
+LocalPlayer = Players.LocalPlayer
 
 pcall(function()
     local curTeam = (LocalPlayer.Team and LocalPlayer.Team.Name) or (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Team") and tostring(LocalPlayer.Data.Team.Value))
@@ -60,15 +61,15 @@ pcall(function()
     end
 end)
 
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local HRP       = Character:WaitForChild("HumanoidRootPart")
-local Humanoid  = Character:WaitForChild("Humanoid")
+Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+HRP       = Character:WaitForChild("HumanoidRootPart")
+Humanoid  = Character:WaitForChild("Humanoid")
 
-local Modules = ReplicatedStorage:WaitForChild("Modules")
-local Net     = Modules:WaitForChild("Net")
+Modules = ReplicatedStorage:WaitForChild("Modules")
+Net     = Modules:WaitForChild("Net")
 
-local RegisterAttack = Net:FindFirstChild("RE/RegisterAttack")
-local RegisterHit    = Net:FindFirstChild("RE/RegisterHit")
+RegisterAttack = Net:FindFirstChild("RE/RegisterAttack")
+RegisterHit    = Net:FindFirstChild("RE/RegisterHit")
 if not RegisterAttack or not RegisterHit then error("Remote events missing") end
 
 local CFG = {
@@ -104,6 +105,17 @@ local State = {
     pSats                = 10,
     selectedWeaponType   = "Melee",
     currentLockPos       = nil,
+    playerFlyEnabled     = false,
+    playerFlySpeed       = 100,
+    playerFlyVelocity    = Vector3.zero,
+    playerTpwalkEnabled  = false,
+    playerTpwalkDistance = 2,
+    playerJumpPowerEnabled = false,
+    playerJumpPowerValue = 100,
+    infiniteJumpEnabled  = false,
+    playerEditCharacter  = nil,
+    playerOriginalJumpPower = nil,
+    playerOriginalUseJumpPower = nil,
     currentBossIndex     = 1,
     bossWaitTick         = nil,
     bossSpawnIdx         = 1,
@@ -168,6 +180,9 @@ local Conns = {
     hitReg           = nil,
     boatNoclip       = nil,
     playerNoclip     = nil,
+    playerFly        = nil,
+    playerEdit       = nil,
+    infiniteJump     = nil,
     fastAttackThread = nil,
     boatSpeedLoop    = nil,
     espLoop          = nil,
@@ -496,18 +511,9 @@ local function BypassTP(Target)
             ReplicatedStorage.Remotes.CommF_:InvokeServer("SetSpawnPoint")
             c:PivotTo(TargetTP.Part.CFrame)
             h:ChangeState(15)
-            task.wait(0.3)
-            local waitStart = tick()
-            while tick() - waitStart < 10 do
-                task.wait(0.1)
-                local newChar = LocalPlayer.Character
-                if newChar then
-                    local newHum = newChar:FindFirstChildOfClass("Humanoid")
-                    if newHum and newHum.Health and newHum.Health > 0 then
-                        break
-                    end
-                end
-            end
+            local newChar = LocalPlayer.Character
+            local newHrp = newChar and newChar:FindFirstChild("HumanoidRootPart")
+            if newHrp then State.currentFlyCF = newHrp.CFrame end
         end
     end
 end
@@ -541,11 +547,25 @@ local function getEntranceForTarget(targetPos)
         if targetPos.X > 50000 then
             return { entrance = Vector3.new(61163.85, 11.68, 1819.78), dest = Vector3.new(61170, 6, 1824), name = "Underwater" }
         end
-        if targetPos.Y > 4000 and playerPos.Y < 4000 then
-            return { entrance = Vector3.new(-7894.62, 5547.14, -380.29), dest = Vector3.new(-7922, 5566, -378), name = "Sky2" }
+
+        -- Sky islands can have spawn points at different heights.  Do not
+        -- identify them by Y only; Sky 1 mob spawns are often below Y=600
+        -- and moving from Sky 2/3 back to Sky 1 has a high current Y.
+        local function flatDistance(a, b)
+            return (Vector3.new(a.X, 0, a.Z) - Vector3.new(b.X, 0, b.Z)).Magnitude
         end
-        if (targetPos.Y >= 600 and targetPos.Y <= 4000) and playerPos.Y < 600 then
-            return { entrance = Vector3.new(-4607.82, 874.39, -1667.56), dest = Vector3.new(-4831, 776, -2602), name = "Sky1" }
+
+        local SKY1_DEST = Vector3.new(-4831, 776, -2602)
+        local SKY2_DEST = Vector3.new(-7922, 5566, -378)
+        local SKY3_DEST = Vector3.new(-7987, 5756, -1925)
+
+        if flatDistance(targetPos, SKY1_DEST) <= 1800 then
+            return { entrance = Vector3.new(-4607.82, 874.39, -1667.56), dest = SKY1_DEST, name = "Sky1" }
+        end
+        if flatDistance(targetPos, SKY2_DEST) <= 1200
+            or flatDistance(targetPos, SKY3_DEST) <= 1200
+            or (targetPos.Y > 4000 and playerPos.Y < 4000) then
+            return { entrance = Vector3.new(-7894.62, 5547.14, -380.29), dest = SKY2_DEST, name = "Sky2" }
         end
         return nil
 
@@ -594,7 +614,6 @@ local function requestentrance(pos)
         pcall(function()
             ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(3864.6879882812, 6.7369995117188, -1926.2139892578))
         end)
-        task.wait(1)
         local nhr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if nhr then State.currentFlyCF = nhr.CFrame end
         return
@@ -641,7 +660,6 @@ local function requestentrance(pos)
     pcall(function()
         ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", bestPos)
     end)
-    task.wait(1.5)
     local newChar = LocalPlayer.Character
     local newHRP = newChar and newChar:FindFirstChild("HumanoidRootPart")
     if newHRP then
@@ -709,7 +727,6 @@ local function doBypassToPos(targetPos, onArrived)
             pcall(function()
                 ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
             end)
-            task.wait(1)
             local afterHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if afterHrp then
                 State.currentFlyCF = afterHrp.CFrame
@@ -1853,10 +1870,10 @@ local lastFarmBypassTick = 0
 local farmBypassActive   = false
 local BYPASS_CD_ENTRANCE = 4
 local BYPASS_CD_SPAWN    = 3
+local FARM_NEAR_DISTANCE = 2000
 
 local function tryFarmBypass(targetPos)
     if not targetPos then return false end
-    if farmBypassActive then return true end
 
     local char = LocalPlayer.Character
     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
@@ -1867,7 +1884,10 @@ local function tryFarmBypass(targetPos)
 
     local currentDist = (hrp.Position - targetCF.Position).Magnitude
 
-    if currentDist <= 300 then return false end
+    -- Nearby mobs should be reached normally.  In particular, do not let
+    -- an entrance/bypass task from a previous target affect close targets.
+    if currentDist <= FARM_NEAR_DISTANCE then return false end
+    if farmBypassActive then return true end
 
     local now = tick()
 
@@ -1885,7 +1905,6 @@ local function tryFarmBypass(targetPos)
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
                 end)
-                task.wait(1.5)
                 local nc  = LocalPlayer.Character
                 local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
                 if nhr then State.currentFlyCF = nhr.CFrame end
@@ -1897,8 +1916,6 @@ local function tryFarmBypass(targetPos)
     end
 
     if not State.farmBypassEnabled then return false end
-
-    if currentDist <= 1200 then return false end
 
     local WorldOrigin = workspace:FindFirstChild("_WorldOrigin")
     local Pirates = WorldOrigin
@@ -2466,6 +2483,7 @@ local function startAutoBoss()
                 tryFarmBypass(targetCF.Position)
                 if HRP then moveToTarget(HRP, targetCF, dt) end
             else
+                if not Conns.lock then startPositionLock() end
                 local finalCF = getOffsetCF(enemyLiveRoot.CFrame)
                 State.currentFlyCF = finalCF
                 pcall(function()
@@ -2536,7 +2554,6 @@ local function startAutoBossAll()
     State.bossAllSpawnIdx = 1
     State.bossAllWaitTick = nil
     if HRP then State.currentFlyCF = HRP.CFrame end
-    startPositionLock()
 
     Conns.bossAll = RunService.Heartbeat:Connect(function(dt)
         if not State.autoBossAllEnabled then
@@ -2680,7 +2697,6 @@ local function startAutoBossAllHop()
     local visitedSpawnsCount = 0
     local checkedSpawns = {}
     if HRP then State.currentFlyCF = HRP.CFrame end
-    startPositionLock()
 
     Conns.bossAllHop = RunService.Heartbeat:Connect(function(dt)
         if not State.autoBossAllHopEnabled then
@@ -2971,7 +2987,6 @@ local function startTeleportTween()
                 ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entrance.pos)
             end)
             usedEntrances[entrance.name] = true
-            task.wait(1.5)
 
             local nc  = LocalPlayer.Character
             local nhr = nc and nc:FindFirstChild("HumanoidRootPart")
@@ -3073,7 +3088,8 @@ local function startBypassTp()
             pcall(function()
                 ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
             end)
-            task.wait(1.2)
+            local afterHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if afterHrp then State.currentFlyCF = afterHrp.CFrame end
         end
 
         if not State.bypassTpEnabled then
@@ -3332,6 +3348,167 @@ local function stopPlayerNoclip()
             end
         end
     end)
+end
+
+local function getPlayerHumanoid()
+    local char = LocalPlayer.Character
+    return char, char and char:FindFirstChildOfClass("Humanoid"), char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function rememberPlayerDefaults(char, hum)
+    if State.playerEditCharacter ~= char then
+        State.playerEditCharacter = char
+        State.playerOriginalJumpPower = hum.JumpPower
+        State.playerOriginalUseJumpPower = hum.UseJumpPower
+    else
+        if State.playerOriginalJumpPower == nil then State.playerOriginalJumpPower = hum.JumpPower end
+        if State.playerOriginalUseJumpPower == nil then State.playerOriginalUseJumpPower = hum.UseJumpPower end
+    end
+end
+
+local function restorePlayerEdits()
+    local char, hum = getPlayerHumanoid()
+    if hum and State.playerEditCharacter == char then
+        pcall(function()
+            if State.playerOriginalJumpPower ~= nil and not State.playerJumpPowerEnabled then
+                hum.JumpPower = State.playerOriginalJumpPower
+            end
+            if State.playerOriginalUseJumpPower ~= nil and not State.playerJumpPowerEnabled then
+                hum.UseJumpPower = State.playerOriginalUseJumpPower
+            end
+        end)
+    end
+end
+
+local function startPlayerEditLoop()
+    if Conns.playerEdit then return end
+    Conns.playerEdit = RunService.Heartbeat:Connect(function()
+        if not State.playerTpwalkEnabled and not State.playerJumpPowerEnabled then
+            restorePlayerEdits()
+            if Conns.playerEdit then Conns.playerEdit:Disconnect(); Conns.playerEdit = nil end
+            return
+        end
+
+        local char, hum, hrp = getPlayerHumanoid()
+        if not char or not hum or not hrp or not hum.Parent or hum.Health <= 0 then return end
+        rememberPlayerDefaults(char, hum)
+
+        pcall(function()
+            if State.playerTpwalkEnabled and hum.MoveDirection.Magnitude > 0.01 then
+                local distance = math.max(0, tonumber(State.playerTpwalkDistance) or 2)
+                hrp.CFrame = hrp.CFrame + hum.MoveDirection.Unit * distance
+            end
+
+            if State.playerJumpPowerEnabled then
+                hum.UseJumpPower = true
+                hum.JumpPower = math.max(0, tonumber(State.playerJumpPowerValue) or 100)
+            else
+                if State.playerOriginalJumpPower ~= nil then hum.JumpPower = State.playerOriginalJumpPower end
+                if State.playerOriginalUseJumpPower ~= nil then hum.UseJumpPower = State.playerOriginalUseJumpPower end
+            end
+        end)
+    end)
+end
+
+local function stopPlayerEditLoop()
+    if Conns.playerEdit then Conns.playerEdit:Disconnect(); Conns.playerEdit = nil end
+    restorePlayerEdits()
+    if State.playerTpwalkEnabled or State.playerJumpPowerEnabled then
+        startPlayerEditLoop()
+    else
+        State.playerEditCharacter = nil
+        State.playerOriginalJumpPower = nil
+        State.playerOriginalUseJumpPower = nil
+    end
+end
+
+local function startPlayerFly()
+    if Conns.playerFly then Conns.playerFly:Disconnect(); Conns.playerFly = nil end
+    State.playerFlyVelocity = Vector3.zero
+    Conns.playerFly = RunService.RenderStepped:Connect(function(dt)
+        if not State.playerFlyEnabled then
+            if Conns.playerFly then Conns.playerFly:Disconnect(); Conns.playerFly = nil end
+            return
+        end
+
+        local char, hum, hrp = getPlayerHumanoid()
+        local camera = workspace.CurrentCamera
+        if not char or not hum or not hrp or not camera or hum.Health <= 0 then return end
+
+        -- Use the camera direction for W/S so looking up or down naturally
+        -- controls altitude.  Keep A/D level for easier steering.
+        local look = camera.CFrame.LookVector
+        local right = camera.CFrame.RightVector
+        local rightFlat = Vector3.new(right.X, 0, right.Z)
+        if rightFlat.Magnitude > 0 then rightFlat = rightFlat.Unit end
+
+        local direction = Vector3.zero
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then direction = direction + look end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then direction = direction - look end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then direction = direction + rightFlat end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then direction = direction - rightFlat end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space)
+            or UserInputService:IsKeyDown(Enum.KeyCode.E) then
+            direction = direction + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+            or UserInputService:IsKeyDown(Enum.KeyCode.Q) then
+            direction = direction - Vector3.new(0, 1, 0)
+        end
+
+        if direction.Magnitude > 0 then direction = direction.Unit end
+        local speed = math.max(1, tonumber(State.playerFlySpeed) or 100)
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then speed = speed * 1.5 end
+
+        -- Smooth acceleration and braking make small corrections much easier.
+        local desiredVelocity = direction * speed
+        local blend = direction.Magnitude > 0
+            and math.clamp(dt * 14, 0, 1)
+            or math.clamp(dt * 18, 0, 1)
+        State.playerFlyVelocity = (State.playerFlyVelocity or Vector3.zero):Lerp(desiredVelocity, blend)
+        local moveDelta = State.playerFlyVelocity * math.min(dt, 0.1)
+
+        pcall(function()
+            hum.PlatformStand = true
+            hum.AutoRotate = false
+            hrp.CFrame = hrp.CFrame + moveDelta
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            if hum:GetState() ~= Enum.HumanoidStateType.Physics then
+                hum:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+        end)
+    end)
+end
+
+local function stopPlayerFly()
+    State.playerFlyEnabled = false
+    State.playerFlyVelocity = Vector3.zero
+    if Conns.playerFly then Conns.playerFly:Disconnect(); Conns.playerFly = nil end
+    local _, hum = getPlayerHumanoid()
+    if hum then
+        pcall(function()
+            hum.PlatformStand = false
+            hum.AutoRotate = true
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end)
+    end
+end
+
+local function startInfiniteJump()
+    if Conns.infiniteJump then return end
+    Conns.infiniteJump = UserInputService.JumpRequest:Connect(function()
+        if not State.infiniteJumpEnabled then return end
+        local _, hum = getPlayerHumanoid()
+        if hum and hum.Health > 0 then
+            pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
+        end
+    end)
+end
+
+local function stopInfiniteJump()
+    State.infiniteJumpEnabled = false
+    if Conns.infiniteJump then Conns.infiniteJump:Disconnect(); Conns.infiniteJump = nil end
 end
 
 local function round(n) return math.floor(tonumber(n) + 0.5) end
@@ -3920,16 +4097,16 @@ Toggles.BringMobEnabled:OnChanged(function()
     })
 end)
 
-    FarmRight:AddSlider("BringMobCount", {
-        Text    = "Bring Mob Count",
-        Min     = 1,
-        Max     = 5,
-        Default = 1,
-        Rounding = 0,
-    })
-    Options.BringMobCount:OnChanged(function()
-        BRING_COUNT = tonumber(O("BringMobCount")) or 1
-    end)
+FarmRight:AddSlider("BringMobCount", {
+    Text    = "Bring Mob Count",
+    Min     = 1,
+    Max     = 5,
+    Default = 1,
+    Rounding = 0,
+})
+Options.BringMobCount:OnChanged(function()
+    BRING_COUNT = tonumber(O("BringMobCount")) or 1
+end)
 
     FarmLeft:AddSlider("TweenSpeed", { Text = "Tween Speed", Min = 0, Max = 500, Default = 250, Rounding = 0 })
     Options.TweenSpeed:OnChanged(function() CFG.SPEED = tonumber(O("TweenSpeed")) or 250 end)
@@ -3958,7 +4135,7 @@ end)
     })
 end
 do
-    local LevelLeft  = Tabs.Main:AddLeftGroupbox("Auto Level Farm")
+    local LevelLeft  = Tabs.Main:AddLeftGroupbox("Auto Level")
     local LevelRight = Tabs.Main:AddRightGroupbox("Level Status")
  
 local LevelFarmState = {
@@ -4196,6 +4373,56 @@ local LevelFarmState = {
             { variant = 3, monster = "Fishman Lord",     isBoss = true  },
           }
         },
+
+        -- sky 1.5 and sky 2
+        { lvMin = 451, lvMax = 475, remote = "SkyExp1Quest",
+          giverPos = Vector3.new(-4722, 845, -1952),
+          variants = {
+            { variant = 1, monster = "God's Guard",  isBoss = false },
+          }
+        },
+
+        { lvMin = 476, lvMax = 500, remote = "SkyExp1Quest",
+          giverPos = Vector3.new(-4722, 845, -1952),
+          variants = {
+            { variant = 1, monster = "God's Guard",  isBoss = false },
+            { variant = 2, monster = "Shanda",  isBoss = false },
+          }
+        },
+
+        { lvMin = 501, lvMax = 525, remote = "SkyExp1Quest",
+          giverPos = Vector3.new(-4722, 845, -1952),
+          variants = {
+            { variant = 1, monster = "God's Guard",  isBoss = false },
+            { variant = 2, monster = "Shanda",  isBoss = false },
+            { variant = 3, monster = "Wysper",  isBoss = true },
+          }
+        },
+
+        -- sky 3
+        { lvMin = 526, lvMax = 550, remote = "SkyExp2Quest",
+          giverPos = Vector3.new(-7903, 5636, -1410),
+          variants = {
+            { variant = 1, monster = "Royal Squad",  isBoss = false },
+          }
+        },
+
+        { lvMin = 551, lvMax = 575, remote = "SkyExp2Quest",
+          giverPos = Vector3.new(-7903, 5636, -1410),
+          variants = {
+            { variant = 1, monster = "Royal Squad",  isBoss = false },
+            { variant = 2, monster = "Royal Soldier",  isBoss = false },
+          }
+        },
+
+        { lvMin = 576, lvMax = 600, remote = "SkyExp2Quest",
+          giverPos = Vector3.new(-7903, 5636, -1410),
+          variants = {  
+            { variant = 1, monster = "Royal Squad",  isBoss = false },
+            { variant = 2, monster = "Royal Soldier",  isBoss = false },
+            { variant = 3, monster = "Thunder God",  isBoss = true },
+          }
+        },
     },
 }
 
@@ -4245,6 +4472,19 @@ local LevelFarmState = {
         end)
         return ok and r == true
     end
+
+    local function getQuestMonsterName()
+    local ok, result = pcall(function()
+        local q = LocalPlayer.PlayerGui.Main.Quest
+        if not q.Visible then return nil end
+        local t = q.Container.QuestTitle.Title
+        local txt = t.ContentText ~= "" and t.ContentText or t.Text or ""
+        local name = txt:match("^%s*Defeat%s+(.-)%s*%(%d+/%d+%)")
+        if name and name ~= "" then return name end
+        return nil
+    end)
+    return (ok and result) or nil
+end
  
     local function isQuestComplete()
         local ok, r = pcall(function()
@@ -4261,6 +4501,51 @@ local LevelFarmState = {
     local function abandonQuest()
         pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("AbandonQuest") end)
         task.wait(0.5)
+    end
+
+    local levelFarmVThread = nil
+    local levelFarmVToken = 0
+
+    local function getBlackLegInCharacter()
+        local character = LocalPlayer.Character
+        local charactersFolder = Workspace:FindFirstChild("Characters")
+        local workspaceCharacter = charactersFolder and charactersFolder:FindFirstChild(LocalPlayer.Name)
+
+        if workspaceCharacter then
+            local blackLeg = workspaceCharacter:FindFirstChild("Black Leg")
+            if blackLeg then return blackLeg end
+        end
+        return character and character:FindFirstChild("Black Leg")
+    end
+
+    local function startLevelFarmBlackLegV()
+        if levelFarmVThread then return end
+
+        levelFarmVToken = levelFarmVToken + 1
+        local myToken = levelFarmVToken
+        levelFarmVThread = task.spawn(function()
+            while levelFarmVToken == myToken and LevelFarmState.enabled do
+                local blackLeg = getBlackLegInCharacter()
+                if blackLeg then
+                    pcall(function()
+                        local vim = game:GetService("VirtualInputManager")
+                        vim:SendKeyEvent(true, "V", false, game)
+                        vim:SendKeyEvent(false, "V", false, game)
+                    end)
+                    task.wait(0.08)
+                else
+                    task.wait(0.2)
+                end
+            end
+            if levelFarmVToken == myToken then
+                levelFarmVThread = nil
+            end
+        end)
+    end
+
+    local function stopLevelFarmBlackLegV()
+        levelFarmVToken = levelFarmVToken + 1
+        levelFarmVThread = nil
     end
  
     local function hasBossInWorldSmart(name)
@@ -4288,9 +4573,10 @@ local LevelFarmState = {
         -- Use the proper entrance before travelling to quest givers inside
         -- restricted areas such as Underwater City.
         local entranceInfo = getEntranceForTarget(targetPos)
-        if entranceInfo then
-            local currentChar = LocalPlayer.Character
-            local currentHrp  = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
+        local currentChar = LocalPlayer.Character
+        local currentHrp  = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
+        local currentDist = currentHrp and (currentHrp.Position - targetPos).Magnitude or math.huge
+        if entranceInfo and currentDist > FARM_NEAR_DISTANCE then
             if currentHrp and (currentHrp.Position - entranceInfo.entrance).Magnitude > 500 then
                 Library:Notify({
                     Title = "Level Farm",
@@ -4300,7 +4586,6 @@ local LevelFarmState = {
                 pcall(function()
                     ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", entranceInfo.entrance)
                 end)
-                task.wait(1.5)
                 local newChar = LocalPlayer.Character
                 local newHrp  = newChar and newChar:FindFirstChild("HumanoidRootPart")
                 if newHrp then State.currentFlyCF = newHrp.CFrame end
@@ -4586,6 +4871,7 @@ end
 
             if lv > maxLv then
                 LevelFarmState.enabled = false
+                stopLevelFarmBlackLegV()
                 stopCurrentFarm()
                 Library:Notify({ Title = "Level Farm", Description = "Max level reached", Time = 5 })
                 pcall(function() if Toggles.AutoLevelFarm then Toggles.AutoLevelFarm:SetValue(false) end end)
@@ -4599,7 +4885,8 @@ end
                 LevelFarmState.isBossMode    = false
                 LevelFarmState.questMonster  = ""
                 LevelFarmState.normalQuestIndex = 1
-                if hasActiveQuest() then abandonQuest() end
+                -- Keep the quest that is already active when Level Farm starts
+                -- or when the level tier changes. It can be farmed normally.
                 stopCurrentFarm()
                 LevelFarmState.phase = "idle"
                 task.wait(0.3); continue
@@ -4829,17 +5116,32 @@ end
                 task.wait(0.5); continue
             end
 
-        if hasActiveQuest() then
-            if LevelFarmState.phase ~= "farming" then
-                LevelFarmState.phase        = "farming"
-                LevelFarmState.questMonster = normalV.monster
-                startFarmMonster(normalV.monster)
-                Library:Notify({ Title = "Level Farm", Description = "Farming: " .. normalV.monster, Time = 2 })
-            elseif not State.autoFarmEnabled then
-                startFarmMonster(LevelFarmState.questMonster ~= "" and LevelFarmState.questMonster or normalV.monster)
+            if hasActiveQuest() then
+                if LevelFarmState.phase ~= "farming" then
+                    local detectedMonster = getQuestMonsterName()
+                    local monsterToFarm = detectedMonster or (normalV and normalV.monster) or ""
+                    if monsterToFarm ~= "" then
+                        LevelFarmState.phase        = "farming"
+                        LevelFarmState.questMonster = monsterToFarm
+                        local isBossQuest = false
+                        for _, v in ipairs(questCfg.variants) do
+                            if v.monster == monsterToFarm and v.isBoss then
+                                isBossQuest = true; break
+                            end
+                        end
+                        if isBossQuest then
+                            LevelFarmState.isBossMode = true
+                            LevelFarmState.phase = "farming_boss"
+                            startBossMonster(monsterToFarm)
+                        else
+                            startFarmMonster(monsterToFarm)
+                        end
+                        Library:Notify({ Title = "Level Farm", Description = "Detected quest: " .. monsterToFarm, Time = 2 })
+                    end
+                end
+                task.wait(0.3)
+                continue
             end
-            task.wait(0.5); continue
-        end
 
             Library:Notify({ Title = "Level Farm", Description = "Accepting quest: " .. normalV.monster, Time = 2 })
             local ok = acceptQuestSync(questCfg.remote, normalV.variant, questCfg.giverPos)
@@ -4909,6 +5211,7 @@ end
             LevelFarmState.normalQuestIndex = 1
             cleanupLock()
             startNoclip()
+            startLevelFarmBlackLegV()
  
             if LevelFarmState.thread then
                 task.cancel(LevelFarmState.thread)
@@ -4923,6 +5226,7 @@ end
                 task.cancel(LevelFarmState.thread)
                 LevelFarmState.thread = nil
             end
+            stopLevelFarmBlackLegV()
             cleanupLock()
             stopCurrentFarm()
             stopNoclip()
@@ -4953,7 +5257,7 @@ end
 end
 
 do
-    local RightGroup = Tabs.Main:AddRightGroupbox("Farm")
+    local RightGroup = Tabs.Main:AddRightGroupbox("Farm Boss / Farm Select")
 
     RightGroup:AddDropdown("MonsterSelect", {
         Values = initialMonsterList, Default = initialMonsterList[1] and { [initialMonsterList[1]] = true } or {},
@@ -5160,7 +5464,81 @@ end
 
 do
     local LPLeft = Tabs.LocalPlayer:AddLeftGroupbox("Settings")
+    local EditPlayer = Tabs.LocalPlayer:AddRightGroupbox("modified Player")
     local LPTeam = Tabs.LocalPlayer:AddRightGroupbox("Team Settings")
+
+    EditPlayer:AddToggle("PlayerFly", { Text = "Fly Speed Hack", Default = false })
+    Toggles.PlayerFly:OnChanged(function()
+        State.playerFlyEnabled = T("PlayerFly")
+        if State.playerFlyEnabled then
+            startPlayerFly()
+        else
+            stopPlayerFly()
+        end
+        Library:Notify({ Title = "Fly", Description = State.playerFlyEnabled and "ON (WASD / Space-E up / Ctrl-Q down / Shift boost)" or "OFF", Time = 3 })
+    end)
+
+    EditPlayer:AddSlider("PlayerFlySpeed", {
+        Text = "Fly Speed",
+        Min = 10,
+        Max = 1000,
+        Default = 100,
+        Rounding = 0,
+    })
+    Options.PlayerFlySpeed:OnChanged(function()
+        State.playerFlySpeed = tonumber(O("PlayerFlySpeed")) or 100
+    end)
+
+    EditPlayer:AddToggle("Tpwalk", { Text = "Tpwalk", Default = false })
+    Toggles.Tpwalk:OnChanged(function()
+        State.playerTpwalkEnabled = T("Tpwalk")
+        if State.playerTpwalkEnabled then
+            startPlayerEditLoop()
+        else
+            stopPlayerEditLoop()
+        end
+        Library:Notify({ Title = "Tpwalk", Description = State.playerTpwalkEnabled and "ON" or "OFF", Time = 3 })
+    end)
+
+    EditPlayer:AddSlider("TpwalkDistance", {
+        Text = "Tpwalk Distance",
+        Min = 0.5,
+        Max = 10,
+        Default = 2,
+        Rounding = 1,
+    })
+    Options.TpwalkDistance:OnChanged(function()
+        State.playerTpwalkDistance = tonumber(O("TpwalkDistance")) or 2
+    end)
+
+    EditPlayer:AddSlider("PlayerJumpPower", {
+        Text = "JumpPower",
+        Min = 50,
+        Max = 1000,
+        Default = 100,
+        Rounding = 0,
+    })
+    Options.PlayerJumpPower:OnChanged(function()
+        State.playerJumpPowerValue = tonumber(O("PlayerJumpPower")) or 100
+    end)
+
+    EditPlayer:AddToggle("JumpPowerHack", { Text = "JumpPower Hack", Default = false })
+    Toggles.JumpPowerHack:OnChanged(function()
+        State.playerJumpPowerEnabled = T("JumpPowerHack")
+        if State.playerJumpPowerEnabled then
+            startPlayerEditLoop()
+        else
+            stopPlayerEditLoop()
+        end
+        Library:Notify({ Title = "JumpPower", Description = State.playerJumpPowerEnabled and "ON" or "OFF", Time = 3 })
+    end)
+
+    EditPlayer:AddToggle("InfiniteJump", { Text = "Infinite Jump", Default = false })
+    Toggles.InfiniteJump:OnChanged(function()
+        State.infiniteJumpEnabled = T("InfiniteJump")
+        if State.infiniteJumpEnabled then startInfiniteJump() else stopInfiniteJump() end
+        Library:Notify({ Title = "Infinite Jump", Description = State.infiniteJumpEnabled and "ON" or "OFF", Time = 3 })
+    end)
 
     local function getMyTeam()
         if LocalPlayer.Team then
@@ -5965,6 +6343,9 @@ do
             FastAttackModule.Enabled = false; _B = false
             stopFastAttack(); stopHitRegistration(); stopPositionLock()
             stopNoclip(); smoothCleanAll(); stopTeleportTween(); stopBypassTp(); stopBoatNoclip(); stopPlayerNoclip()
+            State.playerTpwalkEnabled = false
+            State.playerJumpPowerEnabled = false
+            stopPlayerFly(); stopPlayerEditLoop(); stopInfiniteJump()
             if Conns.follow then Conns.follow:Disconnect(); Conns.follow = nil end
             if Conns.farm   then Conns.farm:Disconnect();   Conns.farm   = nil end
             if Conns.boss   then Conns.boss:Disconnect();   Conns.boss   = nil end
@@ -6000,6 +6381,9 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     State.currentEnemy = nil
     State.trackedRoot  = nil
     State.currentFlyCF = nil
+    State.playerEditCharacter = nil
+    State.playerOriginalJumpPower = nil
+    State.playerOriginalUseJumpPower = nil
     Lists.cachedSpawnsByName = {}
     State.bypassMoving = false
 
@@ -6028,6 +6412,9 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     end
 
     if State.playerNoclipEnabled then startPlayerNoclip() end
+    if State.playerFlyEnabled then startPlayerFly() end
+    if State.playerTpwalkEnabled or State.playerJumpPowerEnabled then startPlayerEditLoop() end
+    if State.infiniteJumpEnabled then startInfiniteJump() end
     task.wait(1)
     if T("FastAttack") and not State.autoNearEnabled and not State.autoFarmEnabled and not State.autoBossEnabled then
         FastAttackModule.Enabled = true; startFastAttack()
