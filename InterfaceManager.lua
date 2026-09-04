@@ -1,3 +1,5 @@
+-- moded by Z
+
 local httpService = game:GetService("HttpService")
 
 local InterfaceManager = {} do
@@ -109,31 +111,32 @@ local InterfaceManager = {} do
 		end)
 		Library.MinimizeKeybind = MenuKeybind
 
-        local unloadSection = tab:AddSection("Danger")
+    local unloadSection = tab:AddSection("Danger")
 
-        unloadSection:AddButton("UnloadButton", {
-            Title = "Unload",
-            Description = "Removes the interface and cleans up the script.",
-            Callback = function()
-                Library.Window:Dialog({
-                    Title = "Unload",
-                    Content = "Are you sure you want to unload?",
-                    Buttons = {
-                        {
-                            Title = "Yes",
-                            Callback = function()
-                                Library:Destroy()
-                            end
-                        },
-                        {
-                            Title = "No",
-                            Callback = function() end
-                        }
+    unloadSection:AddButton({
+        Title = "Unload",
+        Description = "Removes the interface and cleans up the script.",
+        Callback = function()
+            Library.Window:Dialog({
+                Title = "Unload",
+                Content = "Are you sure you want to unload?",
+                Buttons = {
+                    {
+                        Title = "Yes",
+                        Callback = function()
+                            Library:Destroy()
+                        end
+                    },
+                    {
+                        Title = "No",
+                        Callback = function() end
                     }
-                })
-            end
-        })
+                }
+            })
+        end
+    })
+
     end
-end
+end 
 
 return InterfaceManager
