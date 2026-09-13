@@ -45,7 +45,7 @@ local state = {
 		sc_offset   = 102,
 		sc_key      = 32,
         sc_speed_enabled = false,
-        sc_speed_value   = 0.001,
+        sc_speed_value   = 0.5,
 
 		fv_enabled    = false,
 		fv_radius     = 6,
@@ -2369,7 +2369,7 @@ task.spawn(function()
                         elem.highlight.FillColor    = Color3.fromRGB(0, 255, 100)
                         elem.highlight.OutlineColor = Color3.fromRGB(0, 200, 80)
                         elem.nameLabel.TextColor3   = Color3.fromRGB(0, 255, 100)
-                        elem.infoLabel.Text         = "DONE ✓"
+                        elem.infoLabel.Text         = "100%"
                     elseif paused then
                         elem.highlight.FillColor    = Color3.fromRGB(255, 100, 0)
                         elem.highlight.OutlineColor = Color3.fromRGB(255, 80, 0)
@@ -2379,7 +2379,7 @@ task.spawn(function()
                         elem.highlight.FillColor    = Color3.fromRGB(0, 150, 255)
                         elem.highlight.OutlineColor = Color3.fromRGB(0, 100, 255)
                         elem.nameLabel.TextColor3   = Color3.fromRGB(0, 200, 255)
-                        elem.infoLabel.Text         = displayPct .. "% | " .. repairing .. " repairing"
+                        elem.infoLabel.Text         = displayPct .. "% | " .. repairing .. " Player"
                     else
                         elem.highlight.FillColor    = Color3.fromRGB(255, 200, 0)
                         elem.highlight.OutlineColor = Color3.fromRGB(255, 150, 0)
@@ -2392,7 +2392,7 @@ task.spawn(function()
         else
             for model in pairs(genEspElements) do removeGenESP(model) end
         end
-        task.wait(0.1)
+        task.wait(1)
     end
 end)
 
@@ -2514,7 +2514,7 @@ SkillBox:AddToggle("ScSpeed", {
 SkillBox:AddSlider("ScSpeedValue", {
 	Text     = "Skillcheck Speed Value",
 	Default  = state.cfg.sc_speed_value,
-	Min=0.001, Max=10, Rounding=3,
+	Min=0.5, Max=10, Rounding=1,
 	Callback = function(v) state.cfg.sc_speed_value = v end,
 })
 SkillBox:AddSlider("ScOffset", {
@@ -2673,7 +2673,7 @@ BreakSpeedBox:AddToggle("BreakSpeedEnabled", {
 BreakSpeedBox:AddSlider("BreakSpeedValue", {
 	Text     = "Break Speed Value",
 	Default  = state.cfg.breakSpeed_value,
-	Min=1, Max=10, Rounding=0,
+	Min=1, Max=10, Rounding=1,
 	Callback = function(v) state.cfg.breakSpeed_value = v end,
 })
 
