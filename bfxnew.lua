@@ -188,6 +188,11 @@ local Tabs = {
 	Settings = RawTabs.Settings,
 }
 
+if G.placeId == 73902483975735 then
+	RawTabs.Dungeon = Window:AddTab({ Title = "Dungeon", Icon = "solar/skull-bold" })
+	Tabs.Dungeon = RawTabs.Dungeon:AddSection("Auto Dungeon", "solar/skull-bold")
+end
+
 Fluent.NotifyInsideWindow = true
 
 G.placeId = game.PlaceId
@@ -1949,6 +1954,7 @@ end
 G.fastAttackThread = nil
 
 function G.stopFastAttack()
+	FastAttackModule.Enabled = false
 	if G.fastAttackThread then
 		task.cancel(G.fastAttackThread)
 		G.fastAttackThread = nil
@@ -8037,6 +8043,265 @@ G.secSettingsFps:AddToggle("FPSCounterToggle", {
 		G.ToggleFpsCounter(Value)
 	end,
 })
+
+
+--=============================== AUTO DUNGEON ===============================
+-- Works only on PlaceId 73902483975735
+local AutoDungeon = {
+	enabled = false,
+	PLACE_ID = 73902483975735,
+	IGNORE = { ["Blank Buddy"] = true },
+	PRIORITY = { ["PropHitboxPlaceholder"] = true },
+	lastRoom = 0,
+	waiting = false,
+	returning = false,
+	conn = nil,
+	deathConn = nil,
+	charConn = nil,
+	currentTarget = nil,
+	OFFSET_Z = 10,
+	LOCK_DISTANCE = 60,
+}
+G.AutoDungeon = AutoDungeon
+
+local ADRun = game:GetService("RunService")
+
+function AutoDungeon.getEnemies()
+	local folder = workspace:FindFirstChild("Enemies")
+	if not folder then
+		return nil, nil
+	end
+	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		return nil, nil
+	end
+	local prio, prioD = nil, math.huge
+	local normal, normalD = nil, math.huge
+	for _, mob in ipairs(folder:GetChildren()) do
+		if not AutoDungeon.IGNORE[mob.Name] then
+			local hum = mob:FindFirstChildOfClass("Humanoid")
+			local root = mob:FindFirstChild("HumanoidRootPart") or mob:FindFirstChild("Torso")
+			if hum and root and hum.Health > 0 then
+				local d = (root.Position - hrp.Position).Magnitude
+				if AutoDungeon.PRIORITY[mob.Name] then
+					if d < prioD then
+						prioD, prio = d, mob
+					end
+				elseif d < normalD then
+					normalD, normal = d, mob
+				end
+			end
+		end
+	end
+	return prio or normal, (prio ~= nil)
+end
+
+function AutoDungeon.getRooms()
+	local dungeon = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Dungeon")
+	if not dungeon then
+		return {}
+	end
+	local rooms = {}
+	for _, model in ipairs(dungeon:GetChildren()) do
+		local num = tonumber(model.Name)
+		if num then
+			table.insert(rooms, { num = num, model = model })
+		end
+	end
+	table.sort(rooms, function(a, b)
+		return a.num < b.num
+	end)
+	return rooms
+end
+
+function AutoDungeon.getCurrentRoom()
+	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		return nil
+	end
+	local best, bestD = nil, math.huge
+	for _, room in ipairs(AutoDungeon.getRooms()) do
+		local ok, cf = pcall(function()
+			return room.model:GetPivot()
+		end)
+		if ok and cf then
+			local d = (cf.Position - hrp.Position).Magnitude
+			if d < bestD then
+				bestD, best = d, room
+			end
+		end
+	end
+	return best
+end
+
+function AutoDungeon.getExitCF(room)
+	if not room or not room.model then
+		return nil
+	end
+	local exit = room.model:FindFirstChild("ExitTeleporter", true)
+	if not exit then
+		return nil
+	end
+	local ok, cf = pcall(function()
+		if exit:IsA("BasePart") then
+			return exit.CFrame
+		end
+		return exit:GetPivot()
+	end)
+	if not ok or not cf then
+		return nil
+	end
+	return CFrame.new(cf.Position + Vector3.new(0, 5, 0))
+end
+
+function AutoDungeon.step(dt)
+	if not AutoDungeon.enabled then
+		return
+	end
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not hrp or not hum or hum.Health <= 0 then
+		return
+	end
+
+	local room = AutoDungeon.getCurrentRoom()
+	if room and room.num > AutoDungeon.lastRoom then
+		AutoDungeon.lastRoom = room.num
+	end
+	if AutoDungeon.returning and room and room.num >= AutoDungeon.lastRoom then
+		AutoDungeon.returning = false
+	end
+
+	local target = AutoDungeon.getEnemies()
+	if target then
+		AutoDungeon.waiting = false
+		local root = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso")
+		if root then
+			if AutoDungeon.currentTarget ~= target then
+				AutoDungeon.currentTarget = target
+				State.currentFlyCF = hrp.CFrame
+			end
+			if not FastAttackModule.Enabled or not G.fastAttackThread then
+				G.startFastAttack()
+			end
+
+			local goal = root.CFrame * CFrame.new(0, State.Y_OFFSET, 10)
+			local distance = (goal.Position - hrp.Position).Magnitude
+    if distance <= AutoDungeon.LOCK_DISTANCE then
+        G.autoEquipWeapon()
+        G.stopMomentum()
+        hrp.CFrame = goal
+        State.currentFlyCF = goal
+        -- เพิ่มบรรทัดนี้
+        if State.bringMobEnabled then
+            G.updateBringMobs(target, tick())
+        end
+    else
+        G.moveToTarget(hrp, goal, dt)
+    end
+		end
+		return
+	end	
+	AutoDungeon.currentTarget = nil
+
+	-- Keep Fast Attack alive while Auto Dungeon is enabled. It will idle safely
+	-- with no targets and be ready immediately when the next wave spawns.
+	if not FastAttackModule.Enabled or not G.fastAttackThread then
+		G.startFastAttack()
+	end
+
+	if AutoDungeon.waiting and not AutoDungeon.returning then
+		-- hold position until mobs respawn
+		State.currentFlyCF = hrp.CFrame
+		return
+	end
+
+	local exitCF = AutoDungeon.getExitCF(room)
+	if exitCF then
+		local before = room and room.num or -1
+		G.moveToTarget(hrp, exitCF, dt)
+		local now = AutoDungeon.getCurrentRoom()
+		if now and now.num ~= before then
+			AutoDungeon.waiting = not AutoDungeon.returning
+			State.currentFlyCF = hrp.CFrame
+		end
+	end
+end
+
+function AutoDungeon.hookCharacter(char)
+	local hum = char:WaitForChild("Humanoid", 10)
+	if not hum then
+		return
+	end
+	if AutoDungeon.deathConn then
+		AutoDungeon.deathConn:Disconnect()
+	end
+	AutoDungeon.deathConn = hum.Died:Connect(function()
+		if AutoDungeon.enabled then
+			AutoDungeon.returning = true
+			AutoDungeon.waiting = false
+		end
+	end)
+end
+
+function AutoDungeon.start()
+	AutoDungeon.stop()
+	AutoDungeon.enabled = true
+	AutoDungeon.waiting = false
+	AutoDungeon.returning = false
+	AutoDungeon.currentTarget = nil
+	G.startFastAttack()
+	if player.Character then
+		AutoDungeon.hookCharacter(player.Character)
+	end
+	AutoDungeon.charConn = player.CharacterAdded:Connect(function(char)
+		AutoDungeon.hookCharacter(char)
+		task.wait(1.5)
+		State.currentFlyCF = nil
+	end)
+	AutoDungeon.conn = ADRun.Heartbeat:Connect(function(dt)
+		pcall(AutoDungeon.step, dt)
+	end)
+end
+
+function AutoDungeon.stop()
+	AutoDungeon.enabled = false
+	if AutoDungeon.conn then
+		AutoDungeon.conn:Disconnect()
+		AutoDungeon.conn = nil
+	end
+	if AutoDungeon.charConn then
+		AutoDungeon.charConn:Disconnect()
+		AutoDungeon.charConn = nil
+	end
+	if AutoDungeon.deathConn then
+		AutoDungeon.deathConn:Disconnect()
+		AutoDungeon.deathConn = nil
+	end
+	G.stopFastAttack()
+	AutoDungeon.currentTarget = nil
+	State.currentFlyCF = nil
+	pcall(function()
+		G.forceCleanGyro()
+	end)
+end
+
+if Tabs.Dungeon then
+	Tabs.Dungeon:AddToggle("AutoDungeonToggle", {
+		Title = "Auto Dungeon",
+		Description = "Kill every mob in workspace.Enemies, then move to ExitTeleporter",
+		Default = false,
+		Callback = function(Value)
+			if Value then
+				AutoDungeon.start()
+			else
+				AutoDungeon.stop()
+			end
+		end,
+	})
+end
+--============================= END AUTO DUNGEON =============================
 
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
