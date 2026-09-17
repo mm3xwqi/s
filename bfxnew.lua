@@ -1,4 +1,4 @@
-local Fluent = loadstring(game:HttpGet("https://github.com/StyearX/Fluent-Modded/releases/download/1.6.0/main.lua"))()
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/mm3xwqi/s/refs/heads/main/FluentModed.lua"))()
 local SaveManager =
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager =
@@ -41,50 +41,50 @@ end
 
 Fluent:AddTheme({
 	Name = "KKKK Blue",
-	Accent = Color3.fromHex("#00aaff"),
-	AcrylicMain = Color3.fromHex("#00050f"),
-	AcrylicBorder = Color3.fromHex("#0a1a2d"),
+	Accent = Color3.fromHex("#a855f7"),
+	AcrylicMain = Color3.fromHex("#0a0014"),
+	AcrylicBorder = Color3.fromHex("#0a7ac0"),
 	AcrylicGradient = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromHex("#00050f")),
-		ColorSequenceKeypoint.new(0.5, Color3.fromHex("#050d1a")),
-		ColorSequenceKeypoint.new(1, Color3.fromHex("#0a1220")),
+		ColorSequenceKeypoint.new(0, Color3.fromHex("#0a0014")),
+		ColorSequenceKeypoint.new(0.5, Color3.fromHex("#12021f")),
+		ColorSequenceKeypoint.new(1, Color3.fromHex("#1a0530")),
 	}),
 	AcrylicNoise = 0.9,
-	TitleBarLine = Color3.fromHex("#1a4a7a"),
-	Tab = Color3.fromHex("#030d1a"),
-	Element = Color3.fromHex("#020b16"),
-	ElementBorder = Color3.fromHex("#0f3a5e"),
-	InElementBorder = Color3.fromHex("#0a2440"),
+	TitleBarLine = Color3.fromHex("#ff2233"),
+	Tab = Color3.fromHex("#0d0118"),
+	Element = Color3.fromHex("#080014"),
+	ElementBorder = Color3.fromHex("#0099dd"),
+	InElementBorder = Color3.fromHex("#0678aa"),
 	ElementTransparency = 0.92,
 	ElementBorderThickness = 1,
-	ToggleSlider = Color3.fromHex("#0f2d4a"),
-	ToggleToggled = Color3.fromHex("#00aaff"),
-	SliderRail = Color3.fromHex("#0a1f33"),
-	CheckboxUnchecked = Color3.fromHex("#0a1f33"),
-	CheckboxChecked = Color3.fromHex("#00aaff"),
-	CheckboxCheck = Color3.fromHex("#00050f"),
-	ProgressBarRail = Color3.fromHex("#0a1f33"),
-	ProgressBarFill = Color3.fromHex("#00aaff"),
-	DropdownFrame = Color3.fromHex("#030b16"),
-	DropdownHolder = Color3.fromHex("#050f1e"),
-	DropdownBorder = Color3.fromHex("#0f3a5e"),
-	DropdownOption = Color3.fromHex("#08152a"),
+	ToggleSlider = Color3.fromHex("#2a0a4a"),
+	ToggleToggled = Color3.fromHex("#a855f7"),
+	SliderRail = Color3.fromHex("#1e0535"),
+	CheckboxUnchecked = Color3.fromHex("#1e0535"),
+	CheckboxChecked = Color3.fromHex("#a855f7"),
+	CheckboxCheck = Color3.fromHex("#ffffff"),
+	ProgressBarRail = Color3.fromHex("#1e0535"),
+	ProgressBarFill = Color3.fromHex("#a855f7"),
+	DropdownFrame = Color3.fromHex("#0b0118"),
+	DropdownHolder = Color3.fromHex("#100222"),
+	DropdownBorder = Color3.fromHex("#0099dd"),
+	DropdownOption = Color3.fromHex("#150830"),
 	DropdownBorderThickness = 1,
-	Keybind = Color3.fromHex("#081828"),
-	Input = Color3.fromHex("#050f1e"),
-	InputFocused = Color3.fromHex("#0a1f33"),
-	InputIndicator = Color3.fromHex("#55ccff"),
-	Dialog = Color3.fromHex("#040c18"),
-	DialogHolder = Color3.fromHex("#060f1e"),
-	DialogHolderLine = Color3.fromHex("#0f3a5e"),
-	DialogButton = Color3.fromHex("#0f2d4a"),
-	DialogButtonBorder = Color3.fromHex("#1a5080"),
-	DialogBorder = Color3.fromHex("#0a2440"),
-	DialogInput = Color3.fromHex("#060f1e"),
-	DialogInputLine = Color3.fromHex("#55ccff"),
-	Text = Color3.fromHex("#f0f8ff"),
-	SubText = Color3.fromHex("#7aaac8"),
-	Hover = Color3.fromHex("#0a1f33"),
+	Keybind = Color3.fromHex("#120428"),
+	Input = Color3.fromHex("#100222"),
+	InputFocused = Color3.fromHex("#1e0535"),
+	InputIndicator = Color3.fromHex("#ff3333"),
+	Dialog = Color3.fromHex("#0c0220"),
+	DialogHolder = Color3.fromHex("#100430"),
+	DialogHolderLine = Color3.fromHex("#ff3333"),
+	DialogButton = Color3.fromHex("#2a0a4a"),
+	DialogButtonBorder = Color3.fromHex("#0a8fd0"),
+	DialogBorder = Color3.fromHex("#0678aa"),
+	DialogInput = Color3.fromHex("#100430"),
+	DialogInputLine = Color3.fromHex("#ff3333"),
+	Text = Color3.fromHex("#ffffff"),
+	SubText = Color3.fromHex("#e6e6e6"),
+	Hover = Color3.fromHex("#1e0535"),
 	HoverChange = 0.06,
 	Background = "https://raw.githubusercontent.com/StyearX/Assets/main/backgrounds.png",
 	BackgroundTransparency = 0,
@@ -94,28 +94,28 @@ Fluent:AddTheme({
 		RotationSpeed = 1.5,
 		ColorSequence = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, Color3.fromHex("#000000")),
-			ColorSequenceKeypoint.new(0.5, Color3.fromHex("#00aaff")),
+			ColorSequenceKeypoint.new(0.5, Color3.fromHex("#a855f7")),
 			ColorSequenceKeypoint.new(1, Color3.fromHex("#000000")),
 		}),
 	},
 	StrokeShine = true,
-	StrokeDark = Color3.fromHex("#050f1e"),
+	StrokeDark = Color3.fromHex("#100430"),
 	ButtonGradient = {
 		Background = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromHex("#0f2d4a")),
-			ColorSequenceKeypoint.new(1, Color3.fromHex("#050f1e")),
+			ColorSequenceKeypoint.new(0, Color3.fromHex("#2a0a4a")),
+			ColorSequenceKeypoint.new(1, Color3.fromHex("#100430")),
 		}),
 		Stroke = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromHex("#0088cc")),
-			ColorSequenceKeypoint.new(0.5, Color3.fromHex("#005580")),
-			ColorSequenceKeypoint.new(1, Color3.fromHex("#0088cc")),
+			ColorSequenceKeypoint.new(0, Color3.fromHex("#00aaff")),
+			ColorSequenceKeypoint.new(0.5, Color3.fromHex("#0066aa")),
+			ColorSequenceKeypoint.new(1, Color3.fromHex("#00aaff")),
 		}),
 	},
 	DiscordJoinButton = Color3.fromHex("#5865f2"),
 	WarningNotifyColor = Color3.fromHex("#d6ac3d"),
 	SuccessNotifyColor = Color3.fromHex("#4fc773"),
 	ErrorNotifyColor = Color3.fromHex("#ff4444"),
-	InfoNotifyColor = Color3.fromHex("#00aaff"),
+	InfoNotifyColor = Color3.fromHex("#a855f7"),
 })
 
 local Window = Fluent:CreateWindow({
@@ -155,24 +155,36 @@ local Window = Fluent:CreateWindow({
 local RawTabs = {
 	Info = Window:AddTab({ Title = "Info & Status", Icon = "solar/info-circle-bold" }),
 	LocalPlayer = Window:AddTab({ Title = "Local Player", Icon = "solar/user-bold" }),
-	Stat = Window:AddTab({ Title = "Stat", Icon = "solar/chart-2-bold" }),
+    AutoSkill = Window:AddTab({ Title = "Skill Settings", Icon = "solar/magic-stick-3-bold" }),
+    FarmSetting = Window:AddTab({ Title = "Farm Setting", Icon = "solar/settings-bold" }),
 	Main = Window:AddTab({ Title = "Main", Icon = "lucide/swords" }),
-	Island = Window:AddTab({ Title = "Island", Icon = "solar/map-point-bold" }),
-	FarmSetting = Window:AddTab({ Title = "Farm Setting", Icon = "solar/settings-bold" }),
-	Event = Window:AddTab({ Title = "Event", Icon = "solar/balloon-bold" }),
+    Stat = Window:AddTab({ Title = "Stat", Icon = "solar/chart-2-bold" }),
 	Esp = Window:AddTab({ Title = "Visual", Icon = "solar/eye-bold" }),
+    Pvp = Window:AddTab({ Title = "PVP", Icon = "solar/target-bold" }),
+	Island = Window:AddTab({ Title = "Tarvel", Icon = "solar/map-point-bold" }),
 	Settings = Window:AddTabsInHeader({ Title = " Configuration", Icon = "solar/settings-bold" }),
 }
 
 local Tabs = {
 	Info = RawTabs.Info:AddSection("Live Status", "solar/pulse-2-bold"),
+	InfoServer = RawTabs.Info:AddSection("Server & Time", "solar/global-bold"),
+	InfoIsland = RawTabs.Info:AddSection("Island Spawn Check", "solar/map-point-wave-bold"),
+	InfoBoss = RawTabs.Info:AddSection("Boss & Raid Check", "solar/skull-bold"),
+	InfoTyrant = RawTabs.Info:AddSection("Tyrant Sky - Eye Check", "solar/eye-bold"),
+	InfoItem = RawTabs.Info:AddSection("Items & Dealer", "solar/box-bold"),
 	LocalPlayer = RawTabs.LocalPlayer:AddSection("Player Utilities", "solar/user-id-bold"),
 	Stat = RawTabs.Stat:AddSection("Stat Allocation", "solar/chart-square-bold"),
 	Main = RawTabs.Main:AddSection("Farming", "lucide/swords"),
+	TyrantSection = RawTabs.Main:AddSection("Tyrant Sky Boss", "lucid/bird"),
+	MagnetSection = RawTabs.Main:AddSection("Event Magnet", "lucide/magnet"),
+	AutoSkillSection = RawTabs.AutoSkill:AddSection("Skill Config", "solar/magic-stick-3-bold"),
+	AutoSkillTiming = RawTabs.AutoSkill:AddSection("Skill Timing", "solar/clock-circle-bold"),
 	Island = RawTabs.Island:AddSection("Island Travel", "solar/map-arrow-square-bold"),
+    NpcSection = RawTabs.Island:AddSection("NPC Travel", "solar/user-speak-bold"),
 	FarmSetting = RawTabs.FarmSetting:AddSection("Farm Tuning", "solar/tuning-2-bold"),
-	Event = RawTabs.Event:AddSection("Event Automation", "solar/calendar-bold"),
 	Esp = RawTabs.Esp:AddSection("Visual ESP", "solar/eye-scan-bold"),
+    Pvp = RawTabs.Pvp:AddSection("PVP Tools", "solar/target-bold"),
+    PvpSpectate = RawTabs.Pvp:AddSection("Spectate", "solar/eye-bold"),
 	Settings = RawTabs.Settings,
 }
 
@@ -194,6 +206,7 @@ local enemiesFolder = workspace:WaitForChild("Enemies")
 local State = {
 	autoFarmEnabled = false,
 	bringMobEnabled = true,
+	clearingMobs = false,
 	autoFarmSelectEnabled = false,
 	fruitAndMeleeEnabled = false,
 	lockMobCFrame = true,
@@ -209,7 +222,7 @@ local State = {
 	ATTACK_RANGE = 120,
 	SNAP_RANGE = 5,
 	BRING_DISTANCE = 350,
-	BRING_INTERVAL = 0.005,
+	BRING_INTERVAL = 0.05,
 	SPAWN_TELEPORT_INTERVAL = 0.3,
 	isMovingToSpawn = false,
 	spawnPointList = {},
@@ -217,6 +230,8 @@ local State = {
 	spawnPointChecked = {},
 	lastSpawnPointKey = nil,
 	spawnCyclePauseUntil = 0,
+	spawnDwellUntil = 0,
+	SPAWN_DWELL = 0.05,
 	lastSpawnTeleportTime = 0,
 	lastAttackTime = 0,
 	lastTargetSwitchTime = 0,
@@ -327,6 +342,7 @@ function G.cancelTween()
 		State.activeTween = nil
 	end
 	State.tweenTargetPosition = nil
+	State.activeTweenEta = nil
 	G.stopMomentum()
 end
 
@@ -699,13 +715,14 @@ function G.normalizeMobName(name)
 end
 
 function G.stripDisplayName(displayName)
-	local stripped = displayName
-		:gsub("%s*%[Lv%.?%s*%d+%]", "")
-		:gsub("%s*%[Raid Boss%]", "")
-		:gsub("%s*%[Boss%]", "")
-		:gsub("%s+$", "")
-		:gsub("^%s+", "")
-	return stripped
+    local stripped = displayName
+        :gsub("%s*%[Lv%.?%s*%d+%]", "")
+        :gsub("%s*%[Lv%s*%d+%]", "")
+        :gsub("%s*%[Raid Boss%]", "")
+        :gsub("%s*%[Boss%]", "")
+        :gsub("%s+$", "")
+        :gsub("^%s+", "")
+    return stripped
 end
 
 function G.getMobDisplayName(mob)
@@ -909,6 +926,20 @@ G.SPAWN_IGNORE_NAMES = {
 	["7"] = true,
 	["HumanoidRootPart"] = true,
 	["Spawn"] = true,
+    ["Saber Expert"] = true,
+    ["The Gorilla King"] = true,
+    ["Chef"] = true,
+    ["Cyborg"] = true,
+    ["Fishman Lord"] = true,
+    ["Ice Admiral"] = true,
+    ["Thunder God"] = true,
+    ["Magma Admiral"] = true,
+    ["Mob Leader"] = true,
+    ["Wysper"] = true,
+    ["Vice Admiral"] = true,
+    ["Warden"] = true,
+    ["Yeti"] = true,
+    ["The Saw"] = true,
 }
 
 function G.getReplicatedSpawnFolder()
@@ -1302,100 +1333,94 @@ function G.stopTweenIsland()
 end
 
 function G.startTweenIsland()
-	G.stopTweenIsland()
-	if not State.selectedIslandPos then
-		return
-	end
-	State.teleportTweenEnabled = true
+    G.stopTweenIsland()
+    if not State.selectedIslandPos then return end
+    State.teleportTweenEnabled = true
 
-	local char = player.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if hrp then
-		State.currentFlyCF = hrp.CFrame
-	end
+    local char = player.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then State.currentFlyCF = hrp.CFrame end
 
-	State.islandRoute = G.buildIslandRoute(State.selectedIslandName, State.selectedIslandPos, hrp and hrp.Position)
-	State.islandRouteIndex = 1
+    State.islandRoute      = G.buildIslandRoute(State.selectedIslandName, State.selectedIslandPos, hrp and hrp.Position)
+    State.islandRouteIndex = 1
 
-	G.Conns.tweenIsland = RunService.Heartbeat:Connect(function(dt)
-		if not State.teleportTweenEnabled then
-			G.stopTweenIsland()
-			return
-		end
-		local char = player.Character
-		local hrp = char and char:FindFirstChild("HumanoidRootPart")
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if not hrp or not hum or hum.Health <= 0 then
-			return
-		end
+    G.Conns.tweenIsland = RunService.Heartbeat:Connect(function(dt)
+        if not State.teleportTweenEnabled then
+            G.stopTweenIsland()
+            return
+        end
 
-		if State.waitingForWarpPos then
-			local waitPos = State.waitingForWarpPos
-			local movedDist = (hrp.Position - waitPos).Magnitude
-			local timedOut = (tick() - State.warpWaitStart) > State.WARP_WAIT_TIMEOUT
-			if movedDist > State.WARP_TRIGGER_DIST or timedOut then
-				State.waitingForWarpPos = nil
-				State.currentFlyCF = hrp.CFrame
-				State.islandRouteIndex = (State.islandRouteIndex or 1) + 1
-				G.stopMomentum()
-			else
-				pcall(function()
-					hrp.AssemblyLinearVelocity = Vector3.zero
-					hrp.AssemblyAngularVelocity = Vector3.zero
-				end)
-				return
-			end
-		end
+        local c   = player.Character
+        local hrp = c and c:FindFirstChild("HumanoidRootPart")
+        local hum = c and c:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum or hum.Health <= 0 then return end
 
-		local route = State.islandRoute
-		if not route or #route == 0 then
-			route = G.buildIslandRoute(State.selectedIslandName, State.selectedIslandPos, hrp.Position)
-			State.islandRoute = route
-			State.islandRouteIndex = 1
-		end
+        if State.waitingForWarpPos then
+            local movedDist = (hrp.Position - State.waitingForWarpPos).Magnitude
+            local timedOut  = (tick() - State.warpWaitStart) > State.WARP_WAIT_TIMEOUT
+            if movedDist > State.WARP_TRIGGER_DIST or timedOut then
+                State.waitingForWarpPos    = nil
+                State.currentFlyCF         = hrp.CFrame
+                State.islandRouteIndex     = (State.islandRouteIndex or 1) + 1
+                G.stopMomentum()
+            else
+                pcall(function()
+                    hrp.AssemblyLinearVelocity  = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end)
+                return
+            end
+        end
 
-		if State.islandRouteIndex > #route then
-			G.stopTweenIsland()
-			Fluent:Notify({
-				Title = "Island",
-				Content = "Arrived at " .. (State.selectedIslandName or ""),
-				Duration = 3,
-			})
-			return
-		end
+        local route = State.islandRoute
+        if not route or #route == 0 then
+            route = G.buildIslandRoute(State.selectedIslandName, State.selectedIslandPos, hrp.Position)
+            State.islandRoute      = route
+            State.islandRouteIndex = 1
+        end
 
-		local idx = math.clamp(State.islandRouteIndex, 1, #route)
-		local targetCF = route[idx]
-		local isLast = (idx >= #route)
+        if State.islandRouteIndex > #route then
+            local finalCF = CFrame.new(State.selectedIslandPos)
+            pcall(function()
+                hrp.CFrame                  = finalCF
+                hrp.AssemblyLinearVelocity  = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+            end)
+            return
+        end
 
-		local currentPos = State.currentFlyCF and State.currentFlyCF.Position or hrp.Position
-		local dist = (targetCF.Position - currentPos).Magnitude
+        local idx      = math.clamp(State.islandRouteIndex, 1, #route)
+        local targetCF = route[idx]
+        local isLast   = (idx >= #route)
 
-		if dist > 6 then
-			G.moveToTarget(hrp, targetCF, dt)
-			return
-		end
+        local currentPos = State.currentFlyCF and State.currentFlyCF.Position or hrp.Position
+        local dist       = (targetCF.Position - currentPos).Magnitude
 
-		State.currentFlyCF = targetCF
-		pcall(function()
-			hrp.CFrame = targetCF
-			hrp.AssemblyLinearVelocity = Vector3.zero
-			hrp.AssemblyAngularVelocity = Vector3.zero
-		end)
+        if dist > 6 then
+            G.moveToTarget(hrp, targetCF, dt)
+            return
+        end
 
-		if isLast then
-			G.stopTweenIsland()
-			Fluent:Notify({
-				Title = "Island",
-				Content = "Arrived at " .. (State.selectedIslandName or ""),
-				Duration = 3,
-			})
-			return
-		end
+        State.currentFlyCF = targetCF
+        pcall(function()
+            hrp.CFrame                  = targetCF
+            hrp.AssemblyLinearVelocity  = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+        end)
 
-		State.waitingForWarpPos = targetCF.Position
-		State.warpWaitStart = tick()
-	end)
+        if isLast then
+            State.islandRouteIndex = State.islandRouteIndex + 1
+            Fluent:Notify({
+                Title   = "Island",
+                Content = "Arrived at " .. (State.selectedIslandName or ""),
+                Duration = 3,
+            })
+            return
+        end
+
+        State.waitingForWarpPos = targetCF.Position
+        State.warpWaitStart     = tick()
+    end)
 end
 
 function G.sortPositionsByDistance(positions, fromPos)
@@ -1465,14 +1490,46 @@ function G.advanceSelectedMobIndex()
 	if not names or #names == 0 then
 		return false
 	end
-	for _ = 1, #names do
-		State.selectedMobIndex = (State.selectedMobIndex % #names) + 1
-		if G.mobTypeExistsInFolder(names[State.selectedMobIndex]) then
+	State.selectedMobIndex = (State.selectedMobIndex % #names) + 1
+	return true
+end
+
+function G.rotateSelectedMob()
+	local names = State.selectedMobNames
+	if not names or #names == 0 then
+		return false
+	end
+	local startIndex = State.selectedMobIndex
+	G.advanceSelectedMobIndex()
+	if State.selectedMobIndex == startIndex then
+		return false
+	end
+	State.spawnDwellUntil = 0
+	State.spawnCyclePauseUntil = 0
+	State.currentTarget = nil
+	G.resetSpawnScan(true)
+	return true
+end
+
+function G.anySelectedMobHasSpawn()
+	local names = State.selectedMobNames
+	if not names or #names == 0 then
+		return false
+	end
+	for _, name in ipairs(names) do
+		if G.getSpawnCount(name) > 0 then
 			return true
 		end
 	end
-	State.selectedMobIndex = 1
 	return false
+end
+
+function G.isActiveSelectedSpawnFull()
+	local activeName = G.getActiveSelectedMobName()
+	if not activeName then
+		return false
+	end
+	return G.isSpawnFull(activeName)
 end
 
 function G.getHighestPriorityAliveEnemy(position)
@@ -1816,9 +1873,31 @@ function G.initHitRegistration()
 end
 pcall(G.initHitRegistration)
 
+function FastAttackModule.IsMeleeOrSwordEquipped(char)
+	local tool = char and char:FindFirstChildOfClass("Tool")
+	if not tool then
+		return false
+	end
+	local weaponType = tool:GetAttribute("Type")
+	if weaponType == "Melee" or weaponType == "Sword" then
+		return true
+	end
+	local tooltip = tool:FindFirstChild("ToolTip")
+	if tooltip and tooltip:IsA("StringValue") then
+		local value = tooltip.Value
+		if value == "Melee" or value == "Sword" then
+			return true
+		end
+	end
+	return false
+end
+
 function FastAttackModule.ExecuteFastAttack()
 	local char = player.Character
 	if not char then
+		return
+	end
+	if not FastAttackModule.IsMeleeOrSwordEquipped(char) then
 		return
 	end
 	local targets = FastAttackModule.GetAllTargets(char)
@@ -2014,7 +2093,6 @@ function AlwaysFruitAttack.start()
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
 
-                -- หา remote
                 local remote = nil
                 for _, tool in ipairs(player.Backpack:GetChildren()) do
                     local r = tool:FindFirstChild("LeftClickRemote")
@@ -2028,7 +2106,6 @@ function AlwaysFruitAttack.start()
                 end
                 if not remote then return end
 
-                -- หา target ที่ใกล้ที่สุด
                 local targetPos = nil
                 local enemies = workspace:FindFirstChild("Enemies")
                 if enemies then
@@ -2048,12 +2125,10 @@ function AlwaysFruitAttack.start()
                 end
                 if not targetPos then return end
 
-                -- direction หันไปหา target จริงๆ
                 local dir = (targetPos - hrp.Position)
                 local mag = dir.Magnitude
                 local direction = mag > 0.01 and (dir / mag) or hrp.CFrame.LookVector
 
-                -- ยิง action 1-4
                 for action = 1, 4 do
                     if not AlwaysFruitAttack.enabled then break end
                     pcall(function() remote:FireServer(direction, action) end)
@@ -2109,57 +2184,9 @@ function G.startFastAttack()
 				pcall(G.HitRegistrationModule.Execute)
 				task.wait(FastAttackModule.Rate)
 			else
-				local currentTool = char and char:FindFirstChildOfClass("Tool")
-				local isFruit = false
-				if currentTool then
-					local hasLeftClick = currentTool:FindFirstChild("LeftClickRemote", true)
-					if hasLeftClick then
-						isFruit = true
-					end
-					if not isFruit then
-						local tooltip = G.getToolTooltip(currentTool):lower()
-						local toolName = currentTool.Name:lower()
-						if
-							tooltip:find("blox fruit")
-							or tooltip:find("fruit")
-							or toolName:find("fruit")
-							or tooltip:find("devil")
-							or toolName:find("devil")
-						then
-							isFruit = true
-						end
-					end
-				end
-
-				if isFruit then
-					local remote = FastFruitAttack.getRemote()
-					local targetPos = FastFruitAttack.getTarget()
-					if remote and targetPos and not G.fruitAttackBusy then
-						G.fruitAttackBusy = true
-						task.spawn(function()
-							local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-							local dir = hrp and (targetPos - hrp.Position) or Vector3.new(0, 0, 1)
-							dir = Vector3.new(dir.X, 0, dir.Z)
-							local mag = dir.Magnitude
-							local direction = mag > 0.01 and (dir / mag) or Vector3.new(0, 0, 1)
-							for action = 1, 4 do
-								if not remote or not remote.Parent then
-									break
-								end
-								pcall(function()
-									remote:FireServer(direction, action)
-								end)
-								task.wait(FastFruitAttack.rate)
-							end
-							task.wait(FastFruitAttack.cycleDelay)
-							G.fruitAttackBusy = false
-						end)
-					end
-				else
-					pcall(FastAttackModule.ExecuteFastAttack)
-					pcall(G.HitRegistrationModule.Execute)
-					task.wait(FastAttackModule.Rate)
-				end
+				pcall(FastAttackModule.ExecuteFastAttack)
+				pcall(G.HitRegistrationModule.Execute)
+				task.wait(FastAttackModule.Rate)
 			end
 		end
 		G.fastAttackThread = nil
@@ -2234,9 +2261,7 @@ function G.clearBringMobs()
 			local mobRoot = mob and mob.FindFirstChild and mob:FindFirstChild("HumanoidRootPart")
 			if mobRoot then
 				local bp = mobRoot:FindFirstChild("BringBodyPos")
-				if bp then
-					bp:Destroy()
-				end
+				if bp then bp:Destroy() end
 			end
 		end
 		G.activeBringBodies[mob] = nil
@@ -2246,6 +2271,11 @@ function G.clearBringMobs()
 	end
 	for mob, state in pairs(G.originalMobStates) do
 		G.restoreMobState(mob, state)
+		local mobRoot = mob and mob.FindFirstChild and mob:FindFirstChild("HumanoidRootPart")
+		if mobRoot then
+			local anchor = mobRoot:FindFirstChild("AnchorBodyPos")
+			if anchor then anchor:Destroy() end
+		end
 		G.originalMobStates[mob] = nil
 	end
 	State.bringAnchor = nil
@@ -2282,7 +2312,10 @@ function G.freezeMob(mob, mobRoot, mobHumanoid)
 end
 
 function G.updateBringMobs(target, now)
-	if not State.bringMobEnabled or (not State.autoFarmEnabled and not State.autoFarmSelectEnabled) then
+	local tyrantEnabled = G.tyrantActive == true
+	local farmActive = State.autoFarmEnabled or State.autoFarmSelectEnabled or tyrantEnabled
+	
+	if not State.bringMobEnabled or not farmActive then
 		G.clearBringMobs()
 		return
 	end
@@ -2329,24 +2362,43 @@ function G.updateBringMobs(target, now)
 		targetHumanoid.JumpPower = 0
 		targetHumanoid.JumpHeight = 0
 
-		if State.lockMobCFrame then
-			if not State.targetAnchorCFrame then
-				State.targetAnchorCFrame = targetRoot.CFrame
+		pcall(function()
+			sethiddenproperty(targetRoot, "NetworkOwnershipRule", 0)
+		end)
+		for _, p in ipairs(target:GetDescendants()) do
+			if p:IsA("BasePart") then
+				p.CanCollide = false
+				pcall(function()
+					sethiddenproperty(p, "NetworkOwnershipRule", 0)
+				end)
 			end
-			pcall(function()
-				sethiddenproperty(targetRoot, "NetworkOwnershipRule", 0)
-			end)
-			targetRoot.CFrame = State.targetAnchorCFrame
-			targetRoot.AssemblyLinearVelocity = Vector3.zero
-			targetRoot.AssemblyAngularVelocity = Vector3.zero
-		else
-			State.targetAnchorCFrame = nil
-			pcall(function()
-				sethiddenproperty(targetRoot, "NetworkOwnershipRule", 0)
-			end)
-			targetRoot.AssemblyLinearVelocity = Vector3.zero
-			targetRoot.AssemblyAngularVelocity = Vector3.zero
 		end
+
+		local bp = targetRoot:FindFirstChild("AnchorBodyPos")
+		if not bp then
+			bp = Instance.new("BodyPosition")
+			bp.Name = "AnchorBodyPos"
+			bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+			bp.P = 100000
+			bp.D = 5000
+			bp.Position = targetRoot.Position
+			bp.Parent = targetRoot
+		end
+		bp.Position = targetRoot.Position
+
+		local bv = targetRoot:FindFirstChild("AnchorBodyVel")
+		if not bv then
+			bv = Instance.new("BodyVelocity")
+			bv.Name = "AnchorBodyVel"
+			bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+			bv.Velocity = Vector3.zero
+			bv.Parent = targetRoot
+		end
+		bv.Velocity = Vector3.zero
+
+		targetRoot.AssemblyLinearVelocity = Vector3.zero
+		targetRoot.AssemblyAngularVelocity = Vector3.zero
+		State.targetAnchorCFrame = nil
 	end
 
 	local pullPos = targetRoot.Position
@@ -2354,27 +2406,17 @@ function G.updateBringMobs(target, now)
 
 	local validMobs = {}
 	for _, mob in ipairs(enemiesFolder:GetChildren()) do
-		if mob == target then
-			continue
-		end
+		if mob == target then continue end
 		local mr = mob:FindFirstChild("HumanoidRootPart")
 		local mh = mob:FindFirstChildOfClass("Humanoid")
-		if not mr or not mh or mh.Health <= 0 then
-			continue
-		end
+		if not mr or not mh or mh.Health <= 0 then continue end
 
 		local rawName = G.getMobDisplayName(mob)
-		if rawName:find("%[Boss%]") or rawName:find("%[Raid Boss%]") then
-			continue
-		end
-		if not G.sameMobType(mob, target) then
-			continue
-		end
+		if rawName:find("%[Boss%]") or rawName:find("%[Raid Boss%]") then continue end
+		if not G.sameMobType(mob, target) then continue end
 
 		local dist = (mr.Position - pullPos).Magnitude
-		if dist > State.BRING_DISTANCE then
-			continue
-		end
+		if dist > State.BRING_DISTANCE then continue end
 
 		table.insert(validMobs, { mob = mob, mr = mr, mh = mh, dist = dist })
 	end
@@ -2388,7 +2430,6 @@ function G.updateBringMobs(target, now)
 		local data = validMobs[i]
 		local mob = data.mob
 		local mr = data.mr
-		local mh = data.mh
 		seenMobs[mob] = true
 
 		pcall(function()
@@ -2404,52 +2445,18 @@ function G.updateBringMobs(target, now)
 				sethiddenproperty(mr, "NetworkOwnershipRule", 0)
 			end)
 
-			mh.WalkSpeed = 0
-			mh.JumpPower = 0
-			mh.JumpHeight = 0
-
-			local angle = (i - 1) * (math.pi * 2 / math.max(1, slots))
-			local destPos = pullPos + Vector3.new(math.cos(angle) * 3, 0, math.sin(angle) * 3)
-			local dist = (mr.Position - destPos).Magnitude
-
-			if State.lockMobCFrame then
-				if G.bringSnapped[mob] or dist <= G.BRING_SNAP_DISTANCE then
-					G.bringSnapped[mob] = true
-					local oldBP = mr:FindFirstChild("BringBodyPos")
-					if oldBP then
-						oldBP:Destroy()
-					end
-					G.activeBringBodies[mob] = true
-					mr.CFrame = CFrame.new(destPos, pullPos)
-					mr.AssemblyLinearVelocity = Vector3.zero
-					mr.AssemblyAngularVelocity = Vector3.zero
-				else
-					local bp = mr:FindFirstChild("BringBodyPos")
-					if not bp then
-						bp = Instance.new("BodyPosition")
-						bp.Name = "BringBodyPos"
-						bp.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-						bp.P = 30000
-						bp.D = 900
-						bp.Parent = mr
-					end
-					bp.Position = destPos
-					G.activeBringBodies[mob] = { bp = bp }
-				end
-			else
-				local bp = mr:FindFirstChild("BringBodyPos")
-				if not bp then
-					bp = Instance.new("BodyPosition")
-					bp.Name = "BringBodyPos"
-					bp.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-					bp.P = 30000
-					bp.D = 900
-					bp.Parent = mr
-				end
-				bp.Position = destPos
-				G.activeBringBodies[mob] = { bp = bp }
-				G.bringSnapped[mob] = nil
+			local bp = mr:FindFirstChild("BringBodyPos")
+			if not bp then
+				bp = Instance.new("BodyPosition")
+				bp.Name = "BringBodyPos"
+				bp.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+				bp.P = 30000
+				bp.D = 900
+				bp.Parent = mr
 			end
+			bp.Position = pullPos
+			G.activeBringBodies[mob] = { bp = bp }
+			G.bringSnapped[mob] = nil
 		end)
 	end
 
@@ -2458,9 +2465,7 @@ function G.updateBringMobs(target, now)
 			local mobRoot = mob:FindFirstChild("HumanoidRootPart")
 			if mobRoot then
 				local bp = mobRoot:FindFirstChild("BringBodyPos")
-				if bp then
-					bp:Destroy()
-				end
+				if bp then bp:Destroy() end
 			end
 			G.activeBringBodies[mob] = nil
 			G.bringSnapped[mob] = nil
@@ -2474,22 +2479,51 @@ function G.updateBringMobs(target, now)
 	end
 end
 
-function G.tweenToSpawn(root, spawnPos)
-	if not root or not spawnPos then
-		return false
+function G.clearBringMobs()
+	for mob, bodies in pairs(G.activeBringBodies) do
+		if type(bodies) == "table" then
+			if bodies.bp and bodies.bp.Parent then
+				bodies.bp:Destroy()
+			end
+			if bodies.bv and bodies.bv.Parent then
+				bodies.bv:Destroy()
+			end
+		else
+			local mobRoot = mob and mob.FindFirstChild and mob:FindFirstChild("HumanoidRootPart")
+			if mobRoot then
+				local bp = mobRoot:FindFirstChild("BringBodyPos")
+				if bp then bp:Destroy() end
+			end
+		end
+		G.activeBringBodies[mob] = nil
 	end
-	local dist = (spawnPos - root.Position).Magnitude
-	G.cancelTween()
-	State.activeTween = TweenService:Create(
-		root,
-		TweenInfo.new(math.max(dist / math.max(State.SPEED, 1), 0.05), Enum.EasingStyle.Linear),
-		{ CFrame = CFrame.new(spawnPos + Vector3.new(0, 5, 0)) }
-	)
-	State.tweenTargetPosition = spawnPos
-	State.activeTween:Play()
-	State.lastTweenStartTime = tick()
-	State.isMovingToSpawn = true
-	return true
+	for mob in pairs(G.bringSnapped) do
+		G.bringSnapped[mob] = nil
+	end
+	for mob, state in pairs(G.originalMobStates) do
+		G.restoreMobState(mob, state)
+		local mobRoot = mob and mob.FindFirstChild and mob:FindFirstChild("HumanoidRootPart")
+		if mobRoot then
+			local anchor = mobRoot:FindFirstChild("AnchorBodyPos")
+			if anchor then anchor:Destroy() end
+			local anchorVel = mobRoot:FindFirstChild("AnchorBodyVel")
+			if anchorVel then anchorVel:Destroy() end
+		end
+		G.originalMobStates[mob] = nil
+	end
+	State.bringAnchor = nil
+	State.lastBringUpdate = 0
+	State.targetAnchorCFrame = nil
+end
+
+function G.tweenToSpawn(root, spawnPos)
+    if not root or not spawnPos then return false end
+    G.cancelTween()
+    State.tweenTargetPosition = spawnPos
+    State.lastTweenStartTime = tick()
+    State.isMovingToSpawn = true
+    State.spawnDestCF = CFrame.new(spawnPos + Vector3.new(0, 10, 0))
+    return true
 end
 
 function G.resetSpawnScan(clearLastPoint)
@@ -2530,7 +2564,209 @@ function G.advanceSpawnPoint(root)
 	State.spawnPointList = {}
 	State.spawnPointIndex = 1
 	State.spawnPointChecked = {}
-	State.spawnCyclePauseUntil = tick() + 0.75
+	State.spawnCyclePauseUntil = tick() + 0.2
+	return false
+end
+
+G.FS = {
+	scanList = {},
+	scanIndex = 1,
+	engaged = {},
+	exhausted = {},
+	dwellUntil = 0,
+	pauseUntil = 0,
+	activeName = nil,
+}
+
+function G.fsClearScan()
+	local FS = G.FS
+	FS.scanList = {}
+	FS.scanIndex = 1
+	FS.dwellUntil = 0
+	State.isMovingToSpawn = false
+	State.spawnDestCF = nil
+	G.cancelTween()
+end
+
+function G.fsReset()
+	local FS = G.FS
+	FS.engaged = {}
+	FS.exhausted = {}
+	FS.pauseUntil = 0
+	FS.activeName = nil
+	State.selectedMobIndex = 1
+	State.clearingMobs = false
+	G.fsClearScan()
+end
+
+function G.fsNextIndex()
+	local names = State.selectedMobNames
+	local count = #names
+	if count == 0 then
+		return
+	end
+	local FS = G.FS
+	G.fsClearScan()
+	local allDone = true
+	for i = 1, count do
+		if not FS.exhausted[i] then
+			allDone = false
+		end
+	end
+	if allDone then
+		FS.exhausted = {}
+		FS.engaged = {}
+		FS.activeName = nil
+		State.selectedMobIndex = 1
+		FS.pauseUntil = tick() + 0.2
+		return
+	end
+	local idx = State.selectedMobIndex
+	for _ = 1, count do
+		idx = (idx % count) + 1
+		if not FS.exhausted[idx] then
+			break
+		end
+	end
+	State.selectedMobIndex = idx
+	FS.pauseUntil = tick() + 0.1
+end
+
+function G.fsHoldPosition(root)
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
+	if not State.idleAnchorCFrame then
+		State.idleAnchorCFrame = root.CFrame
+	end
+	local dist = (root.Position - State.idleAnchorCFrame.Position).Magnitude
+	if dist > 150 then
+		State.idleAnchorCFrame = root.CFrame
+	elseif dist > 2 then
+		root.CFrame = State.idleAnchorCFrame
+	end
+end
+
+function G.fsSkipPoint()
+	local FS = G.FS
+	G.cancelTween()
+	State.isMovingToSpawn = false
+	State.spawnDestCF = nil
+	FS.scanIndex = FS.scanIndex + 1
+	FS.dwellUntil = 0
+end
+
+function G.spawnStuck(root)
+	if State.autoFarmSelectEnabled and #State.selectedMobNames > 0 then
+		G.fsSkipPoint()
+		return true
+	end
+	return G.advanceSpawnPoint(root)
+end
+
+function G.farmSelectStep(root, dt)
+	local names = State.selectedMobNames
+	local count = #names
+	if count == 0 then
+		return false
+	end
+	local FS = G.FS
+	if State.selectedMobIndex < 1 or State.selectedMobIndex > count then
+		State.selectedMobIndex = 1
+	end
+
+	if State.currentTarget and not G.isEnemyAlive(State.currentTarget) then
+		State.currentTarget = nil
+		State.isLocked = false
+		State.lockStartTime = nil
+		State.tweenTargetPosition = nil
+		G.cancelTween()
+		G.clearBringMobs()
+	end
+
+	local name = names[State.selectedMobIndex]
+	if not name then
+		State.selectedMobIndex = 1
+		return false
+	end
+	if FS.activeName ~= name then
+		FS.activeName = name
+		G.fsClearScan()
+	end
+
+	if not State.currentTarget then
+		local found = G.getClosestAliveEnemy(root.Position, name)
+		if found then
+			State.currentTarget = found
+			State.lastTargetSwitchTime = tick()
+		end
+	end
+
+	if State.currentTarget then
+		FS.engaged[State.selectedMobIndex] = true
+		State.clearingMobs = true
+		G.fsClearScan()
+		State.idleAnchorCFrame = nil
+		return true
+	end
+
+	State.clearingMobs = false
+
+	if FS.engaged[State.selectedMobIndex] then
+		FS.engaged[State.selectedMobIndex] = nil
+		FS.exhausted[State.selectedMobIndex] = true
+		G.fsNextIndex()
+		return false
+	end
+
+	if State.isMovingToSpawn and State.spawnDestCF then
+		local dist = (State.spawnDestCF.Position - root.Position).Magnitude
+		if dist > 5 then
+			G.moveToTarget(root, State.spawnDestCF, dt)
+			return false
+		end
+		root.CFrame = State.spawnDestCF
+		G.stopMomentum()
+		State.isMovingToSpawn = false
+		State.spawnDestCF = nil
+		FS.scanIndex = FS.scanIndex + 1
+		FS.dwellUntil = tick() + State.SPAWN_DWELL
+		return false
+	end
+
+	local now = tick()
+	if now < FS.dwellUntil or now < FS.pauseUntil then
+		G.fsHoldPosition(root)
+		return false
+	end
+
+	if #FS.scanList == 0 then
+		local ok, list = pcall(G.getSpawnPositionsForMob, name)
+		if not ok or not list or #list == 0 then
+			FS.exhausted[State.selectedMobIndex] = true
+			G.fsNextIndex()
+			return false
+		end
+		G.sortPositionsByDistance(list, root.Position)
+		FS.scanList = list
+		FS.scanIndex = 1
+	end
+
+	if FS.scanIndex > #FS.scanList then
+		FS.exhausted[State.selectedMobIndex] = true
+		G.fsNextIndex()
+		return false
+	end
+
+	local point = FS.scanList[FS.scanIndex]
+	if not point then
+		FS.scanIndex = FS.scanIndex + 1
+		return false
+	end
+	State.lastSpawnPointKey = G.positionKey(point)
+	State.lastSpawnTeleportTime = now
+	if G.tweenToSpawn(root, point) then
+		State.idleAnchorCFrame = nil
+	end
 	return false
 end
 
@@ -2687,6 +2923,7 @@ function G.cleanup()
 	State._entryRouteCooldown = 0
 	State._exitRouteCooldown = 0
 end
+
 
 function G.setupCharacter(character)
 	G.cleanup()
@@ -2916,18 +3153,10 @@ function G.setupCharacter(character)
 				G.clearBringMobs()
 				local entryRoute = {
 					CFrame.new(
-						4050.31104,
-						-1.68800354,
-						-1814.12402,
-						-0.955315053,
-						0,
-						-0.295594245,
-						0,
-						1,
-						0,
-						0.295594245,
-						0,
-						-0.955315053
+						4050.31104, -1.68800354, -1814.12402,
+						-0.955315053, 0, -0.295594245,
+						0, 1, 0,
+						0.295594245, 0, -0.955315053
 					),
 				}
 				local activeName = G.getActiveSelectedMobName()
@@ -3006,98 +3235,34 @@ function G.setupCharacter(character)
 				State.lastMoveTime = nowTick
 				State.currentTarget = nil
 				if State.isMovingToSpawn then
-					G.advanceSpawnPoint(root)
+					G.spawnStuck(root)
 					return
 				end
 				G.cancelTween()
 			end
 		end
 
+		local tweenTimeLimit = State.TWEEN_TIMEOUT
+		if State.isMovingToSpawn and State.activeTweenEta then
+			tweenTimeLimit = math.max(State.TWEEN_TIMEOUT, State.activeTweenEta * 1.5 + 2)
+		end
 		if
 			State.activeTween
 			and State.activeTween.PlaybackState == Enum.PlaybackState.Playing
-			and nowTick - State.lastTweenStartTime > State.TWEEN_TIMEOUT
+			and nowTick - State.lastTweenStartTime > tweenTimeLimit
 		then
 			State.currentTarget = nil
+			State.activeTweenEta = nil
 			if State.isMovingToSpawn then
-				G.advanceSpawnPoint(root)
+				G.spawnStuck(root)
 				return
 			end
 			G.cancelTween()
 		end
 
 		if State.autoFarmSelectEnabled and #State.selectedMobNames > 0 then
-			if State.currentTarget and not G.isEnemyAlive(State.currentTarget) then
-				State.currentTarget = nil
-				State.isLocked = false
-				State.lockStartTime = nil
-				State.tweenTargetPosition = nil
-				G.cancelTween()
-				G.clearBringMobs()
-			end
-
-			if not State.currentTarget then
-				local foundTarget = nil
-				local foundIndex = nil
-				for i, name in ipairs(State.selectedMobNames) do
-					local target = G.getClosestAliveEnemy(root.Position, name)
-					if target then
-						foundTarget = target
-						foundIndex = i
-						break
-					end
-				end
-
-				if foundTarget then
-					State.selectedMobIndex = foundIndex
-					State.currentTarget = foundTarget
-					State.lastTargetSwitchTime = tick()
-					G.cancelTween()
-					G.resetSpawnScan(true)
-				else
-					local alreadyScanning = State.isMovingToSpawn and #State.spawnPointList > 0
-					if not alreadyScanning then
-						if G.isAllSelectedSpawnFull() then
-							root.AssemblyLinearVelocity = Vector3.zero
-							root.AssemblyAngularVelocity = Vector3.zero
-							if State.idleAnchorCFrame then
-								local anchorDist = (root.Position - State.idleAnchorCFrame.Position).Magnitude
-								if anchorDist > 2 then
-									root.CFrame = State.idleAnchorCFrame
-								end
-							else
-								State.idleAnchorCFrame = root.CFrame
-							end
-							return
-						end
-
-						local allSpawns, seenKeys = {}, {}
-						for _, name in ipairs(State.selectedMobNames) do
-							if G.isSpawnFull(name) then
-								continue
-							end
-							local spawnList = G.getSpawnPositionsForMob(name)
-							for _, spawnPos in ipairs(spawnList) do
-								local key = G.positionKey(spawnPos)
-								if not seenKeys[key] then
-									seenKeys[key] = true
-									table.insert(allSpawns, spawnPos)
-								end
-							end
-						end
-
-						if #allSpawns > 0 then
-							G.sortPositionsByDistance(allSpawns, root.Position)
-							State.spawnPointList = allSpawns
-							State.spawnPointIndex = 1
-							State.spawnPointChecked = {}
-							if G.tweenToSpawn(root, allSpawns[1]) then
-								State.idleAnchorCFrame = nil
-							end
-							return
-						end
-					end
-				end
+			if not G.farmSelectStep(root, dt) then
+				return
 			end
 		elseif State.autoFarmEnabled then
 			if not G.isEnemyAlive(State.currentTarget) then
@@ -3121,33 +3286,44 @@ function G.setupCharacter(character)
 		end
 
 		if not State.currentTarget then
-			local tweenActive = State.activeTween and State.activeTween.PlaybackState == Enum.PlaybackState.Playing
+			if State.isMovingToSpawn and State.spawnDestCF then
+				local distToSpawn = (State.spawnDestCF.Position - root.Position).Magnitude
+				if distToSpawn > 5 then
+					G.moveToTarget(root, State.spawnDestCF, dt)
+					return
+				else
+					root.CFrame = State.spawnDestCF
+					G.stopMomentum()
+					State.isMovingToSpawn = false
+					State.spawnDestCF = nil
+					if State.autoFarmSelectEnabled and #State.selectedMobNames > 0 then
+						State.spawnDwellUntil = tick() + State.SPAWN_DWELL
+					end
+				end
+			end
 
 			if State.isMovingToSpawn then
 				local earlyTarget = nil
-				if State.autoFarmSelectEnabled and #State.selectedMobNames > 0 then
-					for _, name in ipairs(State.selectedMobNames) do
-						local t = G.getClosestAliveEnemy(root.Position, name)
-						if t then
-							earlyTarget = t
-							break
+				if not State.clearingMobs then
+					if State.autoFarmSelectEnabled and #State.selectedMobNames > 0 then
+						local activeName = G.getActiveSelectedMobName()
+						if activeName then
+							earlyTarget = G.getClosestAliveEnemy(root.Position, activeName)
 						end
+					elseif State.autoFarmEnabled then
+						earlyTarget = G.getClosestAliveEnemyNears(root.Position)
 					end
-				elseif State.autoFarmEnabled then
-					earlyTarget = G.getClosestAliveEnemyNears(root.Position)
 				end
 
-				if earlyTarget then
+			if earlyTarget then
 					G.cancelTween()
 					State.isMovingToSpawn = false
+					State.spawnDestCF = nil
 					State.currentTarget = earlyTarget
 					State.lastTargetSwitchTime = tick()
 					State.idleAnchorCFrame = nil
-					G.resetSpawnScan(true)
-				elseif tweenActive then
-					return
 				else
-					G.advanceSpawnPoint(root)
+					G.spawnStuck(root)
 					return
 				end
 			end
@@ -3175,7 +3351,7 @@ function G.setupCharacter(character)
 
 				local farmSelect = State.autoFarmSelectEnabled and #State.selectedMobNames > 0
 				if farmSelect or State.autoFarmEnabled then
-					if farmSelect and G.isAllSelectedSpawnFull() then
+					if farmSelect and G.isActiveSelectedSpawnFull() then
 						root.AssemblyLinearVelocity = Vector3.zero
 						root.AssemblyAngularVelocity = Vector3.zero
 						if State.idleAnchorCFrame then
@@ -3198,18 +3374,15 @@ function G.setupCharacter(character)
 						if #State.spawnPointList == 0 then
 							local list = {}
 							if farmSelect then
-								local seenPos = {}
-								for _, mobName in ipairs(State.selectedMobNames) do
-									if G.isSpawnFull(mobName) then
-										continue
+								local activeName = G.getActiveSelectedMobName()
+								if activeName then
+									list = G.getSpawnPositionsForMob(activeName)
+								end
+								if #list == 0 then
+									if G.anySelectedMobHasSpawn() then
+										G.rotateSelectedMob()
 									end
-									for _, p in ipairs(G.getSpawnPositionsForMob(mobName)) do
-										local key = G.positionKey(p)
-										if not seenPos[key] then
-											seenPos[key] = true
-											table.insert(list, p)
-										end
-									end
+									return
 								end
 							else
 								list = G.getAllSpawnPositions()
@@ -3244,8 +3417,8 @@ function G.setupCharacter(character)
 		if State.isMovingToSpawn then
 			G.cancelTween()
 			State.isMovingToSpawn = false
+			State.spawnDestCF = nil
 		end
-		G.resetSpawnScan(true)
 
 		local targetRoot = State.currentTarget:FindFirstChild("HumanoidRootPart")
 		if not targetRoot then
@@ -3393,24 +3566,11 @@ function G.setupCharacter(character)
 			savedAutoRotate[humanoid] = nil
 
 			if distance > 0.1 then
-				local tweenDur = math.max(distance / math.max(State.SPEED, 1), 0.05)
-				local targetMoved = not State.tweenTargetPosition
-					or (State.tweenTargetPosition - targetPosition).Magnitude > 2
-				local tweenFinished = not State.activeTween
-					or State.activeTween.PlaybackState ~= Enum.PlaybackState.Playing
-				if targetMoved or tweenFinished then
-					G.cancelTween()
-					State.activeTween = TweenService:Create(
-						root,
-						TweenInfo.new(tweenDur, Enum.EasingStyle.Linear),
-						{ CFrame = targetCFrame }
-					)
-					State.tweenTargetPosition = targetPosition
-					State.activeTween:Play()
-					State.lastTweenStartTime = tick()
-				end
+				G.moveToTarget(root, targetCFrame, dt)
+				State.tweenTargetPosition = targetPosition
+				State.lastTweenStartTime = tick()
 			else
-				G.cancelTween()
+				G.stopMomentum()
 			end
 		end
 	end)
@@ -3555,6 +3715,7 @@ MobSelectDropdown = Tabs.Main:AddDropdown("MobSelectDropdown", {
 		State.currentTarget = nil
 		State.lastSpawnTeleportTime = 0
 		G.resetSpawnScan(true)
+		G.fsReset()
 		G.clearBringMobs()
 		local names = #orderedNames > 0 and table.concat(orderedNames, ", ") or "None"
 		Fluent:Notify({ Title = "Select Mob", Content = "Priority: " .. names, Duration = 3 })
@@ -3570,6 +3731,7 @@ Tabs.Main:AddToggle("AutoFarmSelectToggle", {
 		State.currentTarget = nil
 		State.lastSpawnTeleportTime = 0
 		G.resetSpawnScan(true)
+		G.fsReset()
 		G.clearBringMobs()
 		if State.autoFarmSelectEnabled and not State.autoFarmEnabled then
 			local char = player.Character
@@ -3636,6 +3798,30 @@ Tabs.Main:AddButton({
 		end)
 
 		Fluent:Notify({ Title = "Refresh", Content = "Update " .. #names .. " Mobs", Duration = 2 })
+	end,
+})
+
+Tabs.Main:AddButton({
+	Title = "Reset Dropdown",
+	Callback = function()
+		State.selectedMobNames = { G.rawMobNames[1] }
+		State.selectedMobIndex = 1
+		State.currentTarget = nil
+		State.lastSpawnTeleportTime = 0
+		State.autoFarmSelectEnabled = false
+		G.resetSpawnScan(true)
+		G.fsReset()
+		G.clearBringMobs()
+		if not State.autoFarmEnabled then
+			G.cleanup()
+			G.stopNoclipLoop()
+		end
+		pcall(function()
+			if MobSelectDropdown and MobSelectDropdown.SetValue then
+				MobSelectDropdown:SetValue({ [G.mobLabelList[1]] = true })
+			end
+		end)
+		Fluent:Notify({ Title = "Reset Dropdown", Content = "Default: " .. G.mobLabelList[1], Duration = 2 })
 	end,
 })
 
@@ -3706,6 +3892,1187 @@ Tabs.Main:AddToggle("StandaloneFastAttackToggle", {
 	end,
 })
 
+local TyrantSky = {
+    enabled = false,
+    phase = "idle",
+    _lastPhaseChange = 0,
+    PHASE_CHANGE_COOLDOWN = 3,
+
+    targetMobNames = {
+        "Isle Champion",
+        "Serpent Hunter",
+        "Skull Slayer",
+        "Sun-kissed Warrior",
+    },
+
+    _currentWeaponIndex = 1,
+    _lastWeaponSwitch = 0,
+    WEAPON_SWITCH_INTERVAL = 1,
+
+    currentTarget = nil,
+    lastAttackTime = 0,
+    ATTACK_RATE = 0.25,
+    ATTACK_RANGE = 120,
+
+    _spawnList = {},
+    _spawnIndex = 1,
+    _lastSpawnCheck = 0,
+    SPAWN_CHECK_INTERVAL = 0.5,
+    _spawnPatrolCF = nil,
+    _spawnDwellUntil = 0,
+    SPAWN_DWELL = 0.2,
+
+    _bossGoneTick = nil,
+    BOSS_GONE_CONFIRM = 1.0,
+}
+
+--  helpers 
+
+function TyrantSky.getAllTrees()
+    local trees = {}
+    local ok, arena = pcall(function()
+        return workspace.Map.TikiOutpost.IslandModel.IslandChunks.D.EagleBossArena
+    end)
+    if not ok or not arena then return trees end
+    for _, obj in ipairs(arena:GetChildren()) do
+        if obj.Name == "Tree" and obj:IsA("Model") then
+            table.insert(trees, obj)
+        end
+    end
+    return trees
+end
+
+function TyrantSky.getEyes()
+    local eyes = {}
+    local paths = {
+        function() return workspace.Map.TikiOutpost.IslandModel.Eye1 end,
+        function() return workspace.Map.TikiOutpost.IslandModel.Eye2 end,
+        function() return workspace.Map.TikiOutpost.IslandModel.IslandChunks.E.Eye3 end,
+        function() return workspace.Map.TikiOutpost.IslandModel.IslandChunks.E.Eye4 end,
+    }
+    for _, fn in ipairs(paths) do
+        local ok, obj = pcall(fn)
+        if ok and obj then table.insert(eyes, obj) end
+    end
+    return eyes
+end
+
+function TyrantSky.allEyesLit()
+    local eyes = TyrantSky.getEyes()
+    if #eyes < 4 then return false end
+    local litCount = 0
+    for _, eye in ipairs(eyes) do
+        if eye and eye.Parent and eye:IsA("BasePart") and eye.Transparency < 0.5 then
+            litCount += 1
+        end
+    end
+    return litCount >= 4
+end
+
+function TyrantSky.isTreeAlive()
+    local trees = TyrantSky.getAllTrees()
+    for _, tree in ipairs(trees) do
+        if tree and tree.Parent then
+            local alreadyDestroyed = tree:GetAttribute("AlreadyDestroyedClient")
+            if not alreadyDestroyed then return true end
+        end
+    end
+    return false
+end
+
+function TyrantSky.getBoss()
+    for _, mob in ipairs(workspace.Enemies:GetChildren()) do
+        if mob.Name == "Tyrant of the Skies" then
+            local hum  = mob:FindFirstChildOfClass("Humanoid")
+            local root = mob:FindFirstChild("HumanoidRootPart")
+            if hum and root and hum.Health > 0 then return mob end
+        end
+    end
+    return nil
+end
+
+function TyrantSky.getClosestMob(position)
+    local closest, best = nil, math.huge
+    for _, name in ipairs(TyrantSky.targetMobNames) do
+        for _, mob in ipairs(workspace.Enemies:GetChildren()) do
+            if mob.Name == name then
+                local hum  = mob:FindFirstChildOfClass("Humanoid")
+                local root = mob:FindFirstChild("HumanoidRootPart")
+                if hum and root and hum.Health > 0 then
+                    local d = (root.Position - position).Magnitude
+                    if d < best then best = d; closest = mob end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function tyrantSendKey(keyName, holdTime)
+    local key = Enum.KeyCode[keyName]
+    if not key then return end
+    local vim = game:GetService("VirtualInputManager")
+    vim:SendKeyEvent(true,  key, false, game); task.wait(holdTime or 0.06)
+    vim:SendKeyEvent(false, key, false, game)
+end
+
+function TyrantSky.getSkillKeys()
+    if G.AutoSkill and #G.AutoSkill.keys > 0 then return G.AutoSkill.keys end
+    return { "Z", "X", "C" }
+end
+
+function TyrantSky.getWeaponModes()
+    if G.AutoSkill and #G.AutoSkill.weaponTypes > 0 then return G.AutoSkill.weaponTypes end
+    return { "Melee" }
+end
+
+function TyrantSky.fireSkills()
+    for _, k in ipairs(TyrantSky.getSkillKeys()) do
+        if not TyrantSky.enabled then break end
+        local hold, waitAfter = G.getSkillTiming(k)
+        tyrantSendKey(k, hold)
+        task.wait(waitAfter)
+    end
+    if G.AutoSkill and G.AutoSkill.delay and G.AutoSkill.delay > 0 then
+        task.wait(G.AutoSkill.delay)
+    end
+end
+
+function TyrantSky.equipWeapon()
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return end
+
+    local modes = TyrantSky.getWeaponModes()
+    if #modes == 0 then return end
+
+    local now = tick()
+    if TyrantSky._currentWeaponIndex > #modes then TyrantSky._currentWeaponIndex = 1 end
+    if now - TyrantSky._lastWeaponSwitch >= TyrantSky.WEAPON_SWITCH_INTERVAL then
+        TyrantSky._currentWeaponIndex = (TyrantSky._currentWeaponIndex % #modes) + 1
+        TyrantSky._lastWeaponSwitch = now
+    end
+
+    local wType = modes[TyrantSky._currentWeaponIndex]
+    if not wType then return end
+
+    local keywords = G.WEAPON_TYPE_KEYWORDS[wType] or {}
+    local cur = char:FindFirstChildOfClass("Tool")
+    if cur then
+        local tip = G.getToolTooltip(cur):lower()
+        for _, kw in ipairs(keywords) do
+            if tip:find(kw, 1, true) then return end
+        end
+    end
+
+    local weapon = G.findWeaponByType(wType)
+    if weapon then pcall(function() hum:EquipTool(weapon) end) end
+end
+
+--  movement: identical arrival behavior to Go to Island
+
+function TyrantSky.moveLikeIsland(hrp, targetCF, dt)
+    if not hrp or not hrp.Parent or not targetCF then return false end
+
+    local currentPos = State.currentFlyCF and State.currentFlyCF.Position or hrp.Position
+    local dist = (targetCF.Position - currentPos).Magnitude
+
+    if dist > 6 then
+        G.moveToTarget(hrp, targetCF, dt)
+        return false
+    end
+
+    State.currentFlyCF = targetCF
+    pcall(function()
+        hrp.CFrame = targetCF
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end)
+    return true
+end
+
+--  attack logic 
+
+function TyrantSky.doAttack(target, dt)
+    if not target or not target.Parent then return false end
+    local char = player.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+
+    local root = (target:IsA("Model") and target:FindFirstChild("HumanoidRootPart"))
+               or (target:IsA("BasePart") and target)
+    if not root then return false end
+
+    local targetCF = root.CFrame * CFrame.new(0, State.Y_OFFSET, 8)
+    if not TyrantSky.moveLikeIsland(hrp, targetCF, dt) then
+        return false
+    end
+
+    if State.bringMobEnabled then
+        G.updateBringMobs(target, tick())
+    end
+
+    G.autoEquipWeapon()
+
+    local now = tick()
+    if now - TyrantSky.lastAttackTime < TyrantSky.ATTACK_RATE then return true end
+    TyrantSky.lastAttackTime = now
+
+    local char2 = player.Character
+    local currentTool = char2 and char2:FindFirstChildOfClass("Tool")
+    local isFruit = false
+    if currentTool then
+        local hasLeftClick = currentTool:FindFirstChild("LeftClickRemote", true)
+        if hasLeftClick then isFruit = true end
+        if not isFruit then
+            local tooltip = G.getToolTooltip(currentTool):lower()
+            local toolName = currentTool.Name:lower()
+            if tooltip:find("fruit") or toolName:find("fruit")
+            or tooltip:find("devil") or toolName:find("devil") then
+                isFruit = true
+            end
+        end
+    end
+
+    if isFruit then
+        local remote = currentTool and currentTool:FindFirstChild("LeftClickRemote", true)
+        local targetPos = root.Position
+        if remote and targetPos and not G.fruitAttackBusy then
+            G.fruitAttackBusy = true
+            local capturedPos = targetPos
+            local capturedHrp = hrp
+            task.spawn(function()
+                local dir = (capturedPos - capturedHrp.Position)
+                dir = Vector3.new(dir.X, 0, dir.Z)
+                local mag = dir.Magnitude
+                local direction = mag > 0.01 and (dir / mag) or capturedHrp.CFrame.LookVector
+                for action = 1, 4 do
+                    if not remote or not remote.Parent then break end
+                    pcall(function() remote:FireServer(direction, action) end)
+                    task.wait(FastFruitAttack.rate)
+                end
+                task.wait(FastFruitAttack.cycleDelay)
+                G.fruitAttackBusy = false
+            end)
+        end
+    else
+        pcall(FastAttackModule.ExecuteFastAttack)
+        pcall(G.HitRegistrationModule.Execute)
+    end
+
+    return true
+end
+
+-- Break tree
+
+TyrantSky._smashConn = nil
+
+function TyrantSky.stopSmash()
+    if TyrantSky._smashConn then
+        TyrantSky._smashConn:Disconnect()
+        TyrantSky._smashConn = nil
+    end
+end
+
+function TyrantSky.smashTree(onDone)
+    TyrantSky.stopSmash()
+
+    local function getTreeDestCF(tree)
+        if not tree or not tree.Parent then return nil end
+        local ok, piv = pcall(function() return tree:GetPivot() end)
+        local cf = ok and piv or nil
+        if not cf then
+            local ok2, bb = pcall(function() return tree:GetBoundingBox() end)
+            cf = ok2 and bb or nil
+        end
+        return cf and (cf * CFrame.new(0, 5, 8)) or nil
+    end
+
+    local function isTreeStillAlive(tree)
+        if not tree or not tree.Parent then return false end
+        local alreadyDestroyed = tree:GetAttribute("AlreadyDestroyedClient")
+        return not alreadyDestroyed
+    end
+
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp and not State.currentFlyCF then State.currentFlyCF = hrp.CFrame end
+
+    TyrantSky._smashConn = RunService.Heartbeat:Connect(function(dt)
+        if not TyrantSky.enabled or TyrantSky.phase ~= "tree" then
+            TyrantSky.stopSmash()
+            return
+        end
+
+        local c = player.Character
+        local h = c and c:FindFirstChild("HumanoidRootPart")
+        local hum = c and c:FindFirstChildOfClass("Humanoid")
+        if not h or not hum or hum.Health <= 0 then return end
+
+        if TyrantSky.getBoss() then
+            TyrantSky.stopSmash()
+            if onDone then onDone() end
+            return
+        end
+
+        local trees = TyrantSky.getAllTrees()
+        local closestTree = nil
+        local closestDist = math.huge
+        for _, tree in ipairs(trees) do
+            if isTreeStillAlive(tree) then
+                local destCF = getTreeDestCF(tree)
+                if destCF then
+                    local d = (destCF.Position - h.Position).Magnitude
+                    if d < closestDist then
+                        closestDist = d
+                        closestTree = tree
+                    end
+                end
+            end
+        end
+
+        if not closestTree then
+            TyrantSky.stopSmash()
+            if onDone then onDone() end
+            return
+        end
+
+        local destCF = getTreeDestCF(closestTree)
+        if not destCF then
+            TyrantSky.stopSmash()
+            if onDone then onDone() end
+            return
+        end
+
+        if not TyrantSky.moveLikeIsland(h, destCF, dt) then
+            return
+        end
+
+        local now = tick()
+        if now - TyrantSky.lastAttackTime >= TyrantSky.ATTACK_RATE then
+            TyrantSky.lastAttackTime = now
+            TyrantSky.equipWeapon()
+            if #TyrantSky.getSkillKeys() > 0 then task.spawn(TyrantSky.fireSkills) end
+            pcall(FastAttackModule.ExecuteFastAttack)
+            pcall(G.HitRegistrationModule.Execute)
+        end
+    end)
+end
+function TyrantSky.buildSpawnList()
+    local list = {}
+    local seen = {}
+
+    local function push(pos)
+        local key = G.positionKey(pos)
+        if not seen[key] then
+            seen[key] = true
+            table.insert(list, pos)
+        end
+    end
+
+    local spawns = workspace:FindFirstChild("_WorldOrigin")
+        and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+    if spawns then
+        for _, obj in ipairs(spawns:GetChildren()) do
+            for _, name in ipairs(TyrantSky.targetMobNames) do
+                if G.normalizeMobName(obj.Name) == G.normalizeMobName(name) then
+                    local pos = G.collectSpawnPosition(obj)
+                    if pos then push(pos) end
+                end
+            end
+        end
+    end
+
+    if #list == 0 then
+        local repFolder = G.getReplicatedSpawnFolder()
+        if repFolder then
+            for _, obj in ipairs(repFolder:GetChildren()) do
+                for _, name in ipairs(TyrantSky.targetMobNames) do
+                    if G.normalizeMobName(obj.Name) == G.normalizeMobName(name) then
+                        local pos = G.collectSpawnPosition(obj)
+                        if pos then push(pos) end
+                    end
+                end
+            end
+        end
+    end
+
+    return list
+end
+
+function TyrantSky.getNextSpawnCF(hrpPos)
+    local now = tick()
+
+    if #TyrantSky._spawnList == 0 or now - TyrantSky._lastSpawnCheck > 30 then
+        TyrantSky._spawnList = TyrantSky.buildSpawnList()
+        TyrantSky._lastSpawnCheck = now
+        TyrantSky._spawnIndex = 1
+        if hrpPos and #TyrantSky._spawnList > 0 then
+            G.sortPositionsByDistance(TyrantSky._spawnList, hrpPos)
+        end
+    end
+
+    if #TyrantSky._spawnList == 0 then return nil end
+
+    if TyrantSky._spawnIndex > #TyrantSky._spawnList then
+        TyrantSky._spawnIndex = 1
+    end
+
+    local pos = TyrantSky._spawnList[TyrantSky._spawnIndex]
+    TyrantSky._spawnIndex = TyrantSky._spawnIndex + 1
+
+    return CFrame.new(pos + Vector3.new(0, State.Y_OFFSET, 0))
+end
+
+--  main loop 
+
+TyrantSky._mainConn = nil
+
+function TyrantSky.stop()
+    TyrantSky.enabled = false
+    G.tyrantActive = false
+    TyrantSky.phase = "idle"
+    TyrantSky.currentTarget = nil
+    TyrantSky._bossGoneTick = nil
+    TyrantSky._spawnList = {}
+    TyrantSky._spawnIndex = 1
+    TyrantSky._spawnPatrolCF = nil
+    TyrantSky._spawnDwellUntil = 0
+    State.currentFlyCF = nil
+    G.stopMomentum()
+    TyrantSky.stopSmash()
+    G.clearBringMobs()
+    if TyrantSky._mainConn then
+        TyrantSky._mainConn:Disconnect()
+        TyrantSky._mainConn = nil
+    end
+end
+
+function TyrantSky.start()
+    TyrantSky.stop()
+    TyrantSky.enabled = true
+    G.tyrantActive = true
+    TyrantSky.phase = "farming"
+    TyrantSky._bossGoneTick = nil
+    TyrantSky._spawnList = {}
+    TyrantSky._spawnIndex = 1
+    TyrantSky._spawnPatrolCF = nil
+    TyrantSky._spawnDwellUntil = 0
+
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    State.currentFlyCF = hrp and hrp.CFrame or nil
+
+    TyrantSky._mainConn = RunService.Heartbeat:Connect(function(dt)
+        if not TyrantSky.enabled then
+            TyrantSky.stop()
+            return
+        end
+
+        local char = player.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum or hum.Health <= 0 then return end
+
+        --  PHASE: farming
+        if TyrantSky.phase == "farming" then
+
+            local eyes = TyrantSky.getEyes()
+            local litCount = 0
+            for _, eye in ipairs(eyes) do
+                if eye and eye.Parent and eye:IsA("BasePart") and eye.Transparency < 0.5 then
+                    litCount += 1
+                end
+            end
+
+            local now = tick()
+            if litCount >= 4 and (now - TyrantSky._lastPhaseChange) > TyrantSky.PHASE_CHANGE_COOLDOWN then
+                TyrantSky._lastPhaseChange = now
+                TyrantSky.phase = "tree"
+                TyrantSky.currentTarget = nil
+                TyrantSky._spawnPatrolCF = nil
+                TyrantSky._bossGoneTick = nil
+                Fluent:Notify({ Title = "Tyrant Sky", Content = "All eyes Active! Break Tree...", Duration = 3 })
+                TyrantSky.smashTree(function()
+                    if TyrantSky.enabled then
+                        TyrantSky._lastPhaseChange = tick()
+                        TyrantSky.phase = "boss"
+                        TyrantSky._bossGoneTick = nil
+                        Fluent:Notify({ Title = "Tyrant Sky", Content = "Boss Spawn! Hunting Tyrant...", Duration = 3 })
+                    end
+                end)
+                return
+            end
+
+            local mob = TyrantSky.getClosestMob(hrp.Position)
+            if mob then
+                TyrantSky.currentTarget = mob
+                TyrantSky._spawnPatrolCF = nil
+                TyrantSky._spawnDwellUntil = 0
+                TyrantSky.doAttack(mob, dt)
+                return
+            end
+
+            TyrantSky.currentTarget = nil
+            now = tick()
+
+            if now < TyrantSky._spawnDwellUntil then
+                pcall(function()
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end)
+                return
+            end
+
+            if not TyrantSky._spawnPatrolCF then
+                local destCF = TyrantSky.getNextSpawnCF(hrp.Position)
+                if not destCF then return end
+                TyrantSky._spawnPatrolCF = destCF
+            end
+
+            if TyrantSky.moveLikeIsland(hrp, TyrantSky._spawnPatrolCF, dt) then
+                TyrantSky._spawnPatrolCF = nil
+                TyrantSky._spawnDwellUntil = tick() + TyrantSky.SPAWN_DWELL
+            end
+
+        --  PHASE: tree
+        elseif TyrantSky.phase == "tree" then
+            if not TyrantSky._smashConn then
+                TyrantSky.smashTree(function()
+                    if TyrantSky.enabled then
+                        TyrantSky._lastPhaseChange = tick()
+                        TyrantSky.phase = "boss"
+                        TyrantSky._bossGoneTick = nil
+                        Fluent:Notify({ Title = "Tyrant Sky", Content = "Boss Spawn! Hunting Tyrant...", Duration = 3 })
+                    end
+                end)
+            end
+            return
+
+
+        --  PHASE: boss
+        elseif TyrantSky.phase == "boss" then
+            local boss = TyrantSky.getBoss()
+            if boss then
+                TyrantSky._bossGoneTick = nil
+                TyrantSky.currentTarget = boss
+                TyrantSky.doAttack(boss, dt)
+            else
+                local now = tick()
+                if not TyrantSky._bossGoneTick then
+                    TyrantSky._bossGoneTick = now
+                end
+
+                if now - TyrantSky._bossGoneTick >= TyrantSky.BOSS_GONE_CONFIRM then
+                    TyrantSky.currentTarget = nil
+                    TyrantSky._bossGoneTick = nil
+                    TyrantSky._spawnList = {}
+                    TyrantSky._spawnIndex = 1
+                    TyrantSky._spawnPatrolCF = nil
+                    TyrantSky._spawnDwellUntil = 0
+                    TyrantSky._lastPhaseChange = now
+                    TyrantSky.phase = "farming"
+                    G.clearBringMobs()
+                    Fluent:Notify({ Title = "Tyrant Sky", Content = "Boss confirmed dead! Back to farming...", Duration = 3 })
+                end
+            end
+        end
+    end)
+end
+
+--  UI 
+Tabs.TyrantSection:AddToggle("TyrantSkyToggle", {
+    Title   = "Auto Tyrant Sky",
+    Default = false,
+    Callback = function(v)
+        if v then TyrantSky.start(); Fluent:Notify({ Title = "Tyrant Sky", Content = "Started!", Duration = 3 })
+        else     TyrantSky.stop();  Fluent:Notify({ Title = "Tyrant Sky", Content = "Stopped.", Duration = 2 }) end
+    end,
+})
+
+--  Event Magnet 
+G.EventMagnet = {
+	enabled = false,
+	phase = "idle",          -- idle | travel | scan | kill
+	visitedNames = {},       -- spawn names already farmed (never revisit)
+	spawnList = {},
+	targetSpawn = nil,       -- { name = string, pos = Vector3 }
+	destCF = nil,
+	scanUntil = 0,
+	currentTarget = nil,
+	lastAttackTime = 0,
+	ATTACK_RATE = 0.12,
+	SCAN_TIME = 1.5,
+	_conn = nil,
+}
+
+local EM = G.EventMagnet
+
+EM.IGNORE_NAMES = {
+	["1"] = true,
+	["2"] = true,
+	["3"] = true,
+	["4"] = true,
+	["5"] = true,
+	["6"] = true,
+	["7"] = true,
+	["Part"] = true,
+	["HumanoidRootPart"] = true,
+	["Spawn"] = true,
+}
+
+-- ตรวจ ignore แบบ normalize (ตัดช่องว่าง/ตัวพิมพ์/ [Lv. xx] ) และเช็ค base name ของมอนด้วย
+function EM.isIgnored(nameOrInstance)
+	if not nameOrInstance then
+		return false
+	end
+	local raw, base
+	if typeof and typeof(nameOrInstance) == "Instance" then
+		raw = nameOrInstance.Name
+		pcall(function()
+			base = G.getMobBaseName(nameOrInstance)
+		end)
+	elseif type(nameOrInstance) == "userdata" then
+		raw = nameOrInstance.Name
+	else
+		raw = tostring(nameOrInstance)
+	end
+	if raw and EM.IGNORE_NAMES[raw] then
+		return true
+	end
+	local nRaw = G.normalizeMobName(raw or "")
+	local nBase = G.normalizeMobName(base or "")
+	for key, on in pairs(EM.IGNORE_NAMES) do
+		if on then
+			local nKey = G.normalizeMobName(key)
+			if nKey ~= "" and (nKey == nRaw or (nBase ~= "" and nKey == nBase)) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+function EM.buildSpawnList()
+	local list = {}
+	local folder = G.getReplicatedSpawnFolder()
+	if not folder then
+		return list
+	end
+	pcall(function()
+		for _, obj in ipairs(folder:GetDescendants()) do
+			if not EM.isIgnored(obj) and not EM.visitedNames[obj.Name] then
+				local pos = nil
+				if obj:IsA("BasePart") then
+					pos = obj.Position
+				elseif obj:IsA("Model") then
+					local r = obj.PrimaryPart
+						or obj:FindFirstChild("HumanoidRootPart")
+						or obj:FindFirstChildWhichIsA("BasePart")
+					if r then
+						pos = r.Position
+					end
+				elseif obj:IsA("CFrameValue") then
+					pos = obj.Value.Position
+				elseif obj:IsA("Vector3Value") then
+					pos = obj.Value
+				end
+				if pos then
+					table.insert(list, { name = obj.Name, pos = pos })
+				end
+			end
+		end
+	end)
+	return list
+end
+
+function EM.pickNextSpawn(fromPos)
+	EM.spawnList = EM.buildSpawnList()
+	local best, bestDist = nil, math.huge
+	for _, item in ipairs(EM.spawnList) do
+		if not EM.visitedNames[item.name] then
+			local d = (item.pos - fromPos).Magnitude
+			if d < bestDist then
+				bestDist = d
+				best = item
+			end
+		end
+	end
+	return best
+end
+
+--  does this enemy carry the magnet rig? 
+function EM.hasMagnetRig(enemy)
+	if not enemy or not enemy.Parent then
+		return false
+	end
+	local found = false
+	pcall(function()
+		if enemy:FindFirstChild("MagnetTransformedRigObject", true) then
+			found = true
+		end
+	end)
+	return found
+end
+
+--  skip Boss / Raid Boss enemies 
+function EM.isBossEnemy(enemy)
+	if not enemy then
+		return false
+	end
+	local bossType = nil
+	pcall(function()
+		bossType = G.bossTypeFromInstance(enemy)
+	end)
+	if bossType then
+		return true
+	end
+	pcall(function()
+		bossType = G.isMobBoss(G.getMobBaseName(enemy) or enemy.Name)
+	end)
+	return bossType ~= nil
+end
+
+function EM.getMagnetTargets()
+	local list = {}
+	for _, enemy in ipairs(enemiesFolder:GetChildren()) do
+		if
+			G.isEnemyAlive(enemy)
+			and EM.hasMagnetRig(enemy)
+			and not EM.isBossEnemy(enemy)
+			and not EM.isIgnored(enemy)
+		then
+			table.insert(list, enemy)
+		end
+	end
+	return list
+end
+
+function EM.getClosestMagnetTarget(fromPos)
+	local best, bestDist = nil, math.huge
+	for _, enemy in ipairs(EM.getMagnetTargets()) do
+		local root = enemy:FindFirstChild("HumanoidRootPart")
+		if root then
+			local d = (root.Position - fromPos).Magnitude
+			if d < bestDist then
+				bestDist = d
+				best = enemy
+			end
+		end
+	end
+	return best
+end
+
+--  movement (same arrival behavior as Go to Island) 
+function EM.moveTo(hrp, targetCF, dt)
+	if not hrp or not hrp.Parent or not targetCF then
+		return false
+	end
+	local currentPos = State.currentFlyCF and State.currentFlyCF.Position or hrp.Position
+	local dist = (targetCF.Position - currentPos).Magnitude
+	if dist > 6 then
+		G.moveToTarget(hrp, targetCF, dt)
+		return false
+	end
+	State.currentFlyCF = targetCF
+	pcall(function()
+		hrp.CFrame = targetCF
+		hrp.AssemblyLinearVelocity = Vector3.zero
+		hrp.AssemblyAngularVelocity = Vector3.zero
+	end)
+	return true
+end
+
+function EM.attack(target, dt)
+	if not target or not target.Parent then
+		return false
+	end
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then
+		return false
+	end
+	local root = target:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return false
+	end
+
+	-- chase the mob directly: CFrame to it instead of staying pinned at the spawn
+	local targetCF = root.CFrame * CFrame.new(0, State.Y_OFFSET or 8, 8)
+	if not EM.moveTo(hrp, targetCF, dt) then
+		return false
+	end
+
+	G.updateBringMobs(target, tick())
+
+	G.autoEquipWeapon()
+
+	local now = tick()
+	if now - EM.lastAttackTime < EM.ATTACK_RATE then
+		return true
+	end
+	EM.lastAttackTime = now
+
+	pcall(FastAttackModule.ExecuteFastAttack)
+	pcall(G.HitRegistrationModule.Execute)
+	return true
+end
+
+function EM.stop()
+	EM.enabled = false
+	EM.phase = "idle"
+	EM.targetSpawn = nil
+	EM.destCF = nil
+	EM.currentTarget = nil
+	EM.spawnList = {}
+	EM.scanUntil = 0
+	State.currentFlyCF = nil
+	G.stopMomentum()
+	G.clearBringMobs()
+	if EM._conn then
+		EM._conn:Disconnect()
+		EM._conn = nil
+	end
+end
+
+function EM.resetVisited()
+	EM.visitedNames = {}
+	EM.spawnList = {}
+	EM.targetSpawn = nil
+	EM.destCF = nil
+end
+
+function EM.start()
+	EM.stop()
+	EM.enabled = true
+	EM.phase = "travel"
+
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	State.currentFlyCF = hrp and hrp.CFrame or nil
+
+	EM._conn = RunService.Heartbeat:Connect(function(dt)
+		if not EM.enabled then
+			EM.stop()
+			return
+		end
+
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not hrp or not hum or hum.Health <= 0 then
+			return
+		end
+
+		--  always finish magnet mobs first 
+		if EM.phase ~= "kill" then
+			local magnetMob = EM.getClosestMagnetTarget(hrp.Position)
+			if magnetMob then
+				EM.currentTarget = magnetMob
+				EM.phase = "kill"
+			end
+		end
+
+		--  PHASE: kill every magnet mob around 
+		if EM.phase == "kill" then
+			if not G.isEnemyAlive(EM.currentTarget) or not EM.hasMagnetRig(EM.currentTarget) then
+				EM.currentTarget = EM.getClosestMagnetTarget(hrp.Position)
+			end
+			if EM.currentTarget then
+				EM.attack(EM.currentTarget, dt)
+				return
+			end
+			-- all magnet mobs dead here -> mark spawn done, move on
+			if EM.targetSpawn then
+				EM.visitedNames[EM.targetSpawn.name] = true
+			end
+			G.clearBringMobs()
+			EM.targetSpawn = nil
+			EM.destCF = nil
+			EM.phase = "travel"
+			return
+		end
+
+		--  PHASE: travel to nearest unvisited spawn point 
+		if EM.phase == "travel" then
+			if not EM.targetSpawn then
+				local nextSpawn = EM.pickNextSpawn(hrp.Position)
+				if not nextSpawn then
+					-- every spawn checked, start a fresh round
+					EM.resetVisited()
+					return
+				end
+				EM.targetSpawn = nextSpawn
+				EM.destCF = CFrame.new(nextSpawn.pos + Vector3.new(0, State.Y_OFFSET or 8, 0))
+			end
+
+			if EM.moveTo(hrp, EM.destCF, dt) then
+				EM.phase = "scan"
+				EM.scanUntil = tick() + EM.SCAN_TIME
+			end
+			return
+		end
+
+		--  PHASE: scan Enemies folder at this spawn 
+		if EM.phase == "scan" then
+			-- stay locked exactly on the spawn point while waiting
+			if EM.destCF then
+				State.currentFlyCF = EM.destCF
+				pcall(function()
+					hrp.CFrame = EM.destCF
+				end)
+			end
+			pcall(function()
+				hrp.AssemblyLinearVelocity = Vector3.zero
+				hrp.AssemblyAngularVelocity = Vector3.zero
+			end)
+
+			local magnetMob = EM.getClosestMagnetTarget(hrp.Position)
+			if magnetMob then
+				EM.currentTarget = magnetMob
+				EM.phase = "kill"
+				return
+			end
+
+			if tick() >= EM.scanUntil then
+				if EM.targetSpawn then
+					EM.visitedNames[EM.targetSpawn.name] = true
+				end
+				EM.targetSpawn = nil
+				EM.destCF = nil
+				EM.phase = "travel"
+			end
+			return
+		end
+	end)
+end
+
+--  real-life clock schedule: run at **:00 - **:10, stop at **:11, auto reset at **:12 
+EM.armed = false
+EM.START_MINUTE = 0
+EM.END_MINUTE = 11      -- stop when minute >= 11
+EM.RESET_MINUTE = 12    -- auto clear checked spawns
+EM._lastResetStamp = nil
+EM._schedulerRunning = false
+
+function EM.inWindow()
+	local t = os.date("*t")
+	return t.min >= EM.START_MINUTE and t.min < EM.END_MINUTE
+end
+
+function EM.startScheduler()
+	if EM._schedulerRunning then
+		return
+	end
+	EM._schedulerRunning = true
+	task.spawn(function()
+		while true do
+			local ok = pcall(function()
+				local t = os.date("*t")
+
+				-- auto reset at **:12 (runs even when the toggle is off)
+				if t.min == EM.RESET_MINUTE then
+					local stamp = string.format("%d-%d-%d-%d", t.year, t.yday, t.hour, t.min)
+					if EM._lastResetStamp ~= stamp then
+						EM._lastResetStamp = stamp
+						EM.resetVisited()
+						Fluent:Notify({
+							Title = "Event Magnet",
+							Content = "Auto reset checked spawns (" .. string.format("%02d:%02d", t.hour, t.min) .. ")",
+							Duration = 3,
+						})
+					end
+				end
+
+				if EM.armed then
+					if EM.inWindow() then
+						if not EM.enabled then
+							EM.resetVisited()
+							EM.start()
+							Fluent:Notify({
+								Title = "Event Magnet",
+								Content = "Event time! Running until **:" .. string.format("%02d", EM.END_MINUTE),
+								Duration = 3,
+							})
+						end
+					else
+						if EM.enabled then
+							EM.stop()
+							Fluent:Notify({ Title = "Event Magnet", Content = "Window closed. Waiting for **:00", Duration = 3 })
+						end
+						-- countdown: notify every second with current time + time left until **:00
+						local nowSec = t.hour * 3600 + t.min * 60 + t.sec
+						local remain = ((t.hour + 1) % 24) * 3600 - nowSec
+						if remain < 0 then
+							remain = remain + 86400
+						end
+						Fluent:Notify({
+							Title = "Event Magnet",
+							Content = string.format(
+								"Now %02d:%02d:%02d — event starts in %d min %02d sec",
+								t.hour, t.min, t.sec, math.floor(remain / 60), remain % 60
+							),
+							Duration = 1,
+						})
+					end
+				elseif EM.enabled then
+					EM.stop()
+				end
+			end)
+			if not ok then
+				task.wait(1)
+			end
+			task.wait(1)
+		end
+	end)
+end
+
+EM.startScheduler()
+
+--  Keep Damage Counter GUI always visible 
+task.spawn(function()
+	while true do
+		pcall(function()
+			local player = game:GetService("Players").LocalPlayer
+			local main = player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("Main")
+			local dmgCounter = main and main:FindFirstChild("DmgCounter")
+			if dmgCounter and not dmgCounter.Visible then
+				dmgCounter.Visible = true
+			end
+		end)
+		task.wait(0.5)
+	end
+end)
+
+--  UI 
+
+Tabs.MagnetSection:AddToggle("EventMagnetToggle", {
+	Title = "Auto Event Magnet",
+	Default = false,
+	Callback = function(v)
+		EM.armed = v
+		if v then
+			if EM.inWindow() then
+				EM.resetVisited()
+				EM.start()
+				Fluent:Notify({ Title = "Event Magnet", Content = "Event time! Started.", Duration = 3 })
+			else
+				Fluent:Notify({ Title = "Event Magnet", Content = "Armed. Waiting for **:00", Duration = 3 })
+			end
+		else
+			EM.stop()
+			Fluent:Notify({ Title = "Event Magnet", Content = "Stopped.", Duration = 2 })
+		end
+	end,
+})
+
+--  Auto Skill Global Config 
+G.AutoSkill = {
+	enabled = false,
+	weaponTypes = { "Melee", "Sword" },
+	keys = { "Z", "X", "C" },
+	delay = 0.35,
+	timing = {
+		Z = { hold = 0.06, wait = 0.15 },
+		X = { hold = 0.06, wait = 0.15 },
+		C = { hold = 0.06, wait = 0.15 },
+		V = { hold = 0.06, wait = 0.15 },
+		F = { hold = 0.06, wait = 0.15 },
+	},
+}
+
+function G.getSkillTiming(keyName)
+	local t = G.AutoSkill.timing[keyName]
+	if not t then return 0.06, 0.15 end
+	return t.hold or 0.06, t.wait or 0.15
+end
+
+local autoSkillWeaponValues = { "Melee", "Sword", "Fruit", "Gun" }
+local autoSkillKeyValues = { "Z", "X", "C", "V", "F" }
+
+Tabs.AutoSkillSection:AddToggle("AutoSkillToggle", {
+	Title = "Auto Skill",
+	Default = false,
+	Callback = function(v)
+		G.AutoSkill.enabled = v
+		Fluent:Notify({
+			Title = "Auto Skill",
+			Content = v and "Enabled" or "Disabled",
+			Duration = 2,
+		})
+	end,
+})
+
+Tabs.AutoSkillSection:AddDropdown("AutoSkillWeaponDropdown", {
+	Title = "Skill Mode (Weapon Type)",
+	Values = autoSkillWeaponValues,
+	Multi = true,
+	Default = { Melee = true, Sword = true },
+	Callback = function(selected)
+		local modes = {}
+		for _, v in ipairs(autoSkillWeaponValues) do
+			if selected[v] then
+				table.insert(modes, v)
+			end
+		end
+		G.AutoSkill.weaponTypes = modes
+	end,
+})
+
+Tabs.AutoSkillSection:AddDropdown("AutoSkillKeysDropdown", {
+	Title = "Skill Keys to Press",
+	Values = autoSkillKeyValues,
+	Multi = true,
+	Default = { Z = true, X = true, C = true },
+	Callback = function(selected)
+		local keys = {}
+		for _, k in ipairs(autoSkillKeyValues) do
+			if selected[k] then
+				table.insert(keys, k)
+			end
+		end
+		G.AutoSkill.keys = keys
+	end,
+})
+
+Tabs.AutoSkillSection:AddSlider("AutoSkillDelaySlider", {
+	Title = "Skill Delay (sec)",
+	Default = 0.35,
+	Min = 0.1,
+	Max = 2,
+	Rounding = 2,
+	Callback = function(v)
+		G.AutoSkill.delay = v
+	end,
+})
+
+for _, skillKey in ipairs(autoSkillKeyValues) do
+	local thisKey = skillKey
+
+	Tabs.AutoSkillTiming:AddSlider("AutoSkillHold_" .. thisKey, {
+		Title = thisKey .. " - Hold (sec)",
+		Default = 0.06,
+		Min = 0.01,
+		Max = 3,
+		Rounding = 2,
+		Callback = function(v)
+			G.AutoSkill.timing[thisKey].hold = v
+		end,
+	})
+
+	Tabs.AutoSkillTiming:AddSlider("AutoSkillWait_" .. thisKey, {
+		Title = thisKey .. " - Wait after (sec)",
+		Default = 0.15,
+		Min = 0,
+		Max = 5,
+		Rounding = 2,
+		Callback = function(v)
+			G.AutoSkill.timing[thisKey].wait = v
+		end,
+	})
+end
+
 Tabs.Island:AddParagraph({ Title = worldName, Content = "Select island then enable toggle" })
 
 Tabs.Island:AddDropdown("IslandDropdown", {
@@ -3738,6 +5105,218 @@ Tabs.Island:AddToggle("TweenToIslandToggle", {
 			Fluent:Notify({ Title = "Island", Content = "Stopped", Duration = 2 })
 		end
 	end,
+})
+
+function G.getAvailableNpcNames()
+    local names = {}
+    local seen  = {}
+
+    local function addFromFolder(folder)
+        if not folder then return end
+        for _, npc in ipairs(folder:GetChildren()) do
+            local name = npc.Name
+            if name and name ~= "" and not seen[name] then
+                seen[name] = true
+                table.insert(names, name)
+            end
+        end
+    end
+
+    addFromFolder(game:GetService("ReplicatedStorage"):FindFirstChild("NPCs"))
+    addFromFolder(workspace:FindFirstChild("NPCs"))
+
+    table.sort(names)
+    return names
+end
+
+function G.getNpcPosition(wantedName)
+    local char = player.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    local playerPos = hrp and hrp.Position
+
+    local closest    = nil
+    local closestDist = math.huge
+
+    local function checkFolder(folder)
+        if not folder then return end
+        for _, npc in ipairs(folder:GetChildren()) do
+            if npc.Name == wantedName then
+                local pos = nil
+                local root = npc:FindFirstChild("HumanoidRootPart")
+                          or npc:FindFirstChildWhichIsA("BasePart")
+                if root then
+                    pos = root.Position
+                elseif npc:IsA("Model") then
+                    local ok, pivot = pcall(function() return npc:GetPivot() end)
+                    if ok then pos = pivot.Position end
+                elseif npc:IsA("BasePart") then
+                    pos = npc.Position
+                end
+
+                if pos then
+                    local dist = playerPos and (pos - playerPos).Magnitude or 0
+                    if dist < closestDist then
+                        closestDist = dist
+                        closest     = pos
+                    end
+                end
+            end
+        end
+    end
+
+    checkFolder(workspace:FindFirstChild("NPCs"))
+
+    if not closest then
+        checkFolder(game:GetService("ReplicatedStorage"):FindFirstChild("NPCs"))
+    end
+
+    return closest
+end
+
+-- State NPC travel
+State.selectedNpcName       = nil
+State.npcTweenEnabled       = false
+State.npcTweenConn          = nil
+State.currentNpcFlyCF       = nil
+
+function G.stopTweenNpc()
+    State.npcTweenEnabled = false
+    if State.npcTweenConn then
+        State.npcTweenConn:Disconnect()
+        State.npcTweenConn = nil
+    end
+    State.currentNpcFlyCF = nil
+    G.stopMomentum()
+end
+
+function G.startTweenNpc()
+    G.stopTweenNpc()
+
+    local npcName = State.selectedNpcName
+    if not npcName then
+        Fluent:Notify({ Title = "NPC", Content = "Select NPC first", Duration = 2 })
+        return
+    end
+
+    local npcPos = G.getNpcPosition(npcName)
+    if not npcPos then
+        Fluent:Notify({ Title = "NPC", Content = "NPC not found in world: " .. npcName, Duration = 3 })
+        return
+    end
+
+    State.npcTweenEnabled = true
+
+    local char = player.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then State.currentNpcFlyCF = hrp.CFrame end
+
+    Fluent:Notify({ Title = "NPC", Content = "Going to " .. npcName, Duration = 2 })
+
+    State.npcTweenConn = RunService.Heartbeat:Connect(function(dt)
+        if not State.npcTweenEnabled then
+            G.stopTweenNpc()
+            return
+        end
+
+        local c   = player.Character
+        local h   = c and c:FindFirstChild("HumanoidRootPart")
+        local hum = c and c:FindFirstChildOfClass("Humanoid")
+        if not h or not hum or hum.Health <= 0 then return end
+
+        -- refresh ตำแหน่ง NPC ทุก frame (ติดตาม NPC ที่เดินได้)
+        local currentNpcPos = G.getNpcPosition(npcName)
+        if not currentNpcPos then return end
+
+        local destCF = CFrame.new(currentNpcPos) * CFrame.new(0, 3, 4)
+
+        if not State.currentNpcFlyCF
+        or (State.currentNpcFlyCF.Position - h.Position).Magnitude > 150 then
+            State.currentNpcFlyCF = h.CFrame
+        end
+
+        local currentPos = State.currentNpcFlyCF.Position
+        local dist = (destCF.Position - currentPos).Magnitude
+
+        if dist > 3 then
+            -- use the shared mover so every travel function behaves the same
+            State.currentFlyCF = State.currentNpcFlyCF
+            G.moveToTarget(h, CFrame.new(destCF.Position), dt)
+            State.currentNpcFlyCF = State.currentFlyCF
+        else
+            -- ถึงแล้ว lock CFrame ติด NPC เลย
+            State.currentNpcFlyCF = destCF
+            pcall(function()
+                h.CFrame                  = destCF
+                h.AssemblyLinearVelocity  = Vector3.zero
+                h.AssemblyAngularVelocity = Vector3.zero
+            end)
+        end
+    end)
+end
+
+-- UI
+local npcNames = G.getAvailableNpcNames()
+if #npcNames == 0 then table.insert(npcNames, "No NPC found") end
+State.selectedNpcName = npcNames[1]
+
+local NpcDropdown
+NpcDropdown = Tabs.NpcSection:AddDropdown("NpcDropdown", {
+    Title   = "Select NPC",
+    Values  = npcNames,
+    Multi   = false,
+    Default = 1,
+    Search  = true,
+    Callback = function(value)
+        State.selectedNpcName = value
+    end,
+})
+
+Tabs.NpcSection:AddButton({   -- เปลี่ยน NpcSection → Tabs.NpcSection
+    Title    = "Refresh NPC List",
+    Callback = function()
+        local newNames = G.getAvailableNpcNames()
+        if #newNames == 0 then table.insert(newNames, "No NPC found") end
+
+        pcall(function()
+            if NpcDropdown and NpcDropdown.SetValues then
+                NpcDropdown:SetValues(newNames)
+            end
+        end)
+
+        local stillExists = false
+        for _, n in ipairs(newNames) do
+            if n == State.selectedNpcName then stillExists = true; break end
+        end
+        if not stillExists then
+            State.selectedNpcName = newNames[1]
+            pcall(function()
+                if NpcDropdown and NpcDropdown.SetValue then
+                    NpcDropdown:SetValue(newNames[1])
+                end
+            end)
+        end
+
+        Fluent:Notify({ Title = "NPC", Content = "Refreshed: " .. #newNames .. " NPCs", Duration = 2 })
+    end,
+})
+
+local NpcTravelToggle
+NpcTravelToggle = Tabs.NpcSection:AddToggle("NpcTravelToggle", {   -- เปลี่ยน NpcSection → Tabs.NpcSection
+    Title    = "Go to NPC",
+    Default  = false,
+    Callback = function(value)
+        if value then
+            if not State.selectedNpcName or State.selectedNpcName == "No NPC found" then
+                Fluent:Notify({ Title = "NPC", Content = "Select NPC first", Duration = 2 })
+                pcall(function() NpcTravelToggle:SetValue(false) end)
+                return
+            end
+            G.startTweenNpc()
+        else
+            G.stopTweenNpc()
+            Fluent:Notify({ Title = "NPC", Content = "Stopped", Duration = 2 })
+        end
+    end,
 })
 
 Tabs.FarmSetting:AddParagraph({ Title = "EquipWeapon", Content = "Weapon Tab" })
@@ -3865,681 +5444,6 @@ Tabs.FarmSetting:AddSlider("AttackRangeSlider", {
 		State.ATTACK_RANGE = value
 	end,
 })
-
-local EventMagnet = {
-	enabled = false,
-	killedSpawns = {},
-	currentTarget = nil,
-	_currentTargetName = nil,
-	currentSpawnPos = nil,
-	phase = "idle",
-	conn = nil,
-	lastMinute = -1,
-	memCleared = false,
-	waitStartTime = 0,
-	WAIT_MOB_TIMEOUT = 5,
-	attackConn = nil,
-}
-
-function EventMagnet.isEventTime()
-	local min = tonumber(os.date("%M"))
-	return min ~= nil and (min >= 0 and min <= 9)
-end
-
-function EventMagnet.isClearTime()
-	local min = tonumber(os.date("%M"))
-	return min ~= nil and min >= 11
-end
-
-function EventMagnet.spawnKey(pos)
-	return G.positionKey(pos)
-end
-
-function EventMagnet.getPendingSpawns()
-	local result = {}
-	local folder = game:GetService("ReplicatedStorage"):FindFirstChild("FortBuilderReplicatedSpawnPositionsFolder")
-	if not folder then
-		return result
-	end
-
-	for _, obj in ipairs(folder:GetChildren()) do
-		if G.SPAWN_IGNORE_NAMES[obj.Name] then
-			continue
-		end
-
-		local pos = nil
-		if obj:IsA("BasePart") then
-			pos = obj.Position
-		elseif obj:IsA("Model") then
-			local r = obj.PrimaryPart
-				or obj:FindFirstChild("HumanoidRootPart")
-				or obj:FindFirstChildWhichIsA("BasePart")
-			if r then
-				pos = r.Position
-			end
-		elseif obj:IsA("CFrameValue") then
-			pos = obj.Value.Position
-		elseif obj:IsA("Vector3Value") then
-			pos = obj.Value
-		end
-
-		if pos then
-			local key = EventMagnet.spawnKey(pos)
-			if not EventMagnet.killedSpawns[key] then
-				table.insert(result, { name = obj.Name, pos = pos, key = key })
-			end
-		end
-		for _, child in ipairs(obj:GetChildren()) do
-			if G.SPAWN_IGNORE_NAMES[child.Name] then
-				continue
-			end
-			local cpos = nil
-			if child:IsA("BasePart") then
-				cpos = child.Position
-			elseif child:IsA("CFrameValue") then
-				cpos = child.Value.Position
-			elseif child:IsA("Vector3Value") then
-				cpos = child.Value
-			end
-			if cpos then
-				local ckey = EventMagnet.spawnKey(cpos)
-				if not EventMagnet.killedSpawns[ckey] then
-					table.insert(result, { name = obj.Name, pos = cpos, key = ckey })
-				end
-			end
-		end
-	end
-
-	return result
-end
-
-function EventMagnet.findMagnetMob(wantedName, spawnPos, searchRadius)
-	searchRadius = searchRadius or 80
-	local enemies = workspace:FindFirstChild("Enemies")
-	if not enemies then
-		return nil
-	end
-
-	for _, mob in ipairs(enemies:GetChildren()) do
-		local mobName = G.normalizeMobName(mob.Name)
-		local wanted = G.normalizeMobName(wantedName)
-		local nameMatch = (mobName == wanted) or (G.normalizeMobName(G.getMobBaseName(mob)) == wanted)
-
-		local root = mob:FindFirstChild("HumanoidRootPart")
-		local hum = mob:FindFirstChildOfClass("Humanoid")
-		if not root or not hum or hum.Health <= 0 then
-			continue
-		end
-
-		local dist = (root.Position - spawnPos).Magnitude
-		local inRange = dist <= searchRadius
-
-		if not (nameMatch or inRange) then
-			continue
-		end
-
-		local magnet = mob:FindFirstChild("MagnetTransformedRigObject", true)
-		if magnet then
-			return mob, magnet
-		end
-	end
-	return nil, nil
-end
-
-function EventMagnet.getMagnetPart(mob)
-	if not mob then
-		return nil
-	end
-	return mob:FindFirstChild("MagnetTransformedRigObject", true)
-end
-
-function EventMagnet.stopAttack()
-	if EventMagnet.attackConn then
-		EventMagnet.attackConn:Disconnect()
-		EventMagnet.attackConn = nil
-	end
-end
-
-function EventMagnet.startAttackMob(mob)
-	EventMagnet.stopAttack()
-	EventMagnet.currentTarget = mob
-
-	local root = mob:FindFirstChild("HumanoidRootPart")
-	local magnetPart = EventMagnet.getMagnetPart(mob)
-	if not root or not magnetPart then
-		return
-	end
-
-	if State.autoEquipEnabled then
-		G.autoEquipWeapon()
-	end
-
-	EventMagnet.phase = "attacking"
-
-	local mobPos = root.Position
-	local needSky = G.inSkyArea(mobPos)
-	local needUnderwater = G.inUnderwaterArea(mobPos)
-
-	local char = player.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	local playerPos = hrp and hrp.Position
-
-	local needEntry = false
-	local entryRoute = {}
-
-	if needSky and playerPos and not G.inSkyArea(playerPos) then
-		needEntry = true
-		table.insert(entryRoute, G.SKY_GATE)
-		table.insert(entryRoute, CFrame.new(mobPos + Vector3.new(0, State.Y_OFFSET, 8)))
-	elseif needUnderwater and playerPos and not G.inUnderwaterArea(playerPos) then
-		needEntry = true
-		table.insert(entryRoute, G.UNDERWATER_GATE)
-		table.insert(entryRoute, CFrame.new(mobPos + Vector3.new(0, State.Y_OFFSET, 8)))
-	end
-
-	if needEntry then
-		EventMagnet.phase = "moving"
-		Fluent:Notify({
-			Title = "Event Magnet",
-			Content = "Going through gate to reach: " .. (mob.Name or "?"),
-			Duration = 2,
-		})
-
-		G.exitRouteList = entryRoute
-		G.exitRouteIndex = 1
-		G.exitRouteActive = true
-
-		if G.exitRouteConn then
-			G.exitRouteConn:Disconnect()
-			G.exitRouteConn = nil
-		end
-
-		local waitingForWarp = false
-		local warpWaitPos = nil
-		local warpWaitStart = 0
-		local WARP_TRIGGER = 80
-		local WARP_TIMEOUT = 15
-
-		G.exitRouteConn = RunService.Heartbeat:Connect(function(dt)
-			if not G.exitRouteActive then
-				return
-			end
-			if not EventMagnet.enabled then
-				G.stopExitRoute()
-				return
-			end
-
-			local c = player.Character
-			local h = c and c:FindFirstChild("HumanoidRootPart")
-			local hum = c and c:FindFirstChildOfClass("Humanoid")
-			if not h or not hum or hum.Health <= 0 then
-				return
-			end
-
-			if not G.isEnemyAlive(mob) then
-				G.stopExitRoute()
-				EventMagnet.currentTarget = nil
-				EventMagnet.currentSpawnPos = nil
-				EventMagnet.phase = "idle"
-				return
-			end
-
-			if waitingForWarp then
-				local movedDist = (h.Position - warpWaitPos).Magnitude
-				local timedOut = (tick() - warpWaitStart) > WARP_TIMEOUT
-				if movedDist > WARP_TRIGGER or timedOut then
-					waitingForWarp = false
-					warpWaitPos = nil
-					State.currentFlyCF = h.CFrame
-					G.exitRouteIndex = G.exitRouteIndex + 1
-					G.stopMomentum()
-				else
-					pcall(function()
-						h.AssemblyLinearVelocity = Vector3.zero
-						h.AssemblyAngularVelocity = Vector3.zero
-					end)
-					return
-				end
-			end
-
-			if G.exitRouteIndex > #G.exitRouteList then
-				G.stopExitRoute()
-				State.currentFlyCF = h.CFrame
-				Fluent:Notify({
-					Title = "Event Magnet",
-					Content = "Entered area, attacking: " .. (mob.Name or "?"),
-					Duration = 2,
-				})
-				EventMagnet._beginAttackLoop(mob, magnetPart)
-				return
-			end
-
-			local targetCF = G.exitRouteList[G.exitRouteIndex]
-			local currentPos = State.currentFlyCF and State.currentFlyCF.Position or h.Position
-			local dist = (targetCF.Position - currentPos).Magnitude
-
-			if dist > 6 then
-				G.moveToTarget(h, targetCF, dt)
-			else
-				State.currentFlyCF = targetCF
-				pcall(function()
-					h.CFrame = targetCF
-					h.AssemblyLinearVelocity = Vector3.zero
-					h.AssemblyAngularVelocity = Vector3.zero
-				end)
-
-				local isLast = (G.exitRouteIndex >= #G.exitRouteList)
-				if isLast then
-					G.stopExitRoute()
-					State.currentFlyCF = h.CFrame
-					Fluent:Notify({
-						Title = "Event Magnet",
-						Content = "Entered area, attacking: " .. (mob.Name or "?"),
-						Duration = 2,
-					})
-					EventMagnet._beginAttackLoop(mob, magnetPart)
-				else
-					waitingForWarp = true
-					warpWaitPos = targetCF.Position
-					warpWaitStart = tick()
-				end
-			end
-		end)
-	else
-		EventMagnet._beginAttackLoop(mob, magnetPart)
-	end
-end
-
-function EventMagnet._beginAttackLoop(mob, magnetPart)
-	if State.bringMobEnabled then
-		G.updateBringMobs(mob, tick())
-	end
-
-	EventMagnet.phase = "attacking"
-
-	local ATTACK_LOCK_DIST = 20
-
-	EventMagnet.attackConn = RunService.Heartbeat:Connect(function(dt)
-		local char = player.Character
-		local hrp = char and char:FindFirstChild("HumanoidRootPart")
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if not hrp or not hum or hum.Health <= 0 then
-			return
-		end
-
-		if not G.isEnemyAlive(mob) then
-			if EventMagnet.currentSpawnPos then
-				local key = EventMagnet.spawnKey(EventMagnet.currentSpawnPos)
-				EventMagnet.killedSpawns[key] = {
-					name = mob.Name,
-					pos = EventMagnet.currentSpawnPos,
-				}
-			end
-			EventMagnet.currentTarget = nil
-			EventMagnet.currentSpawnPos = nil
-			EventMagnet.phase = "idle"
-			EventMagnet.stopAttack()
-			G.clearBringMobs()
-
-			local currentPos = hrp.Position
-			if G.inSkyArea(currentPos) or G.inUnderwaterArea(currentPos) then
-				G.startExitRoute(function()
-					Fluent:Notify({
-						Title = "Event Magnet",
-						Content = "Killed: " .. (mob.Name or "?") .. " → exited area",
-						Duration = 2,
-					})
-				end)
-			else
-				Fluent:Notify({
-					Title = "Event Magnet",
-					Content = "Killed: " .. (mob.Name or "?") .. " → next spawn",
-					Duration = 2,
-				})
-			end
-			return
-		end
-
-		local magnetTarget = magnetPart
-		if magnetPart and magnetPart:IsA("ObjectValue") then
-			magnetTarget = magnetPart.Value
-		end
-
-		local mobRoot = mob:FindFirstChild("HumanoidRootPart")
-		local magnetCF = nil
-		if magnetTarget and magnetTarget.Parent and magnetTarget:IsA("BasePart") then
-			magnetCF = magnetTarget.CFrame * CFrame.new(0, State.Y_OFFSET, 8)
-		elseif mobRoot then
-			magnetCF = mobRoot.CFrame * CFrame.new(0, State.Y_OFFSET, 8)
-		end
-
-		if not magnetCF then
-			return
-		end
-
-		local distToTarget = (magnetCF.Position - hrp.Position).Magnitude
-
-		if distToTarget > ATTACK_LOCK_DIST then
-			G.moveToTarget(hrp, magnetCF, dt)
-			return
-		end
-
-		pcall(function()
-			hrp.CFrame = magnetCF
-			hrp.AssemblyLinearVelocity = Vector3.zero
-			hrp.AssemblyAngularVelocity = Vector3.zero
-		end)
-
-		if State.bringMobEnabled then
-			G.updateBringMobs(mob, tick())
-		end
-
-		if State.autoEquipEnabled then
-			G.autoEquipWeapon()
-		end
-
-		local currentTool = char:FindFirstChildOfClass("Tool")
-		local isFruit = false
-		if currentTool then
-			local hasLC = currentTool:FindFirstChild("LeftClickRemote", true)
-			if hasLC then
-				isFruit = true
-			end
-			if not isFruit then
-				local tooltip = G.getToolTooltip(currentTool):lower()
-				local toolName = currentTool.Name:lower()
-				if
-					tooltip:find("blox fruit")
-					or tooltip:find("fruit")
-					or toolName:find("fruit")
-					or tooltip:find("devil")
-					or toolName:find("devil")
-				then
-					isFruit = true
-				end
-			end
-		end
-
-		if isFruit then
-			local remote = currentTool and currentTool:FindFirstChild("LeftClickRemote", true)
-			local targetPos = mobRoot and mobRoot.Position
-			if remote and targetPos then
-				local dir = (targetPos - hrp.Position)
-				dir = Vector3.new(dir.X, 0, dir.Z)
-				local mag = dir.Magnitude
-				local direction = mag > 0.01 and (dir / mag) or hrp.CFrame.LookVector
-				for action = 1, 4 do
-					pcall(function()
-						remote:FireServer(direction, action)
-					end)
-				end
-			end
-		else
-			pcall(FastAttackModule.ExecuteFastAttack)
-			pcall(G.HitRegistrationModule.Execute)
-		end
-	end)
-end
-
-function EventMagnet.stop()
-	EventMagnet.enabled = false
-	EventMagnet.phase = "idle"
-	EventMagnet.currentTarget = nil
-	EventMagnet.currentSpawnPos = nil
-	EventMagnet.stopAttack()
-	G.clearBringMobs()
-	G.cancelTween()
-	if EventMagnet.conn then
-		EventMagnet.conn:Disconnect()
-		EventMagnet.conn = nil
-	end
-end
-
-function EventMagnet.start()
-	EventMagnet.stop()
-	EventMagnet.enabled = true
-	EventMagnet.phase = "idle"
-
-	EventMagnet.conn = RunService.Heartbeat:Connect(function(dt)
-		if not EventMagnet.enabled then
-			EventMagnet.stop()
-			return
-		end
-
-		local char = player.Character
-		local hrp = char and char:FindFirstChild("HumanoidRootPart")
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-
-		local nowMin = tonumber(os.date("%M")) or 0
-
-		if nowMin >= 11 then
-			if not EventMagnet.memCleared then
-				EventMagnet.killedSpawns = {}
-				EventMagnet.memCleared = true
-				EventMagnet.currentTarget = nil
-				EventMagnet.currentSpawnPos = nil
-				EventMagnet.phase = "idle"
-				EventMagnet.stopAttack()
-				G.clearBringMobs()
-				G.cancelTween()
-				Fluent:Notify({
-					Title = "Event Magnet",
-					Content = "Memory cleared - waiting for next :00",
-					Duration = 3,
-				})
-			end
-			return
-		end
-
-		if nowMin < 11 then
-			EventMagnet.memCleared = false
-		end
-
-		if not EventMagnet.isEventTime() then
-			if EventMagnet.phase == "attacking" then
-				EventMagnet.stopAttack()
-				G.clearBringMobs()
-				EventMagnet.phase = "idle"
-			end
-			return
-		end
-
-		if EventMagnet.phase == "attacking" then
-			return
-		end
-
-		if not hrp or not hum or hum.Health <= 0 then
-			return
-		end
-
-		local pending = EventMagnet.getPendingSpawns()
-		if #pending == 0 then
-			return
-		end
-
-		table.sort(pending, function(a, b)
-			return (a.pos - hrp.Position).Magnitude < (b.pos - hrp.Position).Magnitude
-		end)
-
-		local target = pending[1]
-		if not target then
-			return
-		end
-
-		local distToSpawn = (target.pos - hrp.Position).Magnitude
-
-		if EventMagnet.phase == "idle" then
-			EventMagnet.currentSpawnPos = target.pos
-			EventMagnet.phase = "moving"
-			EventMagnet._currentTargetName = target.name
-			State.currentFlyCF = hrp.CFrame
-
-			Fluent:Notify({
-				Title = "Event Magnet",
-				Content = "Moving to spawn: " .. target.name,
-				Duration = 2,
-			})
-		end
-
-		if EventMagnet.phase == "moving" then
-			if distToSpawn > 15 then
-				G.moveToTarget(hrp, CFrame.new(target.pos + Vector3.new(0, 5, 0)), dt)
-				return
-			end
-
-			EventMagnet.phase = "waiting"
-			EventMagnet._currentTargetName = target.name
-			EventMagnet.waitStartTime = tick()
-			Fluent:Notify({
-				Title = "Event Magnet",
-				Content = "Waiting for mob: " .. target.name,
-				Duration = 2,
-			})
-		end
-
-		if EventMagnet.phase == "waiting" then
-			local mob, magnetPart = EventMagnet.findMagnetMob(target.name, target.pos)
-
-			if mob and magnetPart then
-				EventMagnet.currentSpawnPos = target.pos
-				EventMagnet.startAttackMob(mob)
-			else
-				local waited = tick() - (EventMagnet.waitStartTime or tick())
-
-				if waited >= EventMagnet.WAIT_MOB_TIMEOUT then
-					local allSpawns = EventMagnet.getPendingSpawns()
-					for _, sp in ipairs(allSpawns) do
-						if G.normalizeMobName(sp.name) == G.normalizeMobName(target.name) then
-							EventMagnet.killedSpawns[sp.key] = { name = sp.name, pos = sp.pos }
-						end
-					end
-					EventMagnet.currentSpawnPos = nil
-					EventMagnet.phase = "idle"
-					Fluent:Notify({
-						Title = "Event Magnet",
-						Content = "No magnet: " .. target.name .. " - skip all spawns of this mob",
-						Duration = 2,
-					})
-				else
-					pcall(function()
-						hrp.CFrame = CFrame.new(target.pos + Vector3.new(0, 8, 0))
-						hrp.AssemblyLinearVelocity = Vector3.zero
-						hrp.AssemblyAngularVelocity = Vector3.zero
-					end)
-				end
-			end
-		end
-	end)
-end
-
-Tabs.Event:AddToggle("EventMagnetToggle", {
-	Title = "Auto Event Magnet",
-	Default = false,
-	Callback = function(value)
-		if value then
-			EventMagnet.start()
-			Fluent:Notify({
-				Title = "Event Magnet",
-				Content = "Enabled - will activate at **:00",
-				Duration = 3,
-			})
-		else
-			EventMagnet.stop()
-			Fluent:Notify({
-				Title = "Event Magnet",
-				Content = "Disabled",
-				Duration = 2,
-			})
-		end
-	end,
-})
-
-local EventStatusParagraph = Tabs.Event:AddParagraph({
-	Title = "Status",
-	Content = "Idle",
-})
-
-task.spawn(function()
-	while task.wait(1) do
-		if not EventMagnet.enabled then
-			EventStatusParagraph:SetDesc("Disabled")
-			continue
-		end
-
-		local nowHour = tonumber(os.date("%H")) or 0
-		local nowMin = tonumber(os.date("%M")) or 0
-		local nowSec = tonumber(os.date("%S")) or 0
-		local killed = 0
-		for _ in pairs(EventMagnet.killedSpawns) do
-			killed = killed + 1
-		end
-
-		local timeStatus
-		if nowMin >= 11 then
-			local secToNext = (60 - nowSec) + (59 - nowMin) * 60
-			timeStatus = string.format(
-				"Waiting %02d:%02d:%02d (next event in %dm %ds)",
-				nowHour,
-				nowMin,
-				nowSec,
-				math.floor(secToNext / 60),
-				secToNext % 60
-			)
-		elseif nowMin == 10 then
-			timeStatus = string.format("Event ended %02d:%02d:%02d - waiting for :11", nowHour, nowMin, nowSec)
-		else
-			local secLeft = (9 - nowMin) * 60 + (60 - nowSec)
-			timeStatus = string.format(
-				"ACTIVE %02d:%02d:%02d (ends in %dm %ds)",
-				nowHour,
-				nowMin,
-				nowSec,
-				math.floor(secLeft / 60),
-				secLeft % 60
-			)
-		end
-
-		local mobName = EventMagnet.currentTarget and EventMagnet.currentTarget.Name
-			or (EventMagnet.currentSpawnPos and EventMagnet._currentTargetName)
-			or "?"
-
-		local phaseDesc
-		if EventMagnet.phase == "idle" then
-			phaseDesc = "Idle / searching next spawn"
-		elseif EventMagnet.phase == "moving" then
-			phaseDesc = string.format(
-				"Moving to: [%s]  pos(%.0f, %.0f, %.0f)",
-				EventMagnet._currentTargetName or "?",
-				EventMagnet.currentSpawnPos and EventMagnet.currentSpawnPos.X or 0,
-				EventMagnet.currentSpawnPos and EventMagnet.currentSpawnPos.Y or 0,
-				EventMagnet.currentSpawnPos and EventMagnet.currentSpawnPos.Z or 0
-			)
-		elseif EventMagnet.phase == "waiting" then
-			local waited = tick() - (EventMagnet.waitStartTime or tick())
-			phaseDesc = string.format(
-				"Waiting for [%s] to spawn... (%.0fs / %ds)",
-				EventMagnet._currentTargetName or "?",
-				waited,
-				EventMagnet.WAIT_MOB_TIMEOUT
-			)
-		elseif EventMagnet.phase == "attacking" then
-			phaseDesc = "Attacking: [" .. (EventMagnet.currentTarget and EventMagnet.currentTarget.Name or "?") .. "]"
-		else
-			phaseDesc = EventMagnet.phase
-		end
-
-		local desc = string.format("Time: %s\nPhase: %s\nKilled: %d spawns", timeStatus, phaseDesc, killed)
-		EventStatusParagraph:SetDesc(desc)
-
-		if EventMagnet.phase ~= "idle" and EventMagnet.enabled then
-			Fluent:Notify({
-				Title = "Event Magnet",
-				Content = phaseDesc,
-				Duration = 1,
-			})
-		end
-	end
-end)
 
 G.addonPlayers = game:GetService("Players")
 G.addonRep = game:GetService("ReplicatedStorage")
@@ -4720,10 +5624,15 @@ Tabs.LocalPlayer:AddToggle("AutoObservationToggle", {
 	end,
 })
 task.spawn(function()
-	while task.wait(0.2) do
+	while task.wait(0.1) do
 		if _G.AutoObservation then
 			pcall(function()
-				replicated.Remotes.CommE:FireServer("Ken", true)
+				local dodgesLabel = game:GetService("Players").LocalPlayer.PlayerGui.Main.BottomHUDList.UniversalContextButtons.BoundActionKen.DodgesLeftLabel
+				if not dodgesLabel.Visible then
+					game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.E, false, game)
+					task.wait(0.05)
+					game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.E, false, game)
+				end
 			end)
 		end
 	end
@@ -4736,18 +5645,56 @@ Tabs.LocalPlayer:AddToggle("AutoRaceV3Toggle", {
 		_G.RaceClickAutov3 = Value
 	end,
 })
+function sendKey(keyName)
+	local key = Enum.KeyCode[keyName]
+	if not key then
+		return
+	end
+	local vim = game:GetService("VirtualInputManager")
+	vim:SendKeyEvent(true, key, false, game)
+	task.wait(0.06)
+	vim:SendKeyEvent(false, key, false, game)
+end
+
+function getRaceCooldownGui()
+	local LP = game:GetService("Players").LocalPlayer
+	local gui = LP:FindFirstChild("PlayerGui")
+	local node = gui
+	for _, name in ipairs({ "Main", "BottomHUDList", "UniversalContextButtons", "BoundActionRaceAbility", "Cooldown" }) do
+		if not node then
+			return nil
+		end
+		node = node:FindFirstChild(name)
+	end
+	return node
+end
+
 task.spawn(function()
-	while task.wait(0.5) do
+	while task.wait(0.1) do
 		if _G.RaceClickAutov3 then
 			pcall(function()
-				replicated.Remotes.CommE:FireServer("ActivateAbility")
-			end)
-			for _ = 1, 60 do
-				if not _G.RaceClickAutov3 then
-					break
+				local LP = game:GetService("Players").LocalPlayer
+				local gui = LP:FindFirstChild("PlayerGui")
+				local gradient = gui
+					and gui:FindFirstChild("Main")
+					and gui.Main:FindFirstChild("BottomHUDList")
+					and gui.Main.BottomHUDList:FindFirstChild("UniversalContextButtons")
+					and gui.Main.BottomHUDList.UniversalContextButtons:FindFirstChild("BoundActionRaceAbility")
+					and gui.Main.BottomHUDList.UniversalContextButtons.BoundActionRaceAbility:FindFirstChild("Cooldown")
+					and gui.Main.BottomHUDList.UniversalContextButtons.BoundActionRaceAbility.Cooldown:FindFirstChild("Frame1")
+					and gui.Main.BottomHUDList.UniversalContextButtons.BoundActionRaceAbility.Cooldown.Frame1:FindFirstChild("Frame")
+					and gui.Main.BottomHUDList.UniversalContextButtons.BoundActionRaceAbility.Cooldown.Frame1.Frame:FindFirstChild("UIGradient")
+
+				if (not gradient) or (gradient.Rotation == 180) then
+					local remotes = replicated and replicated:FindFirstChild("Remotes")
+					local commE = remotes and remotes:FindFirstChild("CommE")
+					if commE then
+						commE:FireServer("ActivateAbility")
+					else
+						sendKey("T")
+					end
 				end
-				task.wait(0.5)
-			end
+			end)
 		end
 	end
 end)
@@ -4763,9 +5710,29 @@ task.spawn(function()
 	while task.wait(0.3) do
 		if _G.RaceClickAutov4 then
 			pcall(function()
-				local energy = plr.Character and plr.Character:FindFirstChild("RaceEnergy")
-				if energy and energy.Value == 1 then
-					pressKey("Y")
+				local LP = game:GetService("Players").LocalPlayer
+				local char = LP.Character
+				if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then
+					return
+				end
+
+				local data = LP:FindFirstChild("Data")
+				local race = data and data:FindFirstChild("Race")
+
+				if race and race.Value == "Draco" then
+					local backpack = LP:FindFirstChild("Backpack")
+					local awakening = (backpack and backpack:FindFirstChild("Awakening")) or char:FindFirstChild("Awakening")
+					local remote = awakening and awakening:FindFirstChild("RemoteFunction")
+					if remote then
+						remote:InvokeServer(true)
+					else
+						sendKey("Y")
+					end
+				else
+					local energy = char:FindFirstChild("RaceEnergy")
+					if (not energy) or energy.Value >= 1 then
+						sendKey("Y")
+					end
 				end
 			end)
 		end
@@ -5823,8 +6790,303 @@ Tabs.Esp:AddToggle("EspAdvancedDealerToggle", {
 	end,
 })
 
-P(Tabs.Info, "Information", "Server / island / boss status")
-TimeZone = P(Tabs.Info, "Time Zone", "")
+--  PVP MODULE
+local PVP = {
+    enabled      = false,
+    spectating   = false,
+    targetPlayer = nil,
+    conn         = nil,
+    spectateConn = nil,
+    Y_OFFSET     = 5,
+}
+
+function PVP.getPlayerList()
+    local list = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            table.insert(list, p.Name)
+        end
+    end
+    if #list == 0 then table.insert(list, "(No players)") end
+    return list
+end
+
+function PVP.getTargetHRP()
+    local p = PVP.targetPlayer
+    if not p or not p.Character then return nil end
+    return p.Character:FindFirstChild("HumanoidRootPart")
+end
+
+-- Stop go-to-player
+function PVP.stopGoto()
+    PVP.enabled = false
+    if PVP.conn then PVP.conn:Disconnect(); PVP.conn = nil end
+
+    -- cleanup movers
+    local c = player.Character
+    local r = c and c:FindFirstChild("HumanoidRootPart")
+    if r then
+        local ag = r:FindFirstChild("PVP_AntiGrav")
+        if ag then ag:Destroy() end
+        local bg = r:FindFirstChild("PVP_BodyGyro")
+        if bg then bg:Destroy() end
+        pcall(function()
+            r.AssemblyLinearVelocity  = Vector3.zero
+            r.AssemblyAngularVelocity = Vector3.zero
+        end)
+    end
+    local h = c and c:FindFirstChildOfClass("Humanoid")
+    if h then h.AutoRotate = true end
+
+    State.currentFlyCF = nil
+    G.stopMomentum()
+end
+
+-- Stop spectate
+function PVP.stopSpectate()
+    PVP.spectating = false
+    if PVP.spectateConn then
+        PVP.spectateConn:Disconnect()
+        PVP.spectateConn = nil
+    end
+    pcall(function()
+        local cam = workspace.CurrentCamera
+        cam.CameraSubject = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        cam.CameraType    = Enum.CameraType.Follow
+    end)
+end
+
+-- Go to player loop
+function PVP.startGoto()
+    PVP.stopGoto()
+    if not PVP.targetPlayer then
+        Fluent:Notify({ Title = "PVP", Content = "Select a player first", Duration = 2 })
+        return
+    end
+
+    PVP.enabled = true
+
+    local c = player.Character
+    local r = c and c:FindFirstChild("HumanoidRootPart")
+    if r then State.currentFlyCF = r.CFrame end
+
+    local function getOrCreateMovers(root)
+        local ag = root:FindFirstChild("PVP_AntiGrav")
+        if not ag then
+            ag = Instance.new("BodyForce")
+            ag.Name = "PVP_AntiGrav"
+            ag.Parent = root
+        end
+        ag.Force = Vector3.new(0, root.AssemblyMass * workspace.Gravity, 0)
+
+        local bg = root:FindFirstChild("PVP_BodyGyro")
+        if not bg then
+            bg = Instance.new("BodyGyro")
+            bg.Name   = "PVP_BodyGyro"
+            bg.MaxTorque = Vector3.zero
+            bg.P      = 50000
+            bg.D      = 1500
+            bg.Parent = root
+        end
+        return ag, bg
+    end
+
+    PVP.conn = RunService.Heartbeat:Connect(function(dt)
+        if not PVP.enabled then
+            PVP.stopGoto()
+            return
+        end
+
+        local myChar = player.Character
+        local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        local myHum  = myChar and myChar:FindFirstChildOfClass("Humanoid")
+        if not myHRP or not myHum or myHum.Health <= 0 then return end
+
+        local antiGrav, bodyGyro = getOrCreateMovers(myHRP)
+        antiGrav.Force = Vector3.new(0, myHRP.AssemblyMass * workspace.Gravity, 0)
+
+        -- noclip
+        for _, part in ipairs(myChar:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+
+        myHRP.AssemblyLinearVelocity  = Vector3.zero
+        myHRP.AssemblyAngularVelocity = Vector3.zero
+
+        local tgtHRP = PVP.getTargetHRP()
+        if not tgtHRP then
+            -- target not loaded, hold position
+            G.fsHoldPosition(myHRP)
+            return
+        end
+
+        local targetCF = tgtHRP.CFrame * CFrame.new(0, PVP.Y_OFFSET, 6)
+        local currentPos = State.currentFlyCF and State.currentFlyCF.Position or myHRP.Position
+        local dist = (targetCF.Position - currentPos).Magnitude
+
+        if dist > 8 then
+            G.moveToTarget(myHRP, targetCF, dt)
+        else
+            -- snapped to target, hold CFrame
+            State.currentFlyCF = targetCF
+            pcall(function()
+                myHRP.CFrame                  = targetCF
+                myHRP.AssemblyLinearVelocity  = Vector3.zero
+                myHRP.AssemblyAngularVelocity = Vector3.zero
+            end)
+
+            -- face target
+            bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            bodyGyro.CFrame    = CFrame.new(myHRP.Position, tgtHRP.Position)
+            myHum.AutoRotate   = false
+        end
+    end)
+end
+
+-- Spectate loop
+function PVP.startSpectate()
+    PVP.stopSpectate()
+    if not PVP.targetPlayer then
+        Fluent:Notify({ Title = "Spectate", Content = "Select a player first", Duration = 2 })
+        return
+    end
+
+    PVP.spectating = true
+
+    PVP.spectateConn = RunService.RenderStepped:Connect(function()
+        if not PVP.spectating then
+            PVP.stopSpectate()
+            return
+        end
+
+        local tgtChar = PVP.targetPlayer and PVP.targetPlayer.Character
+        local tgtHum  = tgtChar and tgtChar:FindFirstChildOfClass("Humanoid")
+        local cam     = workspace.CurrentCamera
+
+        if tgtHum then
+            cam.CameraSubject = tgtHum
+            cam.CameraType    = Enum.CameraType.Follow
+        else
+            cam.CameraSubject = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+            cam.CameraType    = Enum.CameraType.Follow
+        end
+    end)
+end
+
+--  PVP UI
+local pvpPlayerList = PVP.getPlayerList()
+
+local PvpPlayerDropdown
+PvpPlayerDropdown = Tabs.Pvp:AddDropdown("PvpPlayerDropdown", {
+    Title    = "Select Player",
+    Values   = pvpPlayerList,
+    Multi    = false,
+    Default  = 1,
+    Callback = function(value)
+        PVP.targetPlayer = nil
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name == value then
+                PVP.targetPlayer = p
+                break
+            end
+        end
+        Fluent:Notify({ Title = "PVP", Content = "Target: " .. tostring(value), Duration = 2 })
+    end,
+})
+
+Tabs.Pvp:AddButton({
+    Title    = "Refresh Player List",
+    Callback = function()
+        local newList = PVP.getPlayerList()
+        pvpPlayerList  = newList
+        pcall(function()
+            if PvpPlayerDropdown and PvpPlayerDropdown.SetValues then
+                PvpPlayerDropdown:SetValues(newList)
+            end
+        end)
+        Fluent:Notify({ Title = "PVP", Content = "Refreshed: " .. #newList .. " players", Duration = 2 })
+    end,
+})
+
+local GotoPlayerToggle
+GotoPlayerToggle = Tabs.Pvp:AddToggle("GotoPlayerToggle", {
+    Title       = "Go to Player",
+    Description = "",
+    Default     = false,
+    Callback    = function(value)
+        if value then
+            local currentVal = PvpPlayerDropdown and PvpPlayerDropdown.Value
+            if currentVal and currentVal ~= "(No players)" then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p.Name == currentVal then
+                        PVP.targetPlayer = p
+                        break
+                    end
+                end
+            end
+
+            if not PVP.targetPlayer then
+                Fluent:Notify({ Title = "PVP", Content = "Selected player not found", Duration = 2 })
+                pcall(function() GotoPlayerToggle:SetValue(false) end)
+                return
+            end
+
+            PVP.startGoto()
+            Fluent:Notify({ Title = "Go to Player", Content = "Chasing: " .. PVP.targetPlayer.Name, Duration = 2 })
+        else
+            PVP.stopGoto()
+            Fluent:Notify({ Title = "Go to Player", Content = "Stopped", Duration = 2 })
+        end
+    end,
+})
+
+local SpectateToggle
+SpectateToggle = Tabs.PvpSpectate:AddToggle("SpectateToggle", {
+    Title       = "Spectate Player",
+    Description = "",
+    Default     = false,
+    Callback    = function(value)
+        if value then
+            local currentVal = PvpPlayerDropdown and PvpPlayerDropdown.Value
+            if currentVal and currentVal ~= "(No players)" then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p.Name == currentVal then
+                        PVP.targetPlayer = p
+                        break
+                    end
+                end
+            end
+
+            if not PVP.targetPlayer then
+                Fluent:Notify({ Title = "Spectate", Content = "Selected player not found", Duration = 2 })
+                pcall(function() SpectateToggle:SetValue(false) end)
+                return
+            end
+
+            PVP.startSpectate()
+            Fluent:Notify({ Title = "Spectate", Content = "Spectating: " .. PVP.targetPlayer.Name, Duration = 2 })
+        else
+            PVP.stopSpectate()
+            Fluent:Notify({ Title = "Spectate", Content = "Stopped", Duration = 2 })
+        end
+    end,
+})
+
+-- Auto stop if target leave
+Players.PlayerRemoving:Connect(function(p)
+    if p == PVP.targetPlayer then
+        PVP.stopGoto()
+        PVP.stopSpectate()
+        PVP.targetPlayer = nil
+        pcall(function() GotoPlayerToggle:SetValue(false) end)
+        pcall(function() SpectateToggle:SetValue(false) end)
+        Fluent:Notify({ Title = "PVP", Content = p.Name .. " left the game", Duration = 3 })
+    end
+end)
+
+-- SECTION: Server & Time 
+
+TimeZone = P(Tabs.InfoServer, "Time Zone", "Your local date, time and region code.")
 
 function UpdateOS()
 	local date = os.date("*t")
@@ -5861,7 +7123,7 @@ spawn(function()
 	end
 end)
 
-GameTime = P(Tabs.Info, "Game Time", "")
+GameTime = P(Tabs.InfoServer, "Game Time", "Server uptime (how long this server has been alive).")
 
 function UpdateGameTime()
 	local GameTimeValue = math.floor(workspace.DistributedGameTime + 0.5)
@@ -5878,7 +7140,93 @@ spawn(function()
 	end
 end)
 
-AwakenBossCheck = P(Tabs.Info, "Awaken Boss", "Status: Checking...")
+FullMoonCheck = P(Tabs.InfoServer, "Full Moon", "Moon phase 0/5 - 5/5. Full Moon is needed for some fruits and items.")
+
+task.spawn(function()
+	while task.wait(1) do
+		local moonTextureId = game:GetService("Lighting").Sky.MoonTextureId
+		local moonStatus = "Moon: 0/5"
+
+		if moonTextureId == "http://www.roblox.com/asset/?id=9709149431" then
+			moonStatus = "Moon: 5/5 (Full Moon)"
+		elseif moonTextureId == "http://www.roblox.com/asset/?id=9709149052" then
+			moonStatus = "Moon: 4/5"
+		elseif moonTextureId == "http://www.roblox.com/asset/?id=9709148705" then
+			moonStatus = "Moon: 3/5"
+		elseif moonTextureId == "http://www.roblox.com/asset/?id=9709148386" then
+			moonStatus = "Moon: 2/5"
+		elseif moonTextureId == "http://www.roblox.com/asset/?id=9709147983" then
+			moonStatus = "Moon: 1/5"
+		end
+
+		FullMoonCheck:SetDesc(moonStatus)
+	end
+end)
+
+-- SECTION: Island Spawn Check
+
+MirageCheck = P(Tabs.InfoIsland, "Mirage Island", "Random island used for Mystic Droplet and Full Moon items.")
+
+G.previousMirageStatus = ""
+spawn(function()
+	pcall(function()
+		while true do
+			task.wait(1)
+			local mirageIslandExists = game.Workspace._WorldOrigin.Locations:FindFirstChild("Mirage Island") ~= nil
+			local currentStatus = mirageIslandExists and "Spawned" or "Not Found"
+			if currentStatus ~= G.previousMirageStatus then
+				MirageCheck:SetDesc("Status: " .. currentStatus)
+				G.previousMirageStatus = currentStatus
+			end
+		end
+	end)
+end)
+
+KitsuneCheck = P(Tabs.InfoIsland, "Kitsune Island", "Rare island where Kitsune fruit and Kitsune quests spawn.")
+
+G.previousKitsuneStatus = ""
+spawn(function()
+	while task.wait(1) do
+		local currentStatus = game:GetService("Workspace").Map:FindFirstChild("KitsuneIsland") and "Spawned"
+			or "Not Found"
+		if currentStatus ~= G.previousKitsuneStatus then
+			KitsuneCheck:SetDesc("Status: " .. currentStatus)
+			G.previousKitsuneStatus = currentStatus
+		end
+	end
+end)
+
+PrehistoricCheck = P(Tabs.InfoIsland, "Prehistoric Island", "Third Sea island with dinosaurs and Primal Egg drops.")
+
+G.previousPrehistoricStatus = ""
+task.spawn(function()
+	while task.wait(1) do
+		local currentStatus = game.Workspace._WorldOrigin.Locations:FindFirstChild("Prehistoric Island") and "Spawned"
+			or "Not Found"
+		if currentStatus ~= G.previousPrehistoricStatus then
+			PrehistoricCheck:SetDesc("Status: " .. currentStatus)
+			G.previousPrehistoricStatus = currentStatus
+		end
+	end
+end)
+
+FrozenCheck = P(Tabs.InfoIsland, "Frozen Dimension", "Limited dimension used for the Winter / Ice related farm.")
+
+G.previousFrozenStatus = ""
+spawn(function()
+	while task.wait(1) do
+		local currentStatus = game.Workspace._WorldOrigin.Locations:FindFirstChild("Frozen Dimension") and "Spawned"
+			or "Not Found"
+		if currentStatus ~= G.previousFrozenStatus then
+			FrozenCheck:SetDesc("Status: " .. currentStatus)
+			G.previousFrozenStatus = currentStatus
+		end
+	end
+end)
+
+-- SECTION: Boss & Raid Check
+
+AwakenBossCheck = P(Tabs.InfoBoss, "Awaken Boss", "Status: Checking...\nNext raid hint from the server (boss name + island).")
 
 G.previousAwakenBossState = ""
 task.spawn(function()
@@ -5918,66 +7266,7 @@ task.spawn(function()
 	end
 end)
 
-MirageCheck = P(Tabs.Info, "Mirage Island", "Status: Not Found")
-
-G.previousMirageStatus = ""
-spawn(function()
-	pcall(function()
-		while true do
-			task.wait(1)
-			local mirageIslandExists = game.Workspace._WorldOrigin.Locations:FindFirstChild("Mirage Island") ~= nil
-			local currentStatus = mirageIslandExists and "Spawned" or "Not Found"
-			if currentStatus ~= G.previousMirageStatus then
-				MirageCheck:SetDesc("Status: " .. currentStatus)
-				G.previousMirageStatus = currentStatus
-			end
-		end
-	end)
-end)
-
-KitsuneCheck = P(Tabs.Info, "Kitsune Island", "Status: Not Found")
-
-G.previousKitsuneStatus = ""
-spawn(function()
-	while task.wait(1) do
-		local currentStatus = game:GetService("Workspace").Map:FindFirstChild("KitsuneIsland") and "Spawned"
-			or "Not Found"
-		if currentStatus ~= G.previousKitsuneStatus then
-			KitsuneCheck:SetDesc("Status: " .. currentStatus)
-			G.previousKitsuneStatus = currentStatus
-		end
-	end
-end)
-
-PrehistoricCheck = P(Tabs.Info, "Prehistoric Island", "Status: Not Found")
-
-G.previousPrehistoricStatus = ""
-task.spawn(function()
-	while task.wait(1) do
-		local currentStatus = game.Workspace._WorldOrigin.Locations:FindFirstChild("Prehistoric Island") and "Spawned"
-			or "Not Found"
-		if currentStatus ~= G.previousPrehistoricStatus then
-			PrehistoricCheck:SetDesc("Status: " .. currentStatus)
-			G.previousPrehistoricStatus = currentStatus
-		end
-	end
-end)
-
-FrozenCheck = P(Tabs.Info, "Frozen Dimension", "Status: Not Found")
-
-G.previousFrozenStatus = ""
-spawn(function()
-	while task.wait(1) do
-		local currentStatus = game.Workspace._WorldOrigin.Locations:FindFirstChild("Frozen Dimension") and "Spawned"
-			or "Not Found"
-		if currentStatus ~= G.previousFrozenStatus then
-			FrozenCheck:SetDesc("Status: " .. currentStatus)
-			G.previousFrozenStatus = currentStatus
-		end
-	end
-end)
-
-CakePrinceStatus = P(Tabs.Info, "Cake Prince", "Status: Checking")
+CakePrinceStatus = P(Tabs.InfoBoss, "Cake Prince", "Cake Prince door progress. Needs 150 Cake Guard kills to open.")
 
 spawn(function()
 	while task.wait(1) do
@@ -5991,7 +7280,7 @@ spawn(function()
 	end
 end)
 
-RipIndraCheck = P(Tabs.Info, "Rip Indra", "Status: Not Spawned")
+RipIndraCheck = P(Tabs.InfoBoss, "Rip Indra", "True Form raid boss in Third Sea. Spawned = he is alive in this server.")
 
 G.previousRipStatus = ""
 spawn(function()
@@ -6009,7 +7298,7 @@ spawn(function()
 	end
 end)
 
-DoughKingCheck = P(Tabs.Info, "Dough King", "Status: Not Spawned")
+DoughKingCheck = P(Tabs.InfoBoss, "Dough King", "Dough raid boss. Spawned = he is alive in this server.")
 
 G.previousDoughStatus = ""
 spawn(function()
@@ -6027,29 +7316,39 @@ spawn(function()
 	end
 end)
 
-FullMoonCheck = P(Tabs.Info, "Full Moon", "")
+-- SECTION: Tyrant Sky - Eye Check
+TyrantEyeCheck = P(Tabs.InfoTyrant, "Eye Check", "Eyes: Checking...")
+
+G.previousEyeSummary = ""
 
 task.spawn(function()
 	while task.wait(1) do
-		local moonTextureId = game:GetService("Lighting").Sky.MoonTextureId
-		local moonStatus = "Moon: 0/5"
+		pcall(function()
+			local eyes = {}
+			if TyrantSky and TyrantSky.getEyes then
+				eyes = TyrantSky.getEyes()
+			end
 
-		if moonTextureId == "http://www.roblox.com/asset/?id=9709149431" then
-			moonStatus = "Moon: 5/5 (Full Moon)"
-		elseif moonTextureId == "http://www.roblox.com/asset/?id=9709149052" then
-			moonStatus = "Moon: 4/5"
-		elseif moonTextureId == "http://www.roblox.com/asset/?id=9709148705" then
-			moonStatus = "Moon: 3/5"
-		elseif moonTextureId == "http://www.roblox.com/asset/?id=9709148386" then
-			moonStatus = "Moon: 2/5"
-		elseif moonTextureId == "http://www.roblox.com/asset/?id=9709147983" then
-			moonStatus = "Moon: 1/5"
-		end
+			local lit = 0
+			for index = 1, 4 do
+				local eye = eyes[index]
+				if eye and eye.Parent and eye:IsA("BasePart") and eye.Transparency < 0.5 then
+					lit += 1
+				end
+			end
 
-		FullMoonCheck:SetDesc(moonStatus)
+			local summary = "Eyes: " .. lit .. "/4"
+			if summary ~= G.previousEyeSummary then
+				TyrantEyeCheck:SetDesc(summary)
+				G.previousEyeSummary = summary
+			end
+		end)
 	end
 end)
-LegendarySwordCheck = P(Tabs.Info, "Legendary Sword", "Status: ")
+
+-- SECTION: Items & Dealer
+
+LegendarySwordCheck = P(Tabs.InfoItem, "Legendary Sword", "Which legendary sword the dealer is selling right now.")
 
 spawn(function()
 	while wait(1) do
@@ -6067,7 +7366,7 @@ spawn(function()
 	end
 end)
 
-BoneCount = P(Tabs.Info, "Bone", "")
+BoneCount = P(Tabs.InfoItem, "Bone", "Bones you own, used for Soul Guitar and Cursed Dual Katana.")
 
 spawn(function()
 	while wait(1) do
@@ -6075,6 +7374,7 @@ spawn(function()
 		BoneCount:SetDesc("You Have: " .. tostring(bones) .. " Bones")
 	end
 end)
+
 
 local Stats = game:GetService("Stats")
 
@@ -6349,7 +7649,7 @@ function G.CreateFpsCounter()
 
 	local Frame = Instance.new("Frame")
 	Frame.Parent = FpsCounter
-	Frame.Size = UDim2.new(0, 420, 0, 45)
+	Frame.Size = UDim2.new(0, 530, 0, 45)
 	Frame.Position = UDim2.new(0, 300, 0, 10)
 	Frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	Frame.BackgroundTransparency = 0.85
@@ -6496,6 +7796,26 @@ function G.CreateFpsCounter()
 	ClockLabelGrad.Parent = ClockLabel
 	table.insert(LabelGradients, ClockLabelGrad)
 
+    local SpeedLabel = Instance.new("TextLabel")
+    SpeedLabel.Parent = Frame
+    SpeedLabel.Size = UDim2.new(0, 105, 1, -10)
+    SpeedLabel.Position = UDim2.new(0, 418, 0, 5)
+    SpeedLabel.BackgroundTransparency = 1
+    SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SpeedLabel.Font = Enum.Font.GothamBlack
+    SpeedLabel.TextSize = 13
+    SpeedLabel.TextXAlignment = Enum.TextXAlignment.Center
+    SpeedLabel.TextYAlignment = Enum.TextYAlignment.Center
+    SpeedLabel.Text = "0 st/s | 0 km/h"
+    SpeedLabel.ZIndex = -7
+    SpeedLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    SpeedLabel.TextStrokeTransparency = 0.3
+    local SpeedLabelGrad = Instance.new("UIGradient")
+    SpeedLabelGrad.Color = Grad.Stroke
+    SpeedLabelGrad.Rotation = 0
+    SpeedLabelGrad.Parent = SpeedLabel
+    table.insert(LabelGradients, SpeedLabelGrad)
+
 	local DividerFrames = {}
 	local DividerGradients = {}
 
@@ -6547,6 +7867,21 @@ function G.CreateFpsCounter()
 	table.insert(DividerFrames, Divider3)
 	table.insert(DividerGradients, DividerGradient3)
 
+    local Divider4 = Instance.new("Frame")
+    Divider4.Parent = Frame
+    Divider4.Size = UDim2.new(0, 1, 0.6, 0)
+    Divider4.Position = UDim2.new(0, 413, 0.2, 0)
+    Divider4.BackgroundColor3 = StrokeColor3
+    Divider4.BackgroundTransparency = 0
+    Divider4.BorderSizePixel = 0
+    Divider4.ZIndex = -7
+    local DividerGradient4 = Instance.new("UIGradient")
+    DividerGradient4.Color = Grad.Stroke
+    DividerGradient4.Rotation = 0
+    DividerGradient4.Parent = Divider4
+    table.insert(DividerFrames, Divider4)
+    table.insert(DividerGradients, DividerGradient4)
+
 	G.SetupFpsAnimations(
 		Frame,
 		Gradient,
@@ -6574,7 +7909,10 @@ function G.CreateFpsCounter()
 	GlowCorner.Parent = Glow
 
 	G.MakeDraggableFps(Frame, Frame, false, Fluent)
-
+    local LastPos = nil
+    local LastPosTime = tick()
+    local CurrentSpeedStuds = 0
+    local LastSpeedUpdate = 0 
 	local LastUpdateTime = tick()
 	local FrameCount = 0
 
@@ -6582,6 +7920,23 @@ function G.CreateFpsCounter()
 		FrameCount = FrameCount + 1
 		local Now = tick()
 		local Dt = Now - LastUpdateTime
+
+		pcall(function()
+			local char = game:GetService("Players").LocalPlayer.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				local nowPos = hrp.Position
+				local nowTime = tick()
+				if LastPos then
+					local dt2 = nowTime - LastPosTime
+					if dt2 > 0 then
+						CurrentSpeedStuds = (nowPos - LastPos).Magnitude / dt2
+					end
+				end
+				LastPos = nowPos
+				LastPosTime = nowTime
+			end
+		end)
 
 		if Dt >= 1 then
 			local Fps = math.round(FrameCount / Dt)
@@ -6603,6 +7958,15 @@ function G.CreateFpsCounter()
 			LastUpdateTime = Now
 			FrameCount = 0
 		end
+
+		local SpeedUpdateInterval = 0.1
+		if Now - (LastSpeedUpdate or 0) >= SpeedUpdateInterval then
+			LastSpeedUpdate = Now
+			local kmh = math.round(CurrentSpeedStuds * 0.28 * 3.6)
+			local sts = math.round(CurrentSpeedStuds)
+			SpeedLabel.Text = string.format("%d st/s | %d km/h", sts, kmh)
+		end
+
 	end)
 
 	local function Cleanup()
