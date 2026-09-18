@@ -40,82 +40,82 @@ if not ok then
 end
 
 Fluent:AddTheme({
-	Name = "KKKK Blue",
-	Accent = Color3.fromHex("#a855f7"),
-	AcrylicMain = Color3.fromHex("#0a0014"),
-	AcrylicBorder = Color3.fromHex("#0a7ac0"),
+	Name = "KKKK Cyber Neon",
+	Accent = Color3.fromHex("#8a2be2"), 
+	AcrylicMain = Color3.fromHex("#080811"), 
+	AcrylicBorder = Color3.fromHex("#00e5ff"), 
 	AcrylicGradient = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromHex("#0a0014")),
-		ColorSequenceKeypoint.new(0.5, Color3.fromHex("#12021f")),
-		ColorSequenceKeypoint.new(1, Color3.fromHex("#1a0530")),
+		ColorSequenceKeypoint.new(0, Color3.fromHex("#090814")),
+		ColorSequenceKeypoint.new(0.5, Color3.fromHex("#120b29")),
+		ColorSequenceKeypoint.new(1, Color3.fromHex("#1a0e3b")),
 	}),
-	AcrylicNoise = 0.9,
-	TitleBarLine = Color3.fromHex("#ff2233"),
-	Tab = Color3.fromHex("#0d0118"),
-	Element = Color3.fromHex("#080014"),
-	ElementBorder = Color3.fromHex("#0099dd"),
-	InElementBorder = Color3.fromHex("#0678aa"),
-	ElementTransparency = 0.92,
+	AcrylicNoise = 0.85,
+	TitleBarLine = Color3.fromHex("#00e5ff"),
+	Tab = Color3.fromHex("#0d0a1a"),
+	Element = Color3.fromHex("#0e0b1c"),
+	ElementBorder = Color3.fromHex("#1f1a3a"),
+	InElementBorder = Color3.fromHex("#2b2252"),
+	ElementTransparency = 0.85,
 	ElementBorderThickness = 1,
-	ToggleSlider = Color3.fromHex("#2a0a4a"),
+	ToggleSlider = Color3.fromHex("#1c1133"),
 	ToggleToggled = Color3.fromHex("#a855f7"),
-	SliderRail = Color3.fromHex("#1e0535"),
-	CheckboxUnchecked = Color3.fromHex("#1e0535"),
+	SliderRail = Color3.fromHex("#130c24"),
+	CheckboxUnchecked = Color3.fromHex("#130c24"),
 	CheckboxChecked = Color3.fromHex("#a855f7"),
 	CheckboxCheck = Color3.fromHex("#ffffff"),
-	ProgressBarRail = Color3.fromHex("#1e0535"),
-	ProgressBarFill = Color3.fromHex("#a855f7"),
-	DropdownFrame = Color3.fromHex("#0b0118"),
-	DropdownHolder = Color3.fromHex("#100222"),
-	DropdownBorder = Color3.fromHex("#0099dd"),
-	DropdownOption = Color3.fromHex("#150830"),
+	ProgressBarRail = Color3.fromHex("#130c24"),
+	ProgressBarFill = Color3.fromHex("#00e5ff"),
+	DropdownFrame = Color3.fromHex("#0c0919"),
+	DropdownHolder = Color3.fromHex("#110c24"),
+	DropdownBorder = Color3.fromHex("#8a2be2"),
+	DropdownOption = Color3.fromHex("#171033"),
 	DropdownBorderThickness = 1,
-	Keybind = Color3.fromHex("#120428"),
-	Input = Color3.fromHex("#100222"),
-	InputFocused = Color3.fromHex("#1e0535"),
-	InputIndicator = Color3.fromHex("#ff3333"),
-	Dialog = Color3.fromHex("#0c0220"),
-	DialogHolder = Color3.fromHex("#100430"),
-	DialogHolderLine = Color3.fromHex("#ff3333"),
-	DialogButton = Color3.fromHex("#2a0a4a"),
-	DialogButtonBorder = Color3.fromHex("#0a8fd0"),
-	DialogBorder = Color3.fromHex("#0678aa"),
-	DialogInput = Color3.fromHex("#100430"),
-	DialogInputLine = Color3.fromHex("#ff3333"),
-	Text = Color3.fromHex("#ffffff"),
-	SubText = Color3.fromHex("#e6e6e6"),
-	Hover = Color3.fromHex("#1e0535"),
-	HoverChange = 0.06,
+	Keybind = Color3.fromHex("#150d2e"),
+	Input = Color3.fromHex("#110c24"),
+	InputFocused = Color3.fromHex("#1e133d"),
+	InputIndicator = Color3.fromHex("#00e5ff"),
+	Dialog = Color3.fromHex("#0b0817"),
+	DialogHolder = Color3.fromHex("#100c24"),
+	DialogHolderLine = Color3.fromHex("#8a2be2"),
+	DialogButton = Color3.fromHex("#221342"),
+	DialogButtonBorder = Color3.fromHex("#8a2be2"),
+	DialogBorder = Color3.fromHex("#00e5ff"),
+	DialogInput = Color3.fromHex("#100c24"),
+	DialogInputLine = Color3.fromHex("#00e5ff"),
+	Text = Color3.fromHex("#f3f4f6"),
+	SubText = Color3.fromHex("#9ca3af"),
+	Hover = Color3.fromHex("#1f1442"),
+	HoverChange = 0.08,
 	Background = "https://raw.githubusercontent.com/StyearX/Assets/main/backgrounds.png",
 	BackgroundTransparency = 0,
 	ShineEnabled = true,
 	Shine = {
-		Speed = 3,
-		RotationSpeed = 1.5,
+		Speed = 2.5,
+		RotationSpeed = 1.2,
 		ColorSequence = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, Color3.fromHex("#000000")),
-			ColorSequenceKeypoint.new(0.5, Color3.fromHex("#a855f7")),
-			ColorSequenceKeypoint.new(1, Color3.fromHex("#000000")),
+			ColorSequenceKeypoint.new(0.5, Color3.fromHex("#8a2be2")),
+			ColorSequenceKeypoint.new(1, Color3.fromHex("#00e5ff")),
 		}),
 	},
 	StrokeShine = true,
-	StrokeDark = Color3.fromHex("#100430"),
+	StrokeDark = Color3.fromHex("#0c0817"),
 	ButtonGradient = {
 		Background = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromHex("#2a0a4a")),
-			ColorSequenceKeypoint.new(1, Color3.fromHex("#100430")),
+			ColorSequenceKeypoint.new(0, Color3.fromHex("#261247")),
+			ColorSequenceKeypoint.new(1, Color3.fromHex("#110a24")),
 		}),
 		Stroke = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromHex("#00aaff")),
-			ColorSequenceKeypoint.new(0.5, Color3.fromHex("#0066aa")),
-			ColorSequenceKeypoint.new(1, Color3.fromHex("#00aaff")),
+			ColorSequenceKeypoint.new(0, Color3.fromHex("#00e5ff")),
+			ColorSequenceKeypoint.new(0.5, Color3.fromHex("#8a2be2")),
+			ColorSequenceKeypoint.new(1, Color3.fromHex("#00e5ff")),
 		}),
 	},
 	DiscordJoinButton = Color3.fromHex("#5865f2"),
-	WarningNotifyColor = Color3.fromHex("#d6ac3d"),
-	SuccessNotifyColor = Color3.fromHex("#4fc773"),
-	ErrorNotifyColor = Color3.fromHex("#ff4444"),
-	InfoNotifyColor = Color3.fromHex("#a855f7"),
+	WarningNotifyColor = Color3.fromHex("#f59e0b"),
+	SuccessNotifyColor = Color3.fromHex("#10b981"),
+	ErrorNotifyColor = Color3.fromHex("#ef4444"),
+	InfoNotifyColor = Color3.fromHex("#8a2be2"),
 })
 
 local Window = Fluent:CreateWindow({
@@ -124,7 +124,7 @@ local Window = Fluent:CreateWindow({
 	TabWidth = G.isMobile and 132 or 158,
 	Size = G.isMobile and UDim2.fromOffset(610, 540) or UDim2.fromOffset(700, 610),
 	Acrylic = true,
-	Theme = "KKKK Noir",
+	Theme = "KKKK Cyber Neon",
 	Background = true,
 	Font = "GothamSSm",
 	TitleIcon = "rbxassetid://109639117875913",
@@ -158,6 +158,7 @@ local RawTabs = {
     AutoSkill = Window:AddTab({ Title = "Skill Settings", Icon = "solar/magic-stick-3-bold" }),
     FarmSetting = Window:AddTab({ Title = "Farm Setting", Icon = "solar/settings-bold" }),
 	Main = Window:AddTab({ Title = "Main", Icon = "lucide/swords" }),
+	Dungeon = Window:AddTab({ Title = "Dungeon", Icon = "lucide/door-open" }),
     Stat = Window:AddTab({ Title = "Stat", Icon = "solar/chart-2-bold" }),
 	Esp = Window:AddTab({ Title = "Visual", Icon = "solar/eye-bold" }),
     Pvp = Window:AddTab({ Title = "PVP", Icon = "solar/target-bold" }),
@@ -169,13 +170,14 @@ local Tabs = {
 	Info = RawTabs.Info:AddSection("Live Status", "solar/pulse-2-bold"),
 	InfoServer = RawTabs.Info:AddSection("Server & Time", "solar/global-bold"),
 	InfoIsland = RawTabs.Info:AddSection("Island Spawn Check", "solar/map-point-wave-bold"),
-	InfoBoss = RawTabs.Info:AddSection("Boss & Raid Check", "solar/skull-bold"),
+	InfoBoss = RawTabs.Info:AddSection("Boss & Raid Check", "lucide/skull"),
 	InfoTyrant = RawTabs.Info:AddSection("Tyrant Sky - Eye Check", "solar/eye-bold"),
 	InfoItem = RawTabs.Info:AddSection("Items & Dealer", "solar/box-bold"),
 	LocalPlayer = RawTabs.LocalPlayer:AddSection("Player Utilities", "solar/user-id-bold"),
 	Stat = RawTabs.Stat:AddSection("Stat Allocation", "solar/chart-square-bold"),
 	Main = RawTabs.Main:AddSection("Farming", "lucide/swords"),
-	TyrantSection = RawTabs.Main:AddSection("Tyrant Sky Boss", "lucid/bird"),
+	TyrantSection = RawTabs.Main:AddSection("Tyrant Sky Boss", "lucide/feather"),
+    KatakuriSection = RawTabs.Main:AddSection("Katakuri Boss", "lucide/cake"),
 	MagnetSection = RawTabs.Main:AddSection("Event Magnet", "lucide/magnet"),
 	AutoSkillSection = RawTabs.AutoSkill:AddSection("Skill Config", "solar/magic-stick-3-bold"),
 	AutoSkillTiming = RawTabs.AutoSkill:AddSection("Skill Timing", "solar/clock-circle-bold"),
@@ -185,13 +187,9 @@ local Tabs = {
 	Esp = RawTabs.Esp:AddSection("Visual ESP", "solar/eye-scan-bold"),
     Pvp = RawTabs.Pvp:AddSection("PVP Tools", "solar/target-bold"),
     PvpSpectate = RawTabs.Pvp:AddSection("Spectate", "solar/eye-bold"),
+	Dungeon = RawTabs.Dungeon:AddSection("Auto Dungeon", "lucide/door-open"),
 	Settings = RawTabs.Settings,
 }
-
-if G.placeId == 73902483975735 then
-	RawTabs.Dungeon = Window:AddTab({ Title = "Dungeon", Icon = "solar/skull-bold" })
-	Tabs.Dungeon = RawTabs.Dungeon:AddSection("Auto Dungeon", "solar/skull-bold")
-end
 
 Fluent.NotifyInsideWindow = true
 
@@ -2318,8 +2316,10 @@ function G.freezeMob(mob, mobRoot, mobHumanoid)
 end
 
 function G.updateBringMobs(target, now)
-	local tyrantEnabled = G.tyrantActive == true
-	local farmActive = State.autoFarmEnabled or State.autoFarmSelectEnabled or tyrantEnabled
+    local tyrantEnabled = G.tyrantActive == true
+    local katakuriEnabled = G.katakuriActive == true
+    local dungeonEnabled = G.AutoDungeon and G.AutoDungeon.enabled == true
+    local farmActive = State.autoFarmEnabled or State.autoFarmSelectEnabled or tyrantEnabled or katakuriEnabled or dungeonEnabled
 	
 	if not State.bringMobEnabled or not farmActive then
 		G.clearBringMobs()
@@ -2410,28 +2410,33 @@ function G.updateBringMobs(target, now)
 	local pullPos = targetRoot.Position
 	local bringCount = math.max(0, math.floor(tonumber(State.BRING_MOB_COUNT) or 0))
 
-	local validMobs = {}
-	for _, mob in ipairs(enemiesFolder:GetChildren()) do
-		if mob == target then continue end
-		local mr = mob:FindFirstChild("HumanoidRootPart")
-		local mh = mob:FindFirstChildOfClass("Humanoid")
-		if not mr or not mh or mh.Health <= 0 then continue end
+    local validMobs = {}
+    for _, mob in ipairs(enemiesFolder:GetChildren()) do
+        if mob == target then continue end
+        
+        if mob.Name == "PropHitboxPlaceholder" then continue end
+        
+        local mr = mob:FindFirstChild("HumanoidRootPart")
+        local mh = mob:FindFirstChildOfClass("Humanoid")
+        if not mr or not mh or mh.Health <= 0 then continue end
 
-		local rawName = G.getMobDisplayName(mob)
-		if rawName:find("%[Boss%]") or rawName:find("%[Raid Boss%]") then continue end
-		if not G.sameMobType(mob, target) then continue end
+        local rawName = G.getMobDisplayName(mob)
+        if rawName:find("%[Boss%]") or rawName:find("%[Raid Boss%]") then continue end
+        local dungeonActive = G.AutoDungeon and G.AutoDungeon.enabled == true
+        if not dungeonActive and not G.sameMobType(mob, target) then continue end
 
-		local dist = (mr.Position - pullPos).Magnitude
-		if dist > State.BRING_DISTANCE then continue end
+        local dist = (mr.Position - pullPos).Magnitude
+        if dist > State.BRING_DISTANCE then continue end
 
-		table.insert(validMobs, { mob = mob, mr = mr, mh = mh, dist = dist })
-	end
-	table.sort(validMobs, function(a, b)
-		return a.dist < b.dist
-	end)
+        table.insert(validMobs, { mob = mob, mr = mr, mh = mh, dist = dist })
+    end
+    table.sort(validMobs, function(a, b)
+        return a.dist < b.dist
+    end)
 
 	local seenMobs = {}
-	local slots = math.min(bringCount, #validMobs)
+	local dungeonActive = G.AutoDungeon and G.AutoDungeon.enabled == true
+    local slots = dungeonActive and #validMobs or math.min(bringCount, #validMobs)
 	for i = 1, slots do
 		local data = validMobs[i]
 		local mob = data.mob
@@ -3932,7 +3937,7 @@ local TyrantSky = {
     BOSS_GONE_CONFIRM = 1.0,
 }
 
---  helpers 
+
 
 function TyrantSky.getAllTrees()
     local trees = {}
@@ -4076,7 +4081,7 @@ function TyrantSky.equipWeapon()
     if weapon then pcall(function() hum:EquipTool(weapon) end) end
 end
 
---  movement: identical arrival behavior to Go to Island
+
 
 function TyrantSky.moveLikeIsland(hrp, targetCF, dt)
     if not hrp or not hrp.Parent or not targetCF then return false end
@@ -4098,7 +4103,7 @@ function TyrantSky.moveLikeIsland(hrp, targetCF, dt)
     return true
 end
 
---  attack logic 
+
 
 function TyrantSky.doAttack(target, dt)
     if not target or not target.Parent then return false end
@@ -4122,7 +4127,7 @@ function TyrantSky.doAttack(target, dt)
     G.autoEquipWeapon()
 
     local now = tick()
-    if now - TyrantSky.lastAttackTime < TyrantSky.ATTACK_RATE then return true end
+    if now - TyrantSky.lastAttackTime < State.ATTACK_RATE then return true end
     TyrantSky.lastAttackTime = now
 
     local char2 = player.Character
@@ -4170,7 +4175,7 @@ function TyrantSky.doAttack(target, dt)
     return true
 end
 
--- Break tree
+
 
 TyrantSky._smashConn = nil
 
@@ -4331,7 +4336,7 @@ function TyrantSky.getNextSpawnCF(hrpPos)
     return CFrame.new(pos + Vector3.new(0, State.Y_OFFSET, 0))
 end
 
---  main loop 
+
 
 TyrantSky._mainConn = nil
 
@@ -4381,7 +4386,7 @@ function TyrantSky.start()
         local hum  = char and char:FindFirstChildOfClass("Humanoid")
         if not hrp or not hum or hum.Health <= 0 then return end
 
-        --  PHASE: farming
+        
         if TyrantSky.phase == "farming" then
 
             local eyes = TyrantSky.getEyes()
@@ -4442,7 +4447,7 @@ function TyrantSky.start()
                 TyrantSky._spawnDwellUntil = tick() + TyrantSky.SPAWN_DWELL
             end
 
-        --  PHASE: tree
+        
         elseif TyrantSky.phase == "tree" then
             if not TyrantSky._smashConn then
                 TyrantSky.smashTree(function()
@@ -4457,7 +4462,7 @@ function TyrantSky.start()
             return
 
 
-        --  PHASE: boss
+        
         elseif TyrantSky.phase == "boss" then
             local boss = TyrantSky.getBoss()
             if boss then
@@ -4487,7 +4492,7 @@ function TyrantSky.start()
     end)
 end
 
---  UI 
+
 Tabs.TyrantSection:AddToggle("TyrantSkyToggle", {
     Title   = "Auto Tyrant Sky",
     Default = false,
@@ -4497,13 +4502,623 @@ Tabs.TyrantSection:AddToggle("TyrantSkyToggle", {
     end,
 })
 
---  Event Magnet 
+
+local AutoKatakuri = {
+    enabled = false,
+    phase = "farming", 
+    ATTACK_RATE = 0.25,
+    ATTACK_RANGE = 120,
+    currentTarget = nil,
+    lastAttackTime = 0,
+    _spawnList = {},
+    _spawnIndex = 1,
+    _lastSpawnCheck = 0,
+    _spawnPatrolCF = nil,
+    _spawnDwellUntil = 0,
+    SPAWN_DWELL = 0.2,
+    _bossGoneTick = nil,
+    BOSS_GONE_CONFIRM = 1.5,
+    _spawnAttemptTick = nil,
+    SPAWN_ATTEMPT_TIMEOUT = 8,
+    _mirrorTouched = false,
+    _mirrorTouchTick = nil,
+    MIRROR_TOUCH_TIMEOUT = 6,
+    _mainConn = nil,
+
+    targetMobNames = {
+        "Baking Staff",
+        "Cake Guard",
+        "Cookie Crafter",
+        "Head Baker",
+    },
+}
+G.AutoKatakuri = AutoKatakuri
+
+
+
+function AutoKatakuri.getCakePrinceKillCount()
+    local ok, result = pcall(function()
+        return game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CakePrinceSpawner")
+    end)
+    if not ok or type(result) ~= "string" then return nil end
+    local remaining = result:match("<Color=Yellow>(%d+)<Color=/>")
+    if remaining then
+        return tonumber(remaining)
+    end
+    return nil
+end
+
+function AutoKatakuri.getBoss()
+    local repBoss = game:GetService("ReplicatedStorage"):FindFirstChild("Cake Prince")
+    if repBoss then return repBoss end
+    
+    local enemies = workspace:FindFirstChild("Enemies")
+    if enemies then
+        for _, mob in ipairs(enemies:GetChildren()) do
+            if mob.Name == "Cake Prince" then
+                local hum  = mob:FindFirstChildOfClass("Humanoid")
+                local root = mob:FindFirstChild("HumanoidRootPart")
+                if hum and root and hum.Health > 0 then return mob end
+            end
+        end
+    end
+    return nil
+end
+
+function AutoKatakuri.getClosestMob(position)
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+    local closest, best = nil, math.huge
+    for _, name in ipairs(AutoKatakuri.targetMobNames) do
+        for _, mob in ipairs(enemies:GetChildren()) do
+            if mob.Name == name then
+                local hum  = mob:FindFirstChildOfClass("Humanoid")
+                local root = mob:FindFirstChild("HumanoidRootPart")
+                if hum and root and hum.Health > 0 then
+                    local d = (root.Position - position).Magnitude
+                    if d < best then best = d; closest = mob end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+function AutoKatakuri.getDripMamaPos()
+    local function checkFolder(folder)
+        if not folder then return nil end
+        for _, npc in ipairs(folder:GetChildren()) do
+            if npc.Name == "drip_mama" then
+                local root = npc:FindFirstChild("HumanoidRootPart")
+                          or npc:FindFirstChildWhichIsA("BasePart")
+                if root then return root.Position end
+                local ok, piv = pcall(function() return npc:GetPivot() end)
+                if ok then return piv.Position end
+            end
+        end
+        return nil
+    end
+    return checkFolder(workspace:FindFirstChild("NPCs"))
+        or checkFolder(game:GetService("ReplicatedStorage"):FindFirstChild("NPCs"))
+end
+
+function AutoKatakuri.buildSpawnList()
+    local list = {}
+    local seen = {}
+    local function push(pos)
+        local key = G.positionKey(pos)
+        if not seen[key] then seen[key] = true; table.insert(list, pos) end
+    end
+
+    
+    local spawns = workspace:FindFirstChild("_WorldOrigin")
+        and workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+    if spawns then
+        for _, obj in ipairs(spawns:GetChildren()) do
+            for _, name in ipairs(AutoKatakuri.targetMobNames) do
+                if G.normalizeMobName(obj.Name) == G.normalizeMobName(name) then
+                    local pos = G.collectSpawnPosition(obj)
+                    if pos then push(pos) end
+                end
+            end
+        end
+    end
+
+    
+    if #list == 0 then
+        local repFolder = G.getReplicatedSpawnFolder()
+        if repFolder then
+            for _, obj in ipairs(repFolder:GetChildren()) do
+                for _, name in ipairs(AutoKatakuri.targetMobNames) do
+                    if G.normalizeMobName(obj.Name) == G.normalizeMobName(name) then
+                        local pos = G.collectSpawnPosition(obj)
+                        if pos then push(pos) end
+                    end
+                end
+            end
+        end
+    end
+
+    
+    if #list == 0 then
+        local enemies = workspace:FindFirstChild("Enemies")
+        if enemies then
+            for _, mob in ipairs(enemies:GetChildren()) do
+                for _, name in ipairs(AutoKatakuri.targetMobNames) do
+                    if mob.Name == name then
+                        local root = mob:FindFirstChild("HumanoidRootPart")
+                        local hum  = mob:FindFirstChildOfClass("Humanoid")
+                        if root and hum and hum.Health > 0 then
+                            push(root.Position)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return list
+end
+
+function AutoKatakuri.getNextSpawnCF(hrpPos)
+    local now = tick()
+    if #AutoKatakuri._spawnList == 0 or now - AutoKatakuri._lastSpawnCheck > 30 then
+        AutoKatakuri._spawnList = AutoKatakuri.buildSpawnList()
+        AutoKatakuri._lastSpawnCheck = now
+        AutoKatakuri._spawnIndex = 1
+        if hrpPos and #AutoKatakuri._spawnList > 0 then
+            G.sortPositionsByDistance(AutoKatakuri._spawnList, hrpPos)
+        end
+    end
+    if #AutoKatakuri._spawnList == 0 then return nil end
+
+    if AutoKatakuri._spawnIndex > #AutoKatakuri._spawnList then
+        AutoKatakuri._spawnIndex = 1
+        if hrpPos then
+            G.sortPositionsByDistance(AutoKatakuri._spawnList, hrpPos)
+        end
+    end
+
+    local pos = AutoKatakuri._spawnList[AutoKatakuri._spawnIndex]
+    AutoKatakuri._spawnIndex = AutoKatakuri._spawnIndex + 1
+
+    if hrpPos and (pos - hrpPos).Magnitude < 15 then
+        if AutoKatakuri._spawnIndex <= #AutoKatakuri._spawnList then
+            pos = AutoKatakuri._spawnList[AutoKatakuri._spawnIndex]
+            AutoKatakuri._spawnIndex = AutoKatakuri._spawnIndex + 1
+        end
+    end
+
+    return CFrame.new(pos + Vector3.new(0, State.Y_OFFSET, 0))
+end
+
+function AutoKatakuri.moveLikeIsland(hrp, targetCF, dt)
+    if not hrp or not hrp.Parent or not targetCF then return false end
+    local currentPos = State.currentFlyCF and State.currentFlyCF.Position or hrp.Position
+    local dist = (targetCF.Position - currentPos).Magnitude
+    if dist > 6 then
+        G.moveToTarget(hrp, targetCF, dt)
+        return false
+    end
+    State.currentFlyCF = targetCF
+    pcall(function()
+        hrp.CFrame = targetCF
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end)
+    return true
+end
+
+function AutoKatakuri.doAttack(target, dt)
+    if not target or not target.Parent then return false end
+    local char = player.Character
+    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+
+    local root = target:IsA("Model") and target:FindFirstChild("HumanoidRootPart")
+        or (target:IsA("BasePart") and target)
+    if not root then return false end
+
+    local targetCF = root.CFrame * CFrame.new(0, State.Y_OFFSET, 8)
+    if not AutoKatakuri.moveLikeIsland(hrp, targetCF, dt) then return false end
+
+    if State.bringMobEnabled then G.updateBringMobs(target, tick()) end
+    G.autoEquipWeapon()
+
+    local now = tick()
+    if now - AutoKatakuri.lastAttackTime < State.ATTACK_RATE then return true end
+    AutoKatakuri.lastAttackTime = now
+
+    local char2 = player.Character
+    local currentTool = char2 and char2:FindFirstChildOfClass("Tool")
+    local isFruit = false
+    if currentTool then
+        local hasLeftClick = currentTool:FindFirstChild("LeftClickRemote", true)
+        if hasLeftClick then isFruit = true end
+        if not isFruit then
+            local tip = G.getToolTooltip(currentTool):lower()
+            if tip:find("fruit") or tip:find("devil") or currentTool.Name:lower():find("fruit") then
+                isFruit = true
+            end
+        end
+    end
+
+    if isFruit then
+        local remote = currentTool and currentTool:FindFirstChild("LeftClickRemote", true)
+        local targetPos = root.Position
+        if remote and targetPos and not G.fruitAttackBusy then
+            G.fruitAttackBusy = true
+            local capturedPos = targetPos
+            local capturedHrp = hrp
+            task.spawn(function()
+                local dir = (capturedPos - capturedHrp.Position)
+                dir = Vector3.new(dir.X, 0, dir.Z)
+                local mag = dir.Magnitude
+                local direction = mag > 0.01 and (dir / mag) or capturedHrp.CFrame.LookVector
+                for action = 1, 4 do
+                    if not remote or not remote.Parent then break end
+                    pcall(function() remote:FireServer(direction, action) end)
+                    task.wait(FastFruitAttack.rate)
+                end
+                task.wait(FastFruitAttack.cycleDelay)
+                G.fruitAttackBusy = false
+            end)
+        end
+    else
+        pcall(FastAttackModule.ExecuteFastAttack)
+        pcall(G.HitRegistrationModule.Execute)
+    end
+    return true
+end
+
+function AutoKatakuri.touchMirror()
+end
+
+function AutoKatakuri.start()
+    AutoKatakuri.stop()
+    AutoKatakuri.enabled = true
+    AutoKatakuri._spawnArriveTimeout = nil
+    G.katakuriActive = true
+    AutoKatakuri.phase = "farming"
+
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    State.currentFlyCF = hrp and hrp.CFrame or nil
+
+    AutoKatakuri._mainConn = RunService.Heartbeat:Connect(function(dt)
+        if not AutoKatakuri.enabled then AutoKatakuri.stop(); return end
+
+        local char = player.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum or hum.Health <= 0 then return end
+
+        
+        local ag = hrp:FindFirstChild("KatakuriAntiGrav")
+        if not ag then
+            ag = Instance.new("BodyForce")
+            ag.Name = "KatakuriAntiGrav"
+            ag.Parent = hrp
+        end
+        ag.Force = Vector3.new(0, hrp.AssemblyMass * workspace.Gravity, 0)
+
+        
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+
+        
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+
+        
+        local bossInWorld = false
+        local bossInWorldMob = nil
+        pcall(function()
+            local enemies = workspace:FindFirstChild("Enemies")
+            if enemies then
+                for _, mob in ipairs(enemies:GetChildren()) do
+                    if mob.Name == "Cake Prince" then
+                        local h = mob:FindFirstChildOfClass("Humanoid")
+                        local r = mob:FindFirstChild("HumanoidRootPart")
+                        if h and r and h.Health > 0 then
+                            bossInWorld = true
+                            bossInWorldMob = mob
+                        end
+                    end
+                end
+            end
+        end)
+
+        
+        local bossInRep = false
+        pcall(function()
+            local repBoss = game:GetService("ReplicatedStorage"):FindFirstChild("Cake Prince")
+            if repBoss then
+                local h = repBoss:FindFirstChildOfClass("Humanoid")
+                if h and h.Health > 0 then
+                    bossInRep = true
+                end
+            end
+        end)
+
+        if bossInWorld and AutoKatakuri.phase ~= "boss" then
+            AutoKatakuri.phase = "boss"
+            AutoKatakuri._mirrorTouched = true
+            AutoKatakuri._bossGoneTick = nil
+            AutoKatakuri.currentTarget = bossInWorldMob
+            State.currentFlyCF = hrp.CFrame
+            Fluent:Notify({ Title = "Auto Katakuri", Content = "บอสอยู่แล้ว! ตีเลย!", Duration = 3 })
+        elseif not bossInWorld and bossInRep
+            and (AutoKatakuri.phase == "spawning" or AutoKatakuri.phase == "farming") then
+            AutoKatakuri.phase = "mirror"
+            AutoKatakuri._mirrorTouched = false
+            AutoKatakuri._mirrorTouchTick = nil
+            AutoKatakuri._spawnAttemptTick = nil
+            AutoKatakuri.currentTarget = nil
+            State.currentFlyCF = hrp.CFrame
+            Fluent:Notify({ Title = "Auto Katakuri", Content = "บอสเกิดแล้ว! บินไป mirror...", Duration = 3 })
+        end
+
+        
+        if AutoKatakuri.phase == "farming" then
+            local now = tick()
+            if not AutoKatakuri._lastKillCheck or now - AutoKatakuri._lastKillCheck >= 3 then
+                AutoKatakuri._lastKillCheck = now
+                local count = AutoKatakuri.getCakePrinceKillCount()
+                if count ~= nil and count <= 0 then
+                    AutoKatakuri.phase = "spawning"
+                    AutoKatakuri.currentTarget = nil
+                    AutoKatakuri._spawnPatrolCF = nil
+                    AutoKatakuri._spawnAttemptTick = nil
+                    G.clearBringMobs()
+                    Fluent:Notify({ Title = "Auto Katakuri", Content = "500 kills! ไป spawn Cake Prince...", Duration = 3 })
+                    return
+                end
+            end
+
+            local mob = AutoKatakuri.getClosestMob(hrp.Position)
+            if mob then
+                AutoKatakuri.currentTarget = mob
+                AutoKatakuri._spawnPatrolCF = nil
+                AutoKatakuri._spawnDwellUntil = 0
+                AutoKatakuri.doAttack(mob, dt)
+                return
+            end
+
+            AutoKatakuri.currentTarget = nil
+            local now2 = tick()
+            if now2 < AutoKatakuri._spawnDwellUntil then
+                return
+            end
+
+            if not AutoKatakuri._spawnPatrolCF then
+                local destCF = AutoKatakuri.getNextSpawnCF(hrp.Position)
+                if not destCF then
+                    AutoKatakuri._spawnList = {}
+                    AutoKatakuri._spawnIndex = 1
+                    return
+                end
+                AutoKatakuri._spawnPatrolCF = destCF
+                AutoKatakuri._spawnArriveTimeout = tick() + 8
+            end
+
+            if tick() > (AutoKatakuri._spawnArriveTimeout or 0) then
+                AutoKatakuri._spawnPatrolCF = nil
+                AutoKatakuri._spawnArriveTimeout = nil
+                AutoKatakuri._spawnDwellUntil = 0
+                return
+            end
+
+            if AutoKatakuri.moveLikeIsland(hrp, AutoKatakuri._spawnPatrolCF, dt) then
+                AutoKatakuri._spawnPatrolCF = nil
+                AutoKatakuri._spawnArriveTimeout = nil
+                AutoKatakuri._spawnDwellUntil = tick() + AutoKatakuri.SPAWN_DWELL
+            end
+
+        
+        elseif AutoKatakuri.phase == "spawning" then
+            local dripPos = AutoKatakuri.getDripMamaPos()
+            if dripPos then
+                local destCF = CFrame.new(dripPos + Vector3.new(0, 3, 4))
+                local dist = (destCF.Position - hrp.Position).Magnitude
+
+                if dist > 6 then
+                    AutoKatakuri.moveLikeIsland(hrp, destCF, dt)
+                    return
+                end
+
+                if not AutoKatakuri._spawnAttemptTick then
+                    AutoKatakuri._spawnAttemptTick = tick()
+                    pcall(function()
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CakePrinceSpawner", true)
+                    end)
+                    Fluent:Notify({ Title = "Auto Katakuri", Content = "Invoke spawn! รอ Cake Prince...", Duration = 3 })
+                end
+
+                if tick() - AutoKatakuri._spawnAttemptTick > AutoKatakuri.SPAWN_ATTEMPT_TIMEOUT then
+                    AutoKatakuri._spawnAttemptTick = nil
+                end
+            end
+
+        
+        elseif AutoKatakuri.phase == "mirror" then
+            local mirrorCF = nil
+            pcall(function()
+                mirrorCF = workspace.Map.CakeLoaf.BigMirror.Main.CFrame * CFrame.new(0, 2, 0)
+            end)
+
+            if not mirrorCF then
+                AutoKatakuri.phase = "boss"
+                AutoKatakuri._bossGoneTick = nil
+                return
+            end
+
+            G.moveToTarget(hrp, mirrorCF, dt)
+            State.currentFlyCF = mirrorCF
+
+            pcall(function()
+                local enemies = workspace:FindFirstChild("Enemies")
+                if enemies then
+                    for _, mob in ipairs(enemies:GetChildren()) do
+                        if mob.Name == "Cake Prince" then
+                            local h = mob:FindFirstChildOfClass("Humanoid")
+                            local r = mob:FindFirstChild("HumanoidRootPart")
+                            if h and r and h.Health > 0 then
+                                AutoKatakuri._mirrorTouched = true
+                                AutoKatakuri.phase = "boss"
+                                AutoKatakuri._bossGoneTick = nil
+                                AutoKatakuri.currentTarget = mob
+                                State.currentFlyCF = hrp.CFrame
+                                Fluent:Notify({ Title = "Auto Katakuri", Content = "เข้า mirror แล้ว! ตี Cake Prince!", Duration = 3 })
+                            end
+                        end
+                    end
+                end
+            end)
+
+        elseif AutoKatakuri.phase == "boss" then
+            local bossTarget = nil
+            pcall(function()
+                local enemies = workspace:FindFirstChild("Enemies")
+                if enemies then
+                    for _, mob in ipairs(enemies:GetChildren()) do
+                        if mob.Name == "Cake Prince" then
+                            local h = mob:FindFirstChildOfClass("Humanoid")
+                            local r = mob:FindFirstChild("HumanoidRootPart")
+                            if h and r and h.Health > 0 then
+                                bossTarget = mob
+                            end
+                        end
+                    end
+                end
+            end)
+
+            if bossTarget then
+                AutoKatakuri._bossGoneTick = nil
+                AutoKatakuri.currentTarget = bossTarget
+
+                local bossHum = bossTarget:FindFirstChildOfClass("Humanoid")
+                if bossHum and bossHum.Health <= 0 then
+                    AutoKatakuri.currentTarget = nil
+                    AutoKatakuri._bossGoneTick = nil
+                    AutoKatakuri._spawnList = {}
+                    AutoKatakuri._spawnIndex = 1
+                    AutoKatakuri._spawnPatrolCF = nil
+                    AutoKatakuri._spawnDwellUntil = 0
+                    AutoKatakuri._mirrorTouched = false
+                    AutoKatakuri._mirrorTouchTick = nil
+                    AutoKatakuri._spawnAttemptTick = nil
+                    AutoKatakuri._lastKillCheck = nil
+                    AutoKatakuri.phase = "farming"
+                    G.clearBringMobs()
+                    pcall(function()
+                        local c = player.Character
+                        local r = c and c:FindFirstChild("HumanoidRootPart")
+                        if r then
+                            local ag = r:FindFirstChild("KatakuriAntiGrav")
+                            if ag then ag:Destroy() end
+                            r.AssemblyLinearVelocity = Vector3.zero
+                            r.AssemblyAngularVelocity = Vector3.zero
+                        end
+                        local hum = c and c:FindFirstChildOfClass("Humanoid")
+                        if hum then hum.AutoRotate = true end
+                    end)
+                    State.currentFlyCF = nil
+                    Fluent:Notify({ Title = "Auto Katakuri", Content = "Cake Prince ตายแล้ว! นับใหม่ 0/500...", Duration = 3 })
+                    return
+                end
+
+                AutoKatakuri.doAttack(bossTarget, dt)
+            else
+                AutoKatakuri.currentTarget = nil
+                AutoKatakuri._bossGoneTick = nil
+                AutoKatakuri._spawnList = {}
+                AutoKatakuri._spawnIndex = 1
+                AutoKatakuri._spawnPatrolCF = nil
+                AutoKatakuri._spawnDwellUntil = 0
+                AutoKatakuri._mirrorTouched = false
+                AutoKatakuri._mirrorTouchTick = nil
+                AutoKatakuri._spawnAttemptTick = nil
+                AutoKatakuri._lastKillCheck = nil
+                AutoKatakuri.phase = "farming"
+                G.clearBringMobs()
+                pcall(function()
+                    local c = player.Character
+                    local r = c and c:FindFirstChild("HumanoidRootPart")
+                    if r then
+                        local ag = r:FindFirstChild("KatakuriAntiGrav")
+                        if ag then ag:Destroy() end
+                        r.AssemblyLinearVelocity = Vector3.zero
+                        r.AssemblyAngularVelocity = Vector3.zero
+                    end
+                    local hum = c and c:FindFirstChildOfClass("Humanoid")
+                    if hum then hum.AutoRotate = true end
+                end)
+                State.currentFlyCF = nil
+                Fluent:Notify({ Title = "Auto Katakuri", Content = "Cake Prince ตายแล้ว! นับใหม่ 0/500...", Duration = 3 })
+            end
+        end
+    end)
+end  
+
+function AutoKatakuri.stop()
+    AutoKatakuri.enabled = false
+    G.katakuriActive = false
+    AutoKatakuri._spawnArriveTimeout = nil
+    AutoKatakuri.phase = "farming"
+    AutoKatakuri.currentTarget = nil
+    AutoKatakuri._bossGoneTick = nil
+    AutoKatakuri._spawnList = {}
+    AutoKatakuri._spawnIndex = 1
+    AutoKatakuri._spawnPatrolCF = nil
+    AutoKatakuri._spawnDwellUntil = 0
+    AutoKatakuri._spawnAttemptTick = nil
+    AutoKatakuri._mirrorTouched = false
+    AutoKatakuri._mirrorTouchTick = nil
+    AutoKatakuri._lastKillCheck = nil
+    State.currentFlyCF = nil
+    G.stopMomentum()
+    G.clearBringMobs()
+
+    pcall(function()
+        local c = player.Character
+        local r = c and c:FindFirstChild("HumanoidRootPart")
+        if r then
+            local ag = r:FindFirstChild("KatakuriAntiGrav")
+            if ag then ag:Destroy() end
+        end
+    end)
+
+    if AutoKatakuri._mainConn then
+        AutoKatakuri._mainConn:Disconnect()
+        AutoKatakuri._mainConn = nil
+    end
+end
+
+Tabs.KatakuriSection:AddToggle("AutoKatakuriToggle", {
+    Title   = "Auto Katakuri",
+    Default = false,
+    Callback = function(v)
+        if v then
+            AutoKatakuri.start()
+            Fluent:Notify({ Title = "Auto Katakuri", Content = "Started!", Duration = 3 })
+        else
+            AutoKatakuri.stop()
+            Fluent:Notify({ Title = "Auto Katakuri", Content = "Stopped.", Duration = 2 })
+        end
+    end,
+})
+
+
 G.EventMagnet = {
 	enabled = false,
-	phase = "idle",          -- idle | travel | scan | kill
-	visitedNames = {},       -- spawn names already farmed (never revisit)
+	phase = "idle",          
+	visitedNames = {},       
 	spawnList = {},
-	targetSpawn = nil,       -- { name = string, pos = Vector3 }
+	targetSpawn = nil,       
 	destCF = nil,
 	scanUntil = 0,
 	currentTarget = nil,
@@ -4528,7 +5143,7 @@ EM.IGNORE_NAMES = {
 	["Spawn"] = true,
 }
 
--- ตรวจ ignore แบบ normalize (ตัดช่องว่าง/ตัวพิมพ์/ [Lv. xx] ) และเช็ค base name ของมอนด้วย
+
 function EM.isIgnored(nameOrInstance)
 	if not nameOrInstance then
 		return false
@@ -4608,7 +5223,7 @@ function EM.pickNextSpawn(fromPos)
 	return best
 end
 
---  does this enemy carry the magnet rig? 
+
 function EM.hasMagnetRig(enemy)
 	if not enemy or not enemy.Parent then
 		return false
@@ -4622,7 +5237,7 @@ function EM.hasMagnetRig(enemy)
 	return found
 end
 
---  skip Boss / Raid Boss enemies 
+
 function EM.isBossEnemy(enemy)
 	if not enemy then
 		return false
@@ -4670,7 +5285,7 @@ function EM.getClosestMagnetTarget(fromPos)
 	return best
 end
 
---  movement (same arrival behavior as Go to Island) 
+
 function EM.moveTo(hrp, targetCF, dt)
 	if not hrp or not hrp.Parent or not targetCF then
 		return false
@@ -4704,7 +5319,7 @@ function EM.attack(target, dt)
 		return false
 	end
 
-	-- chase the mob directly: CFrame to it instead of staying pinned at the spawn
+	
 	local targetCF = root.CFrame * CFrame.new(0, State.Y_OFFSET or 8, 8)
 	if not EM.moveTo(hrp, targetCF, dt) then
 		return false
@@ -4715,9 +5330,7 @@ function EM.attack(target, dt)
 	G.autoEquipWeapon()
 
 	local now = tick()
-	if now - EM.lastAttackTime < EM.ATTACK_RATE then
-		return true
-	end
+    if now - EM.lastAttackTime < State.ATTACK_RATE then return true end
 	EM.lastAttackTime = now
 
 	pcall(FastAttackModule.ExecuteFastAttack)
@@ -4771,7 +5384,7 @@ function EM.start()
 			return
 		end
 
-		--  always finish magnet mobs first 
+		
 		if EM.phase ~= "kill" then
 			local magnetMob = EM.getClosestMagnetTarget(hrp.Position)
 			if magnetMob then
@@ -4780,7 +5393,7 @@ function EM.start()
 			end
 		end
 
-		--  PHASE: kill every magnet mob around 
+		
 		if EM.phase == "kill" then
 			if not G.isEnemyAlive(EM.currentTarget) or not EM.hasMagnetRig(EM.currentTarget) then
 				EM.currentTarget = EM.getClosestMagnetTarget(hrp.Position)
@@ -4789,7 +5402,7 @@ function EM.start()
 				EM.attack(EM.currentTarget, dt)
 				return
 			end
-			-- all magnet mobs dead here -> mark spawn done, move on
+			
 			if EM.targetSpawn then
 				EM.visitedNames[EM.targetSpawn.name] = true
 			end
@@ -4800,12 +5413,12 @@ function EM.start()
 			return
 		end
 
-		--  PHASE: travel to nearest unvisited spawn point 
+		
 		if EM.phase == "travel" then
 			if not EM.targetSpawn then
 				local nextSpawn = EM.pickNextSpawn(hrp.Position)
 				if not nextSpawn then
-					-- every spawn checked, start a fresh round
+					
 					EM.resetVisited()
 					return
 				end
@@ -4820,9 +5433,9 @@ function EM.start()
 			return
 		end
 
-		--  PHASE: scan Enemies folder at this spawn 
+		
 		if EM.phase == "scan" then
-			-- stay locked exactly on the spawn point while waiting
+			
 			if EM.destCF then
 				State.currentFlyCF = EM.destCF
 				pcall(function()
@@ -4854,11 +5467,11 @@ function EM.start()
 	end)
 end
 
---  real-life clock schedule: run at **:00 - **:10, stop at **:11, auto reset at **:12 
+
 EM.armed = false
 EM.START_MINUTE = 0
-EM.END_MINUTE = 11      -- stop when minute >= 11
-EM.RESET_MINUTE = 12    -- auto clear checked spawns
+EM.END_MINUTE = 11      
+EM.RESET_MINUTE = 12    
 EM._lastResetStamp = nil
 EM._schedulerRunning = false
 
@@ -4877,7 +5490,7 @@ function EM.startScheduler()
 			local ok = pcall(function()
 				local t = os.date("*t")
 
-				-- auto reset at **:12 (runs even when the toggle is off)
+				
 				if t.min == EM.RESET_MINUTE then
 					local stamp = string.format("%d-%d-%d-%d", t.year, t.yday, t.hour, t.min)
 					if EM._lastResetStamp ~= stamp then
@@ -4907,7 +5520,7 @@ function EM.startScheduler()
 							EM.stop()
 							Fluent:Notify({ Title = "Event Magnet", Content = "Window closed. Waiting for **:00", Duration = 3 })
 						end
-						-- countdown: notify every second with current time + time left until **:00
+						
 						local nowSec = t.hour * 3600 + t.min * 60 + t.sec
 						local remain = ((t.hour + 1) % 24) * 3600 - nowSec
 						if remain < 0 then
@@ -4936,22 +5549,7 @@ end
 
 EM.startScheduler()
 
---  Keep Damage Counter GUI always visible 
-task.spawn(function()
-	while true do
-		pcall(function()
-			local player = game:GetService("Players").LocalPlayer
-			local main = player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("Main")
-			local dmgCounter = main and main:FindFirstChild("DmgCounter")
-			if dmgCounter and not dmgCounter.Visible then
-				dmgCounter.Visible = true
-			end
-		end)
-		task.wait(0.5)
-	end
-end)
 
---  UI 
 
 Tabs.MagnetSection:AddToggle("EventMagnetToggle", {
 	Title = "Auto Event Magnet",
@@ -4973,7 +5571,7 @@ Tabs.MagnetSection:AddToggle("EventMagnetToggle", {
 	end,
 })
 
---  Auto Skill Global Config 
+
 G.AutoSkill = {
 	enabled = false,
 	weaponTypes = { "Melee", "Sword" },
@@ -5179,7 +5777,7 @@ function G.getNpcPosition(wantedName)
     return closest
 end
 
--- State NPC travel
+
 State.selectedNpcName       = nil
 State.npcTweenEnabled       = false
 State.npcTweenConn          = nil
@@ -5229,7 +5827,7 @@ function G.startTweenNpc()
         local hum = c and c:FindFirstChildOfClass("Humanoid")
         if not h or not hum or hum.Health <= 0 then return end
 
-        -- refresh ตำแหน่ง NPC ทุก frame (ติดตาม NPC ที่เดินได้)
+        
         local currentNpcPos = G.getNpcPosition(npcName)
         if not currentNpcPos then return end
 
@@ -5244,12 +5842,12 @@ function G.startTweenNpc()
         local dist = (destCF.Position - currentPos).Magnitude
 
         if dist > 3 then
-            -- use the shared mover so every travel function behaves the same
+            
             State.currentFlyCF = State.currentNpcFlyCF
             G.moveToTarget(h, CFrame.new(destCF.Position), dt)
             State.currentNpcFlyCF = State.currentFlyCF
         else
-            -- ถึงแล้ว lock CFrame ติด NPC เลย
+            
             State.currentNpcFlyCF = destCF
             pcall(function()
                 h.CFrame                  = destCF
@@ -5260,7 +5858,7 @@ function G.startTweenNpc()
     end)
 end
 
--- UI
+
 local npcNames = G.getAvailableNpcNames()
 if #npcNames == 0 then table.insert(npcNames, "No NPC found") end
 State.selectedNpcName = npcNames[1]
@@ -5277,7 +5875,7 @@ NpcDropdown = Tabs.NpcSection:AddDropdown("NpcDropdown", {
     end,
 })
 
-Tabs.NpcSection:AddButton({   -- เปลี่ยน NpcSection → Tabs.NpcSection
+Tabs.NpcSection:AddButton({   
     Title    = "Refresh NPC List",
     Callback = function()
         local newNames = G.getAvailableNpcNames()
@@ -5307,7 +5905,7 @@ Tabs.NpcSection:AddButton({   -- เปลี่ยน NpcSection → Tabs.NpcSe
 })
 
 local NpcTravelToggle
-NpcTravelToggle = Tabs.NpcSection:AddToggle("NpcTravelToggle", {   -- เปลี่ยน NpcSection → Tabs.NpcSection
+NpcTravelToggle = Tabs.NpcSection:AddToggle("NpcTravelToggle", {   
     Title    = "Go to NPC",
     Default  = false,
     Callback = function(value)
@@ -5420,7 +6018,7 @@ Tabs.FarmSetting:AddSlider("SpeedSlider", {
 Tabs.FarmSetting:AddSlider("YOffsetSlider", {
 	Title = "Y Offset",
 	Default = State.Y_OFFSET,
-	Min = 0,
+	Min = -120,
 	Max = 120,
 	Rounding = 0,
 	Callback = function(value)
@@ -6796,7 +7394,7 @@ Tabs.Esp:AddToggle("EspAdvancedDealerToggle", {
 	end,
 })
 
---  PVP MODULE
+
 local PVP = {
     enabled      = false,
     spectating   = false,
@@ -6823,12 +7421,12 @@ function PVP.getTargetHRP()
     return p.Character:FindFirstChild("HumanoidRootPart")
 end
 
--- Stop go-to-player
+
 function PVP.stopGoto()
     PVP.enabled = false
     if PVP.conn then PVP.conn:Disconnect(); PVP.conn = nil end
 
-    -- cleanup movers
+    
     local c = player.Character
     local r = c and c:FindFirstChild("HumanoidRootPart")
     if r then
@@ -6848,7 +7446,7 @@ function PVP.stopGoto()
     G.stopMomentum()
 end
 
--- Stop spectate
+
 function PVP.stopSpectate()
     PVP.spectating = false
     if PVP.spectateConn then
@@ -6862,7 +7460,7 @@ function PVP.stopSpectate()
     end)
 end
 
--- Go to player loop
+
 function PVP.startGoto()
     PVP.stopGoto()
     if not PVP.targetPlayer then
@@ -6911,7 +7509,7 @@ function PVP.startGoto()
         local antiGrav, bodyGyro = getOrCreateMovers(myHRP)
         antiGrav.Force = Vector3.new(0, myHRP.AssemblyMass * workspace.Gravity, 0)
 
-        -- noclip
+        
         for _, part in ipairs(myChar:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
         end
@@ -6921,7 +7519,7 @@ function PVP.startGoto()
 
         local tgtHRP = PVP.getTargetHRP()
         if not tgtHRP then
-            -- target not loaded, hold position
+            
             G.fsHoldPosition(myHRP)
             return
         end
@@ -6933,7 +7531,7 @@ function PVP.startGoto()
         if dist > 8 then
             G.moveToTarget(myHRP, targetCF, dt)
         else
-            -- snapped to target, hold CFrame
+            
             State.currentFlyCF = targetCF
             pcall(function()
                 myHRP.CFrame                  = targetCF
@@ -6941,7 +7539,7 @@ function PVP.startGoto()
                 myHRP.AssemblyAngularVelocity = Vector3.zero
             end)
 
-            -- face target
+            
             bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
             bodyGyro.CFrame    = CFrame.new(myHRP.Position, tgtHRP.Position)
             myHum.AutoRotate   = false
@@ -6949,7 +7547,7 @@ function PVP.startGoto()
     end)
 end
 
--- Spectate loop
+
 function PVP.startSpectate()
     PVP.stopSpectate()
     if not PVP.targetPlayer then
@@ -6979,7 +7577,7 @@ function PVP.startSpectate()
     end)
 end
 
---  PVP UI
+
 local pvpPlayerList = PVP.getPlayerList()
 
 local PvpPlayerDropdown
@@ -7078,7 +7676,7 @@ SpectateToggle = Tabs.PvpSpectate:AddToggle("SpectateToggle", {
     end,
 })
 
--- Auto stop if target leave
+
 Players.PlayerRemoving:Connect(function(p)
     if p == PVP.targetPlayer then
         PVP.stopGoto()
@@ -7090,7 +7688,7 @@ Players.PlayerRemoving:Connect(function(p)
     end
 end)
 
--- SECTION: Server & Time 
+
 
 TimeZone = P(Tabs.InfoServer, "Time Zone", "Your local date, time and region code.")
 
@@ -7146,7 +7744,7 @@ spawn(function()
 	end
 end)
 
-FullMoonCheck = P(Tabs.InfoServer, "Full Moon", "Moon phase 0/5 - 5/5. Full Moon is needed for some fruits and items.")
+FullMoonCheck = P(Tabs.InfoServer, "Full Moon", "Moon phase 0/5 - 5/5. Full Moon is needed Wait.")
 
 task.spawn(function()
 	while task.wait(1) do
@@ -7169,7 +7767,7 @@ task.spawn(function()
 	end
 end)
 
--- SECTION: Island Spawn Check
+
 
 MirageCheck = P(Tabs.InfoIsland, "Mirage Island", "Random island used for Mystic Droplet and Full Moon items.")
 
@@ -7230,7 +7828,7 @@ spawn(function()
 	end
 end)
 
--- SECTION: Boss & Raid Check
+
 
 AwakenBossCheck = P(Tabs.InfoBoss, "Awaken Boss", "Status: Checking...\nNext raid hint from the server (boss name + island).")
 
@@ -7272,18 +7870,50 @@ task.spawn(function()
 	end
 end)
 
-CakePrinceStatus = P(Tabs.InfoBoss, "Cake Prince", "Cake Prince door progress. Needs 150 Cake Guard kills to open.")
+CakePrinceStatus = P(Tabs.InfoBoss, "Cake Prince", "Cake Prince door progress. Needs 500 kills to open.")
 
 spawn(function()
-	while task.wait(1) do
-		local cakePrince = game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CakePrinceSpawner")
-		local killStatus = "Status: Not Spawned"
-		if type(cakePrince) == "string" and string.len(cakePrince) >= 86 then
-			local killCount = string.sub(cakePrince, 39, 41)
-			killStatus = "Killed: " .. killCount
-		end
-		CakePrinceStatus:SetDesc(killStatus)
-	end
+    while task.wait(1) do
+        local ok, result = pcall(function()
+            return game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CakePrinceSpawner")
+        end)
+
+        local killStatus = "Status: Unknown"
+
+        local bossAlive = false
+        pcall(function()
+            local enemies = workspace:FindFirstChild("Enemies")
+            if enemies then
+                for _, mob in ipairs(enemies:GetChildren()) do
+                    if mob.Name == "Cake Prince" then
+                        local hum = mob:FindFirstChildOfClass("Humanoid")
+                        if hum and hum.Health > 0 then
+                            bossAlive = true
+                        end
+                    end
+                end
+            end
+        end)
+
+        if bossAlive then
+            killStatus = "Boss Spawn! (Cake Prince alive)"
+        elseif ok and type(result) == "string" then
+            local remaining = result:match("<Color=Yellow>(%d+)<Color=/>")
+            if remaining then
+                local remaining_num = tonumber(remaining)
+                local killed = 500 - remaining_num
+                if remaining_num <= 0 then
+                    killStatus = "Can Spawn! (500/500)"
+                else
+                    killStatus = "Killed: " .. killed .. "/500 (left " .. remaining_num .. ")"
+                end
+            else
+                killStatus = "Boss Spawn!"
+            end
+        end
+
+        CakePrinceStatus:SetDesc(killStatus)
+    end
 end)
 
 RipIndraCheck = P(Tabs.InfoBoss, "Rip Indra", "True Form raid boss in Third Sea. Spawned = he is alive in this server.")
@@ -7322,7 +7952,7 @@ spawn(function()
 	end
 end)
 
--- SECTION: Tyrant Sky - Eye Check
+
 TyrantEyeCheck = P(Tabs.InfoTyrant, "Eye Check", "Eyes: Checking...")
 
 G.previousEyeSummary = ""
@@ -7352,7 +7982,7 @@ task.spawn(function()
 	end
 end)
 
--- SECTION: Items & Dealer
+
 
 LegendarySwordCheck = P(Tabs.InfoItem, "Legendary Sword", "Which legendary sword the dealer is selling right now.")
 
@@ -8045,8 +8675,8 @@ G.secSettingsFps:AddToggle("FPSCounterToggle", {
 })
 
 
---=============================== AUTO DUNGEON ===============================
--- Works only on PlaceId 73902483975735
+
+
 local AutoDungeon = {
 	enabled = false,
 	PLACE_ID = 73902483975735,
@@ -8061,6 +8691,7 @@ local AutoDungeon = {
 	currentTarget = nil,
 	OFFSET_Z = 10,
 	LOCK_DISTANCE = 60,
+	lastAttackTime = 0,
 }
 G.AutoDungeon = AutoDungeon
 
@@ -8068,13 +8699,9 @@ local ADRun = game:GetService("RunService")
 
 function AutoDungeon.getEnemies()
 	local folder = workspace:FindFirstChild("Enemies")
-	if not folder then
-		return nil, nil
-	end
+	if not folder then return nil, nil end
 	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	if not hrp then
-		return nil, nil
-	end
+	if not hrp then return nil, nil end
 	local prio, prioD = nil, math.huge
 	local normal, normalD = nil, math.huge
 	for _, mob in ipairs(folder:GetChildren()) do
@@ -8084,9 +8711,7 @@ function AutoDungeon.getEnemies()
 			if hum and root and hum.Health > 0 then
 				local d = (root.Position - hrp.Position).Magnitude
 				if AutoDungeon.PRIORITY[mob.Name] then
-					if d < prioD then
-						prioD, prio = d, mob
-					end
+					if d < prioD then prioD, prio = d, mob end
 				elseif d < normalD then
 					normalD, normal = d, mob
 				end
@@ -8098,73 +8723,180 @@ end
 
 function AutoDungeon.getRooms()
 	local dungeon = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Dungeon")
-	if not dungeon then
-		return {}
-	end
+	if not dungeon then return {} end
 	local rooms = {}
 	for _, model in ipairs(dungeon:GetChildren()) do
 		local num = tonumber(model.Name)
-		if num then
-			table.insert(rooms, { num = num, model = model })
-		end
+		if num then table.insert(rooms, { num = num, model = model }) end
 	end
-	table.sort(rooms, function(a, b)
-		return a.num < b.num
-	end)
+	table.sort(rooms, function(a, b) return a.num < b.num end)
 	return rooms
 end
 
 function AutoDungeon.getCurrentRoom()
 	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	if not hrp then
-		return nil
-	end
+	if not hrp then return nil end
 	local best, bestD = nil, math.huge
 	for _, room in ipairs(AutoDungeon.getRooms()) do
-		local ok, cf = pcall(function()
-			return room.model:GetPivot()
-		end)
+		local ok, cf = pcall(function() return room.model:GetPivot() end)
 		if ok and cf then
 			local d = (cf.Position - hrp.Position).Magnitude
-			if d < bestD then
-				bestD, best = d, room
-			end
+			if d < bestD then bestD, best = d, room end
 		end
 	end
 	return best
 end
 
 function AutoDungeon.getExitCF(room)
-	if not room or not room.model then
-		return nil
-	end
+	if not room or not room.model then return nil end
 	local exit = room.model:FindFirstChild("ExitTeleporter", true)
-	if not exit then
-		return nil
-	end
+	if not exit then return nil end
 	local ok, cf = pcall(function()
-		if exit:IsA("BasePart") then
-			return exit.CFrame
-		end
+		if exit:IsA("BasePart") then return exit.CFrame end
 		return exit:GetPivot()
 	end)
-	if not ok or not cf then
-		return nil
-	end
+	if not ok or not cf then return nil end
 	return CFrame.new(cf.Position + Vector3.new(0, 5, 0))
 end
 
-function AutoDungeon.step(dt)
-	if not AutoDungeon.enabled then
-		return
+
+AutoDungeon._antiGrav = nil
+AutoDungeon._bodyGyro = nil
+
+function AutoDungeon.getOrCreateMovers(root)
+	local ag = root:FindFirstChild("DungeonAntiGrav")
+	if not ag then
+		ag = Instance.new("BodyForce")
+		ag.Name = "DungeonAntiGrav"
+		ag.Parent = root
 	end
+	ag.Force = Vector3.new(0, root.AssemblyMass * workspace.Gravity, 0)
+	AutoDungeon._antiGrav = ag
+
+	local bg = root:FindFirstChild("DungeonBodyGyro")
+	if not bg then
+		bg = Instance.new("BodyGyro")
+		bg.Name = "DungeonBodyGyro"
+		bg.MaxTorque = Vector3.zero
+		bg.P = 50000
+		bg.D = 1500
+		bg.Parent = root
+	end
+	AutoDungeon._bodyGyro = bg
+	return ag, bg
+end
+
+function AutoDungeon.destroyMovers()
+	if AutoDungeon._antiGrav and AutoDungeon._antiGrav.Parent then
+		AutoDungeon._antiGrav:Destroy()
+	end
+	AutoDungeon._antiGrav = nil
+	if AutoDungeon._bodyGyro and AutoDungeon._bodyGyro.Parent then
+		AutoDungeon._bodyGyro:Destroy()
+	end
+	AutoDungeon._bodyGyro = nil
+
+	local char = player.Character
+	if char then
+		local root = char:FindFirstChild("HumanoidRootPart")
+		if root then
+			local ag2 = root:FindFirstChild("DungeonAntiGrav")
+			if ag2 then ag2:Destroy() end
+			local bg2 = root:FindFirstChild("DungeonBodyGyro")
+			if bg2 then bg2:Destroy() end
+		end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.AutoRotate = true end
+	end
+end
+
+function AutoDungeon.doAttack(char, target, hrp, bg)
+    local root = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso")
+    if not root then return end
+
+    if bg then
+        bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bg.CFrame = CFrame.new(hrp.Position, root.Position)
+    end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.AutoRotate = false end
+
+    if State.bringMobEnabled then
+        local targetRoot = target:FindFirstChild("HumanoidRootPart")
+        local targetHum = target:FindFirstChildOfClass("Humanoid")
+        if targetRoot and targetHum and targetHum.Health > 0 then
+            G.updateBringMobs(target, tick())
+        end
+    end
+
+    G.autoEquipWeapon()
+
+    local now = tick()
+    if now - AutoDungeon.lastAttackTime < State.ATTACK_RATE then return end
+    AutoDungeon.lastAttackTime = now
+
+    local currentTool = char:FindFirstChildOfClass("Tool")
+    local isFruit = false
+    if currentTool then
+        local hasLeftClick = currentTool:FindFirstChild("LeftClickRemote", true)
+        if hasLeftClick then isFruit = true end
+        if not isFruit then
+            local tooltip = G.getToolTooltip(currentTool):lower()
+            local toolName = currentTool.Name:lower()
+            if tooltip:find("fruit") or toolName:find("fruit")
+            or tooltip:find("devil") or toolName:find("devil") then
+                isFruit = true
+            end
+        end
+    end
+
+    if isFruit then
+        local remote = currentTool and currentTool:FindFirstChild("LeftClickRemote", true)
+        local targetPos = root.Position
+        if remote and targetPos and not G.fruitAttackBusy then
+            G.fruitAttackBusy = true
+            local capturedPos = targetPos
+            local capturedHrp = hrp
+            task.spawn(function()
+                local dir = (capturedPos - capturedHrp.Position)
+                dir = Vector3.new(dir.X, 0, dir.Z)
+                local mag = dir.Magnitude
+                local direction = mag > 0.01 and (dir / mag) or capturedHrp.CFrame.LookVector
+                for action = 1, 4 do
+                    if not remote or not remote.Parent then break end
+                    pcall(function() remote:FireServer(direction, action) end)
+                    task.wait(FastFruitAttack.rate)
+                end
+                task.wait(FastFruitAttack.cycleDelay)
+                G.fruitAttackBusy = false
+            end)
+        end
+    else
+        pcall(FastAttackModule.ExecuteFastAttack)
+        pcall(G.HitRegistrationModule.Execute)
+    end
+end
+
+function AutoDungeon.step(dt)
+	if not AutoDungeon.enabled then return end
+
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	if not hrp or not hum or hum.Health <= 0 then
-		return
-	end
+	if not hrp or not hum or hum.Health <= 0 then return end
 
+	
+	local ag, bg = AutoDungeon.getOrCreateMovers(hrp)
+	ag.Force = Vector3.new(0, hrp.AssemblyMass * workspace.Gravity, 0)
+
+	
+	G.applyNoclip(char)
+
+	
+	hrp.AssemblyLinearVelocity = Vector3.zero
+	hrp.AssemblyAngularVelocity = Vector3.zero
+
+	
 	local room = AutoDungeon.getCurrentRoom()
 	if room and room.num > AutoDungeon.lastRoom then
 		AutoDungeon.lastRoom = room.num
@@ -8173,74 +8905,106 @@ function AutoDungeon.step(dt)
 		AutoDungeon.returning = false
 	end
 
+	
 	local target = AutoDungeon.getEnemies()
+
 	if target then
 		AutoDungeon.waiting = false
 		local root = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso")
 		if root then
 			if AutoDungeon.currentTarget ~= target then
 				AutoDungeon.currentTarget = target
+				
 				State.currentFlyCF = hrp.CFrame
 			end
-			if not FastAttackModule.Enabled or not G.fastAttackThread then
-				G.startFastAttack()
-			end
 
-			local goal = root.CFrame * CFrame.new(0, State.Y_OFFSET, 10)
-			local distance = (goal.Position - hrp.Position).Magnitude
-    if distance <= AutoDungeon.LOCK_DISTANCE then
-        G.autoEquipWeapon()
-        G.stopMomentum()
-        hrp.CFrame = goal
-        State.currentFlyCF = goal
-        -- เพิ่มบรรทัดนี้
-        if State.bringMobEnabled then
-            G.updateBringMobs(target, tick())
-        end
-    else
-        G.moveToTarget(hrp, goal, dt)
-    end
+			
+			local goalCF = root.CFrame * CFrame.new(0, State.Y_OFFSET, AutoDungeon.OFFSET_Z)
+			local dist = (goalCF.Position - hrp.Position).Magnitude
+
+			if dist <= AutoDungeon.LOCK_DISTANCE then
+				
+				State.currentFlyCF = goalCF
+				pcall(function()
+					hrp.CFrame = goalCF
+					hrp.AssemblyLinearVelocity = Vector3.zero
+					hrp.AssemblyAngularVelocity = Vector3.zero
+				end)
+				
+				AutoDungeon.doAttack(char, target, hrp, bg)
+			else
+				
+				
+				bg.MaxTorque = Vector3.zero
+				hum.AutoRotate = true
+				G.moveToTarget(hrp, goalCF, dt)
+			end
 		end
 		return
-	end	
-	AutoDungeon.currentTarget = nil
-
-	-- Keep Fast Attack alive while Auto Dungeon is enabled. It will idle safely
-	-- with no targets and be ready immediately when the next wave spawns.
-	if not FastAttackModule.Enabled or not G.fastAttackThread then
-		G.startFastAttack()
 	end
 
+	
+	AutoDungeon.currentTarget = nil
+	bg.MaxTorque = Vector3.zero
+	hum.AutoRotate = true
+
 	if AutoDungeon.waiting and not AutoDungeon.returning then
-		-- hold position until mobs respawn
-		State.currentFlyCF = hrp.CFrame
+		
+		if not State.currentFlyCF then
+			State.currentFlyCF = hrp.CFrame
+		end
+		local anchorDist = (hrp.Position - State.currentFlyCF.Position).Magnitude
+		if anchorDist > 2 then
+			hrp.CFrame = State.currentFlyCF
+		end
 		return
 	end
 
+	
 	local exitCF = AutoDungeon.getExitCF(room)
 	if exitCF then
-		local before = room and room.num or -1
-		G.moveToTarget(hrp, exitCF, dt)
-		local now = AutoDungeon.getCurrentRoom()
-		if now and now.num ~= before then
+		local beforeRoom = room and room.num or -1
+		local distToExit = (exitCF.Position - hrp.Position).Magnitude
+
+		if distToExit > 4 then
+			G.moveToTarget(hrp, exitCF, dt)
+		else
+			
+			State.currentFlyCF = exitCF
+			pcall(function()
+				hrp.CFrame = exitCF
+				hrp.AssemblyLinearVelocity = Vector3.zero
+				hrp.AssemblyAngularVelocity = Vector3.zero
+			end)
+		end
+
+		
+		local nowRoom = AutoDungeon.getCurrentRoom()
+		if nowRoom and nowRoom.num ~= beforeRoom then
 			AutoDungeon.waiting = not AutoDungeon.returning
 			State.currentFlyCF = hrp.CFrame
+		end
+	else
+		
+		if not State.currentFlyCF then
+			State.currentFlyCF = hrp.CFrame
+		end
+		local anchorDist = (hrp.Position - State.currentFlyCF.Position).Magnitude
+		if anchorDist > 2 then
+			hrp.CFrame = State.currentFlyCF
 		end
 	end
 end
 
 function AutoDungeon.hookCharacter(char)
 	local hum = char:WaitForChild("Humanoid", 10)
-	if not hum then
-		return
-	end
-	if AutoDungeon.deathConn then
-		AutoDungeon.deathConn:Disconnect()
-	end
+	if not hum then return end
+	if AutoDungeon.deathConn then AutoDungeon.deathConn:Disconnect() end
 	AutoDungeon.deathConn = hum.Died:Connect(function()
 		if AutoDungeon.enabled then
 			AutoDungeon.returning = true
 			AutoDungeon.waiting = false
+			State.currentFlyCF = nil
 		end
 	end)
 end
@@ -8251,57 +9015,87 @@ function AutoDungeon.start()
 	AutoDungeon.waiting = false
 	AutoDungeon.returning = false
 	AutoDungeon.currentTarget = nil
-	G.startFastAttack()
-	if player.Character then
-		AutoDungeon.hookCharacter(player.Character)
-	end
-	AutoDungeon.charConn = player.CharacterAdded:Connect(function(char)
-		AutoDungeon.hookCharacter(char)
+	AutoDungeon.lastRoom = 0
+	AutoDungeon.lastAttackTime = 0
+	State.currentFlyCF = nil
+
+	
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if hrp then State.currentFlyCF = hrp.CFrame end
+
+	if char then AutoDungeon.hookCharacter(char) end
+
+	AutoDungeon.charConn = player.CharacterAdded:Connect(function(newChar)
+		AutoDungeon.hookCharacter(newChar)
 		task.wait(1.5)
 		State.currentFlyCF = nil
+		local newHrp = newChar:FindFirstChild("HumanoidRootPart")
+		if newHrp then State.currentFlyCF = newHrp.CFrame end
 	end)
+
 	AutoDungeon.conn = ADRun.Heartbeat:Connect(function(dt)
+		if not AutoDungeon.enabled then
+			AutoDungeon.stop()
+			return
+		end
 		pcall(AutoDungeon.step, dt)
 	end)
+
+	Fluent:Notify({ Title = "Auto Dungeon", Content = "Started - Flying mode enabled", Duration = 3 })
 end
 
 function AutoDungeon.stop()
 	AutoDungeon.enabled = false
-	if AutoDungeon.conn then
-		AutoDungeon.conn:Disconnect()
-		AutoDungeon.conn = nil
-	end
-	if AutoDungeon.charConn then
-		AutoDungeon.charConn:Disconnect()
-		AutoDungeon.charConn = nil
-	end
-	if AutoDungeon.deathConn then
-		AutoDungeon.deathConn:Disconnect()
-		AutoDungeon.deathConn = nil
-	end
-	G.stopFastAttack()
+	if AutoDungeon.conn then AutoDungeon.conn:Disconnect(); AutoDungeon.conn = nil end
+	if AutoDungeon.charConn then AutoDungeon.charConn:Disconnect(); AutoDungeon.charConn = nil end
+	if AutoDungeon.deathConn then AutoDungeon.deathConn:Disconnect(); AutoDungeon.deathConn = nil end
+	AutoDungeon.destroyMovers()
 	AutoDungeon.currentTarget = nil
 	State.currentFlyCF = nil
-	pcall(function()
-		G.forceCleanGyro()
-	end)
+	G.clearBringMobs()
+	G.restoreCollision()
+	pcall(function() G.forceCleanGyro() end)
 end
 
-if Tabs.Dungeon then
-	Tabs.Dungeon:AddToggle("AutoDungeonToggle", {
-		Title = "Auto Dungeon",
-		Description = "Kill every mob in workspace.Enemies, then move to ExitTeleporter",
-		Default = false,
-		Callback = function(Value)
-			if Value then
-				AutoDungeon.start()
-			else
-				AutoDungeon.stop()
-			end
-		end,
-	})
-end
---============================= END AUTO DUNGEON =============================
+local isDungeonPlace = (game.PlaceId == 73902483975735)
+
+Tabs.Dungeon:AddParagraph({
+	Title = isDungeonPlace and "Dungeon Mode" or " Wrong Place",
+	Content = isDungeonPlace
+		and "PlaceId " .. game.PlaceId .. " | Ready"
+		or "Feature Only PlaceId 73902483975735 \nPlaceId Here: " .. game.PlaceId,
+})
+
+local DungeonToggle
+DungeonToggle = Tabs.Dungeon:AddToggle("AutoDungeonToggle", {
+	Title = "Auto Dungeon",
+	Description = isDungeonPlace and "" or "Only PlaceId 73902483975735",
+	Default = false,
+	Callback = function(Value)
+		if not Value then
+			AutoDungeon.stop()
+			Fluent:Notify({ Title = "Auto Dungeon", Content = "Stopped", Duration = 2 })
+			return
+		end
+
+		if not isDungeonPlace then
+			Fluent:Notify({
+				Title = "Auto Dungeon",
+				Content = "Work for PlaceId 73902483975735 Only\nCurrent: " .. game.PlaceId,
+				Duration = 4,
+			})
+			task.defer(function()
+				pcall(function()
+					DungeonToggle:SetValue(false)
+				end)
+			end)
+			return
+		end
+
+		AutoDungeon.start()
+	end,
+})
 
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
@@ -8326,7 +9120,7 @@ end)
 task.spawn(function()
 	task.wait(0.5)
 	pcall(function()
-		Fluent:SetTheme("KKKK Blue")
+		Fluent:SetTheme("KKKK Cyber Neon")
 	end)
 end)
 
