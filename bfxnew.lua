@@ -10217,7 +10217,21 @@ function SeaEventSystem.Start()
 						SeaEventSystem.SetBoatNoclip(myBoat, true)
 					end
 					SeaEventSystem.HoldBoatAtY100(myBoat)
+
+					local targetHeight = SeaEventSystem.boatLiftHeight or 150
+					local boatY = myBoat:GetPivot().Position.Y
+					if hum.SeatPart then
+						if not SeaEventSystem._liftStartTick then
+							SeaEventSystem._liftStartTick = tick()
+						end
+						if (tick() - SeaEventSystem._liftStartTick) < 0.25 or boatY < (targetHeight - 15) then
+							return
+						end
+					end
 				end
+
+				SeaEventSystem._liftStartTick = nil
+
 				if hum.SeatPart then
 					hum.Sit = false
 				end
@@ -10294,6 +10308,7 @@ function SeaEventSystem.Start()
 					SeaEventSystem.SetBoatNoclip(myBoat, true)
 				end
 
+				SeaEventSystem._liftStartTick = nil
 				SeaEventSystem.ReleaseBoatY100(myBoat)
 				local seat = myBoat:FindFirstChild("VehicleSeat", true)
 				if seat and hum.SeatPart ~= seat then
