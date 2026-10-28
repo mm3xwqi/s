@@ -1,5 +1,4 @@
--- OasisUI v1.7.0 | MIT License | https://github.com/Mold53/OasisUI
--- generated from src/ by build/bundle.mjs, do not edit
+
 local __modules, __cache = {}, {}
 local function import(name)
     local cached = __cache[name]
