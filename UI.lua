@@ -1,4 +1,5 @@
-
+-- OasisUI v1.7.0 | MIT License | https://github.com/Mold53/OasisUI
+-- generated from src/ by build/bundle.mjs, do not edit
 local __modules, __cache = {}, {}
 local function import(name)
     local cached = __cache[name]
@@ -4375,6 +4376,55 @@ function Window:GetScale()
     return self.Scale or 1
 end
 
+local function _mouseService()
+    return Services.UserInputService
+end
+
+local _savedMouseBehavior = nil
+local _savedMouseIcon = nil
+local _mouseFreed = false
+
+function Window:_freeMouse(on)
+    on = on and true or false
+    if on == _mouseFreed then return end
+    _mouseFreed = on
+    local UIS = _mouseService()
+    if on then
+        -- เก็บค่าเดิมไว้เฉพาะครั้งแรก (ตอนยังไม่ free)
+        if _savedMouseBehavior == nil then
+            _savedMouseBehavior = UIS.MouseBehavior
+            _savedMouseIcon = UIS.MouseIconEnabled
+        end
+        UIS.MouseBehavior = Enum.MouseBehavior.Default
+        UIS.MouseIconEnabled = true
+    else
+        -- คืนค่าเดิมเมื่อปิด GUI
+        if _savedMouseBehavior ~= nil then
+            UIS.MouseBehavior = _savedMouseBehavior
+            UIS.MouseIconEnabled = _savedMouseIcon
+        end
+    end
+end
+
+function Window:_restoreMouse()
+    if _savedMouseBehavior == nil and _savedMouseIcon == nil then
+        _mouseFreed = false
+        return
+    end
+    local UIS = _mouseService()
+    pcall(function()
+        if _savedMouseBehavior ~= nil then
+            UIS.MouseBehavior = _savedMouseBehavior
+        end
+        if _savedMouseIcon ~= nil then
+            UIS.MouseIconEnabled = _savedMouseIcon
+        end
+    end)
+    _savedMouseBehavior = nil
+    _savedMouseIcon = nil
+    _mouseFreed = false
+end
+
 -- keybind capture defaults from the interface settings
 function Window:ApplyBindOptions()
     Keybinds.Options.ClickOutside = self.Interface.BindClickOutside
@@ -5056,10 +5106,8 @@ end
 
 function Window:_open()
     self.Root.Visible = true
-    self.UIScale.Scale = self:GetScale() * 0.96
-    Util.Tween(self.UIScale, 0.15, { Scale = self:GetScale() }, Enum.EasingStyle.Quad)
-    UIS.MouseBehavior = Enum.MouseBehavior.Default
-    UIS.MouseIconEnabled = true
+    self.UIScale.Scale = self:GetScale() * 0.92
+    Util.Tween(self.UIScale, 0.35, { Scale = self:GetScale() }, Enum.EasingStyle.Back)
 end
 
 function Window:SetVisible(visible)
@@ -5068,14 +5116,13 @@ function Window:SetVisible(visible)
     self.Visible = visible
     Popup.CloseAll()
     Tooltip.Hide()
+
+    self:_freeMouse(visible)
+
     if visible then
         self:_open()
-        UIS.MouseBehavior = Enum.MouseBehavior.Default
-        UIS.MouseIconEnabled = true
     else
-        UIS.MouseBehavior = Enum.MouseBehavior.LockCenter
-        UIS.MouseIconEnabled = false
-        local tween = Util.Tween(self.UIScale, 0.08, { Scale = self:GetScale() * 0.96 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        local tween = Util.Tween(self.UIScale, 0.18, { Scale = self:GetScale() * 0.94 }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
         local function hide() if not self.Visible then self.Root.Visible = false end end
         if tween then tween.Completed:Once(hide) else hide() end
     end
@@ -5428,11 +5475,11 @@ end
 function Window:Destroy()
     if self.Destroyed then return end
     self.Destroyed = true
-    local UIS = Services.UserInputService
-    UIS.MouseBehavior = Enum.MouseBehavior.Default
-    UIS.MouseIconEnabled = true
     Popup.CloseAll()
     Tooltip.Hide()
+
+    self:_restoreMouse()
+
     self.Maid:Clean()
 end
 
@@ -10307,9 +10354,6 @@ end
 function Library:Unload()
     if self.IsUnloaded then return end
     self.IsUnloaded = true
-    local UIS = game:GetService("UserInputService")
-    UIS.MouseBehavior = Enum.MouseBehavior.Default
-    UIS.MouseIconEnabled = true
     Popup.CloseAll()
     Tooltip.Hide()
     for _, window in self.Windows do window:Destroy() end
