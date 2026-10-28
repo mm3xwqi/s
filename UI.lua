@@ -1,5 +1,4 @@
--- OasisUI v1.7.0 | MIT License | https://github.com/Mold53/OasisUI
--- generated from src/ by build/bundle.mjs, do not edit
+
 local __modules, __cache = {}, {}
 local function import(name)
     local cached = __cache[name]
@@ -1023,7 +1022,6 @@ end
 
 function Layer.Init(maid, name)
     Layer.Parent = parent()
-    -- guis left by a run the unload registry could not reach (another environment, an error mid-load)
     for _, suffix in { "", "_Hud", "_Overlay" } do
         local old = Layer.Parent:FindFirstChild(name .. suffix)
         while old do
@@ -1034,7 +1032,7 @@ function Layer.Init(maid, name)
     Layer.Main = maid:Give(screen(name, 1000))
     Layer.Hud = maid:Give(screen(name .. "_Hud", 999))
     Layer.Overlay = maid:Give(screen(name .. "_Overlay", 1001))
-    -- scaled root covering the screen; children use the same scale as the window
+    
     Layer.Root = Util.New("Frame", {
         Name = "Root",
         BackgroundTransparency = 1,
@@ -1042,6 +1040,23 @@ function Layer.Init(maid, name)
         Parent = Layer.Overlay,
     })
     Layer.RootScale = Util.New("UIScale", { Parent = Layer.Root })
+
+    -- แก้ไข ModalElement ให้ใช้ Instance.new เพื่อความชัวร์
+    local modal = Instance.new("TextButton")
+    modal.Name = "OasisUI_Modal"
+    modal.Modal = false
+    modal.Size = UDim2.fromScale(1, 1) -- สำคัญ! ต้องมีขนาด ไม่ใช่ 0x0
+    modal.AnchorPoint = Vector2.new(0, 0)
+    modal.Position = UDim2.fromOffset(0, 0)
+    modal.BackgroundTransparency = 1
+    modal.Text = ""
+    modal.AutoButtonColor = false
+    modal.Active = true
+    modal.Visible = true
+    modal.ZIndex = -999
+    modal.Parent = Layer.Overlay
+    
+    Layer.ModalElement = maid:Give(modal)
 end
 
 function Layer.SetScale(scale)
@@ -2313,14 +2328,12 @@ function Overlays:_paintBinds()
         for index, column in columns do
             if column == "Name" then
                 local name = Util.Label({
-                    Text = entry.Title,
-                    TextSize = 11,
-                    Weight = Enum.FontWeight.Medium,
-                    Color = entry.Active and "Text" or "TextMuted",
-                    TextTruncate = Enum.TextTruncate.AtEnd,
-                    Size = UDim2.new(0, 0, 1, 0),
-                    LayoutOrder = index,
-                    Parent = row,
+                    TextSize = 12, 
+                    Weight = Enum.FontWeight.SemiBold, 
+                    Position = UDim2.fromOffset(42, 7), 
+                    Size = UDim2.new(1, -48, 0, 15), 
+                    TextTruncate = Enum.TextTruncate.AtEnd, 
+                    Parent = card 
                 })
                 Util.New("UIFlexItem", { FlexMode = Enum.UIFlexMode.Fill, Parent = name })
             elseif column == "Key" then
@@ -4376,56 +4389,24 @@ function Window:GetScale()
     return self.Scale or 1
 end
 
-local function _mouseService()
-    return Services.UserInputService
-end
-
-local _savedMouseBehavior = nil
-local _savedMouseIcon = nil
-local _mouseFreed = false
-
+-- แก้ไขฟังก์ชัน Free Mouse ให้เหลือแค่ 2 อันนี้เท่านั้น
 function Window:_freeMouse(on)
-    on = on and true or false
-    if on == _mouseFreed then return end
-    _mouseFreed = on
-    local UIS = _mouseService()
-    if on then
-        -- เก็บค่าเดิมไว้เฉพาะครั้งแรก (ตอนยังไม่ free)
-        if _savedMouseBehavior == nil then
-            _savedMouseBehavior = UIS.MouseBehavior
-            _savedMouseIcon = UIS.MouseIconEnabled
-        end
-        UIS.MouseBehavior = Enum.MouseBehavior.Default
-        UIS.MouseIconEnabled = true
-    else
-        -- คืนค่าเดิมเมื่อปิด GUI
-        if _savedMouseBehavior ~= nil then
-            UIS.MouseBehavior = _savedMouseBehavior
-            UIS.MouseIconEnabled = _savedMouseIcon
-        end
-    end
+    local modal = Layer.ModalElement
+    if not modal then return end
+    pcall(function()
+        modal.Modal = on and true or false
+    end)
 end
 
 function Window:_restoreMouse()
-    if _savedMouseBehavior == nil and _savedMouseIcon == nil then
-        _mouseFreed = false
-        return
-    end
-    local UIS = _mouseService()
+    local modal = Layer.ModalElement
+    if not modal then return end
     pcall(function()
-        if _savedMouseBehavior ~= nil then
-            UIS.MouseBehavior = _savedMouseBehavior
-        end
-        if _savedMouseIcon ~= nil then
-            UIS.MouseIconEnabled = _savedMouseIcon
-        end
+        modal.Modal = false
     end)
-    _savedMouseBehavior = nil
-    _savedMouseIcon = nil
-    _mouseFreed = false
 end
 
--- keybind capture defaults from the interface settings
+-- ฟังก์ชันนี้ปล่อยไว้เหมือนเดิม
 function Window:ApplyBindOptions()
     Keybinds.Options.ClickOutside = self.Interface.BindClickOutside
     Keybinds.Options.Escape = self.Interface.BindEscape
@@ -4553,7 +4534,7 @@ function Window:_build()
             titleGradient.Offset = Vector2.new(math.sin(os.clock() * 1.3) * 0.5, 0)
         end
     end))
-    for index, tag in def.Tags or {} do
+    for index, tag in ipairs(def.Tags or {}) do
         tag = type(tag) == "string" and { Text = tag } or tag
         local chip = Util.New("Frame", {
             AutomaticSize = Enum.AutomaticSize.X,
@@ -5117,7 +5098,7 @@ function Window:SetVisible(visible)
     Popup.CloseAll()
     Tooltip.Hide()
 
-    self:_freeMouse(visible)
+    self:_freeMouse(visible)   -- <<< ต้องมีบรรทัดนี้
 
     if visible then
         self:_open()
