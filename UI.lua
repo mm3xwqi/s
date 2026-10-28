@@ -1,4 +1,5 @@
-
+-- OasisUI v1.7.0 | MIT License | https://github.com/Mold53/OasisUI
+-- generated from src/ by build/bundle.mjs, do not edit
 local __modules, __cache = {}, {}
 local function import(name)
     local cached = __cache[name]
@@ -1022,6 +1023,7 @@ end
 
 function Layer.Init(maid, name)
     Layer.Parent = parent()
+    -- guis left by a run the unload registry could not reach (another environment, an error mid-load)
     for _, suffix in { "", "_Hud", "_Overlay" } do
         local old = Layer.Parent:FindFirstChild(name .. suffix)
         while old do
@@ -1032,7 +1034,7 @@ function Layer.Init(maid, name)
     Layer.Main = maid:Give(screen(name, 1000))
     Layer.Hud = maid:Give(screen(name .. "_Hud", 999))
     Layer.Overlay = maid:Give(screen(name .. "_Overlay", 1001))
-    
+    -- scaled root covering the screen; children use the same scale as the window
     Layer.Root = Util.New("Frame", {
         Name = "Root",
         BackgroundTransparency = 1,
@@ -1040,23 +1042,6 @@ function Layer.Init(maid, name)
         Parent = Layer.Overlay,
     })
     Layer.RootScale = Util.New("UIScale", { Parent = Layer.Root })
-
-    -- แก้ไข ModalElement ให้ใช้ Instance.new เพื่อความชัวร์
-    local modal = Instance.new("TextButton")
-    modal.Name = "OasisUI_Modal"
-    modal.Modal = false
-    modal.Size = UDim2.fromScale(1, 1) -- สำคัญ! ต้องมีขนาด ไม่ใช่ 0x0
-    modal.AnchorPoint = Vector2.new(0, 0)
-    modal.Position = UDim2.fromOffset(0, 0)
-    modal.BackgroundTransparency = 1
-    modal.Text = ""
-    modal.AutoButtonColor = false
-    modal.Active = true
-    modal.Visible = true
-    modal.ZIndex = -999
-    modal.Parent = Layer.Overlay
-    
-    Layer.ModalElement = maid:Give(modal)
 end
 
 function Layer.SetScale(scale)
@@ -2328,12 +2313,14 @@ function Overlays:_paintBinds()
         for index, column in columns do
             if column == "Name" then
                 local name = Util.Label({
-                    TextSize = 12, 
-                    Weight = Enum.FontWeight.SemiBold, 
-                    Position = UDim2.fromOffset(42, 7), 
-                    Size = UDim2.new(1, -48, 0, 15), 
-                    TextTruncate = Enum.TextTruncate.AtEnd, 
-                    Parent = card 
+                    Text = entry.Title,
+                    TextSize = 11,
+                    Weight = Enum.FontWeight.Medium,
+                    Color = entry.Active and "Text" or "TextMuted",
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    Size = UDim2.new(0, 0, 1, 0),
+                    LayoutOrder = index,
+                    Parent = row,
                 })
                 Util.New("UIFlexItem", { FlexMode = Enum.UIFlexMode.Fill, Parent = name })
             elseif column == "Key" then
@@ -4219,6 +4206,7 @@ local Acrylic = import("Components/Acrylic")
 local Panel = import("Components/Panel")
 local ScreenButton = import("Components/ScreenButton")
 local Menu = import("Components/Menu")
+local Mouse = import("Core/Mouse")
 
 local UIS = Services.UserInputService
 local Window = {}
@@ -4389,24 +4377,7 @@ function Window:GetScale()
     return self.Scale or 1
 end
 
--- แก้ไขฟังก์ชัน Free Mouse ให้เหลือแค่ 2 อันนี้เท่านั้น
-function Window:_freeMouse(on)
-    local modal = Layer.ModalElement
-    if not modal then return end
-    pcall(function()
-        modal.Modal = on and true or false
-    end)
-end
-
-function Window:_restoreMouse()
-    local modal = Layer.ModalElement
-    if not modal then return end
-    pcall(function()
-        modal.Modal = false
-    end)
-end
-
--- ฟังก์ชันนี้ปล่อยไว้เหมือนเดิม
+-- keybind capture defaults from the interface settings
 function Window:ApplyBindOptions()
     Keybinds.Options.ClickOutside = self.Interface.BindClickOutside
     Keybinds.Options.Escape = self.Interface.BindEscape
@@ -4534,7 +4505,7 @@ function Window:_build()
             titleGradient.Offset = Vector2.new(math.sin(os.clock() * 1.3) * 0.5, 0)
         end
     end))
-    for index, tag in ipairs(def.Tags or {}) do
+    for index, tag in def.Tags or {} do
         tag = type(tag) == "string" and { Text = tag } or tag
         local chip = Util.New("Frame", {
             AutomaticSize = Enum.AutomaticSize.X,
@@ -5097,9 +5068,7 @@ function Window:SetVisible(visible)
     self.Visible = visible
     Popup.CloseAll()
     Tooltip.Hide()
-
-    self:_freeMouse(visible)   -- <<< ต้องมีบรรทัดนี้
-
+    Mouse.SetOpen(visible)
     if visible then
         self:_open()
     else
@@ -5458,9 +5427,6 @@ function Window:Destroy()
     self.Destroyed = true
     Popup.CloseAll()
     Tooltip.Hide()
-
-    self:_restoreMouse()
-
     self.Maid:Clean()
 end
 
@@ -6385,6 +6351,102 @@ return {
     Lighting         = service("Lighting"),
     Stats            = service("Stats"),
 }
+end
+
+__modules["Core/Mouse"] = function(...)
+local _ = ...
+local Services = import("Core/Services")
+local Layer = import("Components/Layer")
+
+-- Frees the mouse while a window is open and gives it back afterwards, the way
+-- Obsidian's UnlockMouseWhileOpen does:
+--   open  - a hidden modal button keeps the cursor unlocked (even in first
+--           person) and a render step pins MouseBehavior to Default so the
+--           game cannot lock the mouse again while the menu shows
+--   close - MouseBehavior and MouseIconEnabled go back to what the game had
+--   unload - always hands the mouse back, whatever state the menu was in
+local UIS = Services.UserInputService
+local RunService = Services.RunService
+
+local BINDING = "OasisUI_FreeMouse"
+local Mouse = {
+    _count = 0, -- how many windows are visible right now
+    _modal = nil,
+    _saved = nil,
+}
+
+-- touch-only devices have no mouse to free
+local function touchOnly()
+    local ok, touch = pcall(function() return UIS.TouchEnabled end)
+    local ok2, mouse = pcall(function() return UIS.MouseEnabled end)
+    return ok and touch and ok2 and not mouse
+end
+
+local function modal()
+    local button = Mouse._modal
+    if button and button.Parent then return button end
+    button = Instance.new("TextButton")
+    button.Name = "FreeMouse"
+    button.BackgroundTransparency = 1
+    button.Text = ""
+    button.Size = UDim2.fromScale(0, 0)
+    button.AnchorPoint = Vector2.zero
+    button.Modal = false
+    button.ZIndex = -999
+    button.Parent = Layer.Overlay
+    Mouse._modal = button
+    return button
+end
+
+local function release()
+    if touchOnly() then return end
+
+    -- the modal button is what unlocks the mouse while the camera is in first person
+    modal().Modal = true
+
+    if Mouse._saved == nil then
+        Mouse._saved = {
+            Behavior = UIS.MouseBehavior,
+            Icon = UIS.MouseIconEnabled,
+        }
+    end
+
+    -- first person (and some games) re-lock the mouse every frame, so the render
+    -- step puts it back to Default and keeps the cursor visible while the menu is open
+    pcall(function() RunService:UnbindFromRenderStep(BINDING) end)
+    RunService:BindToRenderStep(BINDING, Enum.RenderPriority.Last.Value + 1, function()
+        if UIS.MouseBehavior ~= Enum.MouseBehavior.Default then
+            UIS.MouseBehavior = Enum.MouseBehavior.Default
+        end
+        if not UIS.MouseIconEnabled then
+            UIS.MouseIconEnabled = true
+        end
+    end)
+end
+
+local function restore()
+    pcall(function() RunService:UnbindFromRenderStep(BINDING) end)
+    if Mouse._modal then Mouse._modal.Modal = false end
+    local saved = Mouse._saved
+    Mouse._saved = nil
+    if saved then
+        pcall(function() UIS.MouseBehavior = saved.Behavior end)
+        pcall(function() UIS.MouseIconEnabled = saved.Icon end)
+    end
+end
+
+-- open = a window became visible; close = the last window was hidden again
+function Mouse.SetOpen(open)
+    Mouse._count = math.max(0, Mouse._count + (open and 1 or -1))
+    if Mouse._count > 0 then release() else restore() end
+end
+
+function Mouse.Shutdown()
+    Mouse._count = 0
+    restore()
+end
+
+return Mouse
 end
 
 __modules["Core/Signal"] = function(...)
@@ -10237,6 +10299,7 @@ local Layer = import("Components/Layer")
 local Popup = import("Components/Popup")
 local Tooltip = import("Components/Tooltip")
 local Notification = import("Components/Notification")
+local Mouse = import("Core/Mouse")
 
 local Library = {
     Version = "dev",
@@ -10335,6 +10398,7 @@ end
 function Library:Unload()
     if self.IsUnloaded then return end
     self.IsUnloaded = true
+    Mouse.Shutdown()
     Popup.CloseAll()
     Tooltip.Hide()
     for _, window in self.Windows do window:Destroy() end
