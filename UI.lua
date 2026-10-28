@@ -5056,8 +5056,8 @@ end
 
 function Window:_open()
     self.Root.Visible = true
-    self.UIScale.Scale = self:GetScale() * 0.92
-    Util.Tween(self.UIScale, 0.35, { Scale = self:GetScale() }, Enum.EasingStyle.Back)
+    self.UIScale.Scale = self:GetScale() * 0.96
+    Util.Tween(self.UIScale, 0.15, { Scale = self:GetScale() }, Enum.EasingStyle.Quad)
     UIS.MouseBehavior = Enum.MouseBehavior.Default
     UIS.MouseIconEnabled = true
 end
@@ -5070,14 +5070,12 @@ function Window:SetVisible(visible)
     Tooltip.Hide()
     if visible then
         self:_open()
-        -- เพิ่มตรงนี้
         UIS.MouseBehavior = Enum.MouseBehavior.Default
         UIS.MouseIconEnabled = true
     else
-        -- คืนค่าเมาส์เมื่อปิด GUI
         UIS.MouseBehavior = Enum.MouseBehavior.LockCenter
         UIS.MouseIconEnabled = false
-        local tween = Util.Tween(self.UIScale, 0.18, { Scale = self:GetScale() * 0.94 }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        local tween = Util.Tween(self.UIScale, 0.08, { Scale = self:GetScale() * 0.96 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
         local function hide() if not self.Visible then self.Root.Visible = false end end
         if tween then tween.Completed:Once(hide) else hide() end
     end
