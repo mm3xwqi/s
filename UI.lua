@@ -5431,6 +5431,9 @@ end
 function Window:Destroy()
     if self.Destroyed then return end
     self.Destroyed = true
+    local UIS = Services.UserInputService
+    UIS.MouseBehavior = Enum.MouseBehavior.Default
+    UIS.MouseIconEnabled = true
     Popup.CloseAll()
     Tooltip.Hide()
     self.Maid:Clean()
@@ -10307,6 +10310,9 @@ end
 function Library:Unload()
     if self.IsUnloaded then return end
     self.IsUnloaded = true
+    local UIS = game:GetService("UserInputService")
+    UIS.MouseBehavior = Enum.MouseBehavior.Default
+    UIS.MouseIconEnabled = true
     Popup.CloseAll()
     Tooltip.Hide()
     for _, window in self.Windows do window:Destroy() end
